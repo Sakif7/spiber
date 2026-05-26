@@ -65,9 +65,9 @@ const ITEMS: Pillar[] = [
         />
       </svg>
     ),
-    image: "/nurse-comforting-elderly-woman-home-care.jpeg",
-    imageAlt: "Nurse comforting an elderly patient during a home visit",
-    imagePosition: "center 35%",
+    image: "/nurse-holding-patient-hand-reassurance.jpeg",
+    imageAlt: "Nurse holding a patient's hand in reassurance",
+    imagePosition: "center center",
   },
   {
     n: "04",
@@ -84,9 +84,9 @@ const ITEMS: Pillar[] = [
         <circle cx="12" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.6" />
       </svg>
     ),
-    image: "/manager-reviewing-work-with-employee-computer.jpeg",
-    imageAlt: "Mentor reviewing work with a colleague at a computer",
-    imagePosition: "center 25%",
+    image: "/lab-technician-using-analyzer-machine.jpeg",
+    imageAlt: "Lab technician operating a clinical analyzer machine",
+    imagePosition: "center center",
   },
 ];
 
@@ -156,12 +156,13 @@ export function Pillars() {
         >
           <ScrollStack
             useWindowScroll
-            itemDistance={32}
+            itemDistance={120}
             itemStackDistance={10}
             baseScale={0.94}
             itemScale={0.02}
             stackPosition="38%"
             scaleEndPosition="14%"
+            completeOffset={260}
             innerClassName="pt-0 pb-[10rem]"
             onStackComplete={setStackComplete}
           >

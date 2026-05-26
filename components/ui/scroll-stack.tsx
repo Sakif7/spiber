@@ -38,6 +38,8 @@ interface ScrollStackProps {
   blurAmount?: number;
   useWindowScroll?: boolean;
   onStackComplete?: (isComplete: boolean) => void;
+  /** Extra scroll (px) past the last-card pin before onStackComplete(true) fires. Useful for delaying a fade-out. */
+  completeOffset?: number;
   innerClassName?: string;
   innerStyle?: CSSProperties;
 }
@@ -56,6 +58,7 @@ const ScrollStack = ({
   blurAmount = 0,
   useWindowScroll = false,
   onStackComplete,
+  completeOffset = 0,
   innerClassName = "",
   innerStyle,
 }: ScrollStackProps) => {
@@ -184,7 +187,7 @@ const ScrollStack = ({
       }
 
       if (i === cardsRef.current.length - 1) {
-        const hasReachedPin = scrollTop >= pinStart;
+        const hasReachedPin = scrollTop >= pinStart + completeOffset;
         if (hasReachedPin && !stackCompletedRef.current) {
           stackCompletedRef.current = true;
           onStackComplete?.(true);
@@ -205,6 +208,7 @@ const ScrollStack = ({
     rotationAmount,
     blurAmount,
     onStackComplete,
+    completeOffset,
     calculateProgress,
     parsePercentage,
     getScrollData,
