@@ -30,16 +30,47 @@ Tokens live in two synchronised places:
   spacing, radii, shadows, motion, component specs). Carry this file into any
   other surface to reproduce the system.
 
-## Component map
+## Folder layout
 
-| Section file | Sections it renders |
-|---|---|
-| `components/chrome.tsx` | UtilityBar · StickyHeader (mega menu) · CTABand · Footer |
-| `components/hero.tsx` | Hero (mesh gradient, tagline rotator, ECG scene, partner marquee) |
-| `components/mid-sections.tsx` | Pillars · BusinessSegments · SkillDevelopment |
-| `components/low-sections.tsx` | CapitalEquipment · CSRBand · StatsBand |
-| `components/social-sections.tsx` | Testimonials · Management · LatestNews |
-| `components/primitives.tsx` | Reveal · useMagnetic · useCountUp · Placeholder · Container · Section · Eyebrow · SectionTitle · Arrow |
+```
+app/                          ← Next.js App Router
+  api/                        ← route handlers (testimonials, news, newsletter, quote)
+  layout.tsx · page.tsx · globals.css
+components/
+  layout/                     ← persistent chrome
+    utility-bar.tsx · sticky-header.tsx · footer.tsx
+  sections/                   ← one file per homepage section, top → bottom
+    hero.tsx
+    pillars.tsx
+    business-segments.tsx
+    skill-development.tsx
+    capital-equipment.tsx
+    csr-band.tsx
+    stats-band.tsx
+    testimonials.tsx
+    management.tsx
+    latest-news.tsx
+    cta-band.tsx
+  ui/                         ← shared building blocks (barrel: @/components/ui)
+    arrow.tsx · container.tsx · eyebrow.tsx · placeholder.tsx
+    reveal.tsx · scroll-stack.tsx · section.tsx · section-title.tsx · index.ts
+hooks/                        ← client React hooks (barrel: @/hooks)
+  use-magnetic.ts · use-count-up.ts · index.ts
+lib/                          ← framework-agnostic helpers
+  content-types.ts            ← Testimonial / Post types
+  design-tokens.ts            ← typed token export (colors, type, spacing, motion, specs)
+  mongodb.ts                  ← cached MongoClient
+scripts/seed.mjs              ← seed testimonials + posts collections
+```
+
+## Import conventions
+
+```ts
+import { Container, Section, Reveal } from "@/components/ui";
+import { useMagnetic, useCountUp } from "@/hooks";
+import type { Testimonial, Post } from "@/lib/content-types";
+import { Hero } from "@/components/sections/hero";
+```
 
 ## API routes
 

@@ -1,15 +1,21 @@
 "use client";
 
 import { CSSProperties, useEffect, useState } from "react";
-import { Arrow, Container, Reveal, useMagnetic } from "./primitives";
+import { Arrow, Container, Reveal } from "@/components/ui";
+import { useMagnetic } from "@/hooks";
 
+// `word` is the noun that follows the static "Empowering " prefix in the
+// hero headline; `title` is the source tagline shown in the small indicator
+// row above. They are intentionally separate — deriving `word` from `title`
+// (e.g. last token) reads nonsensically for taglines like "...Right at Your
+// Door" → "Empowering Door."
 const HERO_TAGLINES = [
-  { title: "Empowering Healthcare", line: "SPIBER strives to empower healthcare and restore healthcare." },
-  { title: "Transforming Healthcare", line: "Committed to providing cutting-edge technology within reach." },
-  { title: "Cutting-Edge, Right at Your Door", line: "Assuring innovation across the healthcare industry." },
-  { title: "Uncompromised Medical Care", line: "Quality products for end-stage of medical care." },
-  { title: "Advancing Academic & Technical Skills", line: "Dazzling professionals with an advanced training system." },
-  { title: "We Reach, Where Others Can't", line: "Delivering goods to any location quickly and with ease." },
+  { word: "Healthcare",  title: "Empowering Healthcare",                line: "SPIBER strives to empower and restore healthcare." },
+  { word: "Innovation",  title: "Transforming Healthcare",              line: "Committed to providing cutting-edge technology within reach." },
+  { word: "Access",      title: "Cutting-Edge, Right at Your Door",     line: "Assuring innovation across the healthcare industry." },
+  { word: "Care",        title: "Uncompromised Medical Care",           line: "Quality products for every stage of medical care." },
+  { word: "Skills",      title: "Advancing Academic & Technical Skills",line: "Dazzling professionals with an advanced training system." },
+  { word: "Reach",       title: "We Reach, Where Others Can't",         line: "Delivering goods to any location quickly and with ease." },
 ];
 
 const HERO_PARTNERS = [
@@ -101,31 +107,28 @@ function TaglineRotator({ items }: { items: typeof HERO_TAGLINES }) {
               minWidth: 280,
             }}
           >
-            {items.map((t, i) => {
-              const word = t.title.split(" ").slice(-1)[0];
-              return (
-                <span
-                  key={i}
-                  style={{
-                    display: "inline-block",
-                    fontStyle: "italic",
-                    fontFamily: 'var(--font-serif)',
-                    fontWeight: 400,
-                    color: "var(--brand-teal)",
-                    transform: `translateY(${(i - idx) * 110}%)`,
-                    opacity: i === idx ? 1 : 0,
-                    transition:
-                      "transform .8s cubic-bezier(.4,0,0,1), opacity .5s",
-                    position: i === idx ? "static" : "absolute",
-                    left: 0,
-                    top: 0,
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {word}.
-                </span>
-              );
-            })}
+            {items.map((t, i) => (
+              <span
+                key={i}
+                style={{
+                  display: "inline-block",
+                  fontStyle: "italic",
+                  fontFamily: 'var(--font-serif)',
+                  fontWeight: 400,
+                  color: "var(--brand-teal)",
+                  transform: `translateY(${(i - idx) * 110}%)`,
+                  opacity: i === idx ? 1 : 0,
+                  transition:
+                    "transform .8s cubic-bezier(.4,0,0,1), opacity .5s",
+                  position: i === idx ? "static" : "absolute",
+                  left: 0,
+                  top: 0,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {t.word}.
+              </span>
+            ))}
           </span>
         </span>
         <br />

@@ -1,23 +1,21 @@
 import { getDb } from "@/lib/mongodb";
-import { CTABand, Footer, StickyHeader, UtilityBar } from "@/components/chrome";
-import { Hero } from "@/components/hero";
-import {
-  BusinessSegments,
-  Pillars,
-  SkillDevelopment,
-} from "@/components/mid-sections";
-import {
-  CSRBand,
-  CapitalEquipment,
-  StatsBand,
-} from "@/components/low-sections";
-import {
-  LatestNews,
-  Management,
-  Testimonials,
-  type Post,
-  type Testimonial,
-} from "@/components/social-sections";
+import type { Post, Testimonial } from "@/lib/content-types";
+
+import { UtilityBar } from "@/components/layout/utility-bar";
+import { StickyHeader } from "@/components/layout/sticky-header";
+import { Footer } from "@/components/layout/footer";
+
+import { Hero } from "@/components/sections/hero";
+import { Pillars } from "@/components/sections/pillars";
+import { BusinessSegments } from "@/components/sections/business-segments";
+import { SkillDevelopment } from "@/components/sections/skill-development";
+import { CapitalEquipment } from "@/components/sections/capital-equipment";
+import { CSRBand } from "@/components/sections/csr-band";
+import { StatsBand } from "@/components/sections/stats-band";
+import { Testimonials } from "@/components/sections/testimonials";
+import { Management } from "@/components/sections/management";
+import { LatestNews } from "@/components/sections/latest-news";
+import { CTABand } from "@/components/sections/cta-band";
 
 export const revalidate = 60;
 
