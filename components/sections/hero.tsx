@@ -1,8 +1,11 @@
 "use client";
 
 import { CSSProperties, useEffect, useState } from "react";
+import Image from "next/image";
+import { motion } from "framer-motion";
 import { Arrow, Container, Reveal } from "@/components/ui";
 import { useMagnetic } from "@/hooks";
+import DotGrid from "@/components/ui/dot-grid";
 
 // `word` is the noun that follows the static "Empowering " prefix in the
 // hero headline; `title` is the source tagline shown in the small indicator
@@ -166,7 +169,7 @@ function TaglineRotator({ items }: { items: typeof HERO_TAGLINES }) {
   );
 }
 
-function MeshBg() {
+function HeroBackground({ hoveredId }: { hoveredId: string | null }) {
   return (
     <div
       aria-hidden
@@ -178,314 +181,367 @@ function MeshBg() {
         overflow: "hidden",
       }}
     >
-      <div
-        className="hero-blob"
-        style={{
-          width: 540,
-          height: 540,
-          top: -120,
-          left: -120,
-          background:
-            "radial-gradient(circle, color-mix(in oklab, var(--brand-teal) 30%, transparent), transparent 70%)",
-        }}
+      <DotGrid
+        dotSize={3}
+        gap={26}
+        baseColor="#D2EDEB"
+        activeColor="#0E8B86"
+        proximity={140}
+        style={{ pointerEvents: "auto" }}
       />
-      <div
+
+      <motion.div
+        animate={{ opacity: hoveredId ? 0.12 : 0.45 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
         className="hero-blob"
         style={{
           width: 460,
           height: 460,
-          top: 80,
-          right: -80,
+          top: 60,
+          right: -100,
           background:
-            "radial-gradient(circle, color-mix(in oklab, var(--brand-orange) 22%, transparent), transparent 70%)",
+            "radial-gradient(circle, color-mix(in oklab, var(--brand-orange) 18%, transparent), transparent 70%)",
           animationDelay: "-8s",
         }}
       />
-      <div
-        className="hero-blob"
-        style={{
-          width: 380,
-          height: 380,
-          bottom: -100,
-          left: "40%",
-          background:
-            "radial-gradient(circle, color-mix(in oklab, var(--brand-teal) 22%, transparent), transparent 70%)",
-          animationDelay: "-14s",
-        }}
-      />
-      <svg
-        width="100%"
-        height="100%"
-        style={{ position: "absolute", inset: 0, opacity: 0.35 }}
-      >
-        <defs>
-          <pattern id="hero-grid" width="72" height="72" patternUnits="userSpaceOnUse">
-            <path
-              d="M 72 0 L 0 0 0 72"
-              fill="none"
-              stroke="var(--color-border)"
-              strokeWidth="1"
-            />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#hero-grid)" />
-      </svg>
+
+      {HERO_SOLUTIONS.map((s) => (
+        <motion.div
+          key={s.id}
+          initial={false}
+          animate={{ opacity: hoveredId === s.id ? 1 : 0 }}
+          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          style={{
+            position: "absolute",
+            inset: 0,
+          }}
+        >
+          <Image
+            src={s.image}
+            alt=""
+            fill
+            sizes="100vw"
+            style={{
+              objectFit: "cover",
+              objectPosition: "center center",
+              filter: "saturate(.85)",
+            }}
+          />
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              inset: 0,
+              background:
+                "linear-gradient(to right, var(--color-surface) 0%, var(--color-surface) 32%, color-mix(in oklab, var(--color-surface) 68%, transparent) 52%, color-mix(in oklab, var(--color-surface) 30%, transparent) 75%, color-mix(in oklab, var(--color-surface) 10%, transparent) 100%)",
+            }}
+          />
+        </motion.div>
+      ))}
     </div>
   );
 }
 
-function HeroScene() {
-  const monoTiny: CSSProperties = {
-    fontFamily: "var(--font-mono)",
-    fontSize: 10,
-    color: "var(--color-text-muted)",
-  };
+type Solution = {
+  id: string;
+  title: string;
+  description: string;
+  image: string;
+  imageAlt: string;
+  imagePosition?: string;
+  href: string;
+};
+
+const HERO_SOLUTIONS: Solution[] = [
+  {
+    id: "lab",
+    title: "Lab Equipment",
+    description:
+      "Precision analyzers, microscopes & refrigeration — engineered for clinical and research labs across Bangladesh.",
+    image: "/bento-lab-equipment.png",
+    imageAlt: "Modern laboratory with microscope, analyzers and glassware",
+    imagePosition: "center center",
+    href: "#products",
+  },
+  {
+    id: "furniture",
+    title: "Medical Furniture",
+    description: "Patient beds, OR tables, ICU stations.",
+    image: "/bento-furniture.png",
+    imageAlt: "Modern hospital beds, exam chairs and OR tables in teal accents",
+    imagePosition: "center center",
+    href: "#products",
+  },
+  {
+    id: "software",
+    title: "Software Solutions",
+    description: "HIS, EMR & telemedicine platforms.",
+    image: "/bento-software.png",
+    imageAlt: "Medical software dashboards on touchscreens and tablets",
+    imagePosition: "center center",
+    href: "#jupyter",
+  },
+];
+
+function FeaturedTile({
+  s,
+  delay,
+  onHover,
+}: {
+  s: Solution;
+  delay: number;
+  onHover: (id: string | null) => void;
+}) {
   return (
-    <div
+    <motion.a
+      href={s.href}
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+      whileHover="hover"
+      onMouseEnter={() => onHover(s.id)}
+      onMouseLeave={() => onHover(null)}
+      onFocus={() => onHover(s.id)}
+      onBlur={() => onHover(null)}
       style={{
         position: "relative",
-        aspectRatio: "1/1.05",
+        gridColumn: "1 / span 2",
         borderRadius: 28,
         overflow: "hidden",
-        border: "1px solid var(--color-border)",
-        background:
-          "linear-gradient(160deg, var(--color-surface) 0%, var(--color-surface-2) 100%)",
+        textDecoration: "none",
+        color: "white",
+        background: "var(--slate-900)",
+        boxShadow:
+          "0 1px 2px rgba(10,31,44,.05), 0 32px 80px -28px rgba(14,139,134,.32), 0 0 0 1px rgba(14,139,134,.06)",
+        display: "block",
+        minHeight: 260,
       }}
     >
-      <div style={{ position: "absolute", top: 16, left: 16, ...monoTiny }}>
-        SCENE_01 · OR.HYBRID
-      </div>
-      <div style={{ position: "absolute", top: 16, right: 16, ...monoTiny }}>↻ LIVE</div>
-      <div style={{ position: "absolute", bottom: 16, left: 16, ...monoTiny }}>
-        TODO: PRODUCT SHOT
-      </div>
+      <motion.div
+        variants={{ hover: { scale: 1.05 } }}
+        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+        style={{ position: "absolute", inset: 0 }}
+      >
+        <Image
+          src={s.image}
+          alt={s.imageAlt}
+          fill
+          priority
+          sizes="(max-width: 980px) 90vw, 560px"
+          style={{
+            objectFit: "cover",
+            objectPosition: s.imagePosition ?? "center",
+          }}
+        />
+      </motion.div>
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: 0,
+          background:
+            "linear-gradient(180deg, rgba(2,8,11,0.0) 0%, rgba(2,8,11,0.15) 38%, rgba(2,8,11,0.78) 100%)",
+        }}
+      />
+
+      <motion.span
+        variants={{ hover: { x: 4 } }}
+        transition={{ type: "spring", stiffness: 380, damping: 26 }}
+        style={{
+          position: "absolute",
+          top: 22,
+          right: 24,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 36,
+          height: 36,
+          borderRadius: 999,
+          background: "rgba(255,255,255,0.92)",
+          color: "var(--color-text-strong)",
+        }}
+      >
+        <Arrow size={14} />
+      </motion.span>
+
       <div
         style={{
           position: "absolute",
-          bottom: 16,
+          left: 24,
+          right: 24,
+          bottom: 22,
+        }}
+      >
+        <h3
+          style={{
+            fontFamily: "var(--font-display)",
+            fontWeight: 600,
+            fontSize: "clamp(24px, 2.6vw, 34px)",
+            letterSpacing: "-.02em",
+            lineHeight: 1.05,
+            margin: 0,
+            color: "white",
+          }}
+        >
+          {s.title}
+        </h3>
+        <p
+          style={{
+            margin: "6px 0 0",
+            fontSize: 14.5,
+            lineHeight: 1.5,
+            color: "rgba(255,255,255,.82)",
+            maxWidth: "44ch",
+          }}
+        >
+          {s.description}
+        </p>
+      </div>
+    </motion.a>
+  );
+}
+
+function CompactTile({
+  s,
+  delay,
+  onHover,
+}: {
+  s: Solution;
+  delay: number;
+  onHover: (id: string | null) => void;
+}) {
+  return (
+    <motion.a
+      href={s.href}
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+      whileHover="hover"
+      onMouseEnter={() => onHover(s.id)}
+      onMouseLeave={() => onHover(null)}
+      onFocus={() => onHover(s.id)}
+      onBlur={() => onHover(null)}
+      style={{
+        position: "relative",
+        borderRadius: 22,
+        overflow: "hidden",
+        textDecoration: "none",
+        color: "white",
+        background: "var(--slate-900)",
+        boxShadow:
+          "0 1px 2px rgba(10,31,44,.05), 0 24px 60px -24px rgba(10,31,44,.24), 0 0 0 1px rgba(10,31,44,.05)",
+        display: "block",
+        minHeight: 180,
+      }}
+    >
+      <motion.div
+        variants={{ hover: { scale: 1.07 } }}
+        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+        style={{ position: "absolute", inset: 0 }}
+      >
+        <Image
+          src={s.image}
+          alt={s.imageAlt}
+          fill
+          sizes="(max-width: 980px) 45vw, 280px"
+          style={{
+            objectFit: "cover",
+            objectPosition: s.imagePosition ?? "center",
+          }}
+        />
+      </motion.div>
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: 0,
+          background:
+            "linear-gradient(180deg, rgba(2,8,11,0.05) 0%, rgba(2,8,11,0.25) 45%, rgba(2,8,11,0.82) 100%)",
+        }}
+      />
+
+      <motion.span
+        variants={{ hover: { x: 3, y: -3 } }}
+        transition={{ type: "spring", stiffness: 380, damping: 26 }}
+        style={{
+          position: "absolute",
+          top: 14,
+          right: 14,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 30,
+          height: 30,
+          borderRadius: 999,
+          background: "rgba(255,255,255,0.92)",
+          color: "var(--color-text-strong)",
+        }}
+      >
+        <Arrow size={12} />
+      </motion.span>
+
+      <div
+        style={{
+          position: "absolute",
+          left: 16,
           right: 16,
-          ...monoTiny,
-          color: "var(--brand-teal)",
+          bottom: 14,
         }}
       >
-        ● 60fps
-      </div>
-
-      <svg
-        viewBox="0 0 400 400"
-        style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
-      >
-        <defs>
-          <linearGradient id="pulseGrad" x1="0" x2="1">
-            <stop offset="0" stopColor="var(--brand-teal)" stopOpacity="0" />
-            <stop offset=".4" stopColor="var(--brand-teal)" stopOpacity=".4" />
-            <stop offset="1" stopColor="var(--brand-teal)" stopOpacity="1" />
-          </linearGradient>
-        </defs>
-        {[60, 110, 160, 210].map((r, i) => (
-          <circle
-            key={i}
-            cx="200"
-            cy="220"
-            r={r}
-            fill="none"
-            stroke="var(--slate-300)"
-            strokeWidth=".75"
-            strokeDasharray={i % 2 ? "3 5" : "0"}
-            opacity=".55"
-          />
-        ))}
-        <path
-          d="M 20 220 L 110 220 L 130 220 L 145 220 L 160 150 L 180 290 L 200 220 L 270 220 L 290 200 L 310 240 L 380 220"
-          fill="none"
-          stroke="url(#pulseGrad)"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <animate
-            attributeName="stroke-dashoffset"
-            from="800"
-            to="0"
-            dur="2.4s"
-            repeatCount="indefinite"
-          />
-          <animate
-            attributeName="stroke-dasharray"
-            values="0 800;800 0"
-            dur="2.4s"
-            repeatCount="indefinite"
-          />
-        </path>
-        <circle cx="380" cy="220" r="4" fill="var(--brand-orange)">
-          <animate
-            attributeName="r"
-            values="3.5;5.5;3.5"
-            dur="1.2s"
-            repeatCount="indefinite"
-          />
-        </circle>
-        <circle cx="200" cy="60" r="3" fill="var(--brand-teal)" />
-        <circle cx="200" cy="380" r="3" fill="var(--brand-teal)" />
-        <circle cx="60" cy="220" r="3" fill="var(--brand-teal)" />
-        <circle cx="340" cy="220" r="3" fill="var(--brand-teal)" />
-        <line
-          x1="200"
-          y1="60"
-          x2="200"
-          y2="100"
-          stroke="var(--brand-teal)"
-          strokeWidth="1"
-        />
-        <line
-          x1="340"
-          y1="220"
-          x2="290"
-          y2="220"
-          stroke="var(--brand-teal)"
-          strokeWidth="1"
-        />
-        <text
-          x="200"
-          y="48"
-          textAnchor="middle"
-          fontFamily="var(--font-mono)"
-          fontSize="9"
-          fill="var(--color-text-muted)"
-        >
-          SpO₂ 98%
-        </text>
-        <text
-          x="350"
-          y="218"
-          fontFamily="var(--font-mono)"
-          fontSize="9"
-          fill="var(--color-text-muted)"
-        >
-          72 bpm
-        </text>
-        <text
-          x="50"
-          y="218"
-          textAnchor="end"
-          fontFamily="var(--font-mono)"
-          fontSize="9"
-          fill="var(--color-text-muted)"
-        >
-          36.6°
-        </text>
-      </svg>
-
-      <div
-        style={{
-          position: "absolute",
-          top: "10%",
-          right: "8%",
-          background: "var(--color-surface)",
-          border: "1px solid var(--color-border)",
-          borderRadius: 22,
-          padding: "10px 12px",
-          boxShadow: "var(--shadow-md)",
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          animation: "heroFloat 6s ease-in-out infinite",
-        }}
-      >
-        <div
+        <h3
           style={{
-            width: 30,
-            height: 30,
-            borderRadius: 8,
-            background: "var(--teal-50)",
-            color: "var(--brand-teal)",
-            display: "grid",
-            placeItems: "center",
+            fontFamily: "var(--font-display)",
+            fontWeight: 600,
+            fontSize: 19,
+            letterSpacing: "-.012em",
+            lineHeight: 1.1,
+            margin: 0,
+            color: "white",
           }}
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M3 12h4l2-3 4 6 2-3h6" />
-            <path d="M21 12a5 5 0 0 0-9-3 5 5 0 0 0-9 3c0 6 9 10 9 10s9-4 9-10z" />
-          </svg>
-        </div>
-        <div>
-          <div
-            style={{
-              fontSize: 11,
-              fontFamily: "var(--font-mono)",
-              color: "var(--color-text-muted)",
-            }}
-          >
-            VITALS
-          </div>
-          <div style={{ fontSize: 12, fontWeight: 600 }}>Live · 6 beds</div>
-        </div>
-      </div>
-
-      <div
-        style={{
-          position: "absolute",
-          bottom: "16%",
-          left: "6%",
-          background: "var(--color-surface)",
-          border: "1px solid var(--color-border)",
-          borderRadius: 22,
-          padding: "10px 12px",
-          boxShadow: "var(--shadow-md)",
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          animation: "heroFloat 7s ease-in-out infinite",
-          animationDelay: "-2s",
-        }}
-      >
-        <div
+          {s.title}
+        </h3>
+        <p
           style={{
-            width: 30,
-            height: 30,
-            borderRadius: 8,
-            background: "var(--orange-50)",
-            color: "var(--brand-orange)",
-            display: "grid",
-            placeItems: "center",
+            margin: "4px 0 0",
+            fontSize: 12.5,
+            lineHeight: 1.4,
+            color: "rgba(255,255,255,.78)",
           }}
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-          </svg>
-        </div>
-        <div>
-          <div
-            style={{
-              fontSize: 11,
-              fontFamily: "var(--font-mono)",
-              color: "var(--color-text-muted)",
-            }}
-          >
-            UPTIME
-          </div>
-          <div style={{ fontSize: 12, fontWeight: 600 }}>99.98% · 30d</div>
-        </div>
+          {s.description}
+        </p>
       </div>
-    </div>
+    </motion.a>
+  );
+}
+
+function HeroScene({ onHover }: { onHover: (id: string | null) => void }) {
+  const [featured, ...compact] = HERO_SOLUTIONS;
+  const [hovered, setHovered] = useState<string | null>(null);
+  const handleHover = (id: string | null) => {
+    setHovered(id);
+    onHover(id);
+  };
+  return (
+    <motion.div
+      animate={{ opacity: hovered ? 0 : 1 }}
+      transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+      onMouseLeave={() => handleHover(null)}
+      style={{
+        position: "relative",
+        width: "100%",
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gridAutoRows: "minmax(180px, auto)",
+        gap: 16,
+      }}
+    >
+      <FeaturedTile s={featured} delay={0.2} onHover={handleHover} />
+      {compact.map((s, i) => (
+        <CompactTile key={s.id} s={s} delay={0.35 + i * 0.1} onHover={handleHover} />
+      ))}
+    </motion.div>
   );
 }
 
@@ -535,6 +591,7 @@ function PartnerMarquee() {
 
 export function Hero() {
   const ctaMag = useMagnetic<HTMLButtonElement>(0.22, 90);
+  const [hoveredSolution, setHoveredSolution] = useState<string | null>(null);
 
   return (
     <section
@@ -546,7 +603,7 @@ export function Hero() {
         background: "var(--color-surface)",
       }}
     >
-      <MeshBg />
+      <HeroBackground hoveredId={hoveredSolution} />
       <Container style={{ position: "relative", zIndex: 1 }}>
         <div
           className="hero-grid"
@@ -684,7 +741,7 @@ export function Hero() {
           </Reveal>
 
           <Reveal>
-            <HeroScene />
+            <HeroScene onHover={setHoveredSolution} />
           </Reveal>
         </div>
 

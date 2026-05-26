@@ -97,15 +97,13 @@ export function Footer() {
         >
           <div>
             <Image
-              src="/spibermed-logo.jpeg"
+              src="/spibermed-logo.png"
               alt="SPIBER MED"
-              width={180}
-              height={52}
+              width={1007}
+              height={301}
               style={{
-                height: 52,
+                height: 56,
                 width: "auto",
-                filter: "brightness(1.6)",
-                mixBlendMode: "screen",
                 marginBottom: 18,
               }}
             />

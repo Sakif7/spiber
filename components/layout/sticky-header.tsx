@@ -337,7 +337,7 @@ export function StickyHeader() {
       >
         <a href="#" style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
           <Image
-            src="/spibermed-logo.jpeg"
+            src="/spibermed-logo.png"
             alt="SPIBER MED"
             width={140}
             height={40}

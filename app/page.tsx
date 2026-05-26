@@ -2,7 +2,7 @@ import { getDb } from "@/lib/mongodb";
 import type { Post, Testimonial } from "@/lib/content-types";
 
 import { UtilityBar } from "@/components/layout/utility-bar";
-import { StickyHeader } from "@/components/layout/sticky-header";
+import { ResizableHeader } from "@/components/layout/resizable-header";
 import { Footer } from "@/components/layout/footer";
 
 import { Hero } from "@/components/sections/hero";
@@ -56,7 +56,7 @@ export default async function Home() {
   return (
     <>
       <UtilityBar />
-      <StickyHeader />
+      <ResizableHeader />
       <main>
         <Hero />
         <Pillars />
