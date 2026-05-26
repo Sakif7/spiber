@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SPIBER MED — Next.js + Tailwind + Framer Motion + MongoDB
 
-## Getting Started
+A 1:1 production build of the SPIBER MED design system handoff (claude.ai/design
+project `Spiber 2.0`). The homepage renders all 13 sections from the prototype,
+animated with Framer Motion, with content optionally driven by MongoDB.
 
-First, run the development server:
+## Run
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.local.example .env.local   # then point MONGODB_URI at your instance
+npm run dev                        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The site renders without MongoDB — it falls back to baked-in copy that matches
+the prototype. Provide a `MONGODB_URI` to enable dynamic testimonials, news,
+quote submissions, and newsletter signups.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+node scripts/seed.mjs              # seed testimonials + posts collections
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Design system
 
-## Learn More
+Tokens live in two synchronised places:
 
-To learn more about Next.js, take a look at the following resources:
+- `app/globals.css` — CSS custom properties + Tailwind 4 `@theme` block. The
+  source of truth for runtime styling.
+- `lib/design-tokens.ts` — typed export of every token (colors, type scale,
+  spacing, radii, shadows, motion, component specs). Carry this file into any
+  other surface to reproduce the system.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Component map
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Section file | Sections it renders |
+|---|---|
+| `components/chrome.tsx` | UtilityBar · StickyHeader (mega menu) · CTABand · Footer |
+| `components/hero.tsx` | Hero (mesh gradient, tagline rotator, ECG scene, partner marquee) |
+| `components/mid-sections.tsx` | Pillars · BusinessSegments · SkillDevelopment |
+| `components/low-sections.tsx` | CapitalEquipment · CSRBand · StatsBand |
+| `components/social-sections.tsx` | Testimonials · Management · LatestNews |
+| `components/primitives.tsx` | Reveal · useMagnetic · useCountUp · Placeholder · Container · Section · Eyebrow · SectionTitle · Arrow |
 
-## Deploy on Vercel
+## API routes
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Route | Method | Purpose |
+|---|---|---|
+| `/api/testimonials` | GET | Returns testimonials sorted by `order`. |
+| `/api/news` | GET | Returns the latest news posts. |
+| `/api/newsletter` | POST `{ email }` | Upserts an email into `newsletter`. |
+| `/api/quote` | POST `{ name, email, org?, phone?, message, category? }` | Captures a quote request. |
