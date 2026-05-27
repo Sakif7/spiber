@@ -1,5 +1,5 @@
 import { getDb } from "@/lib/mongodb";
-import type { Post, Testimonial } from "@/lib/content-types";
+import type { Post } from "@/lib/content-types";
 
 import { UtilityBar } from "@/components/layout/utility-bar";
 import { ResizableHeader } from "@/components/layout/resizable-header";
@@ -19,22 +19,6 @@ import { CTABand } from "@/components/sections/cta-band";
 
 export const revalidate = 60;
 
-async function fetchTestimonials(): Promise<Testimonial[]> {
-  try {
-    const db = await getDb();
-    if (!db) return [];
-    const items = await db
-      .collection("testimonials")
-      .find({}, { projection: { _id: 0 } })
-      .sort({ order: 1 })
-      .limit(20)
-      .toArray();
-    return items as unknown as Testimonial[];
-  } catch {
-    return [];
-  }
-}
-
 async function fetchPosts(): Promise<Post[]> {
   try {
     const db = await getDb();
@@ -52,7 +36,7 @@ async function fetchPosts(): Promise<Post[]> {
 }
 
 export default async function Home() {
-  const [testimonials, posts] = await Promise.all([fetchTestimonials(), fetchPosts()]);
+  const posts = await fetchPosts();
   return (
     <>
       <UtilityBar />
@@ -65,7 +49,7 @@ export default async function Home() {
         <CapitalEquipment />
         <CSRBand />
         <StatsBand />
-        <Testimonials initial={testimonials} />
+        <Testimonials />
         <Management />
         <LatestNews initial={posts} />
         <CTABand />

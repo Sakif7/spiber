@@ -1,7 +1,8 @@
 "use client";
 
-import { ReactNode, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
+import { motion } from "framer-motion";
 import {
   Arrow,
   Container,
@@ -13,9 +14,12 @@ import ScrollStack, { ScrollStackItem } from "@/components/ui/scroll-stack";
 
 type Pillar = {
   n: string;
+  category: string;
   title: string;
   body: string;
-  icon: ReactNode;
+  metric: { value: string; label: string };
+  ctaLabel: string;
+  ctaHref: string;
   image: string;
   imageAlt: string;
   imagePosition?: string;
@@ -24,66 +28,48 @@ type Pillar = {
 const ITEMS: Pillar[] = [
   {
     n: "01",
-    title: "Business Goals",
-    body: "Collaborating with Bangladesh's top hospitals as a trusted long-term partner.",
-    icon: (
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden>
-        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6" />
-        <circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="1.6" />
-        <circle cx="12" cy="12" r="1.6" fill="currentColor" />
-      </svg>
-    ),
+    category: "Partnership",
+    title: "A trusted long-term ally to every hospital we work with.",
+    body: "Procurement, planning, training, and post-installation service — handled end-to-end, so clinical teams stay focused on patients. The relationship continues long after the equipment is in the ward.",
+    metric: { value: "248", label: "Partner hospitals · 8 divisions" },
+    ctaLabel: "View partner hospitals",
+    ctaHref: "#hospitals",
     image: "/smiling-medical-team-portrait.jpeg",
     imageAlt: "Medical team standing together in a hospital corridor",
     imagePosition: "center 30%",
   },
   {
     n: "02",
-    title: "Products & Solutions",
-    body: "Cutting-edge clinical solutions that increase accuracy and operational efficiency.",
-    icon: (
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden>
-        <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.6" />
-        <path d="M8 9v6 M12 9v6 M16 9v6" stroke="currentColor" strokeWidth="1.6" />
-      </svg>
-    ),
+    category: "Equipment",
+    title: "Clinical-grade tools, calibrated for real workloads.",
+    body: "From OR tables to OEM-sourced imaging suites — each line is chosen for clinical accuracy, serviceability, and a 7–10 year operating life. Spec sheets are the easy part; what survives a third shift in a busy ward is the hard part.",
+    metric: { value: "60+", label: "OEM partners across 14 countries" },
+    ctaLabel: "Browse the catalogue",
+    ctaHref: "#products",
     image: "/modern-operating-room-equipment.jpeg",
     imageAlt: "Modern operating room with surgical robotics and imaging systems",
     imagePosition: "center center",
   },
   {
     n: "03",
-    title: "Social Responsibility",
-    body: "A knowledge-sharing platform that helps medical professionals grow and share.",
-    icon: (
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden>
-        <path
-          d="M12 21s-7-4.5-7-11a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 6.5-7 11-7 11Z"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinejoin="round"
-        />
-      </svg>
-    ),
+    category: "Outreach",
+    title: "Healthcare that doesn't depend on a postcode.",
+    body: "Equipment donations, screening camps, and clinician training in the districts the supply chain usually forgets. Impact is measured in training hours delivered and kilometres covered — not photo opportunities.",
+    metric: { value: "14k+", label: "Training hours delivered" },
+    ctaLabel: "Read the CSR brief",
+    ctaHref: "#csr",
     image: "/nurse-holding-patient-hand-reassurance.jpeg",
     imageAlt: "Nurse holding a patient's hand in reassurance",
     imagePosition: "center center",
   },
   {
     n: "04",
-    title: "Employee Development",
-    body: "Empowering local talent to deepen expertise and build international careers.",
-    icon: (
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden>
-        <path
-          d="M5 19v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-        />
-        <circle cx="12" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.6" />
-      </svg>
-    ),
+    category: "Talent",
+    title: "Local engineers, international standards.",
+    body: "Hands-on apprenticeships, OEM certification, and overseas postings for biomedical engineers and clinical specialists. The reason hospitals call us back is usually a person, not a product.",
+    metric: { value: "120+", label: "Biomedical engineers certified" },
+    ctaLabel: "Open careers",
+    ctaHref: "#careers",
     image: "/lab-technician-using-analyzer-machine.jpeg",
     imageAlt: "Lab technician operating a clinical analyzer machine",
     imagePosition: "center center",
@@ -166,9 +152,9 @@ export function Pillars() {
             innerClassName="pt-0 pb-[10rem]"
             onStackComplete={setStackComplete}
           >
-            {ITEMS.map((it) => (
+            {ITEMS.map((it, idx) => (
               <ScrollStackItem key={it.n} itemClassName={CARD_CLASS}>
-                <PillarCardContent {...it} />
+                <PillarCardContent {...it} total={ITEMS.length} index={idx} />
               </ScrollStackItem>
             ))}
           </ScrollStack>
@@ -186,7 +172,19 @@ export function Pillars() {
   );
 }
 
-function PillarCardContent({ n, title, body, icon, image, imageAlt, imagePosition }: Pillar) {
+function PillarCardContent({
+  n,
+  category,
+  title,
+  body,
+  metric,
+  ctaLabel,
+  ctaHref,
+  image,
+  imageAlt,
+  imagePosition,
+  total,
+}: Pillar & { total: number; index: number }) {
   return (
     <div
       style={{
@@ -231,90 +229,148 @@ function PillarCardContent({ n, title, body, icon, image, imageAlt, imagePositio
           zIndex: 1,
           height: "100%",
           width: "62%",
-          padding: "40px 0 40px 44px",
+          padding: "36px 0 32px 44px",
           display: "flex",
           flexDirection: "column",
-          justifyContent: "center",
-          gap: 14,
+          justifyContent: "space-between",
         }}
       >
+        <div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              marginBottom: 22,
+              fontFamily: "var(--font-mono)",
+              fontSize: 11,
+              letterSpacing: ".18em",
+              textTransform: "uppercase",
+            }}
+          >
+            <span style={{ color: "var(--color-brand)" }}>{category}</span>
+            <span
+              aria-hidden
+              style={{
+                width: 18,
+                height: 1,
+                background: "var(--color-border)",
+              }}
+            />
+            <span style={{ color: "var(--color-text-muted)" }}>
+              Pillar {n} / 0{total}
+            </span>
+          </div>
+
+          <h3
+            style={{
+              fontFamily: "var(--font-display)",
+              fontWeight: 500,
+              fontSize: "clamp(26px, 2.4vw, 34px)",
+              letterSpacing: "-.022em",
+              lineHeight: 1.1,
+              color: "var(--color-text-strong)",
+              margin: 0,
+              maxWidth: "22ch",
+              textWrap: "balance",
+            }}
+          >
+            {title}
+          </h3>
+
+          <p
+            style={{
+              margin: "16px 0 0",
+              fontSize: 15,
+              lineHeight: 1.6,
+              color: "var(--color-text-muted)",
+              maxWidth: "44ch",
+            }}
+          >
+            {body}
+          </p>
+        </div>
+
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 14,
-            marginBottom: 4,
+            paddingTop: 22,
+            borderTop: "1px solid var(--color-hairline)",
+            gap: 22,
+            flexWrap: "wrap",
+            maxWidth: "92%",
           }}
         >
-          <div
+          <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
+            <span
+              style={{
+                fontFamily: "var(--font-display)",
+                fontWeight: 600,
+                fontSize: 26,
+                letterSpacing: "-.02em",
+                color: "var(--color-text-strong)",
+                lineHeight: 1,
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {metric.value}
+            </span>
+            <span
+              style={{
+                fontSize: 12,
+                color: "var(--color-text-muted)",
+                lineHeight: 1.35,
+                maxWidth: "22ch",
+              }}
+            >
+              {metric.label}
+            </span>
+          </div>
+
+          <span
+            aria-hidden
             style={{
-              width: 56,
-              height: 56,
-              borderRadius: 16,
-              background: "var(--color-brand)",
-              color: "white",
-              display: "grid",
-              placeItems: "center",
-              boxShadow: "var(--shadow-brand)",
+              width: 1,
+              height: 22,
+              background: "var(--color-border)",
               flexShrink: 0,
             }}
-          >
-            {icon}
-          </div>
-          <div
+          />
+
+          <motion.a
+            href={ctaHref}
+            initial="rest"
+            whileHover="hover"
+            animate="rest"
             style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: 11,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              color: "var(--color-brand-deep)",
+              fontSize: 13.5,
               fontWeight: 500,
-              color: "var(--color-brand)",
-              letterSpacing: ".18em",
+              textDecoration: "none",
+              whiteSpace: "nowrap",
+              transition: "color .25s",
             }}
+            className="pillar-cta"
           >
-            {n} · PILLAR
-          </div>
-        </div>
-
-        <h3
-          style={{
-            fontFamily: "var(--font-display)",
-            fontWeight: 600,
-            fontSize: 32,
-            letterSpacing: "-.02em",
-            lineHeight: 1.1,
-            color: "var(--color-text-strong)",
-            margin: 0,
-            textWrap: "balance",
-          }}
-        >
-          {title}
-        </h3>
-
-        <p
-          style={{
-            margin: 0,
-            fontSize: 15.5,
-            lineHeight: 1.55,
-            color: "var(--color-text-muted)",
-            maxWidth: "42ch",
-          }}
-        >
-          {body}
-        </p>
-
-        <div
-          style={{
-            marginTop: 6,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            fontSize: 14,
-            fontWeight: 500,
-            color: "var(--color-brand-deep)",
-          }}
-        >
-          Learn more <Arrow size={13} />
+            {ctaLabel}
+            <motion.span
+              variants={{ rest: { x: 0 }, hover: { x: 4 } }}
+              transition={{ type: "spring", stiffness: 380, damping: 24 }}
+              style={{ display: "inline-flex" }}
+            >
+              <Arrow size={12} />
+            </motion.span>
+          </motion.a>
         </div>
       </div>
+
+      <style>{`
+        .pillar-cta:hover { color: var(--color-brand) !important; }
+      `}</style>
     </div>
   );
 }

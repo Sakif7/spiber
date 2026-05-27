@@ -90,7 +90,7 @@ export function StatsBand() {
         >
           <Reveal>
             <Stat
-              value={248}
+              value={100}
               suffix="+"
               label="Completed projects"
               sub="Across 8 divisions of Bangladesh"
@@ -98,21 +98,21 @@ export function StatsBand() {
           </Reveal>
           <Reveal delay={120}>
             <Stat
-              value={2400}
+              value={120}
+              suffix="+"
               label="Happy clients"
               sub="Hospitals · clinics · labs · academies"
             />
           </Reveal>
           <Reveal delay={240}>
-            <Stat value={14} label="Countries" sub="OEM & service partnerships" />
+            <Stat value={3} suffix="+" label="Countries" sub="OEM & service partnerships" />
           </Reveal>
           <Reveal delay={360}>
             <Stat
-              value={99.4}
-              suffix="%"
-              decimals={1}
+              value={250}
+              suffix="+"
               label="Positive reviews"
-              sub="From 2,400+ verified clients"
+              sub="From verified clients"
             />
           </Reveal>
         </div>
@@ -136,7 +136,7 @@ export function StatsBand() {
                 marginBottom: 28,
               }}
             >
-              OEM &amp; ACADEMIC PARTNERS — 60+ ACROSS 14 COUNTRIES
+              TRUSTED BY HOSPITALS &amp; HEALTHCARE GROUPS ACROSS BANGLADESH
             </div>
             <div
               style={{
@@ -150,14 +150,14 @@ export function StatsBand() {
               }}
             >
               {[
-                "MINDRAY",
-                "DRÄGER",
-                "MEDTRONIC",
-                "GE HEALTH",
-                "MAQUET",
-                "STRYKER",
-                "OLYMPUS",
-                "PHILIPS",
+                "AICHI HEALTHCARE GROUP",
+                "TOP MRI & MEDICTO",
+                "MIRROR HOSPITAL",
+                "EAST WEST MEDICAL",
+                "SQUARE HOSPITALS",
+                "LABAID HOSPITAL",
+                "UNITED HOSPITAL",
+                "EVERCARE HOSPITAL",
               ].map((p) => (
                 <div
                   key={p}

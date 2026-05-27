@@ -22,8 +22,10 @@ const HERO_TAGLINES = [
 ];
 
 const HERO_PARTNERS = [
-  "Mindray", "GE Healthcare", "Philips", "Siemens", "Drager", "Masimo",
-  "Edwards", "Stryker", "Olympus", "Karl Storz", "B. Braun", "Fujifilm",
+  "Aichi Healthcare Group", "TOP MRI & Medicto", "Mirror Hospital",
+  "East West Medical", "Square Hospitals", "Labaid Hospital",
+  "United Hospital", "Evercare Hospital", "Ibn Sina Hospital",
+  "Popular Diagnostic", "Birdem General"
 ];
 
 function TaglineRotator({ items }: { items: typeof HERO_TAGLINES }) {
