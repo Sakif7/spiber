@@ -103,7 +103,7 @@ export function Management() {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
   return (
-    <Section dots>
+    <Section>
       <Container>
         <div
           className="equal-2col"

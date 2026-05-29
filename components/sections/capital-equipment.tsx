@@ -52,7 +52,7 @@ export function CapitalEquipment() {
   const filtered = active === "All" ? ITEMS : ITEMS.filter((i) => i.cat === active);
 
   return (
-    <Section dots style={{ background: "var(--color-surface-2)" }}>
+    <Section style={{ background: "var(--color-surface-2)" }}>
       <Container>
         <div
           className="equal-2col"

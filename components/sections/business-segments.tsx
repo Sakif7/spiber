@@ -62,7 +62,7 @@ const SEGMENTS: Segment[] = [
 
 export function BusinessSegments() {
   return (
-    <Section dots style={{ background: "var(--color-surface-2)" }}>
+    <Section style={{ background: "var(--color-surface-2)" }}>
       <Container>
         <div style={{ marginBottom: 56 }}>
           <SectionTitle
