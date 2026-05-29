@@ -184,7 +184,7 @@ function HeroBackground({ hoveredId }: { hoveredId: string | null }) {
       }}
     >
       <DotGrid
-        dotSize={5}
+        dotSize={4}
         gap={26}
         baseColor="#D2EDEB"
         activeColor="#0E8B86"
