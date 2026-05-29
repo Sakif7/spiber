@@ -25,7 +25,7 @@ const TESTIMONIALS: AnimatedTestimonial[] = [
 
 export function Testimonials() {
   return (
-    <Section style={{ background: "var(--color-surface-2)" }}>
+    <Section dots style={{ background: "var(--color-surface-2)" }}>
       <Container>
         <div
           style={{

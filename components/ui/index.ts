@@ -6,6 +6,7 @@
  */
 export { Arrow } from "./arrow";
 export { Container } from "./container";
+export { DotPattern } from "./dot-pattern";
 export { Eyebrow } from "./eyebrow";
 export { Placeholder, type Tone } from "./placeholder";
 export { Reveal } from "./reveal";

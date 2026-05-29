@@ -103,7 +103,7 @@ export function Management() {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
   return (
-    <Section>
+    <Section dots>
       <Container>
         <div
           className="equal-2col"
@@ -240,7 +240,7 @@ function TeamCard({
         transition={{ type: "spring", stiffness: 220, damping: 24 }}
         style={{
           background: "var(--color-surface)",
-          border: "1px solid var(--color-border)",
+          border: "1px solid " + (isHovered ? "var(--teal-300)" : "var(--teal-100)"),
           borderRadius: "var(--r-lg)",
           overflow: "hidden",
           position: "relative",

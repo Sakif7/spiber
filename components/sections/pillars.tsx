@@ -77,8 +77,8 @@ const ITEMS: Pillar[] = [
 ];
 
 const CARD_CLASS =
-  "!bg-[color:var(--color-surface)] !border !border-[color:var(--color-border)] " +
-  "!shadow-[0_24px_60px_-28px_rgba(10,31,44,0.18)] !rounded-[32px] " +
+  "!bg-[color:var(--color-surface)] !border !border-[color:var(--teal-100)] " +
+  "!shadow-[0_24px_60px_-28px_rgba(14,139,134,0.28)] !rounded-[32px] " +
   "!p-0 !h-96 !mt-0 overflow-hidden";
 
 export function Pillars() {
@@ -333,7 +333,7 @@ function PillarCardContent({
             style={{
               width: 1,
               height: 22,
-              background: "var(--color-border)",
+              background: "var(--teal-200)",
               flexShrink: 0,
             }}
           />

@@ -1,13 +1,19 @@
 "use client";
 
 import { CSSProperties } from "react";
-import { Arrow, Container, Eyebrow, Reveal, Section } from "@/components/ui";
+import { Arrow, Container, DotPattern, Eyebrow, Reveal, Section } from "@/components/ui";
 import { useMagnetic } from "@/hooks";
 
 export function CTABand() {
   const cta = useMagnetic<HTMLButtonElement>(0.3, 100);
   return (
     <Section dark mesh py="clamp(80px, 9vw, 160px)">
+      <DotPattern
+        color="var(--teal-300)"
+        gap={20}
+        fade="radial"
+        style={{ inset: "auto", top: -60, right: -40, width: 460, height: 460, opacity: 0.22 }}
+      />
       <Container>
         <div
           className="equal-2col"
@@ -85,7 +91,7 @@ export function CTABand() {
                 style={{
                   background: "transparent",
                   color: "white",
-                  border: "1px solid rgba(255,255,255,.24)",
+                  border: "1px solid color-mix(in srgb, var(--teal-300) 55%, transparent)",
                   borderRadius: 999,
                   padding: "16px 26px",
                   fontSize: 15,

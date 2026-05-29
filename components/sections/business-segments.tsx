@@ -62,7 +62,7 @@ const SEGMENTS: Segment[] = [
 
 export function BusinessSegments() {
   return (
-    <Section style={{ background: "var(--color-surface-2)" }}>
+    <Section dots style={{ background: "var(--color-surface-2)" }}>
       <Container>
         <div style={{ marginBottom: 56 }}>
           <SectionTitle
@@ -115,15 +115,30 @@ function SegmentCard({ tone, kicker, title, body, tag, placeholder, big }: Segme
         borderRadius: "var(--r-xl)",
         overflow: "hidden",
         background: "var(--color-surface)",
-        border: "1px solid var(--color-border)",
+        border: "1px solid " + (hover ? "var(--teal-300)" : "var(--teal-100)"),
         display: "flex",
         flexDirection: "column",
-        boxShadow: hover ? "var(--shadow-md)" : "var(--shadow-xs)",
+        boxShadow: hover ? "var(--shadow-brand)" : "var(--shadow-xs)",
         transform: hover ? "translateY(-2px)" : "translateY(0)",
         transition: "all 320ms cubic-bezier(.16,1,.3,1)",
         cursor: "pointer",
       }}
     >
+      <span
+        aria-hidden
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 3,
+          zIndex: 3,
+          background: "linear-gradient(90deg, var(--brand-teal), var(--aqua-400))",
+          transform: hover ? "scaleX(1)" : "scaleX(0)",
+          transformOrigin: "left",
+          transition: "transform 420ms cubic-bezier(.16,1,.3,1)",
+        }}
+      />
       <div
         style={{
           position: "relative",
