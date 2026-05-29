@@ -184,7 +184,7 @@ function HeroBackground({ hoveredId }: { hoveredId: string | null }) {
       }}
     >
       <DotGrid
-        dotSize={3}
+        dotSize={4}
         gap={26}
         baseColor="#D2EDEB"
         activeColor="#0E8B86"
@@ -551,7 +551,7 @@ function PartnerMarquee() {
   return (
     <div
       style={{
-        borderTop: "1px solid var(--color-border)",
+        borderTop: "1px solid var(--teal-100)",
         paddingTop: 26,
         marginTop: 80,
         display: "flex",

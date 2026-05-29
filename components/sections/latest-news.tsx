@@ -65,7 +65,7 @@ export function LatestNews({ initial }: { initial?: Post[] }) {
   }, [initial]);
 
   return (
-    <Section style={{ background: "var(--color-surface-2)" }}>
+    <Section dots style={{ background: "var(--color-surface-2)" }}>
       <Container>
         <div
           className="equal-2col"
@@ -124,19 +124,35 @@ function NewsCard({ kicker, title, excerpt, date, read, tone, placeholder }: Pos
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
+        position: "relative",
         background: "var(--color-surface)",
         height: "100%",
-        border: "1px solid " + (hover ? "var(--teal-200)" : "var(--color-border)"),
+        border: "1px solid " + (hover ? "var(--teal-300)" : "var(--teal-100)"),
         borderRadius: "var(--r-xl)",
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
         transform: hover ? "translateY(-3px)" : "translateY(0)",
-        boxShadow: hover ? "var(--shadow-md)" : "var(--shadow-xs)",
+        boxShadow: hover ? "var(--shadow-brand)" : "var(--shadow-xs)",
         transition: "all 280ms cubic-bezier(.16,1,.3,1)",
         cursor: "pointer",
       }}
     >
+      <span
+        aria-hidden
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 3,
+          zIndex: 3,
+          background: "linear-gradient(90deg, var(--brand-teal), var(--aqua-400))",
+          transform: hover ? "scaleX(1)" : "scaleX(0)",
+          transformOrigin: "left",
+          transition: "transform 420ms cubic-bezier(.16,1,.3,1)",
+        }}
+      />
       <div style={{ height: 200, overflow: "hidden", position: "relative" }}>
         <Placeholder
           label={placeholder}

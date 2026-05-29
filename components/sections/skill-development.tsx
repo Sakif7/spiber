@@ -57,7 +57,7 @@ export function SkillDevelopment() {
   const active = TABS[tab];
 
   return (
-    <Section>
+    <Section dots>
       <Container>
         <div style={{ marginBottom: 56 }}>
           <SectionTitle

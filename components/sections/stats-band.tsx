@@ -1,7 +1,12 @@
 "use client";
 
-import { Container, Eyebrow, Reveal, Section } from "@/components/ui";
+import { useId } from "react";
+import { Container, DotPattern, Eyebrow, Reveal, Section } from "@/components/ui";
 import { useCountUp } from "@/hooks";
+
+const RING_R = 54;
+const RING_C = 2 * Math.PI * RING_R;
+const RING_ARC = 0.72;
 
 function Stat({
   value,
@@ -17,54 +22,91 @@ function Stat({
   sub: string;
 }) {
   const [ref, val] = useCountUp(value, 1500, decimals);
+  const rawId = useId();
+  const gid = "ring" + rawId.replace(/[^a-z0-9]/gi, "");
   return (
     <div
       ref={ref}
       style={{
-        padding: "32px 0",
+        padding: "8px 0",
         display: "flex",
         flexDirection: "column",
-        gap: 10,
+        alignItems: "center",
+        textAlign: "center",
+        gap: 20,
       }}
     >
-      <div
-        style={{
-          fontFamily: "var(--font-display)",
-          fontWeight: 500,
-          fontSize: "clamp(48px, 5vw, 88px)",
-          lineHeight: 1,
-          letterSpacing: "-.03em",
-          color: "var(--color-text-strong)",
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >
-        {val}
-        {suffix && (
-          <span
+      <div style={{ position: "relative", width: 150, height: 150 }}>
+        <svg
+          width="150"
+          height="150"
+          viewBox="0 0 120 120"
+          style={{ transform: "rotate(-90deg)" }}
+          aria-hidden
+        >
+          <defs>
+            <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="var(--aqua-400)" />
+              <stop offset="100%" stopColor="var(--brand-teal)" />
+            </linearGradient>
+          </defs>
+          <circle
+            cx="60"
+            cy="60"
+            r={RING_R}
+            fill="none"
+            stroke="var(--teal-100)"
+            strokeWidth="3"
+          />
+          <circle
+            cx="60"
+            cy="60"
+            r={RING_R}
+            fill="none"
+            stroke={`url(#${gid})`}
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeDasharray={`${RING_C * RING_ARC} ${RING_C}`}
+          />
+        </svg>
+        <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}>
+          <div
             style={{
-              fontSize: "0.55em",
-              color: "var(--color-secondary)",
-              marginLeft: 4,
+              fontFamily: "var(--font-display)",
+              fontWeight: 500,
+              fontSize: "clamp(34px, 3.4vw, 46px)",
+              lineHeight: 1,
+              letterSpacing: "-.03em",
+              color: "var(--color-text-strong)",
+              fontVariantNumeric: "tabular-nums",
             }}
           >
-            {suffix}
-          </span>
-        )}
+            {val}
+            {suffix && (
+              <span style={{ fontSize: "0.5em", color: "var(--color-secondary)", marginLeft: 2 }}>
+                {suffix}
+              </span>
+            )}
+          </div>
+        </div>
       </div>
-      <div
-        style={{
-          fontFamily: "var(--font-display)",
-          fontWeight: 500,
-          fontSize: 13,
-          letterSpacing: ".08em",
-          textTransform: "uppercase",
-          color: "var(--color-text)",
-        }}
-      >
-        {label}
-      </div>
-      <div style={{ fontSize: 13, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-        {sub}
+      <div>
+        <div
+          style={{
+            fontFamily: "var(--font-display)",
+            fontWeight: 600,
+            fontSize: 13,
+            letterSpacing: ".08em",
+            textTransform: "uppercase",
+            color: "var(--color-text-strong)",
+            marginBottom: 6,
+          }}
+        >
+          {label}
+        </div>
+        <div style={{ fontSize: 13, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
+          {sub}
+        </div>
       </div>
     </div>
   );
@@ -79,15 +121,17 @@ export function StatsBand() {
             <Eyebrow>IMPACT · 2026</Eyebrow>
           </Reveal>
         </div>
-        <div
-          className="equal-4col"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
-            gap: 36,
-            borderTop: "1px solid var(--color-border)",
-          }}
-        >
+        <div style={{ position: "relative" }}>
+          <DotPattern color="var(--teal-200)" gap={22} fade="radial" style={{ opacity: 0.6 }} />
+          <div
+            className="equal-4col"
+            style={{
+              position: "relative",
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: 36,
+            }}
+          >
           <Reveal>
             <Stat
               value={100}
@@ -115,6 +159,7 @@ export function StatsBand() {
               sub="From verified clients"
             />
           </Reveal>
+          </div>
         </div>
 
         <Reveal delay={400}>
@@ -122,7 +167,7 @@ export function StatsBand() {
             style={{
               marginTop: 80,
               paddingTop: 32,
-              borderTop: "1px solid var(--color-hairline)",
+              borderTop: "1px solid var(--teal-100)",
             }}
           >
             <div
@@ -131,7 +176,7 @@ export function StatsBand() {
                 fontSize: 11,
                 letterSpacing: ".16em",
                 textTransform: "uppercase",
-                color: "var(--color-text-muted)",
+                color: "var(--color-brand-deep)",
                 textAlign: "center",
                 marginBottom: 28,
               }}

@@ -29,7 +29,7 @@ export function Placeholder({
 
   const bg =
     tone === "teal"
-      ? "linear-gradient(135deg, var(--teal-50), var(--teal-100))"
+      ? "linear-gradient(135deg, var(--teal-100), var(--teal-200))"
       : tone === "orange"
       ? "linear-gradient(135deg, var(--orange-50), var(--orange-100))"
       : tone === "slate"
@@ -39,7 +39,7 @@ export function Placeholder({
       : "var(--color-surface-2)";
   const stroke =
     tone === "teal"
-      ? "rgba(14,139,134,.18)"
+      ? "rgba(14,139,134,.26)"
       : tone === "orange"
       ? "rgba(230,107,38,.18)"
       : tone === "slate"

@@ -20,11 +20,20 @@ export function Eyebrow({
         fontWeight: 500,
         letterSpacing: ".18em",
         textTransform: "uppercase",
-        color: dark ? "var(--teal-300)" : "var(--color-brand-deep)",
+        color: dark ? "var(--teal-300)" : "var(--color-brand)",
         ...style,
       }}
     >
-      <span style={{ width: 18, height: 1, background: "currentColor", opacity: 0.7 }} />
+      <span
+        style={{
+          width: 18,
+          height: 2,
+          borderRadius: 2,
+          background: dark
+            ? "var(--aqua-400)"
+            : "linear-gradient(90deg, var(--brand-teal), var(--aqua-400))",
+        }}
+      />
       {children}
     </div>
   );
