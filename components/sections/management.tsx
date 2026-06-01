@@ -32,12 +32,6 @@ const LinkedInIcon = (
   </svg>
 );
 
-const XIcon = (
-  <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden>
-    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z" />
-  </svg>
-);
-
 const EmailIcon = (
   <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden>
     <rect x="3" y="5" width="18" height="14" rx="2" />
@@ -47,8 +41,18 @@ const EmailIcon = (
 
 const TEAM: TeamMember[] = [
   {
+    name: "Morsheda Parvin Misti",
+    role: "Chairman",
+    image: "/mishti-managing-body.jpeg",
+    bio: "Chair of the board — sets SPIBER MED's long-term vision and governance across its healthcare and technology ventures.",
+    socials: [
+      { label: "LinkedIn", href: "#", icon: LinkedInIcon },
+      { label: "Email", href: "#", icon: EmailIcon },
+    ],
+  },
+  {
     name: "Dr. Md Jahidul Islam",
-    role: "MD & CEO",
+    role: "Managing Director",
     image: "/jahidul-managing-body.png",
     bio: "Two decades of clinical leadership — championed major hospital partnerships and ICU rollouts across Bangladesh.",
     socials: [
@@ -57,19 +61,9 @@ const TEAM: TeamMember[] = [
     ],
   },
   {
-    name: "Md. Aktaruzzaman Sarker",
-    role: "Director",
-    image: "/akteruzzamanl-managing-body.png",
-    bio: "Veteran negotiator behind SPIBER's OEM relationships — Mindray, GE Healthcare, Philips and beyond.",
-    socials: [
-      { label: "LinkedIn", href: "#", icon: LinkedInIcon },
-      { label: "Email", href: "#", icon: EmailIcon },
-    ],
-  },
-  {
     name: "Mostary Morshed Smriti",
     role: "Director · COO",
-    image: "/smritil-managing-body.png",
+    image: "/smriti-managing-body.png",
     bio: "Operations and supply-chain lead — runs SPIBER's biomedical service, parts logistics, and 24×7 field support.",
     socials: [
       { label: "LinkedIn", href: "#", icon: LinkedInIcon },
@@ -77,23 +71,12 @@ const TEAM: TeamMember[] = [
     ],
   },
   {
-    name: "Md. Showkot Ali",
-    role: "Director",
-    image: "/showkot-managing-body.png",
-    bio: "Builds long-term hospital network partnerships across regional capitals, public-sector tenders, and accreditation.",
-    socials: [
-      { label: "LinkedIn", href: "#", icon: LinkedInIcon },
-      { label: "Email", href: "#", icon: EmailIcon },
-    ],
-  },
-  {
-    name: "Sheikh Moha. Faizullah Shipon",
+    name: "Subrina Azmi Kanta",
     role: "Director · CMO",
-    image: "/sheikhl-managing-body.png",
-    bio: "Marketing and brand — built SPIBER's clinical-education programs and Future Skills Bangladesh accreditation.",
+    image: "/kanta-managing-body.jpeg",
+    bio: "Marketing and brand — leads SPIBER's clinical-education programs and partner outreach across the region.",
     socials: [
       { label: "LinkedIn", href: "#", icon: LinkedInIcon },
-      { label: "X", href: "#", icon: XIcon },
       { label: "Email", href: "#", icon: EmailIcon },
     ],
   },
@@ -142,11 +125,11 @@ export function Management() {
 
         <Reveal>
           <div
-            className="equal-5col team-grid"
+            className="equal-4col team-grid"
             onMouseLeave={() => setHoveredIdx(null)}
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(5, 1fr)",
+              gridTemplateColumns: "repeat(4, 1fr)",
               gap: 16,
               perspective: 1400,
               alignItems: "start",
