@@ -1,6 +1,9 @@
+import { useTranslations } from "next-intl";
+
 import { Container } from "@/components/ui";
 
 export function UtilityBar() {
+  const t = useTranslations("utilityBar");
   return (
     <div
       style={{
@@ -22,13 +25,30 @@ export function UtilityBar() {
           gap: 12,
         }}
       >
-        <div style={{ display: "flex", gap: 22, alignItems: "center", flexWrap: "wrap" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 22,
+            alignItems: "center",
+            flexWrap: "wrap",
+          }}
+        >
           <a
             href="mailto:info@spiberhcl.com"
             style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
           >
-            <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden>
-              <path d="M2 3h10v8H2z M2 3l5 4 5-4" stroke="currentColor" strokeWidth="1.2" />
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 14 14"
+              fill="none"
+              aria-hidden
+            >
+              <path
+                d="M2 3h10v8H2z M2 3l5 4 5-4"
+                stroke="currentColor"
+                strokeWidth="1.2"
+              />
             </svg>
             info@spiberhcl.com
           </a>
@@ -36,7 +56,13 @@ export function UtilityBar() {
             href="tel:+8801765193751"
             style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
           >
-            <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden>
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 14 14"
+              fill="none"
+              aria-hidden
+            >
               <path
                 d="M2 3a1 1 0 0 1 1-1h2l1.5 3-2 1c.5 2 2 3.5 4 4l1-2 3 1.5V12a1 1 0 0 1-1 1A10 10 0 0 1 2 3z"
                 stroke="currentColor"
@@ -47,16 +73,27 @@ export function UtilityBar() {
             +8801765193751
           </a>
           <span
-            style={{ display: "inline-flex", alignItems: "center", gap: 6, opacity: 0.6 }}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              opacity: 0.6,
+            }}
           >
-            <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden>
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 14 14"
+              fill="none"
+              aria-hidden
+            >
               <path d="M7 1v12 M1 7h12" stroke="currentColor" strokeWidth="1" />
             </svg>
-            Banani · Dhaka 1213, Bangladesh
+            {t("location")}
           </span>
         </div>
         <div style={{ display: "flex", gap: 18, alignItems: "center" }}>
-          <span style={{ opacity: 0.7 }}>Mon–Sat · 09:00–18:00 BST</span>
+          <span style={{ opacity: 0.7 }}>{t("hours")}</span>
           <span style={{ display: "flex", gap: 8 }}>
             {["fb", "x", "in", "ig"].map((s) => (
               <span

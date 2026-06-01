@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Arrow,
   Container,
@@ -10,49 +11,18 @@ import {
   SectionTitle,
 } from "@/components/ui";
 
-const TABS = [
-  {
-    name: "Doctors",
-    duration: "12–24 months",
-    seats: "120 seats / year",
-    placeholder: "doctor training photo",
-    bullets: [
-      "Post-graduate clinical exposure with hospital partners",
-      "International placement pathway (Japan, Germany, UK)",
-      "Specialty rotations: critical care, surgery, radiology",
-      "Capstone research with academic mentor",
-    ],
-    heading: "Advancing physician practice, locally and abroad.",
-  },
-  {
-    name: "Registered Nurses",
-    duration: "9–18 months",
-    seats: "300 seats / year",
-    placeholder: "nursing training photo",
-    bullets: [
-      "Bedside competency framework, OSCE-style",
-      "ICU & emergency simulation lab access",
-      "English-language clinical communication track",
-      "Overseas employment placement support",
-    ],
-    heading: "Career-grade nursing, global opportunity.",
-  },
-  {
-    name: "Caregivers & Technicians",
-    duration: "6–12 months",
-    seats: "480 seats / year",
-    placeholder: "technician training",
-    bullets: [
-      "Hands-on biomedical equipment training",
-      "Geriatric & home-care specialization",
-      "Industry-recognized certifications",
-      "Job-placement guarantee through partner network",
-    ],
-    heading: "Hands-on careers in healthcare technology.",
-  },
-];
+type Tab = {
+  name: string;
+  duration: string;
+  seats: string;
+  placeholder: string;
+  bullets: string[];
+  heading: string;
+};
 
 export function SkillDevelopment() {
+  const t = useTranslations("home.skillDevelopment");
+  const TABS = t.raw("tabs") as Tab[];
   const [tab, setTab] = useState(0);
   const active = TABS[tab];
 
@@ -61,9 +31,9 @@ export function SkillDevelopment() {
       <Container>
         <div style={{ marginBottom: 56 }}>
           <SectionTitle
-            eyebrow="SKILL DEVELOPMENT & TRAINING"
-            title="A center of excellence for professional skills."
-            lede='Through "SPINE — Future Skills Bangladesh," we are accelerating the creation of a Skilled Bangladesh — accredited programmes for clinicians and health technicians.'
+            eyebrow={t("eyebrow")}
+            title={t("title")}
+            lede={t("lede")}
           />
         </div>
 
@@ -93,7 +63,9 @@ export function SkillDevelopment() {
                   onClick={() => setTab(i)}
                   style={{
                     background:
-                      i === tab ? "var(--color-brand)" : "var(--color-surface-2)",
+                      i === tab
+                        ? "var(--color-brand)"
+                        : "var(--color-surface-2)",
                     color: i === tab ? "white" : "var(--color-text)",
                     border: "none",
                     borderRadius: 999,
@@ -120,7 +92,9 @@ export function SkillDevelopment() {
               }}
             >
               <div>
-                <Eyebrow>PROGRAMME · {active.name.toUpperCase()}</Eyebrow>
+                <Eyebrow>
+                  {t("programmeLabel")} · {active.name.toUpperCase()}
+                </Eyebrow>
                 <h3
                   style={{
                     fontFamily: "var(--font-display)",
@@ -146,16 +120,30 @@ export function SkillDevelopment() {
                   alignItems: "baseline",
                 }}
               >
-                <div style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-muted)" }}>
-                  DURATION
+                <div
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    color: "var(--color-text-muted)",
+                  }}
+                >
+                  {t("durationLabel")}
                 </div>
-                <div style={{ fontWeight: 500, color: "var(--color-text-strong)" }}>
+                <div
+                  style={{ fontWeight: 500, color: "var(--color-text-strong)" }}
+                >
                   {active.duration}
                 </div>
-                <div style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-muted)" }}>
-                  COHORT
+                <div
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    color: "var(--color-text-muted)",
+                  }}
+                >
+                  {t("cohortLabel")}
                 </div>
-                <div style={{ fontWeight: 500, color: "var(--color-text-strong)" }}>
+                <div
+                  style={{ fontWeight: 500, color: "var(--color-text-strong)" }}
+                >
                   {active.seats}
                 </div>
               </div>
@@ -213,7 +201,7 @@ export function SkillDevelopment() {
                     gap: 8,
                   }}
                 >
-                  Apply now <Arrow />
+                  {t("applyCta")} <Arrow />
                 </button>
                 <button
                   style={{
@@ -227,7 +215,7 @@ export function SkillDevelopment() {
                     cursor: "pointer",
                   }}
                 >
-                  Curriculum PDF
+                  {t("curriculumCta")}
                 </button>
               </div>
             </div>
@@ -272,7 +260,7 @@ export function SkillDevelopment() {
                     letterSpacing: ".14em",
                   }}
                 >
-                  ACCREDITED BY
+                  {t("accreditedByLabel")}
                 </div>
                 <div
                   style={{
@@ -282,7 +270,7 @@ export function SkillDevelopment() {
                     marginTop: 4,
                   }}
                 >
-                  Bangladesh Skill Development Authority · TVET
+                  {t("accreditedByName")}
                 </div>
               </div>
               <Arrow size={20} />

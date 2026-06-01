@@ -2,11 +2,15 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 import { Container } from "@/components/ui";
 
 function NewsletterForm() {
+  const t = useTranslations("footer");
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "sending" | "ok" | "error">("idle");
+  const [status, setStatus] = useState<"idle" | "sending" | "ok" | "error">(
+    "idle",
+  );
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +45,7 @@ function NewsletterForm() {
         required
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        placeholder="you@hospital.bd"
+        placeholder={t("newsletterPlaceholder")}
         style={{
           flex: 1,
           background: "transparent",
@@ -68,13 +72,18 @@ function NewsletterForm() {
           opacity: status === "sending" ? 0.7 : 1,
         }}
       >
-        {status === "ok" ? "Subscribed" : status === "sending" ? "…" : "Subscribe"}
+        {status === "ok"
+          ? t("subscribed")
+          : status === "sending"
+            ? "…"
+            : t("subscribe")}
       </button>
     </form>
   );
 }
 
 export function Footer() {
+  const t = useTranslations("footer");
   return (
     <footer
       style={{
@@ -98,7 +107,7 @@ export function Footer() {
           <div>
             <Image
               src="/spibermed-logo.png"
-              alt="SPIBER MED"
+              alt={t("logoAlt")}
               width={1007}
               height={301}
               style={{
@@ -115,7 +124,7 @@ export function Footer() {
                 maxWidth: 320,
               }}
             >
-              Empowering healthcare in Bangladesh — clinical-grade equipment, planning, training, and lifelong service.
+              {t("tagline")}
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 22 }}>
               {["fb", "x", "in", "ig"].map((s) => (
@@ -144,13 +153,7 @@ export function Footer() {
             </div>
           </div>
 
-          {(
-            [
-              ["Products", ["Patient Care", "Critical Care", "OR Solutions", "Surgical", "Imaging", "Lab Diagnostics"]],
-              ["Services", ["Hospital Planning", "EPC Delivery", "Healthcare IT", "Global Employment", "Medical Tourism"]],
-              ["Company", ["Who We Are", "Top Message", "Vision 2040", "Career", "Gallery", "Contact"]],
-            ] as const
-          ).map(([title, items]) => (
+          {(t.raw("nav") as Array<[string, string[]]>).map(([title, items]) => (
             <div key={title}>
               <div
                 style={{
@@ -165,7 +168,9 @@ export function Footer() {
               >
                 {title}
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: 10 }}
+              >
                 {items.map((i) => (
                   <a
                     key={i}
@@ -197,7 +202,7 @@ export function Footer() {
                 marginBottom: 16,
               }}
             >
-              Stay Informed
+              {t("stayInformed")}
             </div>
             <div
               style={{
@@ -207,7 +212,7 @@ export function Footer() {
                 lineHeight: 1.55,
               }}
             >
-              Monthly catalog and new-arrival updates.
+              {t("newsletterDesc")}
             </div>
             <NewsletterForm />
             <div
@@ -219,9 +224,9 @@ export function Footer() {
               }}
             >
               <div style={{ marginBottom: 10 }}>
-                Road-06, House-47, Level-01, Block-C,
+                {t("addressLine1")}
                 <br />
-                Banani, Dhaka-1213, Bangladesh
+                {t("addressLine2")}
               </div>
               <div style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>
                 +880 1765 193751
@@ -260,12 +265,13 @@ export function Footer() {
             gap: 12,
           }}
         >
-          <div>© 2026 SPIBER MED LTD. ALL RIGHTS RESERVED.</div>
+          <div>{t("copyright")}</div>
           <div style={{ display: "flex", gap: 24 }}>
-            <a href="#">PRIVACY</a>
-            <a href="#">TERMS</a>
-            <a href="#">COOKIES</a>
-            <a href="#">SITEMAP</a>
+            {(t.raw("legal") as string[]).map((label, i) => (
+              <a key={i} href="#">
+                {label}
+              </a>
+            ))}
           </div>
         </div>
       </Container>

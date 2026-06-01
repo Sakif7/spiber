@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import {
   Arrow,
   Container,
@@ -12,66 +13,50 @@ import {
 } from "@/components/ui";
 import ScrollStack, { ScrollStackItem } from "@/components/ui/scroll-stack";
 
-type Pillar = {
+type PillarStatic = {
   n: string;
-  category: string;
-  title: string;
-  body: string;
-  metric: { value: string; label: string };
-  ctaLabel: string;
+  metricValue: string;
   ctaHref: string;
   image: string;
-  imageAlt: string;
   imagePosition?: string;
 };
 
-const ITEMS: Pillar[] = [
+type PillarText = {
+  category: string;
+  title: string;
+  body: string;
+  metricLabel: string;
+  ctaLabel: string;
+  imageAlt: string;
+};
+
+const ITEMS: PillarStatic[] = [
   {
     n: "01",
-    category: "Partnership",
-    title: "A trusted long-term ally to every hospital we work with.",
-    body: "Procurement, planning, training, and post-installation service — handled end-to-end, so clinical teams stay focused on patients. The relationship continues long after the equipment is in the ward.",
-    metric: { value: "248", label: "Partner hospitals · 8 divisions" },
-    ctaLabel: "View partner hospitals",
+    metricValue: "248",
     ctaHref: "#hospitals",
     image: "/smiling-medical-team-portrait.jpeg",
-    imageAlt: "Medical team standing together in a hospital corridor",
     imagePosition: "center 30%",
   },
   {
     n: "02",
-    category: "Equipment",
-    title: "Clinical-grade tools, calibrated for real workloads.",
-    body: "From OR tables to OEM-sourced imaging suites — each line is chosen for clinical accuracy, serviceability, and a 7–10 year operating life. Spec sheets are the easy part; what survives a third shift in a busy ward is the hard part.",
-    metric: { value: "60+", label: "OEM partners across 14 countries" },
-    ctaLabel: "Browse the catalogue",
+    metricValue: "60+",
     ctaHref: "#products",
     image: "/modern-operating-room-equipment.jpeg",
-    imageAlt: "Modern operating room with surgical robotics and imaging systems",
     imagePosition: "center center",
   },
   {
     n: "03",
-    category: "Outreach",
-    title: "Healthcare that doesn't depend on a postcode.",
-    body: "Equipment donations, screening camps, and clinician training in the districts the supply chain usually forgets. Impact is measured in training hours delivered and kilometres covered — not photo opportunities.",
-    metric: { value: "14k+", label: "Training hours delivered" },
-    ctaLabel: "Read the CSR brief",
+    metricValue: "14k+",
     ctaHref: "#csr",
     image: "/nurse-holding-patient-hand-reassurance.jpeg",
-    imageAlt: "Nurse holding a patient's hand in reassurance",
     imagePosition: "center center",
   },
   {
     n: "04",
-    category: "Talent",
-    title: "Local engineers, international standards.",
-    body: "Hands-on apprenticeships, OEM certification, and overseas postings for biomedical engineers and clinical specialists. The reason hospitals call us back is usually a person, not a product.",
-    metric: { value: "120+", label: "Biomedical engineers certified" },
-    ctaLabel: "Open careers",
+    metricValue: "120+",
     ctaHref: "#careers",
     image: "/lab-technician-using-analyzer-machine.jpeg",
-    imageAlt: "Lab technician operating a clinical analyzer machine",
     imagePosition: "center center",
   },
 ];
@@ -82,7 +67,9 @@ const CARD_CLASS =
   "!p-0 !h-96 !mt-0 overflow-hidden";
 
 export function Pillars() {
+  const t = useTranslations("home.pillars");
   const [stackComplete, setStackComplete] = useState(false);
+  const itemsText = t.raw("items") as PillarText[];
   return (
     <Section style={{ overflow: "visible" }}>
       <Container>
@@ -106,9 +93,9 @@ export function Pillars() {
             }}
           >
             <SectionTitle
-              eyebrow="WHO WE ARE"
-              title="A trustworthy ally for a healthier Bangladesh."
-              lede="Operations across Bangladesh — broad, comprehensive, and constantly evolving. Four pillars guide every project we take on."
+              eyebrow={t("eyebrow")}
+              title={t("title")}
+              lede={t("lede")}
             />
             <Reveal delay={200}>
               <button
@@ -127,7 +114,7 @@ export function Pillars() {
                   whiteSpace: "nowrap",
                 }}
               >
-                Explore Services <Arrow />
+                {t("exploreServices")} <Arrow />
               </button>
             </Reveal>
           </div>
@@ -154,7 +141,13 @@ export function Pillars() {
           >
             {ITEMS.map((it, idx) => (
               <ScrollStackItem key={it.n} itemClassName={CARD_CLASS}>
-                <PillarCardContent {...it} total={ITEMS.length} index={idx} />
+                <PillarCardContent
+                  {...it}
+                  {...itemsText[idx]}
+                  pillarLabel={t("pillarLabel")}
+                  total={ITEMS.length}
+                  index={idx}
+                />
               </ScrollStackItem>
             ))}
           </ScrollStack>
@@ -177,14 +170,17 @@ function PillarCardContent({
   category,
   title,
   body,
-  metric,
+  metricValue,
+  metricLabel,
   ctaLabel,
   ctaHref,
   image,
   imageAlt,
   imagePosition,
+  pillarLabel,
   total,
-}: Pillar & { total: number; index: number }) {
+}: PillarStatic &
+  PillarText & { pillarLabel: string; total: number; index: number }) {
   return (
     <div
       style={{
@@ -210,7 +206,10 @@ function PillarCardContent({
           alt={imageAlt}
           fill
           sizes="(max-width: 720px) 0px, (max-width: 1240px) 38vw, 540px"
-          style={{ objectFit: "cover", objectPosition: imagePosition ?? "center" }}
+          style={{
+            objectFit: "cover",
+            objectPosition: imagePosition ?? "center",
+          }}
         />
         <div
           style={{
@@ -258,7 +257,7 @@ function PillarCardContent({
               }}
             />
             <span style={{ color: "var(--color-text-muted)" }}>
-              Pillar {n} / 0{total}
+              {pillarLabel} {n} / 0{total}
             </span>
           </div>
 
@@ -314,7 +313,7 @@ function PillarCardContent({
                 fontVariantNumeric: "tabular-nums",
               }}
             >
-              {metric.value}
+              {metricValue}
             </span>
             <span
               style={{
@@ -324,7 +323,7 @@ function PillarCardContent({
                 maxWidth: "22ch",
               }}
             >
-              {metric.label}
+              {metricLabel}
             </span>
           </div>
 

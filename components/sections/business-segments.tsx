@@ -1,6 +1,7 @@
 "use client";
 
 import { CSSProperties, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Arrow,
   Container,
@@ -20,55 +21,37 @@ type Segment = {
   big?: boolean;
 };
 
-const SEGMENTS: Segment[] = [
-  {
-    tone: "teal",
-    kicker: "01 · Medical Device & Solution",
-    title: "Envisioning the future, with smart healthcare.",
-    body: "From bedside monitors to operating theatres, our solutions are evidence-driven and clinician-approved.",
-    tag: "FLAGSHIP",
-    placeholder: "hospital interior photo",
-    big: true,
-  },
-  {
-    tone: "orange",
-    kicker: "02 · Furniture & Disposables",
-    title: "Hospital medical furniture & disposable devices.",
-    body: "Beds, trolleys, OT tables, gloves, masks, gowns, drapes — sourced to international standards.",
-    placeholder: "furniture catalog shot",
-  },
-  {
-    tone: "slate",
-    kicker: "03 · Patient & Critical Care",
-    title: "Patient care & critical care.",
-    body: "Monitoring, infusion, ICU/NICU/CCU equipment. Reliable when minutes count.",
-    placeholder: "ICU bay shot",
-  },
-  {
-    tone: "teal",
-    kicker: "04 · OR & Surgical",
-    title: "OR & surgical solutions.",
-    body: "Operating tables, surgical lights, anesthesia, ESU, minimally invasive sets, orthopedic implants.",
-    placeholder: "OR scene",
-  },
-  {
-    tone: "orange",
-    kicker: "05 · Imaging & Lab Diagnostics",
-    title: "Medical imaging & laboratory diagnostics.",
-    body: "Ultrasound, X-ray, C-arm, CT, MRI, mammography — plus hematology, chemistry, immunoassay & reagents.",
-    placeholder: "imaging suite",
-  },
+const SEGMENT_META: { tone: "teal" | "orange" | "slate"; big?: boolean }[] = [
+  { tone: "teal", big: true },
+  { tone: "orange" },
+  { tone: "slate" },
+  { tone: "teal" },
+  { tone: "orange" },
 ];
 
 export function BusinessSegments() {
+  const t = useTranslations("home.businessSegments");
+  const items = t.raw("items") as Array<{
+    kicker: string;
+    title: string;
+    body: string;
+    tag?: string;
+    placeholder: string;
+  }>;
+  const segments: Segment[] = items.map((item, i) => ({
+    ...item,
+    tone: SEGMENT_META[i].tone,
+    big: SEGMENT_META[i].big,
+  }));
+
   return (
     <Section style={{ background: "var(--color-surface-2)" }}>
       <Container>
         <div style={{ marginBottom: 56 }}>
           <SectionTitle
-            eyebrow="OUR BUSINESS SEGMENTS"
-            title="Five categories. One coherent system."
-            lede="Built so a hospital can source everything from procurement through training under one accountable partner."
+            eyebrow={t("eyebrow")}
+            title={t("title")}
+            lede={t("lede")}
           />
         </div>
 
@@ -82,19 +65,19 @@ export function BusinessSegments() {
           }}
         >
           <Reveal style={{ gridRow: "span 2" }}>
-            <SegmentCard {...SEGMENTS[0]} />
+            <SegmentCard {...segments[0]} />
           </Reveal>
           <Reveal delay={80}>
-            <SegmentCard {...SEGMENTS[1]} />
+            <SegmentCard {...segments[1]} />
           </Reveal>
           <Reveal delay={160}>
-            <SegmentCard {...SEGMENTS[2]} />
+            <SegmentCard {...segments[2]} />
           </Reveal>
           <Reveal delay={240}>
-            <SegmentCard {...SEGMENTS[3]} />
+            <SegmentCard {...segments[3]} />
           </Reveal>
           <Reveal delay={320}>
-            <SegmentCard {...SEGMENTS[4]} />
+            <SegmentCard {...segments[4]} />
           </Reveal>
         </div>
       </Container>
@@ -102,7 +85,16 @@ export function BusinessSegments() {
   );
 }
 
-function SegmentCard({ tone, kicker, title, body, tag, placeholder, big }: Segment) {
+function SegmentCard({
+  tone,
+  kicker,
+  title,
+  body,
+  tag,
+  placeholder,
+  big,
+}: Segment) {
+  const t = useTranslations("home.businessSegments");
   const [hover, setHover] = useState(false);
   return (
     <div
@@ -133,7 +125,8 @@ function SegmentCard({ tone, kicker, title, body, tag, placeholder, big }: Segme
           right: 0,
           height: 3,
           zIndex: 3,
-          background: "linear-gradient(90deg, var(--brand-teal), var(--aqua-400))",
+          background:
+            "linear-gradient(90deg, var(--brand-teal), var(--aqua-400))",
           transform: hover ? "scaleX(1)" : "scaleX(0)",
           transformOrigin: "left",
           transition: "transform 420ms cubic-bezier(.16,1,.3,1)",
@@ -232,7 +225,7 @@ function SegmentCard({ tone, kicker, title, body, tag, placeholder, big }: Segme
             transition: "transform 280ms cubic-bezier(.16,1,.3,1)",
           }}
         >
-          Read more <Arrow size={12} />
+          {t("readMore")} <Arrow size={12} />
         </div>
       </div>
     </div>

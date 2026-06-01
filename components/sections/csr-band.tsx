@@ -1,36 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import {
-  Arrow,
-  Container,
-  Eyebrow,
-  Reveal,
-  Section,
-} from "@/components/ui";
-
-const PILLARS = [
-  {
-    title: "Devoted to communities",
-    body: "Useful products and solutions delivered to the regions of Bangladesh that need them most — from district hospitals to rural diagnostic outposts.",
-    tag: "Access",
-  },
-  {
-    title: "Promoting public health",
-    body: "Vigorous support for preventive-care programs, screening drives, and partnerships that widen the front door to modern medicine.",
-    tag: "Care",
-  },
-  {
-    title: "Dispersing technology",
-    body: "Continued investment in advanced equipment so the quality of care does not depend on the postcode of the patient.",
-    tag: "Equity",
-  },
-  {
-    title: "Fostering medical talents",
-    body: "A knowledge-sharing platform — workshops, residencies, OEM training — that helps Bangladeshi clinicians grow and lead.",
-    tag: "Talent",
-  },
-];
+import { useTranslations } from "next-intl";
+import { Arrow, Container, Eyebrow, Reveal, Section } from "@/components/ui";
 
 function ManifestoRow({
   index,
@@ -55,7 +27,8 @@ function ManifestoRow({
         style={{
           position: "relative",
           display: "grid",
-          gridTemplateColumns: "auto minmax(220px, 1.1fr) minmax(0, 1.6fr) auto",
+          gridTemplateColumns:
+            "auto minmax(220px, 1.1fr) minmax(0, 1.6fr) auto",
           alignItems: "baseline",
           gap: 32,
           padding: "28px 4px",
@@ -64,7 +37,10 @@ function ManifestoRow({
         }}
       >
         <motion.span
-          variants={{ rest: { color: "rgba(255,255,255,.32)" }, hover: { color: "var(--orange-400)" } }}
+          variants={{
+            rest: { color: "rgba(255,255,255,.32)" },
+            hover: { color: "var(--orange-400)" },
+          }}
           transition={{ duration: 0.35, ease: [0.2, 0.7, 0.2, 1] }}
           style={{
             fontFamily: "var(--font-serif)",
@@ -127,7 +103,10 @@ function ManifestoRow({
             {tag}
           </span>
           <motion.span
-            variants={{ rest: { x: 0, opacity: 0.6 }, hover: { x: 4, opacity: 1 } }}
+            variants={{
+              rest: { x: 0, opacity: 0.6 },
+              hover: { x: 4, opacity: 1 },
+            }}
             transition={{ type: "spring", stiffness: 380, damping: 28 }}
             style={{
               display: "inline-flex",
@@ -149,6 +128,12 @@ function ManifestoRow({
 }
 
 export function CSRBand() {
+  const t = useTranslations("home.csr");
+  const pillars = t.raw("pillars") as Array<{
+    title: string;
+    body: string;
+    tag: string;
+  }>;
   return (
     <Section dark mesh>
       <Container>
@@ -164,7 +149,7 @@ export function CSRBand() {
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
             <Reveal>
-              <Eyebrow dark>CORPORATE SOCIAL RESPONSIBILITY</Eyebrow>
+              <Eyebrow dark>{t("eyebrow")}</Eyebrow>
             </Reveal>
             <Reveal delay={80}>
               <h2
@@ -179,7 +164,7 @@ export function CSRBand() {
                   maxWidth: "18ch",
                 }}
               >
-                Accessible healthcare,{" "}
+                {t("headingLead")}{" "}
                 <span
                   style={{
                     fontFamily: "var(--font-serif)",
@@ -188,9 +173,9 @@ export function CSRBand() {
                     color: "var(--orange-400)",
                   }}
                 >
-                  at every corner
+                  {t("headingAccent")}
                 </span>{" "}
-                of Bangladesh.
+                {t("headingTail")}
               </h2>
             </Reveal>
             <Reveal delay={160}>
@@ -203,9 +188,7 @@ export function CSRBand() {
                   maxWidth: "52ch",
                 }}
               >
-                SPIBER aspires to enhance healthcare for all. Our work to be an
-                outstanding corporate citizen grows alongside our philosophy —
-                year after year, hospital after hospital, district after district.
+                {t("intro")}
               </p>
             </Reveal>
           </div>
@@ -245,8 +228,7 @@ export function CSRBand() {
                   color: "rgba(255,255,255,.92)",
                 }}
               >
-                We endeavor to be an outstanding corporate citizen — growing
-                every year with the same philosophy that started us.
+                {t("quote")}
               </blockquote>
               <footer
                 style={{
@@ -272,15 +254,18 @@ export function CSRBand() {
                     color: "rgba(255,255,255,.55)",
                   }}
                 >
-                  From our corporate philosophy
+                  {t("quoteSource")}
                 </span>
               </footer>
             </div>
           </Reveal>
         </div>
 
-        <div className="csr-manifesto" style={{ borderBottom: "1px solid rgba(255,255,255,.10)" }}>
-          {PILLARS.map((p, i) => (
+        <div
+          className="csr-manifesto"
+          style={{ borderBottom: "1px solid rgba(255,255,255,.10)" }}
+        >
+          {pillars.map((p, i) => (
             <ManifestoRow
               key={p.title}
               index={i + 1}
@@ -312,7 +297,7 @@ export function CSRBand() {
                 color: "rgba(255,255,255,.5)",
               }}
             >
-              CSR · 2026 COMMITMENT
+              {t("commitmentLabel")}
             </div>
             <motion.a
               href="#csr"
@@ -331,7 +316,7 @@ export function CSRBand() {
                 border: "1px solid rgba(255,255,255,.22)",
               }}
             >
-              Read the full commitment <Arrow size={14} />
+              {t("cta")} <Arrow size={14} />
             </motion.a>
           </div>
         </Reveal>

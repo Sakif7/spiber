@@ -1,0 +1,617 @@
+{
+  "meta": {
+    "brand": "Spiber Med",
+    "title": "Spiber Med — Empowering Healthcare",
+    "description": "A Bangladesh-based medical & surgical equipment supplier and healthcare-solutions company. Trustworthy, clinical-grade, internationally credible — and warm."
+  },
+  "common": {
+    "brand": "Spiber Med",
+    "learnMore": "Learn more",
+    "contactUs": "Contact us",
+    "backHome": "Back to home",
+    "loading": "Loading…"
+  },
+  "nav": {
+    "home": "Home",
+    "about": "About",
+    "contact": "Contact",
+    "instruments": "Instruments",
+    "academy": "Academy",
+    "systems": "Systems",
+    "tourism": "Tourism",
+    "consulting": "Consulting",
+    "blog": "Blog"
+  },
+  "localeSwitcher": {
+    "label": "Language",
+    "en": "English",
+    "bn": "বাংলা"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "The page you’re looking for doesn’t exist or has moved.",
+    "backHome": "Back to home"
+  },
+  "comingSoon": {
+    "title": "Coming soon",
+    "description": "This section is being prepared. Please check back shortly."
+  },
+  "hubs": {
+    "instruments": {
+      "eyebrow": "Medical Devices & Healthcare Technologies",
+      "title": "Spiber Instruments",
+      "description": "Clinical-grade medical and surgical equipment for hospitals, clinics, and laboratories across Bangladesh."
+    },
+    "academy": {
+      "eyebrow": "Training, Education & Professional Development",
+      "title": "Spiber Academy",
+      "description": "Accredited courses and hands-on training for healthcare professionals — online and in person."
+    },
+    "systems": {
+      "eyebrow": "Digital Health & Software Solutions",
+      "title": "Spiber Systems",
+      "description": "Software products and custom digital-health solutions for modern care delivery."
+    },
+    "tourism": {
+      "eyebrow": "Medical Tourism & Air Ticket",
+      "title": "Spiber Tourism",
+      "description": "Curated treatment packages with accredited partner facilities, plus travel and air-ticket support."
+    },
+    "consulting": {
+      "eyebrow": "Healthcare Management & Advisory",
+      "title": "Spiber Consulting",
+      "description": "Strategic advisory and management services for healthcare organisations."
+    },
+    "blog": {
+      "eyebrow": "Insights & Updates",
+      "title": "Blog",
+      "description": "Perspectives on healthcare technology, training, and practice from the Spiber Med team."
+    }
+  },
+  "pages": {
+    "about": {
+      "title": "About Spiber Med",
+      "description": "Empowering healthcare across Bangladesh with trustworthy, clinical-grade products and services.",
+      "body": "Spiber Med is a Bangladesh-based healthcare company spanning medical devices, professional training, digital health software, medical tourism, and advisory services. We combine international credibility with local understanding to support clinicians, institutions, and patients."
+    },
+    "contact": {
+      "title": "Contact us",
+      "description": "Tell us how we can help and our team will get back to you.",
+      "name": "Full name",
+      "email": "Email address",
+      "org": "Organisation",
+      "phone": "Phone",
+      "category": "Topic",
+      "message": "Message",
+      "submit": "Send message",
+      "sending": "Sending…",
+      "success": "Thanks — your message has been received. We’ll be in touch.",
+      "error": "Something went wrong. Please try again."
+    },
+    "privacy": {
+      "title": "Privacy Policy",
+      "description": "How Spiber Med collects, uses, and protects your information.",
+      "body": "This policy explains what data we collect and how we use it. A full policy will be published here. For any privacy questions, please contact us."
+    },
+    "terms": {
+      "title": "Terms of Service",
+      "description": "The terms that govern your use of Spiber Med services.",
+      "body": "These terms govern your use of our website and services. Full terms will be published here. By using the site you agree to these terms."
+    },
+    "refundShipping": {
+      "title": "Refund & Shipping Policy",
+      "description": "Our shipping methods, timelines, and refund process.",
+      "body": "This page describes our shipping and refund processes. Detailed policies will be published here ahead of store launch."
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Sign in",
+      "description": "Access your Spiber Med account.",
+      "email": "Email address",
+      "password": "Password",
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "forgot": "Forgot password?",
+      "verifiedNotice": "Your email is verified. You can now sign in.",
+      "errorInvalid": "Incorrect email or password.",
+      "errorUnverified": "Please verify your email before signing in.",
+      "errorGeneric": "Sign in failed. Please try again."
+    },
+    "reset": {
+      "title": "Reset password",
+      "description": "Choose a new password for your account.",
+      "password": "New password",
+      "submit": "Update password",
+      "submitting": "Updating…",
+      "success": "Your password has been updated. You can now sign in.",
+      "error": "This reset link is invalid or has expired.",
+      "missingToken": "This reset link is missing its token."
+    }
+  },
+  "admin": {
+    "title": "Admin",
+    "dashboard": "Dashboard",
+    "welcome": "Welcome back",
+    "signOut": "Sign out",
+    "comingSoon": "Admin modules are being built out phase by phase.",
+    "groups": {
+      "overview": "Overview",
+      "instruments": "Instruments",
+      "academy": "Academy",
+      "systems": "Systems",
+      "tourism": "Tourism",
+      "consulting": "Consulting",
+      "blog": "Blog",
+      "platform": "Platform"
+    },
+    "kpis": {
+      "revenue": "Today’s revenue",
+      "orders": "Orders",
+      "lowStock": "Low-stock alerts",
+      "enrollments": "New enrollments",
+      "inquiries": "Open inquiries"
+    }
+  },
+  "home": {
+    "hero": {
+      "badge": "Healthcare Solutions · Est. 2008 · Dhaka",
+      "headlinePrefix": "Empowering",
+      "headlineSuffix": "Built for Bangladesh.",
+      "ctaQuote": "Request a Quote",
+      "ctaExplore": "Explore Solutions",
+      "trustIso": "ISO 13485",
+      "trustBiomed": "24×7 biomed",
+      "taglines": [
+        {
+          "word": "Healthcare",
+          "title": "Empowering Healthcare",
+          "line": "SPIBER strives to empower and restore healthcare."
+        },
+        {
+          "word": "Innovation",
+          "title": "Transforming Healthcare",
+          "line": "Committed to providing cutting-edge technology within reach."
+        },
+        {
+          "word": "Access",
+          "title": "Cutting-Edge, Right at Your Door",
+          "line": "Assuring innovation across the healthcare industry."
+        },
+        {
+          "word": "Care",
+          "title": "Uncompromised Medical Care",
+          "line": "Quality products for every stage of medical care."
+        },
+        {
+          "word": "Skills",
+          "title": "Advancing Academic & Technical Skills",
+          "line": "Dazzling professionals with an advanced training system."
+        },
+        {
+          "word": "Reach",
+          "title": "We Reach, Where Others Can't",
+          "line": "Delivering goods to any location quickly and with ease."
+        }
+      ],
+      "solutions": {
+        "lab": {
+          "title": "Lab Equipment",
+          "description": "Precision analyzers, microscopes & refrigeration — engineered for clinical and research labs across Bangladesh.",
+          "imageAlt": "Modern laboratory with microscope, analyzers and glassware"
+        },
+        "furniture": {
+          "title": "Medical Furniture",
+          "description": "Patient beds, OR tables, ICU stations.",
+          "imageAlt": "Modern hospital beds, exam chairs and OR tables in teal accents"
+        },
+        "software": {
+          "title": "Software Solutions",
+          "description": "HIS, EMR & telemedicine platforms.",
+          "imageAlt": "Medical software dashboards on touchscreens and tablets"
+        }
+      }
+    },
+    "pillars": {
+      "eyebrow": "WHO WE ARE",
+      "title": "A trustworthy ally for a healthier Bangladesh.",
+      "lede": "Operations across Bangladesh — broad, comprehensive, and constantly evolving. Four pillars guide every project we take on.",
+      "exploreServices": "Explore Services",
+      "pillarLabel": "Pillar",
+      "items": [
+        {
+          "category": "Partnership",
+          "title": "A trusted long-term ally to every hospital we work with.",
+          "body": "Procurement, planning, training, and post-installation service — handled end-to-end, so clinical teams stay focused on patients. The relationship continues long after the equipment is in the ward.",
+          "metricLabel": "Partner hospitals · 8 divisions",
+          "ctaLabel": "View partner hospitals",
+          "imageAlt": "Medical team standing together in a hospital corridor"
+        },
+        {
+          "category": "Equipment",
+          "title": "Clinical-grade tools, calibrated for real workloads.",
+          "body": "From OR tables to OEM-sourced imaging suites — each line is chosen for clinical accuracy, serviceability, and a 7–10 year operating life. Spec sheets are the easy part; what survives a third shift in a busy ward is the hard part.",
+          "metricLabel": "OEM partners across 14 countries",
+          "ctaLabel": "Browse the catalogue",
+          "imageAlt": "Modern operating room with surgical robotics and imaging systems"
+        },
+        {
+          "category": "Outreach",
+          "title": "Healthcare that doesn't depend on a postcode.",
+          "body": "Equipment donations, screening camps, and clinician training in the districts the supply chain usually forgets. Impact is measured in training hours delivered and kilometres covered — not photo opportunities.",
+          "metricLabel": "Training hours delivered",
+          "ctaLabel": "Read the CSR brief",
+          "imageAlt": "Nurse holding a patient's hand in reassurance"
+        },
+        {
+          "category": "Talent",
+          "title": "Local engineers, international standards.",
+          "body": "Hands-on apprenticeships, OEM certification, and overseas postings for biomedical engineers and clinical specialists. The reason hospitals call us back is usually a person, not a product.",
+          "metricLabel": "Biomedical engineers certified",
+          "ctaLabel": "Open careers",
+          "imageAlt": "Lab technician operating a clinical analyzer machine"
+        }
+      ]
+    },
+    "businessSegments": {
+      "eyebrow": "OUR BUSINESS SEGMENTS",
+      "title": "Five categories. One coherent system.",
+      "lede": "Built so a hospital can source everything from procurement through training under one accountable partner.",
+      "readMore": "Read more",
+      "items": [
+        {
+          "kicker": "01 · Medical Device & Solution",
+          "title": "Envisioning the future, with smart healthcare.",
+          "body": "From bedside monitors to operating theatres, our solutions are evidence-driven and clinician-approved.",
+          "tag": "FLAGSHIP",
+          "placeholder": "hospital interior photo"
+        },
+        {
+          "kicker": "02 · Furniture & Disposables",
+          "title": "Hospital medical furniture & disposable devices.",
+          "body": "Beds, trolleys, OT tables, gloves, masks, gowns, drapes — sourced to international standards.",
+          "placeholder": "furniture catalog shot"
+        },
+        {
+          "kicker": "03 · Patient & Critical Care",
+          "title": "Patient care & critical care.",
+          "body": "Monitoring, infusion, ICU/NICU/CCU equipment. Reliable when minutes count.",
+          "placeholder": "ICU bay shot"
+        },
+        {
+          "kicker": "04 · OR & Surgical",
+          "title": "OR & surgical solutions.",
+          "body": "Operating tables, surgical lights, anesthesia, ESU, minimally invasive sets, orthopedic implants.",
+          "placeholder": "OR scene"
+        },
+        {
+          "kicker": "05 · Imaging & Lab Diagnostics",
+          "title": "Medical imaging & laboratory diagnostics.",
+          "body": "Ultrasound, X-ray, C-arm, CT, MRI, mammography — plus hematology, chemistry, immunoassay & reagents.",
+          "placeholder": "imaging suite"
+        }
+      ]
+    },
+    "skillDevelopment": {
+      "eyebrow": "SKILL DEVELOPMENT & TRAINING",
+      "title": "A center of excellence for professional skills.",
+      "lede": "Through \"SPINE — Future Skills Bangladesh,\" we are accelerating the creation of a Skilled Bangladesh — accredited programmes for clinicians and health technicians.",
+      "programmeLabel": "PROGRAMME",
+      "durationLabel": "DURATION",
+      "cohortLabel": "COHORT",
+      "applyCta": "Apply now",
+      "curriculumCta": "Curriculum PDF",
+      "accreditedByLabel": "ACCREDITED BY",
+      "accreditedByName": "Bangladesh Skill Development Authority · TVET",
+      "tabs": [
+        {
+          "name": "Doctors",
+          "duration": "12–24 months",
+          "seats": "120 seats / year",
+          "placeholder": "doctor training photo",
+          "bullets": [
+            "Post-graduate clinical exposure with hospital partners",
+            "International placement pathway (Japan, Germany, UK)",
+            "Specialty rotations: critical care, surgery, radiology",
+            "Capstone research with academic mentor"
+          ],
+          "heading": "Advancing physician practice, locally and abroad."
+        },
+        {
+          "name": "Registered Nurses",
+          "duration": "9–18 months",
+          "seats": "300 seats / year",
+          "placeholder": "nursing training photo",
+          "bullets": [
+            "Bedside competency framework, OSCE-style",
+            "ICU & emergency simulation lab access",
+            "English-language clinical communication track",
+            "Overseas employment placement support"
+          ],
+          "heading": "Career-grade nursing, global opportunity."
+        },
+        {
+          "name": "Caregivers & Technicians",
+          "duration": "6–12 months",
+          "seats": "480 seats / year",
+          "placeholder": "technician training",
+          "bullets": [
+            "Hands-on biomedical equipment training",
+            "Geriatric & home-care specialization",
+            "Industry-recognized certifications",
+            "Job-placement guarantee through partner network"
+          ],
+          "heading": "Hands-on careers in healthcare technology."
+        }
+      ]
+    },
+    "capitalEquipment": {
+      "eyebrow": "OUR CAPITAL EQUIPMENT",
+      "title": "The full catalog, browseable in one place.",
+      "lede": "Filter by clinical category or department. Every listing carries a model, SKU, certification status, and lead-time estimate.",
+      "downloadCatalog": "Download full catalog (PDF · 4.2 MB)",
+      "view": "View →",
+      "skuLabel": "SKU",
+      "categories": {
+        "All": "All",
+        "Hospital-Wide": "Hospital-Wide",
+        "Patient Care": "Patient Care",
+        "Critical Care": "Critical Care",
+        "OR Solutions": "OR Solutions",
+        "Surgical": "Surgical",
+        "Lab Diagnostics": "Lab Diagnostics",
+        "Imaging": "Imaging",
+        "Disposables": "Disposables",
+        "Ventilators": "Ventilators"
+      },
+      "items": [
+        {
+          "name": "Mobile C-Arm SXR-200",
+          "catLabel": "Imaging",
+          "tagLabel": "FEATURED",
+          "placeholder": "C-arm product shot"
+        },
+        {
+          "name": "ICU Ventilator V8",
+          "catLabel": "Ventilators",
+          "tagLabel": "NEW 2026",
+          "placeholder": "ventilator render"
+        },
+        {
+          "name": "Multi-para Monitor M12",
+          "catLabel": "Patient Care",
+          "placeholder": "monitor screen"
+        },
+        {
+          "name": "Operating Table Pro X",
+          "catLabel": "OR Solutions",
+          "placeholder": "operating table"
+        },
+        {
+          "name": "Hematology Analyzer H7",
+          "catLabel": "Lab Diagnostics",
+          "placeholder": "lab analyzer"
+        },
+        {
+          "name": "Anesthesia Workstation A6",
+          "catLabel": "OR Solutions",
+          "placeholder": "anesthesia unit"
+        },
+        {
+          "name": "Surgical Light Ω-LED",
+          "catLabel": "OR Solutions",
+          "placeholder": "surgical light"
+        },
+        {
+          "name": "Ultrasound iScan-9",
+          "catLabel": "Imaging",
+          "tagLabel": "CE",
+          "placeholder": "ultrasound probe"
+        },
+        {
+          "name": "ICU Bed E-3",
+          "catLabel": "Hospital-Wide",
+          "placeholder": "ICU bed"
+        },
+        {
+          "name": "Disposable PPE Kit",
+          "catLabel": "Disposables",
+          "placeholder": "PPE pack"
+        },
+        {
+          "name": "ECG Cardio-12L",
+          "catLabel": "Patient Care",
+          "placeholder": "ECG device"
+        },
+        {
+          "name": "Electrosurgical Unit ESU-2K",
+          "catLabel": "Surgical",
+          "placeholder": "ESU device"
+        }
+      ]
+    },
+    "csr": {
+      "eyebrow": "CORPORATE SOCIAL RESPONSIBILITY",
+      "headingLead": "Accessible healthcare,",
+      "headingAccent": "at every corner",
+      "headingTail": "of Bangladesh.",
+      "intro": "SPIBER aspires to enhance healthcare for all. Our work to be an outstanding corporate citizen grows alongside our philosophy — year after year, hospital after hospital, district after district.",
+      "quote": "We endeavor to be an outstanding corporate citizen — growing every year with the same philosophy that started us.",
+      "quoteSource": "From our corporate philosophy",
+      "commitmentLabel": "CSR · 2026 COMMITMENT",
+      "cta": "Read the full commitment",
+      "pillars": [
+        {
+          "title": "Devoted to communities",
+          "body": "Useful products and solutions delivered to the regions of Bangladesh that need them most — from district hospitals to rural diagnostic outposts.",
+          "tag": "Access"
+        },
+        {
+          "title": "Promoting public health",
+          "body": "Vigorous support for preventive-care programs, screening drives, and partnerships that widen the front door to modern medicine.",
+          "tag": "Care"
+        },
+        {
+          "title": "Dispersing technology",
+          "body": "Continued investment in advanced equipment so the quality of care does not depend on the postcode of the patient.",
+          "tag": "Equity"
+        },
+        {
+          "title": "Fostering medical talents",
+          "body": "A knowledge-sharing platform — workshops, residencies, OEM training — that helps Bangladeshi clinicians grow and lead.",
+          "tag": "Talent"
+        }
+      ]
+    },
+    "stats": {
+      "eyebrow": "IMPACT · 2026",
+      "trustedBy": "TRUSTED BY HOSPITALS & HEALTHCARE GROUPS ACROSS BANGLADESH",
+      "items": [
+        {
+          "label": "Completed projects",
+          "sub": "Across 8 divisions of Bangladesh"
+        },
+        {
+          "label": "Happy clients",
+          "sub": "Hospitals · clinics · labs · academies"
+        },
+        {
+          "label": "Countries",
+          "sub": "OEM & service partnerships"
+        },
+        {
+          "label": "Positive reviews",
+          "sub": "From verified clients"
+        }
+      ]
+    },
+    "testimonials": {
+      "eyebrow": "TESTIMONIAL",
+      "heading": "In the words of the people we work with.",
+      "description": "Hospital chairs, founders of imaging centres, and clinical directors on what it's like to partner with SPIBER MED."
+    },
+    "management": {
+      "eyebrow": "MANAGEMENT BODY",
+      "title": "Meet the people leading SPIBER MED.",
+      "lede": "A team of clinicians, operators, and builders — combined decades of work across hospital systems, manufacturing, and medical education.",
+      "seeFullLeadership": "See full leadership",
+      "members": [
+        {
+          "role": "Chairman",
+          "bio": "Chair of the board — sets SPIBER MED's long-term vision and governance across its healthcare and technology ventures.",
+          "socials": [
+            {
+              "label": "LinkedIn"
+            },
+            {
+              "label": "Email"
+            }
+          ]
+        },
+        {
+          "role": "Managing Director",
+          "bio": "Two decades of clinical leadership — championed major hospital partnerships and ICU rollouts across Bangladesh.",
+          "socials": [
+            {
+              "label": "LinkedIn"
+            },
+            {
+              "label": "Email"
+            }
+          ]
+        },
+        {
+          "role": "Director · COO",
+          "bio": "Operations and supply-chain lead — runs SPIBER's biomedical service, parts logistics, and 24×7 field support.",
+          "socials": [
+            {
+              "label": "LinkedIn"
+            },
+            {
+              "label": "Email"
+            }
+          ]
+        },
+        {
+          "role": "Director · CMO",
+          "bio": "Marketing and brand — leads SPIBER's clinical-education programs and partner outreach across the region.",
+          "socials": [
+            {
+              "label": "LinkedIn"
+            },
+            {
+              "label": "Email"
+            }
+          ]
+        }
+      ]
+    },
+    "latestNews": {
+      "eyebrow": "LATEST NEWS",
+      "title": "Field notes from the front of healthcare.",
+      "lede": "Stories, analysis, and dispatches from our team and partners.",
+      "visitBlog": "Visit the blog",
+      "readSuffix": "read",
+      "readMore": "Read more"
+    },
+    "cta": {
+      "eyebrow": "GET IN TOUCH",
+      "heading": "Contact us for help with your business.",
+      "description": "Whether you're commissioning a new ICU, building a hospital from scratch, or planning your team's continued education — our specialists respond within 2 business hours.",
+      "requestQuote": "Request a Quote",
+      "scheduleCall": "Schedule a Call",
+      "emailPrefix": "Or email us"
+    }
+  },
+  "footer": {
+    "logoAlt": "SPIBER MED",
+    "tagline": "Empowering healthcare in Bangladesh — clinical-grade equipment, planning, training, and lifelong service.",
+    "stayInformed": "Stay Informed",
+    "newsletterDesc": "Monthly catalog and new-arrival updates.",
+    "newsletterPlaceholder": "you@hospital.bd",
+    "subscribe": "Subscribe",
+    "subscribed": "Subscribed",
+    "addressLine1": "Road-06, House-47, Level-01, Block-C,",
+    "addressLine2": "Banani, Dhaka-1213, Bangladesh",
+    "copyright": "© 2026 SPIBER MED LTD. ALL RIGHTS RESERVED.",
+    "nav": [
+      [
+        "Products",
+        [
+          "Patient Care",
+          "Critical Care",
+          "OR Solutions",
+          "Surgical",
+          "Imaging",
+          "Lab Diagnostics"
+        ]
+      ],
+      [
+        "Services",
+        [
+          "Hospital Planning",
+          "EPC Delivery",
+          "Healthcare IT",
+          "Global Employment",
+          "Medical Tourism"
+        ]
+      ],
+      [
+        "Company",
+        [
+          "Who We Are",
+          "Top Message",
+          "Vision 2040",
+          "Career",
+          "Gallery",
+          "Contact"
+        ]
+      ]
+    ],
+    "legal": ["PRIVACY", "TERMS", "COOKIES", "SITEMAP"]
+  },
+  "utilityBar": {
+    "location": "Banani · Dhaka 1213, Bangladesh",
+    "hours": "Mon–Sat · 09:00–18:00 BST"
+  }
+}

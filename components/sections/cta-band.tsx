@@ -1,10 +1,19 @@
 "use client";
 
 import { CSSProperties } from "react";
-import { Arrow, Container, DotPattern, Eyebrow, Reveal, Section } from "@/components/ui";
+import { useTranslations } from "next-intl";
+import {
+  Arrow,
+  Container,
+  DotPattern,
+  Eyebrow,
+  Reveal,
+  Section,
+} from "@/components/ui";
 import { useMagnetic } from "@/hooks";
 
 export function CTABand() {
+  const t = useTranslations("home.cta");
   const cta = useMagnetic<HTMLButtonElement>(0.3, 100);
   return (
     <Section dark mesh py="clamp(80px, 9vw, 160px)">
@@ -12,7 +21,14 @@ export function CTABand() {
         color="var(--teal-300)"
         gap={20}
         fade="radial"
-        style={{ inset: "auto", top: -60, right: -40, width: 460, height: 460, opacity: 0.22 }}
+        style={{
+          inset: "auto",
+          top: -60,
+          right: -40,
+          width: 460,
+          height: 460,
+          opacity: 0.22,
+        }}
       />
       <Container>
         <div
@@ -26,7 +42,7 @@ export function CTABand() {
         >
           <div>
             <Reveal>
-              <Eyebrow dark>GET IN TOUCH</Eyebrow>
+              <Eyebrow dark>{t("eyebrow")}</Eyebrow>
             </Reveal>
             <Reveal delay={100}>
               <h2
@@ -42,7 +58,7 @@ export function CTABand() {
                   color: "white",
                 }}
               >
-                Contact us for help with your business.
+                {t("heading")}
               </h2>
             </Reveal>
             <Reveal delay={200}>
@@ -55,7 +71,7 @@ export function CTABand() {
                   margin: 0,
                 }}
               >
-                Whether you&apos;re commissioning a new ICU, building a hospital from scratch, or planning your team&apos;s continued education — our specialists respond within 2 business hours.
+                {t("description")}
               </p>
             </Reveal>
           </div>
@@ -85,13 +101,14 @@ export function CTABand() {
                   gap: 10,
                 }}
               >
-                Request a Quote <Arrow size={16} />
+                {t("requestQuote")} <Arrow size={16} />
               </button>
               <button
                 style={{
                   background: "transparent",
                   color: "white",
-                  border: "1px solid color-mix(in srgb, var(--teal-300) 55%, transparent)",
+                  border:
+                    "1px solid color-mix(in srgb, var(--teal-300) 55%, transparent)",
                   borderRadius: 999,
                   padding: "16px 26px",
                   fontSize: 15,
@@ -102,7 +119,7 @@ export function CTABand() {
                   gap: 8,
                 }}
               >
-                Schedule a Call <Arrow />
+                {t("scheduleCall")} <Arrow />
               </button>
               <a
                 href="mailto:sales@spiberhcl.com"
@@ -115,7 +132,7 @@ export function CTABand() {
                   gap: 8,
                 }}
               >
-                Or email us · sales@spiberhcl.com →
+                {t("emailPrefix")} · sales@spiberhcl.com →
               </a>
             </div>
           </Reveal>

@@ -1,7 +1,14 @@
 "use client";
 
 import { useId } from "react";
-import { Container, DotPattern, Eyebrow, Reveal, Section } from "@/components/ui";
+import { useTranslations } from "next-intl";
+import {
+  Container,
+  DotPattern,
+  Eyebrow,
+  Reveal,
+  Section,
+} from "@/components/ui";
 import { useCountUp } from "@/hooks";
 
 const RING_R = 54;
@@ -69,7 +76,14 @@ function Stat({
             strokeDasharray={`${RING_C * RING_ARC} ${RING_C}`}
           />
         </svg>
-        <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}>
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "grid",
+            placeItems: "center",
+          }}
+        >
           <div
             style={{
               fontFamily: "var(--font-display)",
@@ -83,7 +97,13 @@ function Stat({
           >
             {val}
             {suffix && (
-              <span style={{ fontSize: "0.5em", color: "var(--color-secondary)", marginLeft: 2 }}>
+              <span
+                style={{
+                  fontSize: "0.5em",
+                  color: "var(--color-secondary)",
+                  marginLeft: 2,
+                }}
+              >
                 {suffix}
               </span>
             )}
@@ -104,7 +124,13 @@ function Stat({
         >
           {label}
         </div>
-        <div style={{ fontSize: 13, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
+        <div
+          style={{
+            fontSize: 13,
+            color: "var(--color-text-muted)",
+            lineHeight: 1.5,
+          }}
+        >
           {sub}
         </div>
       </div>
@@ -113,16 +139,23 @@ function Stat({
 }
 
 export function StatsBand() {
+  const t = useTranslations("home.stats");
+  const items = t.raw("items") as Array<{ label: string; sub: string }>;
   return (
     <Section py="clamp(64px, 7vw, 112px)">
       <Container>
         <div style={{ marginBottom: 32 }}>
           <Reveal>
-            <Eyebrow>IMPACT · 2026</Eyebrow>
+            <Eyebrow>{t("eyebrow")}</Eyebrow>
           </Reveal>
         </div>
         <div style={{ position: "relative" }}>
-          <DotPattern color="var(--teal-200)" gap={22} fade="radial" style={{ opacity: 0.6 }} />
+          <DotPattern
+            color="var(--teal-200)"
+            gap={22}
+            fade="radial"
+            style={{ opacity: 0.6 }}
+          />
           <div
             className="equal-4col"
             style={{
@@ -132,33 +165,38 @@ export function StatsBand() {
               gap: 36,
             }}
           >
-          <Reveal>
-            <Stat
-              value={100}
-              suffix="+"
-              label="Completed projects"
-              sub="Across 8 divisions of Bangladesh"
-            />
-          </Reveal>
-          <Reveal delay={120}>
-            <Stat
-              value={120}
-              suffix="+"
-              label="Happy clients"
-              sub="Hospitals · clinics · labs · academies"
-            />
-          </Reveal>
-          <Reveal delay={240}>
-            <Stat value={3} suffix="+" label="Countries" sub="OEM & service partnerships" />
-          </Reveal>
-          <Reveal delay={360}>
-            <Stat
-              value={250}
-              suffix="+"
-              label="Positive reviews"
-              sub="From verified clients"
-            />
-          </Reveal>
+            <Reveal>
+              <Stat
+                value={100}
+                suffix="+"
+                label={items[0].label}
+                sub={items[0].sub}
+              />
+            </Reveal>
+            <Reveal delay={120}>
+              <Stat
+                value={120}
+                suffix="+"
+                label={items[1].label}
+                sub={items[1].sub}
+              />
+            </Reveal>
+            <Reveal delay={240}>
+              <Stat
+                value={3}
+                suffix="+"
+                label={items[2].label}
+                sub={items[2].sub}
+              />
+            </Reveal>
+            <Reveal delay={360}>
+              <Stat
+                value={250}
+                suffix="+"
+                label={items[3].label}
+                sub={items[3].sub}
+              />
+            </Reveal>
           </div>
         </div>
 
@@ -181,7 +219,7 @@ export function StatsBand() {
                 marginBottom: 28,
               }}
             >
-              TRUSTED BY HOSPITALS &amp; HEALTHCARE GROUPS ACROSS BANGLADESH
+              {t("trustedBy")}
             </div>
             <div
               style={{

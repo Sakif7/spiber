@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { Container, Eyebrow, Reveal, Section } from "@/components/ui";
 import {
   AnimatedTestimonials,
@@ -24,6 +26,8 @@ const TESTIMONIALS: AnimatedTestimonial[] = [
 ];
 
 export function Testimonials() {
+  const t = useTranslations("home.testimonials");
+
   return (
     <Section style={{ background: "var(--color-surface-2)" }}>
       <Container>
@@ -38,7 +42,7 @@ export function Testimonials() {
           }}
         >
           <Reveal>
-            <Eyebrow>TESTIMONIAL</Eyebrow>
+            <Eyebrow>{t("eyebrow")}</Eyebrow>
           </Reveal>
           <Reveal delay={80}>
             <h2
@@ -53,7 +57,7 @@ export function Testimonials() {
                 maxWidth: "18ch",
               }}
             >
-              In the words of the people we work with.
+              {t("heading")}
             </h2>
           </Reveal>
           <Reveal delay={160}>
@@ -66,8 +70,7 @@ export function Testimonials() {
                 maxWidth: "56ch",
               }}
             >
-              Hospital chairs, founders of imaging centres, and clinical
-              directors on what it&apos;s like to partner with SPIBER MED.
+              {t("description")}
             </p>
           </Reveal>
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Arrow,
   Container,
@@ -45,8 +46,9 @@ const FALLBACK: Post[] = [
 ];
 
 export function LatestNews({ initial }: { initial?: Post[] }) {
+  const t = useTranslations("home.latestNews");
   const [posts, setPosts] = useState<Post[]>(
-    initial && initial.length ? initial : FALLBACK
+    initial && initial.length ? initial : FALLBACK,
   );
 
   useEffect(() => {
@@ -78,9 +80,9 @@ export function LatestNews({ initial }: { initial?: Post[] }) {
           }}
         >
           <SectionTitle
-            eyebrow="LATEST NEWS"
-            title="Field notes from the front of healthcare."
-            lede="Stories, analysis, and dispatches from our team and partners."
+            eyebrow={t("eyebrow")}
+            title={t("title")}
+            lede={t("lede")}
           />
           <Reveal delay={200} style={{ alignSelf: "end" }}>
             <a
@@ -97,14 +99,18 @@ export function LatestNews({ initial }: { initial?: Post[] }) {
                 cursor: "pointer",
               }}
             >
-              Visit the blog <Arrow />
+              {t("visitBlog")} <Arrow />
             </a>
           </Reveal>
         </div>
 
         <div
           className="equal-3col"
-          style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: 20,
+          }}
         >
           {posts.map((p, i) => (
             <Reveal key={p.title} delay={i * 100}>
@@ -117,7 +123,16 @@ export function LatestNews({ initial }: { initial?: Post[] }) {
   );
 }
 
-function NewsCard({ kicker, title, excerpt, date, read, tone, placeholder }: Post) {
+function NewsCard({
+  kicker,
+  title,
+  excerpt,
+  date,
+  read,
+  tone,
+  placeholder,
+}: Post) {
+  const t = useTranslations("home.latestNews");
   const [hover, setHover] = useState(false);
   return (
     <article
@@ -147,7 +162,8 @@ function NewsCard({ kicker, title, excerpt, date, read, tone, placeholder }: Pos
           right: 0,
           height: 3,
           zIndex: 3,
-          background: "linear-gradient(90deg, var(--brand-teal), var(--aqua-400))",
+          background:
+            "linear-gradient(90deg, var(--brand-teal), var(--aqua-400))",
           transform: hover ? "scaleX(1)" : "scaleX(0)",
           transformOrigin: "left",
           transition: "transform 420ms cubic-bezier(.16,1,.3,1)",
@@ -204,7 +220,9 @@ function NewsCard({ kicker, title, excerpt, date, read, tone, placeholder }: Pos
         >
           <span>{date}</span>
           <span>·</span>
-          <span>{read} read</span>
+          <span>
+            {read} {t("readSuffix")}
+          </span>
         </div>
         <h3
           style={{
@@ -243,7 +261,7 @@ function NewsCard({ kicker, title, excerpt, date, read, tone, placeholder }: Pos
             transition: "transform 280ms cubic-bezier(.16,1,.3,1)",
           }}
         >
-          Read more <Arrow size={12} />
+          {t("readMore")} <Arrow size={12} />
         </div>
       </div>
     </article>

@@ -1,22 +1,13 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/mongodb";
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { parseJson } from "@/lib/http/validate";
+import { newsletterInputSchema } from "@/lib/schemas/forms";
+import { subscribeToNewsletter } from "@/lib/services/leads.service";
 
 export async function POST(req: Request) {
-  const body = (await req.json().catch(() => null)) as { email?: string } | null;
-  const email = body?.email?.trim().toLowerCase();
-  if (!email || !EMAIL_RE.test(email)) {
+  const parsed = await parseJson(req, newsletterInputSchema);
+  if (!parsed.success) {
     return NextResponse.json({ error: "invalid_email" }, { status: 400 });
   }
-  const db = await getDb();
-  if (!db) {
-    return NextResponse.json({ ok: true, persisted: false });
-  }
-  await db.collection("newsletter").updateOne(
-    { email },
-    { $setOnInsert: { email, createdAt: new Date() } },
-    { upsert: true }
-  );
-  return NextResponse.json({ ok: true, persisted: true });
+  const { persisted } = await subscribeToNewsletter(parsed.data);
+  return NextResponse.json({ ok: true, persisted });
 }

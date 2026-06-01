@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Arrow,
   Container,
@@ -13,13 +14,15 @@ import {
 type Item = {
   name: string;
   cat: string;
+  catLabel: string;
   sku: string;
   tag?: string;
+  tagLabel?: string;
   tone: "teal" | "orange" | "slate";
   placeholder: string;
 };
 
-const CATEGORIES = [
+const CATEGORY_KEYS = [
   "All",
   "Hospital-Wide",
   "Patient Care",
@@ -32,24 +35,51 @@ const CATEGORIES = [
   "Ventilators",
 ];
 
-const ITEMS: Item[] = [
-  { name: "Mobile C-Arm SXR-200", cat: "Imaging", sku: "042-C2", tag: "FEATURED", tone: "teal", placeholder: "C-arm product shot" },
-  { name: "ICU Ventilator V8", cat: "Ventilators", sku: "311-VT", tag: "NEW 2026", tone: "orange", placeholder: "ventilator render" },
-  { name: "Multi-para Monitor M12", cat: "Patient Care", sku: "118-PC", tone: "teal", placeholder: "monitor screen" },
-  { name: "Operating Table Pro X", cat: "OR Solutions", sku: "204-OR", tone: "slate", placeholder: "operating table" },
-  { name: "Hematology Analyzer H7", cat: "Lab Diagnostics", sku: "501-LD", tone: "teal", placeholder: "lab analyzer" },
-  { name: "Anesthesia Workstation A6", cat: "OR Solutions", sku: "207-OR", tone: "orange", placeholder: "anesthesia unit" },
-  { name: "Surgical Light Ω-LED", cat: "OR Solutions", sku: "212-OR", tone: "slate", placeholder: "surgical light" },
-  { name: "Ultrasound iScan-9", cat: "Imaging", sku: "045-IM", tag: "CE", tone: "teal", placeholder: "ultrasound probe" },
-  { name: "ICU Bed E-3", cat: "Hospital-Wide", sku: "601-FU", tone: "orange", placeholder: "ICU bed" },
-  { name: "Disposable PPE Kit", cat: "Disposables", sku: "810-DS", tone: "slate", placeholder: "PPE pack" },
-  { name: "ECG Cardio-12L", cat: "Patient Care", sku: "124-PC", tone: "teal", placeholder: "ECG device" },
-  { name: "Electrosurgical Unit ESU-2K", cat: "Surgical", sku: "230-SR", tone: "orange", placeholder: "ESU device" },
+const ITEM_META: {
+  cat: string;
+  sku: string;
+  tag?: string;
+  tone: "teal" | "orange" | "slate";
+}[] = [
+  { cat: "Imaging", sku: "042-C2", tag: "FEATURED", tone: "teal" },
+  { cat: "Ventilators", sku: "311-VT", tag: "NEW 2026", tone: "orange" },
+  { cat: "Patient Care", sku: "118-PC", tone: "teal" },
+  { cat: "OR Solutions", sku: "204-OR", tone: "slate" },
+  { cat: "Lab Diagnostics", sku: "501-LD", tone: "teal" },
+  { cat: "OR Solutions", sku: "207-OR", tone: "orange" },
+  { cat: "OR Solutions", sku: "212-OR", tone: "slate" },
+  { cat: "Imaging", sku: "045-IM", tag: "CE", tone: "teal" },
+  { cat: "Hospital-Wide", sku: "601-FU", tone: "orange" },
+  { cat: "Disposables", sku: "810-DS", tone: "slate" },
+  { cat: "Patient Care", sku: "124-PC", tone: "teal" },
+  { cat: "Surgical", sku: "230-SR", tone: "orange" },
 ];
 
 export function CapitalEquipment() {
+  const t = useTranslations("home.capitalEquipment");
   const [active, setActive] = useState("All");
-  const filtered = active === "All" ? ITEMS : ITEMS.filter((i) => i.cat === active);
+
+  const categoryLabels = t.raw("categories") as Record<string, string>;
+  const itemContent = t.raw("items") as Array<{
+    name: string;
+    catLabel: string;
+    tagLabel?: string;
+    placeholder: string;
+  }>;
+
+  const ITEMS: Item[] = ITEM_META.map((meta, i) => ({
+    name: itemContent[i].name,
+    cat: meta.cat,
+    catLabel: itemContent[i].catLabel,
+    sku: meta.sku,
+    tag: meta.tag,
+    tagLabel: itemContent[i].tagLabel,
+    tone: meta.tone,
+    placeholder: itemContent[i].placeholder,
+  }));
+
+  const filtered =
+    active === "All" ? ITEMS : ITEMS.filter((i) => i.cat === active);
 
   return (
     <Section style={{ background: "var(--color-surface-2)" }}>
@@ -65,12 +95,14 @@ export function CapitalEquipment() {
           }}
         >
           <SectionTitle
-            eyebrow="OUR CAPITAL EQUIPMENT"
-            title="The full catalog, browseable in one place."
-            lede="Filter by clinical category or department. Every listing carries a model, SKU, certification status, and lead-time estimate."
+            eyebrow={t("eyebrow")}
+            title={t("title")}
+            lede={t("lede")}
           />
           <Reveal delay={200} style={{ alignSelf: "end" }}>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
+            <div
+              style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}
+            >
               <a
                 href="#"
                 style={{
@@ -83,7 +115,7 @@ export function CapitalEquipment() {
                   cursor: "pointer",
                 }}
               >
-                Download full catalog (PDF · 4.2 MB) <Arrow />
+                {t("downloadCatalog")} <Arrow />
               </a>
             </div>
           </Reveal>
@@ -104,12 +136,13 @@ export function CapitalEquipment() {
               maxWidth: "100%",
             }}
           >
-            {CATEGORIES.map((c) => (
+            {CATEGORY_KEYS.map((c) => (
               <button
                 key={c}
                 onClick={() => setActive(c)}
                 style={{
-                  background: active === c ? "var(--color-brand)" : "transparent",
+                  background:
+                    active === c ? "var(--color-brand)" : "transparent",
                   color: active === c ? "white" : "var(--color-text)",
                   border: "none",
                   borderRadius: 999,
@@ -122,7 +155,7 @@ export function CapitalEquipment() {
                   whiteSpace: "nowrap",
                 }}
               >
-                {c}
+                {categoryLabels[c]}
               </button>
             ))}
           </div>
@@ -137,7 +170,11 @@ export function CapitalEquipment() {
         >
           {filtered.map((it, i) => (
             <Reveal key={it.sku} delay={Math.min(i * 50, 400)}>
-              <EquipmentCard {...it} />
+              <EquipmentCard
+                {...it}
+                viewLabel={t("view")}
+                skuLabel={t("skuLabel")}
+              />
             </Reveal>
           ))}
         </div>
@@ -146,7 +183,17 @@ export function CapitalEquipment() {
   );
 }
 
-function EquipmentCard({ name, cat, sku, tag, tone, placeholder }: Item) {
+function EquipmentCard({
+  name,
+  catLabel,
+  sku,
+  tag,
+  tagLabel,
+  tone,
+  placeholder,
+  viewLabel,
+  skuLabel,
+}: Item & { viewLabel: string; skuLabel: string }) {
   const [hover, setHover] = useState(false);
   return (
     <div
@@ -176,7 +223,8 @@ function EquipmentCard({ name, cat, sku, tag, tone, placeholder }: Item) {
           right: 0,
           height: 3,
           zIndex: 3,
-          background: "linear-gradient(90deg, var(--brand-teal), var(--aqua-400))",
+          background:
+            "linear-gradient(90deg, var(--brand-teal), var(--aqua-400))",
           transform: hover ? "scaleX(1)" : "scaleX(0)",
           transformOrigin: "left",
           transition: "transform 420ms cubic-bezier(.16,1,.3,1)",
@@ -200,7 +248,9 @@ function EquipmentCard({ name, cat, sku, tag, tone, placeholder }: Item) {
               top: 12,
               left: 12,
               background:
-                tag === "FEATURED" ? "var(--color-secondary)" : "var(--color-brand)",
+                tag === "FEATURED"
+                  ? "var(--color-secondary)"
+                  : "var(--color-brand)",
               color: "white",
               fontSize: 10,
               fontWeight: 600,
@@ -210,7 +260,7 @@ function EquipmentCard({ name, cat, sku, tag, tone, placeholder }: Item) {
               letterSpacing: ".1em",
             }}
           >
-            {tag}
+            {tagLabel}
           </span>
         )}
       </div>
@@ -231,7 +281,7 @@ function EquipmentCard({ name, cat, sku, tag, tone, placeholder }: Item) {
             color: "var(--color-text-muted)",
           }}
         >
-          {cat.toUpperCase()}
+          {catLabel.toUpperCase()}
         </div>
         <div
           style={{
@@ -261,16 +311,18 @@ function EquipmentCard({ name, cat, sku, tag, tone, placeholder }: Item) {
               color: "var(--color-text-muted)",
             }}
           >
-            SKU · {sku}
+            {skuLabel} · {sku}
           </span>
           <span
             style={{
               fontSize: 12,
               fontWeight: 500,
-              color: hover ? "var(--color-brand-deep)" : "var(--color-text-muted)",
+              color: hover
+                ? "var(--color-brand-deep)"
+                : "var(--color-text-muted)",
             }}
           >
-            View →
+            {viewLabel}
           </span>
         </div>
       </div>

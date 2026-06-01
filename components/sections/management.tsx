@@ -2,12 +2,8 @@
 
 import { ReactNode, useRef, useState } from "react";
 import Image from "next/image";
-import {
-  motion,
-  useMotionValue,
-  useSpring,
-  useTransform,
-} from "framer-motion";
+import { useTranslations } from "next-intl";
+import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import {
   Arrow,
   Container,
@@ -27,63 +23,73 @@ type TeamMember = {
 };
 
 const LinkedInIcon = (
-  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden>
+  <svg
+    viewBox="0 0 24 24"
+    width="14"
+    height="14"
+    fill="currentColor"
+    aria-hidden
+  >
     <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14zM8.339 18.337V10.27H5.667v8.067h2.672zM7.003 9.16a1.55 1.55 0 1 0 0-3.1 1.55 1.55 0 0 0 0 3.1zm11.336 9.177v-4.418c0-2.397-1.279-3.516-2.985-3.516-1.376 0-1.992.756-2.336 1.286V10.27H10.346c.035.754 0 8.067 0 8.067h2.672v-4.503c0-.24.017-.48.088-.652.193-.48.633-.978 1.374-.978.969 0 1.358.738 1.358 1.823v4.31h2.673z" />
   </svg>
 );
 
 const EmailIcon = (
-  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden>
+  <svg
+    viewBox="0 0 24 24"
+    width="13"
+    height="13"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.7"
+    aria-hidden
+  >
     <rect x="3" y="5" width="18" height="14" rx="2" />
     <path d="M3 7l9 6 9-6" />
   </svg>
 );
 
-const TEAM: TeamMember[] = [
+const TEAM: Omit<TeamMember, "role" | "bio" | "socials">[] = [
   {
     name: "Morsheda Parvin Misti",
-    role: "Chairman",
     image: "/mishti-managing-body.jpeg",
-    bio: "Chair of the board — sets SPIBER MED's long-term vision and governance across its healthcare and technology ventures.",
-    socials: [
-      { label: "LinkedIn", href: "#", icon: LinkedInIcon },
-      { label: "Email", href: "#", icon: EmailIcon },
-    ],
   },
   {
     name: "Dr. Md Jahidul Islam",
-    role: "Managing Director",
     image: "/jahidul-managing-body.png",
-    bio: "Two decades of clinical leadership — championed major hospital partnerships and ICU rollouts across Bangladesh.",
-    socials: [
-      { label: "LinkedIn", href: "#", icon: LinkedInIcon },
-      { label: "Email", href: "#", icon: EmailIcon },
-    ],
   },
   {
     name: "Mostary Morshed Smriti",
-    role: "Director · COO",
     image: "/smriti-managing-body.png",
-    bio: "Operations and supply-chain lead — runs SPIBER's biomedical service, parts logistics, and 24×7 field support.",
-    socials: [
-      { label: "LinkedIn", href: "#", icon: LinkedInIcon },
-      { label: "Email", href: "#", icon: EmailIcon },
-    ],
   },
   {
     name: "Subrina Azmi Kanta",
-    role: "Director · CMO",
     image: "/kanta-managing-body.jpeg",
-    bio: "Marketing and brand — leads SPIBER's clinical-education programs and partner outreach across the region.",
-    socials: [
-      { label: "LinkedIn", href: "#", icon: LinkedInIcon },
-      { label: "Email", href: "#", icon: EmailIcon },
-    ],
   },
 ];
 
+const SOCIAL_ICONS: ReactNode[] = [LinkedInIcon, EmailIcon];
+
 export function Management() {
+  const t = useTranslations("home.management");
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+
+  const members = t.raw("members") as Array<{
+    role: string;
+    bio: string;
+    socials: { label: string }[];
+  }>;
+
+  const team: TeamMember[] = TEAM.map((m, i) => ({
+    ...m,
+    role: members[i].role,
+    bio: members[i].bio,
+    socials: members[i].socials.map((s, j) => ({
+      label: s.label,
+      href: "#",
+      icon: SOCIAL_ICONS[j],
+    })),
+  }));
 
   return (
     <Section>
@@ -99,9 +105,9 @@ export function Management() {
           }}
         >
           <SectionTitle
-            eyebrow="MANAGEMENT BODY"
-            title="Meet the people leading SPIBER MED."
-            lede="A team of clinicians, operators, and builders — combined decades of work across hospital systems, manufacturing, and medical education."
+            eyebrow={t("eyebrow")}
+            title={t("title")}
+            lede={t("lede")}
           />
           <Reveal delay={200} style={{ alignSelf: "end" }}>
             <a
@@ -118,7 +124,7 @@ export function Management() {
                 cursor: "pointer",
               }}
             >
-              See full leadership <Arrow />
+              {t("seeFullLeadership")} <Arrow />
             </a>
           </Reveal>
         </div>
@@ -136,7 +142,7 @@ export function Management() {
               position: "relative",
             }}
           >
-            {TEAM.map((p, i) => (
+            {team.map((p, i) => (
               <TeamCard
                 key={p.name}
                 member={p}
@@ -167,7 +173,10 @@ function TeamCard({
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
   const springCfg = { stiffness: 260, damping: 22, mass: 0.6 };
-  const rotateY = useSpring(useTransform(mx, [-0.5, 0.5], [-10, 10]), springCfg);
+  const rotateY = useSpring(
+    useTransform(mx, [-0.5, 0.5], [-10, 10]),
+    springCfg,
+  );
   const rotateX = useSpring(useTransform(my, [-0.5, 0.5], [9, -9]), springCfg);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -223,7 +232,8 @@ function TeamCard({
         transition={{ type: "spring", stiffness: 220, damping: 24 }}
         style={{
           background: "var(--color-surface)",
-          border: "1px solid " + (isHovered ? "var(--teal-300)" : "var(--teal-100)"),
+          border:
+            "1px solid " + (isHovered ? "var(--teal-300)" : "var(--teal-100)"),
           borderRadius: "var(--r-lg)",
           overflow: "hidden",
           position: "relative",
@@ -358,7 +368,8 @@ function SocialChip({ label, href, icon }: Social) {
         alignItems: "center",
         justifyContent: "center",
         color: "white",
-        transition: "background 180ms, color 180ms, transform 200ms cubic-bezier(.16,1,.3,1)",
+        transition:
+          "background 180ms, color 180ms, transform 200ms cubic-bezier(.16,1,.3,1)",
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.background = "var(--brand-teal)";

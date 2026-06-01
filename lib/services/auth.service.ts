@@ -1,0 +1,174 @@
+import { hashPassword, verifyPassword } from "@/lib/auth/password";
+import {
+  signAccessToken,
+  signRefreshToken,
+  signVerifyToken,
+  signResetToken,
+  verifyRefreshToken,
+  verifyPurposeToken,
+} from "@/lib/auth/tokens";
+import {
+  findUserByEmail,
+  findUserById,
+  createUser,
+  markEmailVerified,
+  updatePasswordHash,
+} from "@/lib/repositories/users.repo";
+import { getMailer } from "@/lib/mailer";
+import { siteConfig } from "@/lib/site-config";
+import { logger } from "@/lib/log";
+import type { Role } from "@/lib/schemas/user";
+import type {
+  RegisterInput,
+  LoginInput,
+  PasswordResetRequestInput,
+  PasswordResetConfirmInput,
+} from "@/lib/schemas/user";
+import type { IUser } from "@/lib/models/user";
+
+export type AuthUser = {
+  id: string;
+  name: string;
+  email: string;
+  roles: Role[];
+  emailVerified: boolean;
+};
+
+type Tokens = { accessToken: string; refreshToken: string };
+
+function toAuthUser(doc: IUser & { _id: unknown }): AuthUser {
+  return {
+    id: String(doc._id),
+    name: doc.name,
+    email: doc.email,
+    roles: doc.roles,
+    emailVerified: doc.emailVerified,
+  };
+}
+
+function issueTokens(user: AuthUser): Promise<Tokens> {
+  return Promise.all([
+    signAccessToken({ sub: user.id, email: user.email, roles: user.roles }),
+    signRefreshToken(user.id),
+  ]).then(([accessToken, refreshToken]) => ({ accessToken, refreshToken }));
+}
+
+/** Emails listed here are bootstrapped to super_admin on registration. */
+function bootstrapRoles(email: string): Role[] {
+  const admins = (process.env.SUPER_ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  return admins.includes(email.toLowerCase()) ? ["super_admin"] : ["customer"];
+}
+
+const localePrefix = (locale?: string) => (locale === "bn" ? "bn" : "en");
+
+// ---- Register ----
+
+export type RegisterResult =
+  | { ok: true; user: AuthUser }
+  | { ok: false; code: "email_taken" };
+
+export async function register(input: RegisterInput): Promise<RegisterResult> {
+  const existing = await findUserByEmail(input.email);
+  if (existing) return { ok: false, code: "email_taken" };
+
+  const passwordHash = await hashPassword(input.password);
+  const locale = localePrefix(input.locale);
+  const doc = await createUser({
+    name: input.name,
+    email: input.email,
+    passwordHash,
+    roles: bootstrapRoles(input.email),
+    locale,
+  });
+  const user = toAuthUser(doc);
+
+  const token = await signVerifyToken(user.id);
+  const link = `${siteConfig.url}/api/auth/verify-email?token=${encodeURIComponent(token)}&locale=${locale}`;
+  await getMailer().send({
+    to: user.email,
+    subject: `Verify your ${siteConfig.brand} account`,
+    text: `Welcome to ${siteConfig.brand}!\n\nConfirm your email:\n${link}\n\nThis link expires in 24 hours.`,
+    html: `<p>Welcome to ${siteConfig.brand}!</p><p><a href="${link}">Confirm your email</a> (expires in 24 hours).</p>`,
+  });
+
+  return { ok: true, user };
+}
+
+// ---- Verify email ----
+
+export async function verifyEmail(token: string): Promise<{ ok: boolean }> {
+  const userId = await verifyPurposeToken(token, "verify");
+  if (!userId) return { ok: false };
+  await markEmailVerified(userId);
+  return { ok: true };
+}
+
+// ---- Login ----
+
+export type LoginResult =
+  | { ok: true; user: AuthUser; tokens: Tokens }
+  | { ok: false; code: "invalid_credentials" | "email_not_verified" };
+
+export async function login(input: LoginInput): Promise<LoginResult> {
+  const doc = await findUserByEmail(input.email);
+  if (!doc) return { ok: false, code: "invalid_credentials" };
+  const valid = await verifyPassword(input.password, doc.passwordHash);
+  if (!valid) return { ok: false, code: "invalid_credentials" };
+  if (!doc.emailVerified) return { ok: false, code: "email_not_verified" };
+
+  const user = toAuthUser(doc);
+  const tokens = await issueTokens(user);
+  return { ok: true, user, tokens };
+}
+
+// ---- Refresh ----
+
+export type RefreshResult =
+  | { ok: true; user: AuthUser; tokens: Tokens }
+  | { ok: false };
+
+export async function refresh(refreshToken: string): Promise<RefreshResult> {
+  const userId = await verifyRefreshToken(refreshToken);
+  if (!userId) return { ok: false };
+  const doc = await findUserById(userId);
+  if (!doc) return { ok: false };
+  const user = toAuthUser(doc);
+  const tokens = await issueTokens(user);
+  return { ok: true, user, tokens };
+}
+
+// ---- Password reset ----
+
+export async function requestPasswordReset(
+  input: PasswordResetRequestInput,
+): Promise<{ ok: true }> {
+  const doc = await findUserByEmail(input.email);
+  // Always return ok to avoid leaking which emails are registered.
+  if (doc) {
+    const locale = localePrefix(input.locale);
+    const token = await signResetToken(String(doc._id));
+    const link = `${siteConfig.url}/${locale}/reset-password?token=${encodeURIComponent(token)}`;
+    await getMailer().send({
+      to: doc.email,
+      subject: `Reset your ${siteConfig.brand} password`,
+      text: `Reset your password:\n${link}\n\nThis link expires in 1 hour. If you didn't request this, ignore this email.`,
+      html: `<p><a href="${link}">Reset your password</a> (expires in 1 hour).</p><p>If you didn't request this, ignore this email.</p>`,
+    });
+  } else {
+    logger.info("password reset requested for unknown email");
+  }
+  return { ok: true };
+}
+
+export async function resetPassword(
+  input: PasswordResetConfirmInput,
+): Promise<{ ok: boolean }> {
+  const userId = await verifyPurposeToken(input.token, "reset");
+  if (!userId) return { ok: false };
+  const passwordHash = await hashPassword(input.password);
+  await updatePasswordHash(userId, passwordHash);
+  return { ok: true };
+}

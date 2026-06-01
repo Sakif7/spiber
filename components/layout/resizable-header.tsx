@@ -3,7 +3,8 @@
 import { useRef, useState } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
-import { Arrow, Container } from "@/components/ui";
+import { Arrow, Container, LocaleSwitcher } from "@/components/ui";
+import { Link } from "@/i18n/navigation";
 import {
   MobileNav,
   MobileNavHeader,
@@ -13,6 +14,8 @@ import {
   NavItems,
   Navbar,
 } from "@/components/ui/resizable-navbar";
+
+const MotionLink = motion.create(Link);
 
 const NAV_ITEMS = [
   { name: "Home", link: "/" },
@@ -31,15 +34,27 @@ type MegaConfig = {
 const MEGA_MENUS: Record<string, MegaConfig> = {
   "Products & Solutions": {
     columns: [
-      { title: "Hospital-Wide", items: ["Medical Furniture", "Disposable Devices"] },
+      {
+        title: "Hospital-Wide",
+        items: ["Medical Furniture", "Disposable Devices"],
+      },
       {
         title: "Patient Care",
-        items: ["Patient Monitoring", "Electrocardiogram (ECG)", "Infusion Pumps"],
+        items: [
+          "Patient Monitoring",
+          "Electrocardiogram (ECG)",
+          "Infusion Pumps",
+        ],
       },
       { title: "Critical Care", items: ["ICU", "NICU", "CCU"] },
       {
         title: "OR Solution",
-        items: ["Operating Tables", "Surgical Lights", "Anesthesia", "Electrosurgery (ESU)"],
+        items: [
+          "Operating Tables",
+          "Surgical Lights",
+          "Anesthesia",
+          "Electrosurgery (ESU)",
+        ],
       },
       {
         title: "Imaging",
@@ -56,7 +71,12 @@ const MEGA_MENUS: Record<string, MegaConfig> = {
     columns: [
       {
         title: "Hospital Planning & Design",
-        items: ["Feasibility Study", "Master Planning", "Turn-Key EPC", "Architectural Review"],
+        items: [
+          "Feasibility Study",
+          "Master Planning",
+          "Turn-Key EPC",
+          "Architectural Review",
+        ],
       },
       {
         title: "Hospital Management",
@@ -68,7 +88,12 @@ const MEGA_MENUS: Record<string, MegaConfig> = {
       },
       {
         title: "Medical Tourism",
-        items: ["Hospital Network", "Specialties", "Visa Assistance", "Accommodation"],
+        items: [
+          "Hospital Network",
+          "Specialties",
+          "Visa Assistance",
+          "Accommodation",
+        ],
       },
     ],
     feature: {
@@ -81,7 +106,12 @@ const MEGA_MENUS: Record<string, MegaConfig> = {
     columns: [
       {
         title: "HealthHub HIS",
-        items: ["EMR / EHR", "Pharmacy & Inventory", "Telemedicine", "Patient Portal"],
+        items: [
+          "EMR / EHR",
+          "Pharmacy & Inventory",
+          "Telemedicine",
+          "Patient Portal",
+        ],
       },
       {
         title: "Future Skills BD",
@@ -98,10 +128,18 @@ const MEGA_MENUS: Record<string, MegaConfig> = {
     columns: [
       {
         title: "Who We Are",
-        items: ["Top Message", "Corporate Philosophy", "SPIBER at a Glance", "Vision 2040"],
+        items: [
+          "Top Message",
+          "Corporate Philosophy",
+          "SPIBER at a Glance",
+          "Vision 2040",
+        ],
       },
       { title: "People", items: ["Leadership", "Career", "Gallery"] },
-      { title: "Partners", items: ["Hospital Network", "OEM Partners", "Academic Network"] },
+      {
+        title: "Partners",
+        items: ["Hospital Network", "OEM Partners", "Academic Network"],
+      },
     ],
     feature: {
       tag: "VISION",
@@ -113,7 +151,6 @@ const MEGA_MENUS: Record<string, MegaConfig> = {
 
 export function ResizableHeader() {
   const [open, setOpen] = useState(false);
-  const [lang, setLang] = useState<"EN" | "বাং">("EN");
   const [megaOpen, setMegaOpen] = useState<string | null>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -142,10 +179,14 @@ export function ResizableHeader() {
           onItemHover={(name) => (name ? openMega(name) : scheduleClose())}
           onItemClick={() => setOpen(false)}
         />
-        <DesktopActions lang={lang} setLang={setLang} />
+        <DesktopActions />
       </NavBody>
 
-      <MegaMenu open={megaOpen} onMouseEnter={cancelClose} onMouseLeave={scheduleClose} />
+      <MegaMenu
+        open={megaOpen}
+        onMouseEnter={cancelClose}
+        onMouseLeave={scheduleClose}
+      />
 
       <MobileNav>
         <MobileNavHeader>
@@ -169,9 +210,12 @@ export function ResizableHeader() {
               {it.name}
             </a>
           ))}
-          <div style={{ display: "flex", gap: 10, marginTop: 10, width: "100%" }}>
-            <a
-              href="#"
+          <div
+            style={{ display: "flex", gap: 10, marginTop: 10, width: "100%" }}
+          >
+            <Link
+              href="/login"
+              onClick={() => setOpen(false)}
               style={{
                 flex: 1,
                 textAlign: "center",
@@ -183,8 +227,11 @@ export function ResizableHeader() {
               }}
             >
               Login
-            </a>
+            </Link>
             <CtaButton style={{ flex: 1, justifyContent: "center" }} />
+          </div>
+          <div style={{ marginTop: 14 }}>
+            <LocaleSwitcher />
           </div>
         </MobileNavMenu>
       </MobileNav>
@@ -261,7 +308,13 @@ function MegaMenu({
                     >
                       {c.title}
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 9,
+                      }}
+                    >
                       {c.items.map((it) => (
                         <a
                           key={it}
@@ -317,7 +370,11 @@ function MegaMenu({
                     {config.feature.title}
                   </div>
                   <div
-                    style={{ fontSize: 13, lineHeight: 1.55, color: "var(--color-text-muted)" }}
+                    style={{
+                      fontSize: 13,
+                      lineHeight: 1.55,
+                      color: "var(--color-text-muted)",
+                    }}
                   >
                     {config.feature.body}
                   </div>
@@ -349,7 +406,7 @@ function MegaMenu({
 
 function Logo() {
   return (
-    <a
+    <Link
       href="/"
       className="relative z-20 flex items-center"
       style={{ paddingInline: 4 }}
@@ -363,25 +420,19 @@ function Logo() {
         priority
         style={{ height: 30, width: "auto", display: "block" }}
       />
-    </a>
+    </Link>
   );
 }
 
-function DesktopActions({
-  lang,
-  setLang,
-}: {
-  lang: "EN" | "বাং";
-  setLang: (l: "EN" | "বাং") => void;
-}) {
+function DesktopActions() {
   return (
     <div
       className="relative z-20"
       style={{ display: "flex", alignItems: "center", gap: 10 }}
     >
-      <LangToggle lang={lang} setLang={setLang} />
-      <a
-        href="#"
+      <LocaleSwitcher />
+      <Link
+        href="/login"
         style={{
           fontSize: 13,
           color: "var(--color-text-muted)",
@@ -390,79 +441,16 @@ function DesktopActions({
         }}
       >
         Login
-      </a>
+      </Link>
       <CtaButton />
-    </div>
-  );
-}
-
-function LangToggle({
-  lang,
-  setLang,
-}: {
-  lang: "EN" | "বাং";
-  setLang: (l: "EN" | "বাং") => void;
-}) {
-  const langs = ["EN", "বাং"] as const;
-  return (
-    <div
-      style={{
-        position: "relative",
-        display: "inline-flex",
-        padding: 3,
-        borderRadius: 999,
-        background: "var(--color-surface-2)",
-        border: "1px solid var(--color-border)",
-        fontFamily: "var(--font-mono)",
-        fontSize: 11,
-        fontWeight: 600,
-      }}
-    >
-      {langs.map((l) => {
-        const active = lang === l;
-        return (
-          <button
-            key={l}
-            onClick={() => setLang(l)}
-            style={{
-              position: "relative",
-              background: "transparent",
-              color: active ? "var(--color-text-strong)" : "var(--color-text-muted)",
-              border: "none",
-              borderRadius: 999,
-              padding: "5px 12px",
-              cursor: "pointer",
-              fontFamily: l === "বাং" ? "var(--font-bn)" : "var(--font-mono)",
-              transition: "color 200ms",
-              zIndex: 1,
-            }}
-          >
-            {active && (
-              <motion.span
-                layoutId="lang-pill"
-                transition={{ type: "spring", stiffness: 380, damping: 32 }}
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  borderRadius: 999,
-                  background: "var(--color-surface)",
-                  boxShadow: "var(--shadow-xs)",
-                  zIndex: -1,
-                }}
-              />
-            )}
-            {l}
-          </button>
-        );
-      })}
     </div>
   );
 }
 
 function CtaButton({ style }: { style?: React.CSSProperties }) {
   return (
-    <motion.a
-      href="#"
+    <MotionLink
+      href="/contact"
       whileHover={{ y: -2 }}
       whileTap={{ y: 0, scale: 0.98 }}
       transition={{ type: "spring", stiffness: 400, damping: 26 }}
@@ -483,6 +471,6 @@ function CtaButton({ style }: { style?: React.CSSProperties }) {
       }}
     >
       Request a Quote <Arrow />
-    </motion.a>
+    </MotionLink>
   );
 }

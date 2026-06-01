@@ -1,16 +1,9 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/mongodb";
+import { getTestimonials } from "@/lib/services/landing.service";
 
 export const revalidate = 60;
 
 export async function GET() {
-  const db = await getDb();
-  if (!db) return NextResponse.json({ testimonials: [] });
-  const testimonials = await db
-    .collection("testimonials")
-    .find({}, { projection: { _id: 0 } })
-    .sort({ order: 1 })
-    .limit(20)
-    .toArray();
+  const testimonials = await getTestimonials();
   return NextResponse.json({ testimonials });
 }

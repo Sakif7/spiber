@@ -3,6 +3,7 @@
 import { CSSProperties, useEffect, useState } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import { Arrow, Container, Reveal } from "@/components/ui";
 import { useMagnetic } from "@/hooks";
 import DotGrid from "@/components/ui/dot-grid";
@@ -13,26 +14,63 @@ import DotGrid from "@/components/ui/dot-grid";
 // (e.g. last token) reads nonsensically for taglines like "...Right at Your
 // Door" → "Empowering Door."
 const HERO_TAGLINES = [
-  { word: "Healthcare",  title: "Empowering Healthcare",                line: "SPIBER strives to empower and restore healthcare." },
-  { word: "Innovation",  title: "Transforming Healthcare",              line: "Committed to providing cutting-edge technology within reach." },
-  { word: "Access",      title: "Cutting-Edge, Right at Your Door",     line: "Assuring innovation across the healthcare industry." },
-  { word: "Care",        title: "Uncompromised Medical Care",           line: "Quality products for every stage of medical care." },
-  { word: "Skills",      title: "Advancing Academic & Technical Skills",line: "Dazzling professionals with an advanced training system." },
-  { word: "Reach",       title: "We Reach, Where Others Can't",         line: "Delivering goods to any location quickly and with ease." },
+  {
+    word: "Healthcare",
+    title: "Empowering Healthcare",
+    line: "SPIBER strives to empower and restore healthcare.",
+  },
+  {
+    word: "Innovation",
+    title: "Transforming Healthcare",
+    line: "Committed to providing cutting-edge technology within reach.",
+  },
+  {
+    word: "Access",
+    title: "Cutting-Edge, Right at Your Door",
+    line: "Assuring innovation across the healthcare industry.",
+  },
+  {
+    word: "Care",
+    title: "Uncompromised Medical Care",
+    line: "Quality products for every stage of medical care.",
+  },
+  {
+    word: "Skills",
+    title: "Advancing Academic & Technical Skills",
+    line: "Dazzling professionals with an advanced training system.",
+  },
+  {
+    word: "Reach",
+    title: "We Reach, Where Others Can't",
+    line: "Delivering goods to any location quickly and with ease.",
+  },
 ];
 
 const HERO_PARTNERS = [
-  "Aichi Healthcare Group", "TOP MRI & Medicto", "Mirror Hospital",
-  "East West Medical", "Square Hospitals", "Labaid Hospital",
-  "United Hospital", "Evercare Hospital", "Ibn Sina Hospital",
-  "Popular Diagnostic", "Birdem General"
+  "Aichi Healthcare Group",
+  "TOP MRI & Medicto",
+  "Mirror Hospital",
+  "East West Medical",
+  "Square Hospitals",
+  "Labaid Hospital",
+  "United Hospital",
+  "Evercare Hospital",
+  "Ibn Sina Hospital",
+  "Popular Diagnostic",
+  "Birdem General",
 ];
 
 function TaglineRotator({ items }: { items: typeof HERO_TAGLINES }) {
+  const t = useTranslations("home.hero");
+  const taglines = t.raw("taglines") as Array<{
+    word: string;
+    title: string;
+    line: string;
+  }>;
   const [idx, setIdx] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setIdx((i) => (i + 1) % items.length), 4200);
-    return () => clearInterval(t);
+    const id = setInterval(() => setIdx((i) => (i + 1) % items.length), 4200);
+    return () => clearInterval(id);
   }, [items.length]);
 
   return (
@@ -58,8 +96,17 @@ function TaglineRotator({ items }: { items: typeof HERO_TAGLINES }) {
         >
           0{idx + 1} / 0{items.length}
         </span>
-        <span style={{ width: 24, height: 1, background: "var(--brand-teal)" }} />
-        <div style={{ position: "relative", flex: 1, height: 22, overflow: "hidden" }}>
+        <span
+          style={{ width: 24, height: 1, background: "var(--brand-teal)" }}
+        />
+        <div
+          style={{
+            position: "relative",
+            flex: 1,
+            height: 22,
+            overflow: "hidden",
+          }}
+        >
           {items.map((t, i) => (
             <div
               key={i}
@@ -77,7 +124,7 @@ function TaglineRotator({ items }: { items: typeof HERO_TAGLINES }) {
                 transition: "transform .7s cubic-bezier(.4,0,0,1)",
               }}
             >
-              {t.title}
+              {taglines[i].title}
             </div>
           ))}
         </div>
@@ -95,7 +142,7 @@ function TaglineRotator({ items }: { items: typeof HERO_TAGLINES }) {
           color: "var(--color-text-strong)",
         }}
       >
-        <span style={{ display: "inline-block" }}>Empowering </span>
+        <span style={{ display: "inline-block" }}>{t("headlinePrefix")} </span>
         <span
           style={{
             position: "relative",
@@ -118,7 +165,7 @@ function TaglineRotator({ items }: { items: typeof HERO_TAGLINES }) {
                 style={{
                   display: "inline-block",
                   fontStyle: "italic",
-                  fontFamily: 'var(--font-serif)',
+                  fontFamily: "var(--font-serif)",
                   fontWeight: 400,
                   color: "var(--brand-teal)",
                   transform: `translateY(${(i - idx) * 110}%)`,
@@ -131,13 +178,13 @@ function TaglineRotator({ items }: { items: typeof HERO_TAGLINES }) {
                   whiteSpace: "nowrap",
                 }}
               >
-                {t.word}.
+                {taglines[i].word}.
               </span>
             ))}
           </span>
         </span>
         <br />
-        <span>Built for Bangladesh.</span>
+        <span>{t("headlineSuffix")}</span>
       </h1>
 
       <div
@@ -163,7 +210,7 @@ function TaglineRotator({ items }: { items: typeof HERO_TAGLINES }) {
               transition: "transform .7s cubic-bezier(.4,0,0,1)",
             }}
           >
-            {t.line}
+            {taglines[i].line}
           </p>
         ))}
       </div>
@@ -294,6 +341,13 @@ function FeaturedTile({
   delay: number;
   onHover: (id: string | null) => void;
 }) {
+  const t = useTranslations("home.hero");
+  const sol = (
+    t.raw("solutions") as Record<
+      string,
+      { title: string; description: string; imageAlt: string }
+    >
+  )[s.id];
   return (
     <motion.a
       href={s.href}
@@ -326,7 +380,7 @@ function FeaturedTile({
       >
         <Image
           src={s.image}
-          alt={s.imageAlt}
+          alt={sol.imageAlt}
           fill
           priority
           sizes="(max-width: 980px) 90vw, 560px"
@@ -385,7 +439,7 @@ function FeaturedTile({
             color: "white",
           }}
         >
-          {s.title}
+          {sol.title}
         </h3>
         <p
           style={{
@@ -396,7 +450,7 @@ function FeaturedTile({
             maxWidth: "44ch",
           }}
         >
-          {s.description}
+          {sol.description}
         </p>
       </div>
     </motion.a>
@@ -412,6 +466,13 @@ function CompactTile({
   delay: number;
   onHover: (id: string | null) => void;
 }) {
+  const t = useTranslations("home.hero");
+  const sol = (
+    t.raw("solutions") as Record<
+      string,
+      { title: string; description: string; imageAlt: string }
+    >
+  )[s.id];
   return (
     <motion.a
       href={s.href}
@@ -443,7 +504,7 @@ function CompactTile({
       >
         <Image
           src={s.image}
-          alt={s.imageAlt}
+          alt={sol.imageAlt}
           fill
           sizes="(max-width: 980px) 45vw, 280px"
           style={{
@@ -501,7 +562,7 @@ function CompactTile({
             color: "white",
           }}
         >
-          {s.title}
+          {sol.title}
         </h3>
         <p
           style={{
@@ -511,7 +572,7 @@ function CompactTile({
             color: "rgba(255,255,255,.78)",
           }}
         >
-          {s.description}
+          {sol.description}
         </p>
       </div>
     </motion.a>
@@ -541,7 +602,12 @@ function HeroScene({ onHover }: { onHover: (id: string | null) => void }) {
     >
       <FeaturedTile s={featured} delay={0.2} onHover={handleHover} />
       {compact.map((s, i) => (
-        <CompactTile key={s.id} s={s} delay={0.35 + i * 0.1} onHover={handleHover} />
+        <CompactTile
+          key={s.id}
+          s={s}
+          delay={0.35 + i * 0.1}
+          onHover={handleHover}
+        />
       ))}
     </motion.div>
   );
@@ -592,6 +658,7 @@ function PartnerMarquee() {
 }
 
 export function Hero() {
+  const t = useTranslations("home.hero");
   const ctaMag = useMagnetic<HTMLButtonElement>(0.22, 90);
   const [hoveredSolution, setHoveredSolution] = useState<string | null>(null);
 
@@ -644,7 +711,7 @@ export function Hero() {
                     "0 0 0 4px color-mix(in oklab, var(--brand-teal) 22%, transparent)",
                 }}
               />
-              Healthcare Solutions · Est. 2008 · Dhaka
+              {t("badge")}
             </div>
 
             <TaglineRotator items={HERO_TAGLINES} />
@@ -678,7 +745,7 @@ export function Hero() {
                   transition: "all .25s cubic-bezier(.2,.7,.2,1)",
                 }}
               >
-                Request a Quote <Arrow size={14} />
+                {t("ctaQuote")} <Arrow size={14} />
               </button>
               <button
                 style={{
@@ -694,7 +761,7 @@ export function Hero() {
                   transition: "all .25s cubic-bezier(.2,.7,.2,1)",
                 }}
               >
-                Explore Solutions
+                {t("ctaExplore")}
               </button>
               <div
                 style={{
@@ -706,7 +773,13 @@ export function Hero() {
                   fontSize: 13,
                 }}
               >
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
                   <svg
                     width="14"
                     height="14"
@@ -720,9 +793,15 @@ export function Hero() {
                   >
                     <path d="M20 6L9 17l-5-5" />
                   </svg>
-                  ISO 13485
+                  {t("trustIso")}
                 </span>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
                   <svg
                     width="14"
                     height="14"
@@ -736,7 +815,7 @@ export function Hero() {
                   >
                     <path d="M20 6L9 17l-5-5" />
                   </svg>
-                  24×7 biomed
+                  {t("trustBiomed")}
                 </span>
               </div>
             </div>
