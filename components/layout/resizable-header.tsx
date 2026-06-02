@@ -26,7 +26,8 @@ const NAV_ITEMS = [
   { name: "About", link: "/about" },
 ];
 
-type Tone = "teal" | "orange" | "aqua";
+// Two-tone division scheme: products are teal, services are orange.
+type Tone = "teal" | "orange";
 
 type MegaItem = {
   key: string;
@@ -48,6 +49,16 @@ const MEGA_MENUS: Record<string, MegaItem[]> = {
       tone: "teal",
     },
     {
+      key: "systems",
+      kicker: "Digital Health",
+      title: "Spiber Systems",
+      desc: "HIS, EMR, and telemedicine platforms, plus custom digital-health builds hosted in Bangladesh.",
+      href: "/systems",
+      tone: "teal",
+    },
+  ],
+  Services: [
+    {
       key: "academy",
       kicker: "Training & Education",
       title: "Spiber Academy",
@@ -56,22 +67,12 @@ const MEGA_MENUS: Record<string, MegaItem[]> = {
       tone: "orange",
     },
     {
-      key: "systems",
-      kicker: "Digital Health",
-      title: "Spiber Systems",
-      desc: "HIS, EMR, and telemedicine platforms, plus custom digital-health builds hosted in Bangladesh.",
-      href: "/systems",
-      tone: "aqua",
-    },
-  ],
-  Services: [
-    {
       key: "tourism",
       kicker: "Medical Tourism",
       title: "Spiber Tourism",
       desc: "Curated treatment packages with accredited partner facilities, plus travel and air-ticket support.",
       href: "/tourism",
-      tone: "teal",
+      tone: "orange",
     },
     {
       key: "consulting",
@@ -99,12 +100,6 @@ const TONE: Record<
     line: "var(--orange-100)",
     accent: "var(--orange-700)",
     chip: "var(--orange-500)",
-  },
-  aqua: {
-    soft: "#E7FBF5",
-    line: "#CFF3EA",
-    accent: "var(--aqua-600)",
-    chip: "var(--aqua-500)",
   },
 };
 
