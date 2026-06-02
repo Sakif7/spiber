@@ -23,7 +23,7 @@ export default async function AdminLayout({
   // Defense-in-depth: the proxy also guards /admin, but re-check here.
   const user = await getSessionUser();
   if (!isAdmin(user)) {
-    redirect(`/${locale}/login?next=/${locale}/admin`);
+    redirect(`/${locale}?auth=login&next=/${locale}/admin`);
   }
 
   const t = await getTranslations({ locale, namespace: "admin" });

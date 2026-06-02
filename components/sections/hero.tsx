@@ -1,53 +1,87 @@
 "use client";
 
-import { CSSProperties, useEffect, useState } from "react";
+import { CSSProperties, useState } from "react";
 import Image from "next/image";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { useTranslations } from "next-intl";
-import { Arrow, Container, Reveal } from "@/components/ui";
+import {
+  Microscope,
+  MonitorSmartphone,
+  GraduationCap,
+  Plane,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
+import { Arrow } from "@/components/ui";
 import { useMagnetic } from "@/hooks";
 import DotGrid from "@/components/ui/dot-grid";
 import { Link } from "@/i18n/navigation";
 
 const MotionLink = motion.create(Link);
+const EASE = [0.16, 1, 0.3, 1] as const;
 
-// `word` is the noun that follows the static "Empowering " prefix in the
-// hero headline; `title` is the source tagline shown in the small indicator
-// row above. They are intentionally separate — deriving `word` from `title`
-// (e.g. last token) reads nonsensically for taglines like "...Right at Your
-// Door" → "Empowering Door."
-const HERO_TAGLINES = [
+type Division = {
+  id: string;
+  area: "tl" | "tr" | "ml" | "mr" | "cc";
+  side: "left" | "right";
+  href: string;
+  image: string;
+  Icon: LucideIcon;
+};
+
+// Bento placement: Instruments TL, Systems TR, Academy ML, Tourism MR,
+// Consulting bottom-center. The center column (text) spans the two top rows.
+const DIVISIONS: Division[] = [
   {
-    word: "Healthcare",
-    title: "Empowering Healthcare",
-    line: "SPIBER strives to empower and restore healthcare.",
+    id: "instruments",
+    area: "tl",
+    side: "left",
+    href: "/instruments",
+    image: "/modern-operating-room-equipment.jpeg",
+    Icon: Microscope,
   },
   {
-    word: "Innovation",
-    title: "Transforming Healthcare",
-    line: "Committed to providing cutting-edge technology within reach.",
+    id: "systems",
+    area: "tr",
+    side: "left",
+    href: "/systems",
+    image: "/bento-software.png",
+    Icon: MonitorSmartphone,
   },
   {
-    word: "Access",
-    title: "Cutting-Edge, Right at Your Door",
-    line: "Assuring innovation across the healthcare industry.",
+    id: "academy",
+    area: "ml",
+    side: "left",
+    href: "/academy",
+    image: "/cpr-training-manikin-with-aed.jpeg",
+    Icon: GraduationCap,
   },
   {
-    word: "Care",
-    title: "Uncompromised Medical Care",
-    line: "Quality products for every stage of medical care.",
+    id: "tourism",
+    area: "mr",
+    side: "left",
+    href: "/tourism",
+    image: "/cherry-blossom-tree-lined-road.jpeg",
+    Icon: Plane,
   },
   {
-    word: "Skills",
-    title: "Advancing Academic & Technical Skills",
-    line: "Dazzling professionals with an advanced training system.",
-  },
-  {
-    word: "Reach",
-    title: "We Reach, Where Others Can't",
-    line: "Delivering goods to any location quickly and with ease.",
+    id: "consulting",
+    area: "cc",
+    side: "left",
+    href: "/consulting",
+    image: "/manager-reviewing-work-with-employee-computer.jpeg",
+    Icon: Users,
   },
 ];
+
+// Staggered, varied so cards never drift in unison. Gated to no-preference.
+const FLOAT: Record<Division["area"], { dur: number; delay: number }> = {
+  tl: { dur: 6.2, delay: -0.3 },
+  tr: { dur: 6.9, delay: -1.6 },
+  ml: { dur: 5.8, delay: -2.7 },
+  mr: { dur: 7.2, delay: -0.9 },
+  cc: { dur: 6.5, delay: -3.5 },
+};
 
 const HERO_PARTNERS = [
   "Aichi Healthcare Group",
@@ -63,161 +97,21 @@ const HERO_PARTNERS = [
   "Birdem General",
 ];
 
-function TaglineRotator({ items }: { items: typeof HERO_TAGLINES }) {
-  const t = useTranslations("home.hero");
-  const taglines = t.raw("taglines") as Array<{
-    word: string;
-    title: string;
-    line: string;
-  }>;
-  const [idx, setIdx] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setIdx((i) => (i + 1) % items.length), 4200);
-    return () => clearInterval(id);
-  }, [items.length]);
-
+function Check() {
   return (
-    <div style={{ position: "relative" }}>
-      {/* indicator: 01 / 06 — sliding sub-title */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          marginBottom: 22,
-          height: 22,
-          overflow: "hidden",
-        }}
-      >
-        <span
-          style={{
-            fontFamily: "var(--font-mono)",
-            color: "var(--brand-teal)",
-            fontSize: 11,
-            letterSpacing: ".14em",
-          }}
-        >
-          0{idx + 1} / 0{items.length}
-        </span>
-        <span
-          style={{ width: 24, height: 1, background: "var(--brand-teal)" }}
-        />
-        <div
-          style={{
-            position: "relative",
-            flex: 1,
-            height: 22,
-            overflow: "hidden",
-          }}
-        >
-          {items.map((t, i) => (
-            <div
-              key={i}
-              style={{
-                position: "absolute",
-                inset: 0,
-                display: "flex",
-                alignItems: "center",
-                fontFamily: "var(--font-mono)",
-                fontSize: 11,
-                letterSpacing: ".14em",
-                textTransform: "uppercase",
-                color: "var(--color-text-muted)",
-                transform: `translateY(${(i - idx) * 100}%)`,
-                transition: "transform .7s cubic-bezier(.4,0,0,1)",
-              }}
-            >
-              {taglines[i].title}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <h1
-        style={{
-          fontFamily: "var(--font-display)",
-          fontSize: "clamp(40px, 6.4vw, 92px)",
-          fontWeight: 500,
-          lineHeight: 0.98,
-          letterSpacing: "-0.035em",
-          margin: "0 0 8px",
-          textWrap: "balance" as CSSProperties["textWrap"],
-          color: "var(--color-text-strong)",
-        }}
-      >
-        <span style={{ display: "inline-block" }}>{t("headlinePrefix")} </span>
-        <span
-          style={{
-            position: "relative",
-            display: "inline-block",
-            verticalAlign: "baseline",
-          }}
-        >
-          <span
-            style={{
-              display: "inline-block",
-              overflow: "hidden",
-              verticalAlign: "bottom",
-              position: "relative",
-              minWidth: 280,
-            }}
-          >
-            {items.map((t, i) => (
-              <span
-                key={i}
-                style={{
-                  display: "inline-block",
-                  fontStyle: "italic",
-                  fontFamily: "var(--font-serif)",
-                  fontWeight: 400,
-                  color: "var(--brand-teal)",
-                  transform: `translateY(${(i - idx) * 110}%)`,
-                  opacity: i === idx ? 1 : 0,
-                  transition:
-                    "transform .8s cubic-bezier(.4,0,0,1), opacity .5s",
-                  position: i === idx ? "static" : "absolute",
-                  left: 0,
-                  top: 0,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {taglines[i].word}.
-              </span>
-            ))}
-          </span>
-        </span>
-        <br />
-        <span>{t("headlineSuffix")}</span>
-      </h1>
-
-      <div
-        style={{
-          height: 60,
-          marginTop: 18,
-          position: "relative",
-          overflow: "hidden",
-          maxWidth: 540,
-        }}
-      >
-        {items.map((t, i) => (
-          <p
-            key={i}
-            style={{
-              position: "absolute",
-              inset: 0,
-              margin: 0,
-              fontSize: "clamp(16px, 1.4vw, 20px)",
-              lineHeight: 1.55,
-              color: "var(--color-text-muted)",
-              transform: `translateY(${(i - idx) * 110}%)`,
-              transition: "transform .7s cubic-bezier(.4,0,0,1)",
-            }}
-          >
-            {taglines[i].line}
-          </p>
-        ))}
-      </div>
-    </div>
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="var(--brand-teal)"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M20 6L9 17l-5-5" />
+    </svg>
   );
 }
 
@@ -243,39 +137,36 @@ function HeroBackground({ hoveredId }: { hoveredId: string | null }) {
       />
 
       <motion.div
-        animate={{ opacity: hoveredId ? 0.12 : 0.45 }}
-        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        animate={{ opacity: hoveredId ? 0.12 : 0.42 }}
+        transition={{ duration: 0.6, ease: EASE }}
         className="hero-blob"
         style={{
           width: 460,
           height: 460,
-          top: 60,
-          right: -100,
+          top: 40,
+          right: -120,
           background:
             "radial-gradient(circle, color-mix(in oklab, var(--brand-orange) 18%, transparent), transparent 70%)",
           animationDelay: "-8s",
         }}
       />
 
-      {HERO_SOLUTIONS.map((s) => (
+      {DIVISIONS.map((d) => (
         <motion.div
-          key={s.id}
+          key={d.id}
           initial={false}
-          animate={{ opacity: hoveredId === s.id ? 1 : 0 }}
-          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-          style={{
-            position: "absolute",
-            inset: 0,
-          }}
+          animate={{ opacity: hoveredId === d.id ? 1 : 0 }}
+          transition={{ duration: 0.7, ease: EASE }}
+          style={{ position: "absolute", inset: 0 }}
         >
           <Image
-            src={s.image}
+            src={d.image}
             alt=""
             fill
             sizes="100vw"
             style={{
               objectFit: "cover",
-              objectPosition: "center center",
+              objectPosition: "center",
               filter: "saturate(.85)",
             }}
           />
@@ -285,7 +176,7 @@ function HeroBackground({ hoveredId }: { hoveredId: string | null }) {
               position: "absolute",
               inset: 0,
               background:
-                "linear-gradient(to right, var(--color-surface) 0%, var(--color-surface) 32%, color-mix(in oklab, var(--color-surface) 68%, transparent) 52%, color-mix(in oklab, var(--color-surface) 30%, transparent) 75%, color-mix(in oklab, var(--color-surface) 10%, transparent) 100%)",
+                "radial-gradient(120% 90% at 50% 45%, color-mix(in oklab, var(--color-surface) 86%, transparent) 0%, color-mix(in oklab, var(--color-surface) 78%, transparent) 45%, color-mix(in oklab, var(--color-surface) 55%, transparent) 100%)",
             }}
           />
         </motion.div>
@@ -294,325 +185,281 @@ function HeroBackground({ hoveredId }: { hoveredId: string | null }) {
   );
 }
 
-type Solution = {
-  id: string;
-  title: string;
-  description: string;
-  image: string;
-  imageAlt: string;
-  imagePosition?: string;
-  href: string;
-};
-
-const HERO_SOLUTIONS: Solution[] = [
-  {
-    id: "lab",
-    title: "Lab Equipment",
-    description:
-      "Precision analyzers, microscopes & refrigeration — engineered for clinical and research labs across Bangladesh.",
-    image: "/bento-lab-equipment.png",
-    imageAlt: "Modern laboratory with microscope, analyzers and glassware",
-    imagePosition: "center center",
-    href: "/instruments",
-  },
-  {
-    id: "furniture",
-    title: "Medical Furniture",
-    description: "Patient beds, OR tables, ICU stations.",
-    image: "/bento-furniture.png",
-    imageAlt: "Modern hospital beds, exam chairs and OR tables in teal accents",
-    imagePosition: "center center",
-    href: "/instruments",
-  },
-  {
-    id: "software",
-    title: "Software Solutions",
-    description: "HIS, EMR & telemedicine platforms.",
-    image: "/bento-software.png",
-    imageAlt: "Medical software dashboards on touchscreens and tablets",
-    imagePosition: "center center",
-    href: "/systems",
-  },
-];
-
-function FeaturedTile({
-  s,
-  delay,
+function DivisionTile({
+  d,
+  index,
   onHover,
+  reduce,
 }: {
-  s: Solution;
-  delay: number;
+  d: Division;
+  index: number;
   onHover: (id: string | null) => void;
+  reduce: boolean;
 }) {
-  const t = useTranslations("home.hero");
-  const sol = (
-    t.raw("solutions") as Record<
-      string,
-      { title: string; description: string; imageAlt: string }
-    >
-  )[s.id];
+  const hubs = useTranslations("hubs");
+  const cards = useTranslations("home.hero.cards");
+  const f = FLOAT[d.area];
+  const Icon = d.Icon;
+
   return (
-    <MotionLink
-      href={s.href}
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-      whileHover="hover"
-      onMouseEnter={() => onHover(s.id)}
-      onMouseLeave={() => onHover(null)}
-      onFocus={() => onHover(s.id)}
-      onBlur={() => onHover(null)}
-      style={{
-        position: "relative",
-        gridColumn: "1 / span 2",
-        borderRadius: 28,
-        overflow: "hidden",
-        textDecoration: "none",
-        color: "white",
-        background: "var(--slate-900)",
-        boxShadow:
-          "0 1px 2px rgba(10,31,44,.05), 0 32px 80px -28px rgba(14,139,134,.32), 0 0 0 1px rgba(14,139,134,.06)",
-        display: "block",
-        minHeight: 260,
-      }}
-    >
+    <div className={`hb-${d.area}`} style={{ position: "relative" }}>
       <motion.div
-        variants={{ hover: { scale: 1.05 } }}
-        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-        style={{ position: "absolute", inset: 0 }}
+        initial={reduce ? false : { opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{
+          delay: reduce ? 0 : 0.42 + index * 0.08,
+          duration: 0.6,
+          ease: EASE,
+        }}
       >
-        <Image
-          src={s.image}
-          alt={sol.imageAlt}
-          fill
-          priority
-          sizes="(max-width: 980px) 90vw, 560px"
+        <div
+          className="hero-float"
           style={{
-            objectFit: "cover",
-            objectPosition: s.imagePosition ?? "center",
+            position: "relative",
+            animationDuration: `${f.dur}s`,
+            animationDelay: `${f.delay}s`,
           }}
-        />
+        >
+          <MotionLink
+            href={d.href}
+            whileHover="hover"
+            onMouseEnter={() => onHover(d.id)}
+            onMouseLeave={() => onHover(null)}
+            onFocus={() => onHover(d.id)}
+            onBlur={() => onHover(null)}
+            style={{
+              position: "relative",
+              display: "block",
+              minHeight: 200,
+              height: "100%",
+              borderRadius: 22,
+              overflow: "hidden",
+              textDecoration: "none",
+              color: "white",
+              background: "var(--slate-900)",
+              boxShadow:
+                "0 1px 2px rgba(10,31,44,.05), 0 24px 60px -26px rgba(10,31,44,.30), 0 0 0 1px rgba(10,31,44,.06)",
+            }}
+          >
+            <motion.div
+              variants={{ hover: { scale: 1.06 } }}
+              transition={{ duration: 0.7, ease: EASE }}
+              style={{ position: "absolute", inset: 0 }}
+            >
+              <Image
+                src={d.image}
+                alt={cards(`${d.id}.imageAlt`)}
+                fill
+                sizes="(max-width: 1024px) 45vw, 280px"
+                style={{ objectFit: "cover", objectPosition: "center" }}
+              />
+            </motion.div>
+            <div
+              aria-hidden
+              style={{
+                position: "absolute",
+                inset: 0,
+                background:
+                  "linear-gradient(180deg, rgba(2,8,11,0.05) 0%, rgba(2,8,11,0.28) 42%, rgba(2,8,11,0.84) 100%)",
+              }}
+            />
+            <motion.span
+              variants={{ hover: { x: 3, y: -3 } }}
+              transition={{ type: "spring", stiffness: 380, damping: 26 }}
+              style={{
+                position: "absolute",
+                top: 14,
+                right: 14,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 30,
+                height: 30,
+                borderRadius: 999,
+                background: "rgba(255,255,255,0.94)",
+                color: "var(--color-text-strong)",
+              }}
+            >
+              <Arrow size={12} />
+            </motion.span>
+            <div
+              style={{ position: "absolute", left: 16, right: 16, bottom: 14 }}
+            >
+              <h3
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontWeight: 600,
+                  fontSize: 18,
+                  letterSpacing: "-.012em",
+                  lineHeight: 1.1,
+                  margin: 0,
+                  color: "white",
+                }}
+              >
+                {hubs(`${d.id}.title`)}
+              </h3>
+              <p
+                style={{
+                  margin: "5px 0 0",
+                  fontSize: 12.5,
+                  lineHeight: 1.45,
+                  color: "rgba(255,255,255,.82)",
+                }}
+              >
+                {cards(`${d.id}.blurb`)}
+              </p>
+            </div>
+          </MotionLink>
+
+          <span
+            aria-hidden
+            className="hero-badge"
+            style={{
+              position: "absolute",
+              top: -14,
+              [d.side === "right" ? "right" : "left"]: -14,
+              display: "grid",
+              placeItems: "center",
+              width: 44,
+              height: 44,
+              borderRadius: 999,
+              background: "var(--color-surface)",
+              color: "var(--color-brand-deep)",
+              boxShadow:
+                "0 8px 18px -8px rgba(10,31,44,.28), 0 0 0 1px var(--color-hairline)",
+            }}
+          >
+            <Icon size={20} strokeWidth={1.8} />
+          </span>
+        </div>
       </motion.div>
-      <div
-        aria-hidden
-        style={{
-          position: "absolute",
-          inset: 0,
-          background:
-            "linear-gradient(180deg, rgba(2,8,11,0.0) 0%, rgba(2,8,11,0.15) 38%, rgba(2,8,11,0.78) 100%)",
-        }}
-      />
-
-      <motion.span
-        variants={{ hover: { x: 4 } }}
-        transition={{ type: "spring", stiffness: 380, damping: 26 }}
-        style={{
-          position: "absolute",
-          top: 22,
-          right: 24,
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          width: 36,
-          height: 36,
-          borderRadius: 999,
-          background: "rgba(255,255,255,0.92)",
-          color: "var(--color-text-strong)",
-        }}
-      >
-        <Arrow size={14} />
-      </motion.span>
-
-      <div
-        style={{
-          position: "absolute",
-          left: 24,
-          right: 24,
-          bottom: 22,
-        }}
-      >
-        <h3
-          style={{
-            fontFamily: "var(--font-display)",
-            fontWeight: 600,
-            fontSize: "clamp(24px, 2.6vw, 34px)",
-            letterSpacing: "-.02em",
-            lineHeight: 1.05,
-            margin: 0,
-            color: "white",
-          }}
-        >
-          {sol.title}
-        </h3>
-        <p
-          style={{
-            margin: "6px 0 0",
-            fontSize: 14.5,
-            lineHeight: 1.5,
-            color: "rgba(255,255,255,.82)",
-            maxWidth: "44ch",
-          }}
-        >
-          {sol.description}
-        </p>
-      </div>
-    </MotionLink>
+    </div>
   );
 }
 
-function CompactTile({
-  s,
-  delay,
-  onHover,
-}: {
-  s: Solution;
-  delay: number;
-  onHover: (id: string | null) => void;
-}) {
+function CenterContent({ reduce }: { reduce: boolean }) {
   const t = useTranslations("home.hero");
-  const sol = (
-    t.raw("solutions") as Record<
-      string,
-      { title: string; description: string; imageAlt: string }
-    >
-  )[s.id];
-  return (
-    <MotionLink
-      href={s.href}
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-      whileHover="hover"
-      onMouseEnter={() => onHover(s.id)}
-      onMouseLeave={() => onHover(null)}
-      onFocus={() => onHover(s.id)}
-      onBlur={() => onHover(null)}
-      style={{
-        position: "relative",
-        borderRadius: 22,
-        overflow: "hidden",
-        textDecoration: "none",
-        color: "white",
-        background: "var(--slate-900)",
-        boxShadow:
-          "0 1px 2px rgba(10,31,44,.05), 0 24px 60px -24px rgba(10,31,44,.24), 0 0 0 1px rgba(10,31,44,.05)",
-        display: "block",
-        minHeight: 180,
-      }}
-    >
-      <motion.div
-        variants={{ hover: { scale: 1.07 } }}
-        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-        style={{ position: "absolute", inset: 0 }}
-      >
-        <Image
-          src={s.image}
-          alt={sol.imageAlt}
-          fill
-          sizes="(max-width: 980px) 45vw, 280px"
-          style={{
-            objectFit: "cover",
-            objectPosition: s.imagePosition ?? "center",
-          }}
-        />
-      </motion.div>
-      <div
-        aria-hidden
-        style={{
-          position: "absolute",
-          inset: 0,
-          background:
-            "linear-gradient(180deg, rgba(2,8,11,0.05) 0%, rgba(2,8,11,0.25) 45%, rgba(2,8,11,0.82) 100%)",
-        }}
-      />
+  const ctaMag = useMagnetic<HTMLAnchorElement>(0.22, 90);
+  const trust = t.raw("trust") as string[];
 
-      <motion.span
-        variants={{ hover: { x: 3, y: -3 } }}
-        transition={{ type: "spring", stiffness: 380, damping: 26 }}
+  const rise = (delay: number) => ({
+    initial: reduce ? false : { opacity: 0, y: 16 },
+    animate: { opacity: 1, y: 0 },
+    transition: { delay: reduce ? 0 : delay, duration: 0.6, ease: EASE },
+  });
+
+  return (
+    <div
+      className="hb-center"
+      style={{ textAlign: "center", padding: "8px clamp(0px, 1vw, 16px)" }}
+    >
+      <motion.h1
+        {...rise(0)}
         style={{
-          position: "absolute",
-          top: 14,
-          right: 14,
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          width: 30,
-          height: 30,
-          borderRadius: 999,
-          background: "rgba(255,255,255,0.92)",
+          fontFamily: "var(--font-display)",
+          fontSize: "clamp(40px, 4.6vw, 84px)",
+          fontWeight: 500,
+          lineHeight: 1.02,
+          letterSpacing: "-0.035em",
+          margin: 0,
           color: "var(--color-text-strong)",
+          textWrap: "balance" as CSSProperties["textWrap"],
         }}
       >
-        <Arrow size={12} />
-      </motion.span>
+        {t("titleLine1")}
+        <br />
+        <span style={{ color: "var(--brand-teal)" }}>{t("titleLine2")}</span>
+      </motion.h1>
 
-      <div
+      <motion.p
+        {...rise(0.16)}
         style={{
-          position: "absolute",
-          left: 16,
-          right: 16,
-          bottom: 14,
+          margin: "20px auto 0",
+          maxWidth: "52ch",
+          fontSize: "clamp(15px, 1.25vw, 18px)",
+          lineHeight: 1.6,
+          color: "var(--color-text-muted)",
         }}
       >
-        <h3
-          style={{
-            fontFamily: "var(--font-display)",
-            fontWeight: 600,
-            fontSize: 19,
-            letterSpacing: "-.012em",
-            lineHeight: 1.1,
-            margin: 0,
-            color: "white",
-          }}
-        >
-          {sol.title}
-        </h3>
-        <p
-          style={{
-            margin: "4px 0 0",
-            fontSize: 12.5,
-            lineHeight: 1.4,
-            color: "rgba(255,255,255,.78)",
-          }}
-        >
-          {sol.description}
-        </p>
-      </div>
-    </MotionLink>
-  );
-}
+        {t("subcopy")}
+      </motion.p>
 
-function HeroScene({ onHover }: { onHover: (id: string | null) => void }) {
-  const [featured, ...compact] = HERO_SOLUTIONS;
-  const [hovered, setHovered] = useState<string | null>(null);
-  const handleHover = (id: string | null) => {
-    setHovered(id);
-    onHover(id);
-  };
-  return (
-    <motion.div
-      animate={{ opacity: hovered ? 0 : 1 }}
-      transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-      onMouseLeave={() => handleHover(null)}
-      style={{
-        position: "relative",
-        width: "100%",
-        display: "grid",
-        gridTemplateColumns: "1fr 1fr",
-        gridAutoRows: "minmax(180px, auto)",
-        gap: 16,
-      }}
-    >
-      <FeaturedTile s={featured} delay={0.2} onHover={handleHover} />
-      {compact.map((s, i) => (
-        <CompactTile
-          key={s.id}
-          s={s}
-          delay={0.35 + i * 0.1}
-          onHover={handleHover}
-        />
-      ))}
-    </motion.div>
+      <motion.div
+        {...rise(0.24)}
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "center",
+          gap: 12,
+          marginTop: 30,
+        }}
+      >
+        <Link
+          href="/instruments"
+          className="hero-cta-ghost"
+          style={{
+            background: "transparent",
+            color: "var(--color-text-strong)",
+            border: "1px solid var(--color-border)",
+            borderRadius: 999,
+            padding: "0 20px",
+            height: 46,
+            fontSize: 14,
+            fontWeight: 500,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            transition: "border-color .25s, background .25s",
+          }}
+        >
+          {t("ctaExplore")} <Arrow size={14} />
+        </Link>
+        <Link
+          ref={ctaMag}
+          href="/contact"
+          style={{
+            background: "var(--color-brand)",
+            color: "white",
+            border: "none",
+            borderRadius: 999,
+            padding: "0 22px",
+            height: 46,
+            fontSize: 14,
+            fontWeight: 500,
+            boxShadow:
+              "0 10px 24px -8px color-mix(in oklab, var(--brand-teal) 60%, transparent)",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
+          {t("ctaQuote")} <Arrow size={14} />
+        </Link>
+      </motion.div>
+
+      <motion.div
+        {...rise(0.3)}
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "center",
+          gap: "10px 22px",
+          marginTop: 26,
+          color: "var(--color-text-muted)",
+          fontSize: 13,
+        }}
+      >
+        {trust.map((item) => (
+          <span
+            key={item}
+            style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+          >
+            <Check />
+            {item}
+          </span>
+        ))}
+      </motion.div>
+    </div>
   );
 }
 
@@ -622,7 +469,7 @@ function PartnerMarquee() {
       style={{
         borderTop: "1px solid var(--teal-100)",
         paddingTop: 26,
-        marginTop: 80,
+        marginTop: 56,
         display: "flex",
         overflow: "hidden",
         maskImage:
@@ -661,182 +508,86 @@ function PartnerMarquee() {
 }
 
 export function Hero() {
-  const t = useTranslations("home.hero");
-  const ctaMag = useMagnetic<HTMLAnchorElement>(0.22, 90);
-  const [hoveredSolution, setHoveredSolution] = useState<string | null>(null);
+  const reduce = useReducedMotion() ?? false;
+  const [hovered, setHovered] = useState<string | null>(null);
 
   return (
     <section
       style={{
         position: "relative",
         overflow: "hidden",
-        paddingTop: "clamp(40px, 6vw, 80px)",
+        paddingTop: "clamp(36px, 5vw, 64px)",
         paddingBottom: "clamp(40px, 6vw, 80px)",
         background: "var(--color-surface)",
       }}
     >
-      <HeroBackground hoveredId={hoveredSolution} />
-      <Container style={{ position: "relative", zIndex: 1 }}>
+      <HeroBackground hoveredId={hovered} />
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
+          width: "100%",
+          maxWidth: 1800,
+          margin: "0 auto",
+          paddingInline: "clamp(20px, 4vw, 72px)",
+        }}
+      >
         <div
-          className="hero-grid"
+          className="hero-bento"
           style={{
             display: "grid",
-            gridTemplateColumns: "minmax(0, 1.1fr) minmax(0, 1fr)",
-            gap: 56,
+            gridTemplateColumns:
+              "minmax(0, 0.85fr) minmax(0, 1.9fr) minmax(0, 0.85fr)",
+            gridTemplateAreas: '"tl center tr" "ml center mr" ". cc ."',
             alignItems: "center",
-            paddingTop: 40,
-            paddingBottom: 40,
+            gap: "clamp(18px, 2.2vw, 40px)",
           }}
         >
-          <Reveal>
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "5px 12px 5px 10px",
-                borderRadius: 999,
-                background: "var(--color-surface-2)",
-                border: "1px solid var(--color-border)",
-                fontSize: 11.5,
-                fontWeight: 500,
-                color: "var(--color-text-strong)",
-                marginBottom: 22,
-              }}
-            >
-              <span
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: 99,
-                  background: "var(--brand-teal)",
-                  boxShadow:
-                    "0 0 0 4px color-mix(in oklab, var(--brand-teal) 22%, transparent)",
-                }}
-              />
-              {t("badge")}
-            </div>
-
-            <TaglineRotator items={HERO_TAGLINES} />
-
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                marginTop: 36,
-                gap: 14,
-                flexWrap: "wrap",
-              }}
-            >
-              <Link
-                ref={ctaMag}
-                href="/contact"
-                style={{
-                  background: "var(--color-brand)",
-                  color: "white",
-                  border: "none",
-                  borderRadius: 999,
-                  padding: "0 18px",
-                  height: 44,
-                  fontSize: 14,
-                  fontWeight: 500,
-                  cursor: "pointer",
-                  boxShadow:
-                    "0 8px 22px -8px color-mix(in oklab, var(--brand-teal) 60%, transparent)",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 10,
-                  transition: "all .25s cubic-bezier(.2,.7,.2,1)",
-                }}
-              >
-                {t("ctaQuote")} <Arrow size={14} />
-              </Link>
-              <Link
-                href="/instruments"
-                style={{
-                  background: "transparent",
-                  color: "var(--color-text-strong)",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: 999,
-                  padding: "0 18px",
-                  height: 44,
-                  fontSize: 14,
-                  fontWeight: 500,
-                  cursor: "pointer",
-                  transition: "all .25s cubic-bezier(.2,.7,.2,1)",
-                  display: "inline-flex",
-                  alignItems: "center",
-                }}
-              >
-                {t("ctaExplore")}
-              </Link>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  marginLeft: 8,
-                  color: "var(--color-text-muted)",
-                  fontSize: 13,
-                }}
-              >
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 8,
-                  }}
-                >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="var(--brand-teal)"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden
-                  >
-                    <path d="M20 6L9 17l-5-5" />
-                  </svg>
-                  {t("trustIso")}
-                </span>
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 8,
-                  }}
-                >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="var(--brand-teal)"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden
-                  >
-                    <path d="M20 6L9 17l-5-5" />
-                  </svg>
-                  {t("trustBiomed")}
-                </span>
-              </div>
-            </div>
-          </Reveal>
-
-          <Reveal>
-            <HeroScene onHover={setHoveredSolution} />
-          </Reveal>
+          <CenterContent reduce={reduce} />
+          {DIVISIONS.map((d, i) => (
+            <DivisionTile
+              key={d.id}
+              d={d}
+              index={i}
+              onHover={setHovered}
+              reduce={reduce}
+            />
+          ))}
         </div>
 
-        <Reveal>
-          <PartnerMarquee />
-        </Reveal>
-      </Container>
+        <PartnerMarquee />
+      </div>
+
+      <style>{`
+        .hb-center { grid-area: center; }
+        .hb-tl { grid-area: tl; }
+        .hb-tr { grid-area: tr; }
+        .hb-ml { grid-area: ml; }
+        .hb-mr { grid-area: mr; }
+        .hb-cc { grid-area: cc; max-width: 360px; justify-self: center; width: 100%; }
+        .hero-cta-ghost:hover { border-color: var(--brand-teal); background: var(--color-surface); }
+        /* V layout: drop the mid cards down + pull them toward the centre text. */
+        @media (min-width: 1025px) {
+          .hb-ml { transform: translate(46px, 54px); }
+          .hb-mr { transform: translate(-46px, 54px); }
+        }
+        @keyframes heroFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+        @media (prefers-reduced-motion: no-preference) {
+          .hero-float { animation-name: heroFloat; animation-timing-function: ease-in-out; animation-iteration-count: infinite; }
+        }
+        @media (max-width: 1024px) {
+          .hero-bento {
+            grid-template-columns: 1fr 1fr !important;
+            grid-template-areas: none !important;
+          }
+          .hb-center { grid-area: auto; grid-column: 1 / -1; margin-bottom: 8px; }
+          .hb-tl, .hb-tr, .hb-ml, .hb-mr, .hb-cc { grid-area: auto; }
+          .hb-cc { max-width: none; }
+        }
+        @media (max-width: 600px) {
+          .hero-bento { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </section>
   );
 }

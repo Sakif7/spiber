@@ -105,6 +105,15 @@
     }
   },
   "auth": {
+    "panel": {
+      "title": "Healthcare, engineered for Bangladesh.",
+      "subtitle": "One accountable partner for medical equipment, software, training, and care.",
+      "points": [
+        "Clinical-grade instruments & systems",
+        "Accredited training & advisory",
+        "Bilingual support, nationwide service"
+      ]
+    },
     "login": {
       "title": "Sign in",
       "description": "Access your Spiber Med account.",
@@ -113,10 +122,28 @@
       "submit": "Sign in",
       "submitting": "Signing in…",
       "forgot": "Forgot password?",
+      "noAccount": "New to Spiber Med?",
+      "register": "Create an account",
       "verifiedNotice": "Your email is verified. You can now sign in.",
       "errorInvalid": "Incorrect email or password.",
       "errorUnverified": "Please verify your email before signing in.",
       "errorGeneric": "Sign in failed. Please try again."
+    },
+    "register": {
+      "title": "Create your account",
+      "description": "Join Spiber Med to track orders, courses, and inquiries.",
+      "name": "Full name",
+      "email": "Email address",
+      "password": "Password",
+      "passwordHint": "At least 8 characters.",
+      "submit": "Create account",
+      "submitting": "Creating account…",
+      "haveAccount": "Already have an account?",
+      "signIn": "Sign in",
+      "checkEmailTitle": "Check your email",
+      "checkEmailBody": "We sent a verification link to {email}. Open it to activate your account, then sign in.",
+      "errorTaken": "An account with this email already exists.",
+      "errorGeneric": "Could not create your account. Please try again."
     },
     "reset": {
       "title": "Reset password",
@@ -155,60 +182,42 @@
   },
   "home": {
     "hero": {
-      "badge": "Healthcare Solutions · Est. 2008 · Dhaka",
-      "headlinePrefix": "Empowering",
-      "headlineSuffix": "Built for Bangladesh.",
+      "badge": "Integrated Healthcare Ecosystem Since 2008",
+      "titleLine1": "Healthcare Solutions",
+      "titleLine2": "for Bangladesh",
+      "subcopy": "SPIBER MED empowers healthcare organizations across Bangladesh with medical devices, smart software, training, medical tourism, and consulting: integrated solutions for better outcomes.",
       "ctaQuote": "Request a Quote",
       "ctaExplore": "Explore Solutions",
-      "trustIso": "ISO 13485",
-      "trustBiomed": "24×7 biomed",
-      "taglines": [
-        {
-          "word": "Healthcare",
-          "title": "Empowering Healthcare",
-          "line": "SPIBER strives to empower and restore healthcare."
-        },
-        {
-          "word": "Innovation",
-          "title": "Transforming Healthcare",
-          "line": "Committed to providing cutting-edge technology within reach."
-        },
-        {
-          "word": "Access",
-          "title": "Cutting-Edge, Right at Your Door",
-          "line": "Assuring innovation across the healthcare industry."
-        },
-        {
-          "word": "Care",
-          "title": "Uncompromised Medical Care",
-          "line": "Quality products for every stage of medical care."
-        },
-        {
-          "word": "Skills",
-          "title": "Advancing Academic & Technical Skills",
-          "line": "Dazzling professionals with an advanced training system."
-        },
-        {
-          "word": "Reach",
-          "title": "We Reach, Where Others Can't",
-          "line": "Delivering goods to any location quickly and with ease."
-        }
+      "trust": [
+        "Since 2008",
+        "ISO-ready workflows",
+        "Trusted healthcare partner"
       ],
-      "solutions": {
-        "lab": {
-          "title": "Lab Equipment",
-          "description": "Precision analyzers, microscopes & refrigeration — engineered for clinical and research labs across Bangladesh.",
-          "imageAlt": "Modern laboratory with microscope, analyzers and glassware"
+      "cards": {
+        "instruments": {
+          "blurb": "Advanced medical devices and laboratory solutions for better care.",
+          "tag": "Medical & lab equipment for every need",
+          "imageAlt": "Operating theatre fitted with clinical-grade equipment"
         },
-        "furniture": {
-          "title": "Medical Furniture",
-          "description": "Patient beds, OR tables, ICU stations.",
-          "imageAlt": "Modern hospital beds, exam chairs and OR tables in teal accents"
+        "systems": {
+          "blurb": "Smart software and digital-health platforms that connect care.",
+          "tag": "Digital health & software for smarter care",
+          "imageAlt": "Hospital information and telemedicine dashboards on screen"
         },
-        "software": {
-          "title": "Software Solutions",
-          "description": "HIS, EMR & telemedicine platforms.",
-          "imageAlt": "Medical software dashboards on touchscreens and tablets"
+        "academy": {
+          "blurb": "Training, workshops, and certification to build healthcare excellence.",
+          "tag": "Education & training for professionals",
+          "imageAlt": "Hands-on resuscitation training with a manikin and AED"
+        },
+        "tourism": {
+          "blurb": "Medical tourism and patient travel with global care access.",
+          "tag": "Global care access with travel support",
+          "imageAlt": "Tree-lined road abroad, evoking medical travel"
+        },
+        "consulting": {
+          "blurb": "Strategic advisory and healthcare management consulting.",
+          "tag": "Strategic guidance for better healthcare",
+          "imageAlt": "Advisor reviewing a plan with a hospital colleague"
         }
       }
     },
@@ -252,6 +261,14 @@
           "imageAlt": "Lab technician operating a clinical analyzer machine"
         }
       ]
+    },
+    "divisions": {
+      "eyebrow": "OUR DIVISIONS",
+      "title": "Five divisions. One coherent system.",
+      "lede": "Everything a hospital needs — from procurement and software to training, care, and advisory — under one accountable partner.",
+      "products": "Products",
+      "services": "Services",
+      "explore": "Explore"
     },
     "businessSegments": {
       "eyebrow": "OUR BUSINESS SEGMENTS",
@@ -575,38 +592,29 @@
     "addressLine2": "Banani, Dhaka-1213, Bangladesh",
     "copyright": "© 2026 SPIBER MED LTD. ALL RIGHTS RESERVED.",
     "nav": [
-      [
-        "Products",
-        [
-          "Patient Care",
-          "Critical Care",
-          "OR Solutions",
-          "Surgical",
-          "Imaging",
-          "Lab Diagnostics"
+      {
+        "title": "Products",
+        "links": [
+          { "label": "Spiber Instruments", "href": "/instruments" },
+          { "label": "Spiber Systems", "href": "/systems" }
         ]
-      ],
-      [
-        "Services",
-        [
-          "Hospital Planning",
-          "EPC Delivery",
-          "Healthcare IT",
-          "Global Employment",
-          "Medical Tourism"
+      },
+      {
+        "title": "Services",
+        "links": [
+          { "label": "Spiber Academy", "href": "/academy" },
+          { "label": "Spiber Tourism", "href": "/tourism" },
+          { "label": "Spiber Consulting", "href": "/consulting" }
         ]
-      ],
-      [
-        "Company",
-        [
-          "Who We Are",
-          "Top Message",
-          "Vision 2040",
-          "Career",
-          "Gallery",
-          "Contact"
+      },
+      {
+        "title": "Company",
+        "links": [
+          { "label": "About", "href": "/about" },
+          { "label": "Blog", "href": "/blog" },
+          { "label": "Contact", "href": "/contact" }
         ]
-      ]
+      }
     ],
     "legal": ["PRIVACY", "TERMS", "COOKIES", "SITEMAP"]
   },

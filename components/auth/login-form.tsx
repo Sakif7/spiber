@@ -1,37 +1,51 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
-import { useRouter } from "@/i18n/navigation";
-import { Link } from "@/i18n/navigation";
-import { loginFormSchema, type LoginFormValues } from "@/lib/schemas/user";
+import { useRouter, Link } from "@/i18n/navigation";
+import {
+  loginFormSchema,
+  type LoginFormValues,
+  type Role,
+} from "@/lib/schemas/user";
 import { isAdmin } from "@/lib/auth/rbac";
 import { routing } from "@/i18n/routing";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { CtaButton } from "@/components/ui/cta-button";
 
 /**
  * Strip a leading locale segment (e.g. "/en/admin" → "/admin") so the
  * locale-aware router doesn't double-prefix it ("/en/en/admin"). `next` can
  * arrive locale-prefixed from the proxy/guard redirects or a bookmarked URL.
  */
-function stripLocale(path: string): string {
+export function stripLocale(path: string): string {
   for (const loc of routing.locales) {
     if (path === `/${loc}`) return "/";
     if (path.startsWith(`/${loc}/`)) return path.slice(loc.length + 1);
   }
   return path;
 }
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { CtaButton } from "@/components/ui/cta-button";
+
+export type AuthedUser = { roles?: string[] };
 
 export function LoginForm({
   next,
   verified,
+  onSuccess,
+  onForgot,
+  submitStyle,
 }: {
   next?: string;
   verified?: boolean;
+  /** When provided (modal), called on success instead of navigating. */
+  onSuccess?: (user: AuthedUser) => void;
+  /** When provided (modal), intercepts the "forgot password" link. */
+  onForgot?: () => void;
+  /** Optional style override for the submit button (e.g. modal accent). */
+  submitStyle?: CSSProperties;
 }) {
   const t = useTranslations("auth.login");
   const router = useRouter();
@@ -56,12 +70,16 @@ export function LoginForm({
       });
       const json = await res.json();
       if (res.ok && json.ok) {
-        // An explicit ?next= wins; otherwise admins land on the admin panel,
-        // everyone else on the homepage.
+        const user: AuthedUser = json.data?.user ?? {};
+        if (onSuccess) {
+          onSuccess(user);
+          return;
+        }
+        // Standalone fallback: explicit ?next= wins; else admins → panel.
         const dest =
           next && next.startsWith("/")
             ? stripLocale(next)
-            : isAdmin({ roles: json.data?.user?.roles ?? [] })
+            : isAdmin({ roles: (user.roles ?? []) as Role[] })
               ? "/admin"
               : "/";
         router.replace(dest);
@@ -91,9 +109,9 @@ export function LoginForm({
         </p>
       )}
       <div style={{ display: "grid", gap: 6 }}>
-        <Label htmlFor="email">{t("email")}</Label>
+        <Label htmlFor="login-email">{t("email")}</Label>
         <Input
-          id="email"
+          id="login-email"
           type="email"
           autoComplete="email"
           {...register("email")}
@@ -101,9 +119,9 @@ export function LoginForm({
         />
       </div>
       <div style={{ display: "grid", gap: 6 }}>
-        <Label htmlFor="password">{t("password")}</Label>
+        <Label htmlFor="login-password">{t("password")}</Label>
         <Input
-          id="password"
+          id="login-password"
           type="password"
           autoComplete="current-password"
           {...register("password")}
@@ -115,19 +133,37 @@ export function LoginForm({
           {error}
         </p>
       )}
-      <CtaButton type="submit" style={{ width: "100%" }}>
+      <CtaButton type="submit" style={{ width: "100%", ...submitStyle }}>
         {isSubmitting ? t("submitting") : t("submit")}
       </CtaButton>
-      <Link
-        href="/reset-password"
-        style={{
-          fontSize: "var(--fs-small)",
-          color: "var(--color-text-muted)",
-          textAlign: "center",
-        }}
-      >
-        {t("forgot")}
-      </Link>
+      {onForgot ? (
+        <button
+          type="button"
+          onClick={onForgot}
+          style={{
+            background: "none",
+            border: "none",
+            font: "inherit",
+            cursor: "pointer",
+            fontSize: "var(--fs-small)",
+            color: "var(--color-text-muted)",
+            textAlign: "center",
+          }}
+        >
+          {t("forgot")}
+        </button>
+      ) : (
+        <Link
+          href="/reset-password"
+          style={{
+            fontSize: "var(--fs-small)",
+            color: "var(--color-text-muted)",
+            textAlign: "center",
+          }}
+        >
+          {t("forgot")}
+        </Link>
+      )}
     </form>
   );
 }

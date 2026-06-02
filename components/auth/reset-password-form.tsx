@@ -35,7 +35,7 @@ export function ResetPasswordForm({ token }: { token?: string }) {
     return (
       <div style={{ display: "grid", gap: "var(--s-4)" }}>
         <p style={{ color: "var(--color-success)" }}>{t("success")}</p>
-        <CtaButton href="/login">{t("submit")}</CtaButton>
+        <CtaButton href="/?auth=login">{t("submit")}</CtaButton>
       </div>
     );
   }
@@ -87,7 +87,7 @@ export function ResetPasswordForm({ token }: { token?: string }) {
         {isSubmitting ? t("submitting") : t("submit")}
       </CtaButton>
       <Link
-        href="/login"
+        href="/?auth=login"
         style={{
           fontSize: "var(--fs-small)",
           color: "var(--color-text-muted)",

@@ -51,7 +51,7 @@ export default async function AccountOrdersPage({
 
   const user = await getSessionUser();
   if (!user) {
-    redirect(`/${locale}/login?next=/${locale}/account/orders`);
+    redirect(`/${locale}?auth=login&next=/${locale}/account/orders`);
   }
 
   let orders: OrderRow[] = [];

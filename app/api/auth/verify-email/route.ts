@@ -9,7 +9,9 @@ export async function GET(req: Request) {
 
   const result = await verifyEmail(token);
 
-  const dest = new URL(`/${locale}/login`, url.origin);
+  // /login is gone; open the auth modal on the homepage instead.
+  const dest = new URL(`/${locale}`, url.origin);
+  dest.searchParams.set("auth", "login");
   if (result.ok) dest.searchParams.set("verified", "1");
   else dest.searchParams.set("error", "verify");
   return NextResponse.redirect(dest);

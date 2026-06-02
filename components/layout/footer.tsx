@@ -154,56 +154,47 @@ export function Footer() {
             </div>
           </div>
 
-          {(t.raw("nav") as Array<[string, string[]]>).map(
-            ([title, items], colIndex) => (
-              <div key={title}>
-                <div
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    letterSpacing: ".08em",
-                    textTransform: "uppercase",
-                    color: "var(--teal-300)",
-                    marginBottom: 16,
-                  }}
-                >
-                  {title}
-                </div>
-                <div
-                  style={{ display: "flex", flexDirection: "column", gap: 10 }}
-                >
-                  {items.map((i, itemIndex) => {
-                    const href =
-                      colIndex === 0
-                        ? "/instruments"
-                        : colIndex === 1
-                          ? itemIndex === items.length - 1
-                            ? "/tourism"
-                            : "/consulting"
-                          : itemIndex === items.length - 1
-                            ? "/contact"
-                            : "/about";
-                    return (
-                      <Link
-                        key={i}
-                        href={href}
-                        className="footer-link"
-                        style={{
-                          fontSize: 14,
-                          color: "rgba(255,255,255,.78)",
-                          cursor: "pointer",
-                          transition: "color 160ms",
-                        }}
-                      >
-                        {i}
-                      </Link>
-                    );
-                  })}
-                </div>
+          {(
+            t.raw("nav") as Array<{
+              title: string;
+              links: Array<{ label: string; href: string }>;
+            }>
+          ).map((col) => (
+            <div key={col.title}>
+              <div
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  letterSpacing: ".08em",
+                  textTransform: "uppercase",
+                  color: "var(--teal-300)",
+                  marginBottom: 16,
+                }}
+              >
+                {col.title}
               </div>
-            ),
-          )}
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: 10 }}
+              >
+                {col.links.map((l) => (
+                  <Link
+                    key={l.href + l.label}
+                    href={l.href}
+                    className="footer-link"
+                    style={{
+                      fontSize: 14,
+                      color: "rgba(255,255,255,.78)",
+                      cursor: "pointer",
+                      transition: "color 160ms",
+                    }}
+                  >
+                    {l.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ))}
 
           <div>
             <div

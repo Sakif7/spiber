@@ -6,7 +6,7 @@ import { organizationJsonLd } from "@/lib/seo/jsonld";
 
 import { Hero } from "@/components/sections/hero";
 import { Pillars } from "@/components/sections/pillars";
-import { BusinessSegments } from "@/components/sections/business-segments";
+import { Divisions } from "@/components/sections/divisions";
 import { SkillDevelopment } from "@/components/sections/skill-development";
 import { CapitalEquipment } from "@/components/sections/capital-equipment";
 import { CSRBand } from "@/components/sections/csr-band";
@@ -32,7 +32,7 @@ export default async function Home({
       <JsonLd data={organizationJsonLd()} />
       <Hero />
       <Pillars />
-      <BusinessSegments />
+      <Divisions />
       <SkillDevelopment />
       <CapitalEquipment />
       <CSRBand />

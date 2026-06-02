@@ -6,6 +6,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Arrow, Container, LocaleSwitcher } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { CartButton } from "@/components/shop/cart-button";
+import { UserMenu } from "@/components/layout/user-menu";
+import { useSession } from "@/components/auth/use-session";
+import { useAuthModal } from "@/components/auth/auth-modal";
 import {
   MobileNav,
   MobileNavHeader,
@@ -107,6 +110,8 @@ export function ResizableHeader() {
   const [open, setOpen] = useState(false);
   const [megaOpen, setMegaOpen] = useState<string | null>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { user, signOut } = useSession();
+  const { open: openAuth } = useAuthModal();
 
   const scheduleClose = () => {
     if (closeTimer.current) clearTimeout(closeTimer.current);
@@ -188,23 +193,69 @@ export function ResizableHeader() {
           <div
             style={{ display: "flex", gap: 10, marginTop: 14, width: "100%" }}
           >
-            <Link
-              href="/login"
-              onClick={() => setOpen(false)}
-              style={{
-                flex: 1,
-                textAlign: "center",
-                padding: "10px 14px",
-                borderRadius: 999,
-                border: "1px solid var(--color-border)",
-                fontSize: 13,
-                color: "var(--color-text)",
-              }}
-            >
-              Login
-            </Link>
+            {user ? (
+              <Link
+                href={user.isAdmin ? "/admin" : "/account/orders"}
+                onClick={() => setOpen(false)}
+                style={{
+                  flex: 1,
+                  textAlign: "center",
+                  padding: "10px 14px",
+                  borderRadius: 999,
+                  border: "1px solid var(--color-border)",
+                  fontSize: 13,
+                  color: "var(--color-text)",
+                }}
+              >
+                {user.isAdmin ? "Admin" : "My account"}
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  openAuth("login");
+                }}
+                style={{
+                  flex: 1,
+                  textAlign: "center",
+                  padding: "10px 14px",
+                  borderRadius: 999,
+                  border: "1px solid var(--color-border)",
+                  fontSize: 13,
+                  color: "var(--color-text)",
+                  background: "none",
+                  fontFamily: "inherit",
+                  cursor: "pointer",
+                }}
+              >
+                Login
+              </button>
+            )}
             <CtaButton style={{ flex: 1, justifyContent: "center" }} />
           </div>
+          {user && (
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                void signOut();
+              }}
+              style={{
+                marginTop: 10,
+                width: "100%",
+                padding: 8,
+                background: "none",
+                border: "none",
+                color: "var(--color-error)",
+                fontSize: 13,
+                fontFamily: "inherit",
+                cursor: "pointer",
+              }}
+            >
+              Sign out
+            </button>
+          )}
           <div style={{ marginTop: 14 }}>
             <LocaleSwitcher />
           </div>
@@ -562,17 +613,7 @@ function DesktopActions() {
     >
       <LocaleSwitcher />
       <CartButton />
-      <Link
-        href="/login"
-        style={{
-          fontSize: 13,
-          color: "var(--color-text-muted)",
-          padding: "8px 10px",
-          cursor: "pointer",
-        }}
-      >
-        Login
-      </Link>
+      <UserMenu />
       <CtaButton />
     </div>
   );

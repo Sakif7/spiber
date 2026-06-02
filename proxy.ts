@@ -27,8 +27,9 @@ export default async function proxy(request: NextRequest) {
     if (!isAdmin(claims)) {
       const locale = pathname.split("/")[1] || routing.defaultLocale;
       const loginUrl = request.nextUrl.clone();
-      loginUrl.pathname = `/${locale}/login`;
-      loginUrl.search = `?next=${encodeURIComponent(pathname)}`;
+      // /login + /register are gone; the auth modal opens from ?auth=login.
+      loginUrl.pathname = `/${locale}`;
+      loginUrl.search = `?auth=login&next=${encodeURIComponent(pathname)}`;
       return NextResponse.redirect(loginUrl);
     }
   }

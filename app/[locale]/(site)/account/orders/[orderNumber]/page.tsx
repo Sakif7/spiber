@@ -45,7 +45,9 @@ export default async function AccountOrderDetailPage({
 
   const user = await getSessionUser();
   if (!user) {
-    redirect(`/login?next=/account/orders/${encodeURIComponent(orderNumber)}`);
+    redirect(
+      `/${loc}?auth=login&next=/${loc}/account/orders/${encodeURIComponent(orderNumber)}`,
+    );
   }
 
   let order: Awaited<ReturnType<typeof getOrderByNumber>> = null;

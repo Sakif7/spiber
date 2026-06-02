@@ -20,8 +20,8 @@ const r2Patterns = (() => {
 const nextConfig: NextConfig = {
   // Lean, self-contained build for Coolify / Docker.
   output: "standalone",
-  // Mongoose must run in the Node.js runtime, not be bundled by Turbopack/webpack.
-  serverExternalPackages: ["mongoose"],
+  // Must run in the Node.js runtime, not be bundled by Turbopack/webpack.
+  serverExternalPackages: ["mongoose", "nodemailer"],
   images: {
     remotePatterns: r2Patterns,
   },
