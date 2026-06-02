@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { Link } from "@/i18n/navigation";
 import { loginFormSchema, type LoginFormValues } from "@/lib/schemas/user";
+import { isAdmin } from "@/lib/auth/rbac";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CtaButton } from "@/components/ui/cta-button";
@@ -41,7 +42,15 @@ export function LoginForm({
       });
       const json = await res.json();
       if (res.ok && json.ok) {
-        router.replace(next && next.startsWith("/") ? next : "/");
+        // An explicit ?next= wins; otherwise admins land on the admin panel,
+        // everyone else on the homepage.
+        const dest =
+          next && next.startsWith("/")
+            ? next
+            : isAdmin({ roles: json.data?.user?.roles ?? [] })
+              ? "/admin"
+              : "/";
+        router.replace(dest);
         router.refresh();
         return;
       }

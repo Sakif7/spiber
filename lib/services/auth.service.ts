@@ -41,7 +41,9 @@ function toAuthUser(doc: IUser & { _id: unknown }): AuthUser {
     id: String(doc._id),
     name: doc.name,
     email: doc.email,
-    roles: doc.roles,
+    // Spread to a plain array: a live Mongoose array is an exotic object that
+    // jose's payload serialization (structuredClone) rejects with DataCloneError.
+    roles: [...doc.roles],
     emailVerified: doc.emailVerified,
   };
 }
