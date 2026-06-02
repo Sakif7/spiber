@@ -60,7 +60,7 @@ export async function generateMetadata({
   const t = await getTranslations({ locale, namespace: "meta" });
 
   return {
-    metadataBase: new URL(process.env.APP_URL ?? "https://spiberhcl.com"),
+    metadataBase: new URL(process.env.APP_URL ?? "https://spibermed.com"),
     title: { default: t("title"), template: `%s — ${t("brand")}` },
     description: t("description"),
     alternates: {

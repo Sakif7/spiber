@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import {
   Arrow,
   Container,
@@ -85,8 +86,8 @@ export function LatestNews({ initial }: { initial?: Post[] }) {
             lede={t("lede")}
           />
           <Reveal delay={200} style={{ alignSelf: "end" }}>
-            <a
-              href="#"
+            <Link
+              href="/blog"
               style={{
                 alignSelf: "end",
                 justifySelf: "end",
@@ -100,7 +101,7 @@ export function LatestNews({ initial }: { initial?: Post[] }) {
               }}
             >
               {t("visitBlog")} <Arrow />
-            </a>
+            </Link>
           </Reveal>
         </div>
 
@@ -135,7 +136,8 @@ function NewsCard({
   const t = useTranslations("home.latestNews");
   const [hover, setHover] = useState(false);
   return (
-    <article
+    <Link
+      href="/blog"
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
@@ -264,6 +266,6 @@ function NewsCard({
           {t("readMore")} <Arrow size={12} />
         </div>
       </div>
-    </article>
+    </Link>
   );
 }

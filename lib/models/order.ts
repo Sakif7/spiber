@@ -1,0 +1,155 @@
+import mongoose, { Schema, type Model } from "mongoose";
+import { localizedDef, type LocalizedDoc } from "./_shared";
+import type {
+  OrderStatus,
+  PaymentStatus,
+  PaymentProviderName,
+  Address,
+} from "@/lib/schemas/order";
+
+export interface IOrderItem {
+  productId: mongoose.Types.ObjectId;
+  productSnapshot: {
+    name: LocalizedDoc;
+    sku: string;
+    priceMinor: number;
+    image?: string;
+  };
+  qty: number;
+  lineTotalMinor: number;
+}
+
+export interface IPaymentRef {
+  provider: PaymentProviderName;
+  txnId?: string;
+  status: PaymentStatus;
+  raw?: unknown;
+  paidAt?: Date | null;
+}
+
+export interface ITimelineEntry {
+  status: OrderStatus;
+  at: Date;
+  note?: string;
+}
+
+export interface IOrder {
+  orderNumber: string;
+  userId?: mongoose.Types.ObjectId | null;
+  email: string;
+  items: IOrderItem[];
+  subtotalMinor: number;
+  shippingMinor: number;
+  taxMinor: number;
+  discountMinor: number;
+  totalMinor: number;
+  currency: "BDT";
+  status: OrderStatus;
+  payment: IPaymentRef;
+  shippingAddress: Address;
+  couponCode?: string;
+  note?: string;
+  trackingNumber?: string;
+  idempotencyKey: string;
+  timeline: ITimelineEntry[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const orderItemSchema = new Schema<IOrderItem>(
+  {
+    productId: { type: Schema.Types.ObjectId, ref: "Product", required: true },
+    productSnapshot: {
+      name: { ...localizedDef },
+      sku: { type: String, required: true },
+      priceMinor: { type: Number, required: true },
+      image: { type: String },
+    },
+    qty: { type: Number, required: true, min: 1 },
+    lineTotalMinor: { type: Number, required: true },
+  },
+  { _id: false },
+);
+
+const addressSchema = new Schema<Address>(
+  {
+    label: String,
+    line1: { type: String, required: true },
+    line2: String,
+    city: { type: String, required: true },
+    district: { type: String, required: true },
+    postalCode: String,
+    phone: { type: String, required: true },
+  },
+  { _id: false },
+);
+
+const orderSchema = new Schema<IOrder>(
+  {
+    orderNumber: { type: String, required: true, unique: true },
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true,
+    },
+    email: {
+      type: String,
+      required: true,
+      lowercase: true,
+      trim: true,
+      index: true,
+    },
+    items: { type: [orderItemSchema], required: true },
+    subtotalMinor: { type: Number, required: true },
+    shippingMinor: { type: Number, default: 0 },
+    taxMinor: { type: Number, default: 0 },
+    discountMinor: { type: Number, default: 0 },
+    totalMinor: { type: Number, required: true },
+    currency: { type: String, default: "BDT" },
+    status: {
+      type: String,
+      enum: [
+        "pending",
+        "paid",
+        "processing",
+        "shipped",
+        "delivered",
+        "cancelled",
+        "refunded",
+      ],
+      default: "pending",
+      index: true,
+    },
+    payment: {
+      provider: { type: String, default: "manual" },
+      txnId: String,
+      status: { type: String, default: "unpaid" },
+      raw: Schema.Types.Mixed,
+      paidAt: { type: Date, default: null },
+    },
+    shippingAddress: { type: addressSchema, required: true },
+    couponCode: String,
+    note: String,
+    trackingNumber: String,
+    idempotencyKey: { type: String, required: true },
+    timeline: {
+      type: [
+        new Schema<ITimelineEntry>(
+          { status: String, at: Date, note: String },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
+  },
+  { collection: "orders", timestamps: true },
+);
+
+// Idempotent order creation: same key never creates two orders.
+orderSchema.index({ idempotencyKey: 1 }, { unique: true });
+orderSchema.index({ createdAt: -1 });
+
+export const Order: Model<IOrder> =
+  (mongoose.models.Order as Model<IOrder>) ??
+  mongoose.model<IOrder>("Order", orderSchema);

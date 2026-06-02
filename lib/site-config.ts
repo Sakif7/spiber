@@ -6,8 +6,8 @@
 
 export const siteConfig = {
   brand: "Spiber Med",
-  domain: "spiberhcl.com",
-  url: process.env.APP_URL ?? "https://spiberhcl.com",
+  domain: "spibermed.com",
+  url: process.env.APP_URL ?? "https://spibermed.com",
 } as const;
 
 /** The five divisions, in nav order. */

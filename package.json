@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "create-admin": "node scripts/create-admin.mjs",
     "prepare": "husky"
   },
   "lint-staged": {
@@ -25,6 +26,8 @@
     ]
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1058.0",
+    "@aws-sdk/s3-request-presigner": "^3.1058.0",
     "@hookform/resolvers": "^5.4.0",
     "@tanstack/react-query": "^5.100.14",
     "bcryptjs": "^3.0.3",
@@ -62,6 +65,7 @@
     "imagetracerjs": "^1.2.6",
     "jsdom": "^29.1.1",
     "lint-staged": "^16.4.0",
+    "mongodb-memory-server": "^11.2.0",
     "prettier": "^3.8.3",
     "prettier-plugin-tailwindcss": "^0.8.0",
     "tailwindcss": "^4",

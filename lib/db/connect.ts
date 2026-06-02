@@ -11,9 +11,6 @@ import mongoose from "mongoose";
  * static content where the spec calls for graceful degradation.
  */
 
-const MONGODB_URI = process.env.MONGODB_URI;
-const MONGODB_DB = process.env.MONGODB_DB || "spiber";
-
 type MongooseCache = {
   conn: typeof mongoose | null;
   promise: Promise<typeof mongoose> | null;
@@ -31,19 +28,21 @@ globalThis.__mongoose = cache;
 
 /** Whether a connection string is configured at all. */
 export function isDbConfigured(): boolean {
-  return Boolean(MONGODB_URI);
+  return Boolean(process.env.MONGODB_URI);
 }
 
-/** Connect (or reuse the cached connection). Throws if unavailable. */
+/** Connect (or reuse the cached connection). Throws if unavailable.
+ *  Env is read lazily (at call time) so tests can set it before connecting. */
 export async function connectToDatabase(): Promise<typeof mongoose> {
-  if (!MONGODB_URI) {
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
     throw new Error("MONGODB_URI is not configured");
   }
   if (cache.conn) return cache.conn;
 
   if (!cache.promise) {
-    cache.promise = mongoose.connect(MONGODB_URI, {
-      dbName: MONGODB_DB,
+    cache.promise = mongoose.connect(uri, {
+      dbName: process.env.MONGODB_DB || "spiber",
       serverSelectionTimeoutMS: 3000,
       bufferCommands: false,
     });

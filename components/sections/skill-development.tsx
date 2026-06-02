@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import {
   Arrow,
   Container,
@@ -185,7 +186,8 @@ export function SkillDevelopment() {
               </ul>
 
               <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
-                <button
+                <Link
+                  href="/academy"
                   style={{
                     background: "var(--color-brand)",
                     color: "white",
@@ -202,8 +204,9 @@ export function SkillDevelopment() {
                   }}
                 >
                   {t("applyCta")} <Arrow />
-                </button>
-                <button
+                </Link>
+                <Link
+                  href="/academy"
                   style={{
                     background: "transparent",
                     color: "var(--color-text-strong)",
@@ -216,7 +219,7 @@ export function SkillDevelopment() {
                   }}
                 >
                   {t("curriculumCta")}
-                </button>
+                </Link>
               </div>
             </div>
           </div>

@@ -7,6 +7,9 @@ import { useTranslations } from "next-intl";
 import { Arrow, Container, Reveal } from "@/components/ui";
 import { useMagnetic } from "@/hooks";
 import DotGrid from "@/components/ui/dot-grid";
+import { Link } from "@/i18n/navigation";
+
+const MotionLink = motion.create(Link);
 
 // `word` is the noun that follows the static "Empowering " prefix in the
 // hero headline; `title` is the source tagline shown in the small indicator
@@ -310,7 +313,7 @@ const HERO_SOLUTIONS: Solution[] = [
     image: "/bento-lab-equipment.png",
     imageAlt: "Modern laboratory with microscope, analyzers and glassware",
     imagePosition: "center center",
-    href: "#products",
+    href: "/instruments",
   },
   {
     id: "furniture",
@@ -319,7 +322,7 @@ const HERO_SOLUTIONS: Solution[] = [
     image: "/bento-furniture.png",
     imageAlt: "Modern hospital beds, exam chairs and OR tables in teal accents",
     imagePosition: "center center",
-    href: "#products",
+    href: "/instruments",
   },
   {
     id: "software",
@@ -328,7 +331,7 @@ const HERO_SOLUTIONS: Solution[] = [
     image: "/bento-software.png",
     imageAlt: "Medical software dashboards on touchscreens and tablets",
     imagePosition: "center center",
-    href: "#jupyter",
+    href: "/systems",
   },
 ];
 
@@ -349,7 +352,7 @@ function FeaturedTile({
     >
   )[s.id];
   return (
-    <motion.a
+    <MotionLink
       href={s.href}
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
@@ -453,7 +456,7 @@ function FeaturedTile({
           {sol.description}
         </p>
       </div>
-    </motion.a>
+    </MotionLink>
   );
 }
 
@@ -474,7 +477,7 @@ function CompactTile({
     >
   )[s.id];
   return (
-    <motion.a
+    <MotionLink
       href={s.href}
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
@@ -575,7 +578,7 @@ function CompactTile({
           {sol.description}
         </p>
       </div>
-    </motion.a>
+    </MotionLink>
   );
 }
 
@@ -659,7 +662,7 @@ function PartnerMarquee() {
 
 export function Hero() {
   const t = useTranslations("home.hero");
-  const ctaMag = useMagnetic<HTMLButtonElement>(0.22, 90);
+  const ctaMag = useMagnetic<HTMLAnchorElement>(0.22, 90);
   const [hoveredSolution, setHoveredSolution] = useState<string | null>(null);
 
   return (
@@ -725,8 +728,9 @@ export function Hero() {
                 flexWrap: "wrap",
               }}
             >
-              <button
+              <Link
                 ref={ctaMag}
+                href="/contact"
                 style={{
                   background: "var(--color-brand)",
                   color: "white",
@@ -746,8 +750,9 @@ export function Hero() {
                 }}
               >
                 {t("ctaQuote")} <Arrow size={14} />
-              </button>
-              <button
+              </Link>
+              <Link
+                href="/instruments"
                 style={{
                   background: "transparent",
                   color: "var(--color-text-strong)",
@@ -759,10 +764,12 @@ export function Hero() {
                   fontWeight: 500,
                   cursor: "pointer",
                   transition: "all .25s cubic-bezier(.2,.7,.2,1)",
+                  display: "inline-flex",
+                  alignItems: "center",
                 }}
               >
                 {t("ctaExplore")}
-              </button>
+              </Link>
               <div
                 style={{
                   display: "flex",

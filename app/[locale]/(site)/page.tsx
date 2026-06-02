@@ -1,6 +1,8 @@
 import { setRequestLocale } from "next-intl/server";
 
 import { getLatestPosts } from "@/lib/services/landing.service";
+import { JsonLd } from "@/components/ui/json-ld";
+import { organizationJsonLd } from "@/lib/seo/jsonld";
 
 import { Hero } from "@/components/sections/hero";
 import { Pillars } from "@/components/sections/pillars";
@@ -27,6 +29,7 @@ export default async function Home({
   const posts = await getLatestPosts(6);
   return (
     <>
+      <JsonLd data={organizationJsonLd()} />
       <Hero />
       <Pillars />
       <BusinessSegments />

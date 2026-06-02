@@ -1,0 +1,18 @@
+import { ok, fail } from "@/lib/http/respond";
+import { parseJson } from "@/lib/http/validate";
+import { couponCodeSchema } from "@/lib/schemas/coupon";
+import { validateCoupon } from "@/lib/services/coupon.service";
+import { getCartView } from "@/lib/services/cart.service";
+import { resolveCartOwner } from "@/lib/shop/cart-owner";
+
+export async function POST(req: Request) {
+  const parsed = await parseJson(req, couponCodeSchema);
+  if (!parsed.success) return fail({ code: "invalid_input" }, 400);
+
+  const owner = await resolveCartOwner();
+  const cart = await getCartView(owner, "en");
+  const result = await validateCoupon(parsed.data.code, cart.subtotalMinor);
+  if (!result.ok) return fail({ code: result.reason }, 400);
+
+  return ok({ coupon: result.coupon });
+}

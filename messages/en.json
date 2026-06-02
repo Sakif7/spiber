@@ -613,5 +613,104 @@
   "utilityBar": {
     "location": "Banani · Dhaka 1213, Bangladesh",
     "hours": "Mon–Sat · 09:00–18:00 BST"
+  },
+  "shop": {
+    "hub": {
+      "title": "Spiber Instruments",
+      "lede": "Clinical-grade medical and surgical equipment for hospitals, clinics, and laboratories across Bangladesh.",
+      "shopByCategory": "Shop by category",
+      "featured": "Featured equipment",
+      "browseAll": "Browse all equipment"
+    },
+    "listing": {
+      "results": "{count} products",
+      "filters": "Filters",
+      "search": "Search",
+      "searchPlaceholder": "Search equipment…",
+      "sortBy": "Sort by",
+      "sortNewest": "Newest",
+      "sortPriceAsc": "Price: low to high",
+      "sortPriceDesc": "Price: high to low",
+      "price": "Price",
+      "min": "Min",
+      "max": "Max",
+      "brand": "Brand",
+      "allBrands": "All brands",
+      "inStockOnly": "In stock only",
+      "apply": "Apply",
+      "clear": "Clear all",
+      "noResults": "No products match your filters.",
+      "prev": "Previous",
+      "next": "Next"
+    },
+    "product": {
+      "addToCart": "Add to cart",
+      "adding": "Adding…",
+      "added": "Added to cart",
+      "outOfStock": "Out of stock",
+      "inStock": "In stock",
+      "lowStock": "Only {count} left",
+      "sku": "SKU",
+      "specifications": "Specifications",
+      "related": "Related equipment",
+      "quantity": "Quantity",
+      "viewCart": "View cart"
+    },
+    "cart": {
+      "title": "Your cart",
+      "empty": "Your cart is empty.",
+      "emptyCta": "Browse equipment",
+      "remove": "Remove",
+      "subtotal": "Subtotal",
+      "checkout": "Proceed to checkout",
+      "continue": "Continue shopping",
+      "qty": "Qty",
+      "outOfStock": "Exceeds available stock"
+    },
+    "checkout": {
+      "title": "Checkout",
+      "contact": "Contact",
+      "shipping": "Shipping address",
+      "fullName": "Full name",
+      "email": "Email",
+      "phone": "Phone",
+      "line1": "Address line 1",
+      "line2": "Address line 2 (optional)",
+      "city": "City",
+      "district": "District",
+      "postalCode": "Postal code",
+      "note": "Order note (optional)",
+      "coupon": "Coupon code",
+      "applyCoupon": "Apply",
+      "couponApplied": "Coupon applied",
+      "couponInvalid": "Invalid or ineligible coupon",
+      "summary": "Order summary",
+      "discount": "Discount",
+      "shippingFee": "Shipping",
+      "free": "Free",
+      "total": "Total",
+      "placeOrder": "Place order",
+      "placing": "Placing order…",
+      "backToCart": "Back to cart",
+      "paymentNote": "Payment is arranged offline (bank transfer / cash on delivery). We'll confirm your order by email.",
+      "error": "We couldn't place your order. Please try again.",
+      "outOfStock": "Some items are no longer in stock."
+    },
+    "confirmation": {
+      "title": "Order confirmed",
+      "thankYou": "Thank you! Your order has been received.",
+      "orderNumber": "Order number",
+      "status": "Status",
+      "total": "Total",
+      "emailedTo": "A confirmation was sent to",
+      "lookupTitle": "Look up an order",
+      "lookupHint": "Enter your order number and email.",
+      "lookup": "Find order",
+      "notFound": "No matching order found."
+    },
+    "common": {
+      "from": "From",
+      "free": "Free"
+    }
   }
 }

@@ -12,6 +12,9 @@ import {
   SectionTitle,
 } from "@/components/ui";
 import ScrollStack, { ScrollStackItem } from "@/components/ui/scroll-stack";
+import { Link } from "@/i18n/navigation";
+
+const MotionLink = motion.create(Link);
 
 type PillarStatic = {
   n: string;
@@ -34,28 +37,28 @@ const ITEMS: PillarStatic[] = [
   {
     n: "01",
     metricValue: "248",
-    ctaHref: "#hospitals",
+    ctaHref: "/tourism",
     image: "/smiling-medical-team-portrait.jpeg",
     imagePosition: "center 30%",
   },
   {
     n: "02",
     metricValue: "60+",
-    ctaHref: "#products",
+    ctaHref: "/instruments",
     image: "/modern-operating-room-equipment.jpeg",
     imagePosition: "center center",
   },
   {
     n: "03",
     metricValue: "14k+",
-    ctaHref: "#csr",
+    ctaHref: "/about",
     image: "/nurse-holding-patient-hand-reassurance.jpeg",
     imagePosition: "center center",
   },
   {
     n: "04",
     metricValue: "120+",
-    ctaHref: "#careers",
+    ctaHref: "/contact",
     image: "/lab-technician-using-analyzer-machine.jpeg",
     imagePosition: "center center",
   },
@@ -98,7 +101,8 @@ export function Pillars() {
               lede={t("lede")}
             />
             <Reveal delay={200}>
-              <button
+              <Link
+                href="/consulting"
                 style={{
                   background: "var(--color-surface)",
                   color: "var(--color-text-strong)",
@@ -115,7 +119,7 @@ export function Pillars() {
                 }}
               >
                 {t("exploreServices")} <Arrow />
-              </button>
+              </Link>
             </Reveal>
           </div>
         </div>
@@ -337,7 +341,7 @@ function PillarCardContent({
             }}
           />
 
-          <motion.a
+          <MotionLink
             href={ctaHref}
             initial="rest"
             whileHover="hover"
@@ -363,7 +367,7 @@ function PillarCardContent({
             >
               <Arrow size={12} />
             </motion.span>
-          </motion.a>
+          </MotionLink>
         </div>
       </div>
 

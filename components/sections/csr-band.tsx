@@ -3,6 +3,9 @@
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { Arrow, Container, Eyebrow, Reveal, Section } from "@/components/ui";
+import { Link } from "@/i18n/navigation";
+
+const MotionLink = motion.create(Link);
 
 function ManifestoRow({
   index,
@@ -299,8 +302,8 @@ export function CSRBand() {
             >
               {t("commitmentLabel")}
             </div>
-            <motion.a
-              href="#csr"
+            <MotionLink
+              href="/about"
               whileHover={{ x: 4 }}
               transition={{ type: "spring", stiffness: 380, damping: 26 }}
               style={{
@@ -317,7 +320,7 @@ export function CSRBand() {
               }}
             >
               {t("cta")} <Arrow size={14} />
-            </motion.a>
+            </MotionLink>
           </div>
         </Reveal>
 

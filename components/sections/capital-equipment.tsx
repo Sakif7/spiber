@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import {
   Arrow,
   Container,
@@ -103,8 +104,8 @@ export function CapitalEquipment() {
             <div
               style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}
             >
-              <a
-                href="#"
+              <Link
+                href="/instruments"
                 style={{
                   fontSize: 14,
                   fontWeight: 500,
@@ -116,7 +117,7 @@ export function CapitalEquipment() {
                 }}
               >
                 {t("downloadCatalog")} <Arrow />
-              </a>
+              </Link>
             </div>
           </Reveal>
         </div>
@@ -196,7 +197,8 @@ function EquipmentCard({
 }: Item & { viewLabel: string; skuLabel: string }) {
   const [hover, setHover] = useState(false);
   return (
-    <div
+    <Link
+      href="/instruments"
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
@@ -326,6 +328,6 @@ function EquipmentCard({
           </span>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }

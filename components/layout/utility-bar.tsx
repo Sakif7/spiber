@@ -34,7 +34,7 @@ export function UtilityBar() {
           }}
         >
           <a
-            href="mailto:info@spiberhcl.com"
+            href="mailto:info@spibermed.com"
             style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
           >
             <svg
@@ -50,7 +50,7 @@ export function UtilityBar() {
                 strokeWidth="1.2"
               />
             </svg>
-            info@spiberhcl.com
+            info@spibermed.com
           </a>
           <a
             href="tel:+8801765193751"

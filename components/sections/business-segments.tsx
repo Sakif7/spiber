@@ -2,6 +2,7 @@
 
 import { CSSProperties, useState } from "react";
 import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import {
   Arrow,
   Container,
@@ -212,7 +213,8 @@ function SegmentCard({
           {body}
         </p>
 
-        <div
+        <Link
+          href="/instruments"
           style={{
             marginTop: big ? 22 : 14,
             display: "inline-flex",
@@ -226,7 +228,7 @@ function SegmentCard({
           }}
         >
           {t("readMore")} <Arrow size={12} />
-        </div>
+        </Link>
       </div>
     </div>
   );

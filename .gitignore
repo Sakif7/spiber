@@ -54,6 +54,9 @@ Thumbs.db
 /playwright/.cache/
 .eslintcache
 
+# local-dev uploaded media (prod uses R2)
+/public/uploads/
+
 # extra
 /.playwright-mcp/
 /.docs/

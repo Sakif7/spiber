@@ -11,10 +11,11 @@ import {
   Section,
 } from "@/components/ui";
 import { useMagnetic } from "@/hooks";
+import { Link } from "@/i18n/navigation";
 
 export function CTABand() {
   const t = useTranslations("home.cta");
-  const cta = useMagnetic<HTMLButtonElement>(0.3, 100);
+  const cta = useMagnetic<HTMLAnchorElement>(0.3, 100);
   return (
     <Section dark mesh py="clamp(80px, 9vw, 160px)">
       <DotPattern
@@ -84,7 +85,8 @@ export function CTABand() {
                 alignItems: "flex-start",
               }}
             >
-              <button
+              <Link
+                href="/contact"
                 ref={cta}
                 style={{
                   background: "var(--color-brand)",
@@ -102,8 +104,9 @@ export function CTABand() {
                 }}
               >
                 {t("requestQuote")} <Arrow size={16} />
-              </button>
-              <button
+              </Link>
+              <Link
+                href="/consulting"
                 style={{
                   background: "transparent",
                   color: "white",
@@ -120,9 +123,9 @@ export function CTABand() {
                 }}
               >
                 {t("scheduleCall")} <Arrow />
-              </button>
+              </Link>
               <a
-                href="mailto:sales@spiberhcl.com"
+                href="mailto:sales@spibermed.com"
                 style={{
                   marginTop: 8,
                   fontSize: 14,
@@ -132,7 +135,7 @@ export function CTABand() {
                   gap: 8,
                 }}
               >
-                {t("emailPrefix")} · sales@spiberhcl.com →
+                {t("emailPrefix")} · sales@spibermed.com →
               </a>
             </div>
           </Reveal>

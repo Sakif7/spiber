@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { Container } from "@/components/ui";
+import { Link } from "@/i18n/navigation";
 
 function NewsletterForm() {
   const t = useTranslations("footer");
@@ -128,9 +129,9 @@ export function Footer() {
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 22 }}>
               {["fb", "x", "in", "ig"].map((s) => (
-                <a
+                <Link
                   key={s}
-                  href="#"
+                  href="/contact"
                   className="footer-social"
                   style={{
                     width: 36,
@@ -148,47 +149,61 @@ export function Footer() {
                   }}
                 >
                   {s}
-                </a>
+                </Link>
               ))}
             </div>
           </div>
 
-          {(t.raw("nav") as Array<[string, string[]]>).map(([title, items]) => (
-            <div key={title}>
-              <div
-                style={{
-                  fontFamily: "var(--font-display)",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  letterSpacing: ".08em",
-                  textTransform: "uppercase",
-                  color: "var(--teal-300)",
-                  marginBottom: 16,
-                }}
-              >
-                {title}
+          {(t.raw("nav") as Array<[string, string[]]>).map(
+            ([title, items], colIndex) => (
+              <div key={title}>
+                <div
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    letterSpacing: ".08em",
+                    textTransform: "uppercase",
+                    color: "var(--teal-300)",
+                    marginBottom: 16,
+                  }}
+                >
+                  {title}
+                </div>
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 10 }}
+                >
+                  {items.map((i, itemIndex) => {
+                    const href =
+                      colIndex === 0
+                        ? "/instruments"
+                        : colIndex === 1
+                          ? itemIndex === items.length - 1
+                            ? "/tourism"
+                            : "/consulting"
+                          : itemIndex === items.length - 1
+                            ? "/contact"
+                            : "/about";
+                    return (
+                      <Link
+                        key={i}
+                        href={href}
+                        className="footer-link"
+                        style={{
+                          fontSize: 14,
+                          color: "rgba(255,255,255,.78)",
+                          cursor: "pointer",
+                          transition: "color 160ms",
+                        }}
+                      >
+                        {i}
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: 10 }}
-              >
-                {items.map((i) => (
-                  <a
-                    key={i}
-                    href="#"
-                    className="footer-link"
-                    style={{
-                      fontSize: 14,
-                      color: "rgba(255,255,255,.78)",
-                      cursor: "pointer",
-                      transition: "color 160ms",
-                    }}
-                  >
-                    {i}
-                  </a>
-                ))}
-              </div>
-            </div>
-          ))}
+            ),
+          )}
 
           <div>
             <div
@@ -241,11 +256,11 @@ export function Footer() {
                   color: "var(--teal-300)",
                 }}
               >
-                info@spiberhcl.com
+                info@spibermed.com
                 <br />
-                sales@spiberhcl.com
+                sales@spibermed.com
                 <br />
-                inquiry@spiberhcl.com
+                inquiry@spibermed.com
               </div>
             </div>
           </div>
@@ -267,11 +282,22 @@ export function Footer() {
         >
           <div>{t("copyright")}</div>
           <div style={{ display: "flex", gap: 24 }}>
-            {(t.raw("legal") as string[]).map((label, i) => (
-              <a key={i} href="#">
-                {label}
-              </a>
-            ))}
+            {(t.raw("legal") as string[]).map((label, i) => {
+              if (i === 3) {
+                return (
+                  <a key={i} href="/sitemap.xml">
+                    {label}
+                  </a>
+                );
+              }
+              const href =
+                i === 0 ? "/privacy" : i === 1 ? "/terms" : "/privacy";
+              return (
+                <Link key={i} href={href}>
+                  {label}
+                </Link>
+              );
+            })}
           </div>
         </div>
       </Container>

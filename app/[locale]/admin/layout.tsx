@@ -9,15 +9,15 @@ import { SignOutButton } from "@/components/admin/sign-out-button";
 // Admin depends on the auth cookie; never statically prerender it.
 export const dynamic = "force-dynamic";
 
-const GROUPS = [
-  "overview",
-  "instruments",
-  "academy",
-  "systems",
-  "tourism",
-  "consulting",
-  "blog",
-  "platform",
+const NAV = [
+  { href: "/admin", label: "Dashboard" },
+  { href: "/admin/products", label: "Products" },
+  { href: "/admin/categories", label: "Categories" },
+  { href: "/admin/brands", label: "Brands" },
+  { href: "/admin/inventory", label: "Inventory" },
+  { href: "/admin/orders", label: "Orders" },
+  { href: "/admin/coupons", label: "Coupons" },
+  { href: "/admin/settings", label: "Settings" },
 ] as const;
 
 export default async function AdminLayout({
@@ -42,7 +42,7 @@ export default async function AdminLayout({
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "minmax(0, 260px) 1fr",
+        gridTemplateColumns: "minmax(0, 240px) 1fr",
         minHeight: "100vh",
       }}
     >
@@ -63,26 +63,33 @@ export default async function AdminLayout({
         >
           {siteConfig.brand} · {t("title")}
         </Link>
-        <nav
+        <div
           style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "var(--fs-micro)",
+            textTransform: "uppercase",
+            letterSpacing: "var(--tracking-eyebrow)",
+            color: "var(--color-text-muted)",
             marginTop: "var(--s-6)",
-            display: "grid",
-            gap: "var(--s-3)",
+            marginBottom: "var(--s-3)",
           }}
         >
-          {GROUPS.map((g) => (
-            <span
-              key={g}
+          {t("groups.instruments")}
+        </div>
+        <nav style={{ display: "grid", gap: 2 }}>
+          {NAV.map((n) => (
+            <Link
+              key={n.href}
+              href={n.href}
               style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: "var(--fs-caption)",
-                textTransform: "uppercase",
-                letterSpacing: "var(--tracking-eyebrow)",
-                color: "var(--color-text-muted)",
+                fontSize: "var(--fs-body-sm)",
+                color: "var(--color-text)",
+                padding: "6px 8px",
+                borderRadius: "var(--r-sm)",
               }}
             >
-              {t(`groups.${g}`)}
-            </span>
+              {n.label}
+            </Link>
           ))}
         </nav>
       </aside>

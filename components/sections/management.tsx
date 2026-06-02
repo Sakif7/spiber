@@ -4,6 +4,7 @@ import { ReactNode, useRef, useState } from "react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { Link } from "@/i18n/navigation";
 import {
   Arrow,
   Container,
@@ -86,7 +87,7 @@ export function Management() {
     bio: members[i].bio,
     socials: members[i].socials.map((s, j) => ({
       label: s.label,
-      href: "#",
+      href: "/about",
       icon: SOCIAL_ICONS[j],
     })),
   }));
@@ -110,8 +111,8 @@ export function Management() {
             lede={t("lede")}
           />
           <Reveal delay={200} style={{ alignSelf: "end" }}>
-            <a
-              href="#"
+            <Link
+              href="/about"
               style={{
                 alignSelf: "end",
                 justifySelf: "end",
@@ -125,7 +126,7 @@ export function Management() {
               }}
             >
               {t("seeFullLeadership")} <Arrow />
-            </a>
+            </Link>
           </Reveal>
         </div>
 
@@ -355,7 +356,7 @@ function TeamCard({
 
 function SocialChip({ label, href, icon }: Social) {
   return (
-    <a
+    <Link
       href={href}
       aria-label={label}
       style={{
@@ -381,6 +382,6 @@ function SocialChip({ label, href, icon }: Social) {
       }}
     >
       {icon}
-    </a>
+    </Link>
   );
 }
