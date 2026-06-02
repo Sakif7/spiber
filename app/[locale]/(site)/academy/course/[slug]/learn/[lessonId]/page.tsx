@@ -115,7 +115,12 @@ export default async function LessonPage({
     title: lesson.title,
     type: lesson.type,
     body: lesson.body,
-    resources: lesson.resources ?? [],
+    // Keep storage keys server-side; the player streams each resource by index
+    // through the gated route. `isPdf` drives the inline PDF viewer.
+    resources: (lesson.resources ?? []).map((r) => ({
+      name: r.name,
+      isPdf: /\.pdf$/i.test(r.fileKey) || /\.pdf$/i.test(r.name),
+    })),
     quiz:
       lesson.type === "quiz" && lesson.quiz
         ? {

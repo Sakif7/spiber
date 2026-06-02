@@ -35,5 +35,7 @@ export async function POST(req: Request) {
   const body = Buffer.from(await file.arrayBuffer());
 
   const { url } = await getStorage().put({ key, body, contentType: file.type });
-  return ok({ url });
+  // `url` is the public URL (images/thumbnails); `key` is the raw storage key,
+  // used for gated course resources streamed through /api/media/resource.
+  return ok({ url, key });
 }

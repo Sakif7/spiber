@@ -3,7 +3,14 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { Check, ChevronLeft, ChevronRight, Award } from "lucide-react";
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Award,
+  FileText,
+  ExternalLink,
+} from "lucide-react";
 import { localize } from "@/lib/schemas/localized";
 import { CtaButton } from "@/components/ui/cta-button";
 import { QuizRunner, type QuizQuestionView } from "./quiz-runner";
@@ -18,7 +25,9 @@ export type PlayerLesson = {
   title: L;
   type: LessonType;
   body?: L;
-  resources: { name: string; fileKey: string }[];
+  // Storage keys stay server-side; resources are streamed by index through the
+  // enrollment-gated /api/media/resource route.
+  resources: { name: string; isPdf: boolean }[];
   quiz?: { passPercent: number; questions: QuizQuestionView[] };
 };
 
@@ -80,6 +89,8 @@ export function LessonPlayer({
   }
 
   const lessonHref = (id: string) => `/academy/course/${slug}/learn/${id}`;
+  const resourceHref = (i: number) =>
+    `/api/media/resource/${courseId}/${lesson.id}/${i}`;
 
   return (
     <div
@@ -275,7 +286,7 @@ export function LessonPlayer({
         )}
 
         {lesson.resources.length > 0 && (
-          <div style={{ display: "grid", gap: 8 }}>
+          <div style={{ display: "grid", gap: "var(--s-3)" }}>
             <h2
               style={{
                 fontSize: "var(--fs-h5)",
@@ -285,26 +296,48 @@ export function LessonPlayer({
               {t("resources")}
             </h2>
             {lesson.resources.map((r, i) => (
-              <a
-                key={i}
-                href={r.fileKey}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "8px 12px",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--r-sm)",
-                  background: "var(--color-surface)",
-                  color: "var(--color-brand-deep)",
-                  fontSize: "var(--fs-body-sm)",
-                  width: "fit-content",
-                }}
-              >
-                {r.name}
-              </a>
+              <div key={i} style={{ display: "grid", gap: 8 }}>
+                <a
+                  href={resourceHref(i)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`${r.name} — ${t("openResource")}`}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "8px 12px",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "var(--r-sm)",
+                    background: "var(--color-surface)",
+                    color: "var(--color-brand-deep)",
+                    fontSize: "var(--fs-body-sm)",
+                    width: "fit-content",
+                    textDecoration: "none",
+                  }}
+                >
+                  <FileText size={15} aria-hidden />
+                  <span>{r.name}</span>
+                  <ExternalLink
+                    size={13}
+                    aria-hidden
+                    style={{ opacity: 0.6 }}
+                  />
+                </a>
+                {r.isPdf && (
+                  <iframe
+                    src={resourceHref(i)}
+                    title={localize(lesson.title, locale)}
+                    style={{
+                      width: "100%",
+                      height: "min(80vh, 760px)",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: "var(--r-lg)",
+                      background: "var(--color-surface-2)",
+                    }}
+                  />
+                )}
+              </div>
             ))}
           </div>
         )}

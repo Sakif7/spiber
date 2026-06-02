@@ -815,6 +815,7 @@
       "markComplete": "Mark complete",
       "completed": "Completed",
       "resources": "Resources",
+      "openResource": "Open in a new tab",
       "next": "Next lesson",
       "previous": "Previous",
       "notEnrolled": "You are not enrolled in this course.",

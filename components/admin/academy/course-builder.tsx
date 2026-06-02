@@ -890,10 +890,12 @@ function ResourceEditor({
     const json = await res.json().catch(() => null);
     setBusy(false);
     if (res.ok && json?.ok) {
+      // Store the raw storage key (not the public URL): course resources are
+      // delivered through the enrollment-gated /api/media/resource route.
       patch({
         resources: [
           ...lesson.resources,
-          { name: file.name, fileKey: json.data.url },
+          { name: file.name, fileKey: json.data.key ?? json.data.url },
         ],
       });
     }
