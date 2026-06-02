@@ -44,7 +44,6 @@ export default async function NewProductPage({
         display: "flex",
         flexDirection: "column",
         gap: "var(--s-6)",
-        padding: "var(--s-6)",
       }}
     >
       <h1

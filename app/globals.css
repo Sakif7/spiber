@@ -491,3 +491,100 @@ html[data-locale="bn"] h6 {
     grid-template-columns: 1fr !important;
   }
 }
+
+/* =========================================================
+   Loading states — route-transition overlay (public) +
+   skeletons (admin). Motion respects prefers-reduced-motion.
+   ========================================================= */
+
+/* ---- Public: full-screen blur veil + brand spinner ---- */
+@keyframes routeOverlayIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes spinnerRotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes spinnerPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.route-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  /* ~10% veil so the page reads through, plus a soft blur */
+  background: color-mix(in srgb, var(--color-bg) 28%, transparent);
+  -webkit-backdrop-filter: blur(3px) saturate(112%);
+  backdrop-filter: blur(3px) saturate(112%);
+  animation: routeOverlayIn 200ms var(--ease-out-expo) both;
+}
+.route-overlay__chip {
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  border-radius: var(--r-xl);
+  background: color-mix(in srgb, var(--color-surface) 90%, transparent);
+  border: 1px solid var(--color-hairline);
+  box-shadow: var(--shadow-lg);
+}
+.route-spinner {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-pill);
+  border: 3px solid color-mix(in srgb, var(--brand-teal) 18%, transparent);
+  border-top-color: var(--brand-teal);
+  animation: spinnerRotate 0.72s linear infinite;
+}
+
+/* ---- Admin: shimmer skeletons ---- */
+@keyframes skeletonShimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+.skeleton {
+  display: block;
+  border-radius: var(--r-sm);
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-2) 25%,
+    color-mix(in srgb, var(--color-border) 70%, var(--color-surface-2)) 37%,
+    var(--color-surface-2) 63%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-overlay {
+    animation: none;
+  }
+  /* a spinning ring becomes a gentle, motion-free pulse */
+  .route-spinner {
+    animation: spinnerPulse 1.3s ease-in-out infinite;
+  }
+  /* drop the travelling shimmer; a flat tint still reads as "loading" */
+  .skeleton {
+    animation: none;
+    background: var(--color-surface-2);
+  }
+}

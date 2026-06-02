@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
+import { startRouteOverlay } from "@/components/layout/route-transition-overlay";
 
 export type BrandOption = { id: string; name: string };
 
@@ -28,6 +29,7 @@ export function Filters({ brands }: { brands: BrandOption[] }) {
     if (max) p.set("max", max);
     if (inStock) p.set("inStock", "1");
     if (sort && sort !== "newest") p.set("sort", sort);
+    startRouteOverlay();
     router.push(`${pathname}?${p.toString()}`);
   }
 
@@ -160,7 +162,10 @@ export function Filters({ brands }: { brands: BrandOption[] }) {
         </button>
         <button
           type="button"
-          onClick={() => router.push(pathname)}
+          onClick={() => {
+            startRouteOverlay();
+            router.push(pathname);
+          }}
           style={{
             height: 40,
             padding: "0 14px",

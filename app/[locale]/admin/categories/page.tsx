@@ -54,7 +54,6 @@ export default async function CategoriesPage({
         display: "flex",
         flexDirection: "column",
         gap: "var(--s-6)",
-        padding: "var(--s-6)",
       }}
     >
       <h1
