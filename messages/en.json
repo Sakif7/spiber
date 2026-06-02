@@ -866,5 +866,85 @@
       "pending": "Awaiting payment",
       "progress": "{percent}% complete"
     }
+  },
+  "systems": {
+    "hub": {
+      "title": "Spiber Systems",
+      "lede": "Software products and custom digital-health solutions for modern care delivery.",
+      "featured": "Featured software",
+      "browseAll": "Browse all software",
+      "customTitle": "Need something custom?",
+      "customLede": "From hospital dashboards to integrations — tell us what you need and our team will scope it with you.",
+      "requestSolution": "Request a solution"
+    },
+    "catalog": {
+      "title": "Software",
+      "lede": "Digital-health products built for clinics, hospitals, and care teams.",
+      "results": "{count} products",
+      "empty": "No software products yet."
+    },
+    "pricing": {
+      "one_time": "One-time",
+      "subscription": "Subscription",
+      "quote": "Custom quote",
+      "free": "Free"
+    },
+    "product": {
+      "screenshots": "Screenshots",
+      "features": "What's included",
+      "overview": "Overview",
+      "demo": "View live demo",
+      "pricingLabel": "Pricing",
+      "deliveryAsset": "Secure download after purchase",
+      "deliveryLicense": "License key issued on purchase",
+      "deliveryExternal": "Account activated after purchase"
+    },
+    "buy": {
+      "buyNow": "Buy now",
+      "processing": "Processing…",
+      "signInToBuy": "Sign in to buy",
+      "owned": "You own this",
+      "getQuote": "Request access",
+      "alreadyOwned": "You already own this product",
+      "error": "Could not complete the purchase. Please try again."
+    },
+    "purchase": {
+      "pendingTitle": "Order received",
+      "pendingNote": "Payment is arranged offline; your access opens once it's confirmed.",
+      "paidTitle": "Purchase confirmed",
+      "paidNote": "Thank you. Your product is ready in your library.",
+      "reference": "Reference",
+      "total": "Total",
+      "download": "Download",
+      "license": "License key",
+      "activationTitle": "Activation in progress",
+      "activationNote": "We're activating your account and will email you shortly.",
+      "viewLibrary": "My software"
+    },
+    "custom": {
+      "title": "Request a custom solution",
+      "lede": "Tell us about your project and our team will get back to you.",
+      "name": "Name",
+      "email": "Email",
+      "phone": "Phone (optional)",
+      "company": "Organization (optional)",
+      "budget": "Budget range (optional)",
+      "message": "How can we help?",
+      "submit": "Send request",
+      "submitting": "Sending…",
+      "successTitle": "Request received",
+      "successNote": "Thanks — we've received your request and will be in touch shortly.",
+      "error": "Something went wrong. Please try again."
+    },
+    "library": {
+      "title": "My software",
+      "empty": "You haven't purchased any software yet.",
+      "browse": "Browse software",
+      "pending": "Awaiting payment",
+      "download": "Download",
+      "license": "License",
+      "activation": "Activating",
+      "view": "View"
+    }
   }
 }

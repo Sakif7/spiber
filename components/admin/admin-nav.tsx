@@ -12,6 +12,12 @@ import {
   Settings,
   GraduationCap,
   Users,
+  AppWindow,
+  Receipt,
+  KeyRound,
+  ServerCog,
+  Percent,
+  Inbox,
   type LucideIcon,
 } from "lucide-react";
 import styles from "./admin.module.css";
@@ -39,6 +45,17 @@ const GROUPS: NavGroup[] = [
     items: [
       { href: "/admin/courses", label: "Courses", icon: GraduationCap },
       { href: "/admin/enrollments", label: "Enrollments", icon: Users },
+    ],
+  },
+  {
+    label: "Systems",
+    items: [
+      { href: "/admin/software-products", label: "Software", icon: AppWindow },
+      { href: "/admin/software-purchases", label: "Purchases", icon: Receipt },
+      { href: "/admin/licenses", label: "Licenses", icon: KeyRound },
+      { href: "/admin/provisioning", label: "Provisioning", icon: ServerCog },
+      { href: "/admin/commissions", label: "Commissions", icon: Percent },
+      { href: "/admin/inquiries", label: "Inquiries", icon: Inbox },
     ],
   },
 ];

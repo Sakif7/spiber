@@ -10,6 +10,7 @@ import {
 import { revenueSince } from "@/lib/repositories/orders.repo";
 import { lowStockProducts } from "@/lib/repositories/products.repo";
 import { enrollmentStatsSince } from "@/lib/repositories/enrollments.repo";
+import { countOpenInquiries } from "@/lib/repositories/inquiries.repo";
 import { formatBDT } from "@/lib/money";
 import { logger } from "@/lib/log";
 import styles from "@/components/admin/admin.module.css";
@@ -32,16 +33,19 @@ export default async function AdminDashboard({
   let orderCount = 0;
   let lowStock = 0;
   let newEnrollments = 0;
+  let openInquiries = 0;
   try {
-    const [rev, low, enr] = await Promise.all([
+    const [rev, low, enr, inq] = await Promise.all([
       revenueSince(dayStart),
       lowStockProducts(),
       enrollmentStatsSince(dayStart),
+      countOpenInquiries(),
     ]);
     revenueMinor = rev.revenueMinor;
     orderCount = rev.count;
     lowStock = low.length;
     newEnrollments = enr.count;
+    openInquiries = inq;
   } catch (e) {
     logger.warn("dashboard KPI load failed", e);
   }
@@ -83,7 +87,7 @@ export default async function AdminDashboard({
     },
     {
       key: "inquiries",
-      value: "—",
+      value: String(openInquiries),
       icon: MessageSquare,
       tint: "var(--color-text-subtle)",
       soft: "var(--color-surface-2)",

@@ -4,7 +4,12 @@ export const couponTypeEnum = z.enum(["percent", "fixed"]);
 export type CouponType = z.infer<typeof couponTypeEnum>;
 
 // Where a coupon may be redeemed. `all` = anywhere (default, backward-compatible).
-export const couponScopeEnum = z.enum(["all", "instruments", "academy"]);
+export const couponScopeEnum = z.enum([
+  "all",
+  "instruments",
+  "academy",
+  "systems",
+]);
 export type CouponScope = z.infer<typeof couponScopeEnum>;
 
 export const couponSchema = z.object({
