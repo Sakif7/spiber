@@ -182,42 +182,60 @@
   },
   "home": {
     "hero": {
-      "badge": "Integrated Healthcare Ecosystem Since 2008",
-      "titleLine1": "Healthcare Solutions",
-      "titleLine2": "for Bangladesh",
-      "subcopy": "SPIBER MED empowers healthcare organizations across Bangladesh with medical devices, smart software, training, medical tourism, and consulting: integrated solutions for better outcomes.",
+      "badge": "Healthcare Solutions · Est. 2008 · Dhaka",
+      "headlinePrefix": "Empowering",
+      "headlineSuffix": "Built for Bangladesh.",
       "ctaQuote": "Request a Quote",
       "ctaExplore": "Explore Solutions",
-      "trust": [
-        "Since 2008",
-        "ISO-ready workflows",
-        "Trusted healthcare partner"
+      "trustIso": "ISO 13485",
+      "trustBiomed": "24×7 biomed",
+      "taglines": [
+        {
+          "word": "Healthcare",
+          "title": "Empowering Healthcare",
+          "line": "SPIBER strives to empower and restore healthcare."
+        },
+        {
+          "word": "Innovation",
+          "title": "Transforming Healthcare",
+          "line": "Committed to providing cutting-edge technology within reach."
+        },
+        {
+          "word": "Access",
+          "title": "Cutting-Edge, Right at Your Door",
+          "line": "Assuring innovation across the healthcare industry."
+        },
+        {
+          "word": "Care",
+          "title": "Uncompromised Medical Care",
+          "line": "Quality products for every stage of medical care."
+        },
+        {
+          "word": "Skills",
+          "title": "Advancing Academic & Technical Skills",
+          "line": "Dazzling professionals with an advanced training system."
+        },
+        {
+          "word": "Reach",
+          "title": "We Reach, Where Others Can't",
+          "line": "Delivering goods to any location quickly and with ease."
+        }
       ],
-      "cards": {
-        "instruments": {
-          "blurb": "Advanced medical devices and laboratory solutions for better care.",
-          "tag": "Medical & lab equipment for every need",
-          "imageAlt": "Operating theatre fitted with clinical-grade equipment"
+      "solutions": {
+        "lab": {
+          "title": "Lab Equipment",
+          "description": "Precision analyzers, microscopes & refrigeration — engineered for clinical and research labs across Bangladesh.",
+          "imageAlt": "Modern laboratory with microscope, analyzers and glassware"
         },
-        "systems": {
-          "blurb": "Smart software and digital-health platforms that connect care.",
-          "tag": "Digital health & software for smarter care",
-          "imageAlt": "Hospital information and telemedicine dashboards on screen"
+        "furniture": {
+          "title": "Medical Furniture",
+          "description": "Patient beds, OR tables, ICU stations.",
+          "imageAlt": "Modern hospital beds, exam chairs and OR tables in teal accents"
         },
-        "academy": {
-          "blurb": "Training, workshops, and certification to build healthcare excellence.",
-          "tag": "Education & training for professionals",
-          "imageAlt": "Hands-on resuscitation training with a manikin and AED"
-        },
-        "tourism": {
-          "blurb": "Medical tourism and patient travel with global care access.",
-          "tag": "Global care access with travel support",
-          "imageAlt": "Tree-lined road abroad, evoking medical travel"
-        },
-        "consulting": {
-          "blurb": "Strategic advisory and healthcare management consulting.",
-          "tag": "Strategic guidance for better healthcare",
-          "imageAlt": "Advisor reviewing a plan with a hospital colleague"
+        "software": {
+          "title": "Software Solutions",
+          "description": "HIS, EMR & telemedicine platforms.",
+          "imageAlt": "Medical software dashboards on touchscreens and tablets"
         }
       }
     },
