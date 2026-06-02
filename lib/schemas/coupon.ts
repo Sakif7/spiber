@@ -3,6 +3,10 @@ import { z } from "zod";
 export const couponTypeEnum = z.enum(["percent", "fixed"]);
 export type CouponType = z.infer<typeof couponTypeEnum>;
 
+// Where a coupon may be redeemed. `all` = anywhere (default, backward-compatible).
+export const couponScopeEnum = z.enum(["all", "instruments", "academy"]);
+export type CouponScope = z.infer<typeof couponScopeEnum>;
+
 export const couponSchema = z.object({
   code: z.string().min(1).max(64),
   type: couponTypeEnum,
@@ -11,6 +15,7 @@ export const couponSchema = z.object({
   minSubtotalMinor: z.number().int().nonnegative().optional(),
   usageLimit: z.number().int().positive().optional(),
   usedCount: z.number().int().nonnegative().default(0),
+  appliesTo: couponScopeEnum.default("all"),
   expiresAt: z.coerce.date().optional(),
   active: z.boolean().default(true),
 });

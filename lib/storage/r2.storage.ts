@@ -1,4 +1,8 @@
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+} from "@aws-sdk/client-s3";
 import type { Storage } from "./types";
 
 /** Cloudflare R2 via the S3-compatible API. Uploads go through the server
@@ -27,6 +31,29 @@ export function createR2Storage(): Storage {
         }),
       );
       return { url: `${base}/${key}` };
+    },
+    async getObject({ key, range }) {
+      try {
+        const res = await client.send(
+          new GetObjectCommand({ Bucket: bucket, Key: key, Range: range }),
+        );
+        const body = res.Body as unknown as {
+          transformToWebStream?: () => ReadableStream<Uint8Array>;
+        };
+        if (!body?.transformToWebStream) return null;
+        return {
+          body: body.transformToWebStream(),
+          contentType: res.ContentType ?? "application/octet-stream",
+          contentLength:
+            typeof res.ContentLength === "number"
+              ? res.ContentLength
+              : undefined,
+          contentRange: res.ContentRange,
+          status: res.ContentRange ? 206 : 200,
+        };
+      } catch {
+        return null;
+      }
     },
   };
 }

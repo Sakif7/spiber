@@ -86,21 +86,7 @@ export default async function AdminLayout({
           </span>
         </Link>
 
-        <div style={{ display: "grid", gap: "var(--s-2)" }}>
-          <div
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "var(--fs-micro)",
-              textTransform: "uppercase",
-              letterSpacing: "var(--tracking-eyebrow)",
-              color: "var(--color-text-subtle)",
-              padding: "0 10px",
-            }}
-          >
-            {t("groups.instruments")}
-          </div>
-          <AdminNav />
-        </div>
+        <AdminNav />
       </aside>
 
       <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>

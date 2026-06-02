@@ -595,24 +595,48 @@
       {
         "title": "পণ্যসমূহ",
         "links": [
-          { "label": "Spiber Instruments", "href": "/instruments" },
-          { "label": "Spiber Systems", "href": "/systems" }
+          {
+            "label": "Spiber Instruments",
+            "href": "/instruments"
+          },
+          {
+            "label": "Spiber Systems",
+            "href": "/systems"
+          }
         ]
       },
       {
         "title": "সেবাসমূহ",
         "links": [
-          { "label": "Spiber Academy", "href": "/academy" },
-          { "label": "Spiber Tourism", "href": "/tourism" },
-          { "label": "Spiber Consulting", "href": "/consulting" }
+          {
+            "label": "Spiber Academy",
+            "href": "/academy"
+          },
+          {
+            "label": "Spiber Tourism",
+            "href": "/tourism"
+          },
+          {
+            "label": "Spiber Consulting",
+            "href": "/consulting"
+          }
         ]
       },
       {
         "title": "কোম্পানি",
         "links": [
-          { "label": "আমাদের সম্পর্কে", "href": "/about" },
-          { "label": "ব্লগ", "href": "/blog" },
-          { "label": "যোগাযোগ", "href": "/contact" }
+          {
+            "label": "আমাদের সম্পর্কে",
+            "href": "/about"
+          },
+          {
+            "label": "ব্লগ",
+            "href": "/blog"
+          },
+          {
+            "label": "যোগাযোগ",
+            "href": "/contact"
+          }
         ]
       }
     ],
@@ -719,6 +743,109 @@
     "common": {
       "from": "থেকে",
       "free": "ফ্রি"
+    }
+  },
+  "academy": {
+    "hub": {
+      "title": "স্পাইবার একাডেমি",
+      "lede": "স্বাস্থ্যসেবা পেশাজীবীদের জন্য স্বীকৃত কোর্স ও হাতে-কলমে প্রশিক্ষণ — অনলাইন ও সশরীরে।",
+      "featured": "বাছাই করা কোর্স",
+      "browseAll": "সব কোর্স দেখুন"
+    },
+    "catalog": {
+      "title": "কোর্সসমূহ",
+      "lede": "কাঠামোবদ্ধ, দ্বিভাষিক কোর্সের মাধ্যমে ক্লিনিক্যাল ও পরিচালনাগত দক্ষতা গড়ুন।",
+      "results": "{count}টি কোর্স",
+      "empty": "আপনার ফিল্টারের সাথে কোনো কোর্স মেলেনি।"
+    },
+    "filters": {
+      "filters": "ফিল্টার",
+      "level": "স্তর",
+      "allLevels": "সব স্তর",
+      "price": "মূল্য (৳)",
+      "min": "সর্বনিম্ন",
+      "max": "সর্বোচ্চ",
+      "search": "খুঁজুন",
+      "searchPlaceholder": "কোর্স খুঁজুন",
+      "sort": "সাজান",
+      "sortNewest": "নতুন",
+      "sortPriceAsc": "মূল্য: কম থেকে বেশি",
+      "sortPriceDesc": "মূল্য: বেশি থেকে কম",
+      "apply": "প্রয়োগ করুন",
+      "clear": "মুছুন"
+    },
+    "levels": {
+      "beginner": "প্রাথমিক",
+      "intermediate": "মধ্যম",
+      "advanced": "উন্নত"
+    },
+    "course": {
+      "free": "ফ্রি",
+      "enrollNow": "এখনই ভর্তি হন",
+      "enrolling": "ভর্তি হচ্ছে…",
+      "signInToEnroll": "ভর্তি হতে সাইন ইন করুন",
+      "alreadyEnrolled": "আপনি ভর্তি হয়েছেন",
+      "goToCourse": "কোর্সে যান",
+      "curriculum": "পাঠ্যসূচি",
+      "lessons": "{count}টি পাঠ",
+      "preview": "প্রিভিউ",
+      "locked": "লক করা",
+      "level": "স্তর",
+      "overview": "সারসংক্ষেপ"
+    },
+    "player": {
+      "markComplete": "সম্পন্ন চিহ্নিত করুন",
+      "completed": "সম্পন্ন",
+      "resources": "রিসোর্স",
+      "next": "পরবর্তী পাঠ",
+      "previous": "পূর্ববর্তী",
+      "notEnrolled": "আপনি এই কোর্সে ভর্তি নন।",
+      "viewCourse": "কোর্স দেখুন",
+      "progress": "{total}টির মধ্যে {done}টি সম্পন্ন",
+      "lessonList": "পাঠসমূহ",
+      "freePreview": "ফ্রি প্রিভিউ",
+      "enrollToContinue": "এই পাঠ আনলক করতে ভর্তি হন।",
+      "textLesson": "পঠন"
+    },
+    "quiz": {
+      "title": "কুইজ",
+      "submit": "উত্তর জমা দিন",
+      "submitting": "জমা হচ্ছে…",
+      "passed": "উত্তীর্ণ",
+      "failed": "এখনও উত্তীর্ণ হননি",
+      "score": "আপনি {score}% পেয়েছেন",
+      "retry": "আবার চেষ্টা করুন",
+      "passMark": "পাস মার্ক: {percent}%"
+    },
+    "enrollment": {
+      "title": "ভর্তি",
+      "pendingTitle": "প্রায় শেষ",
+      "pendingNote": "আমরা আপনার ভর্তি গ্রহণ করেছি। অর্থ প্রদান অফলাইনে সম্পন্ন হয়; নিশ্চিত হলে আপনার অ্যাক্সেস চালু হবে।",
+      "activeTitle": "আপনি ভর্তি হয়েছেন",
+      "activeNote": "আপনার ভর্তি সক্রিয়। যেকোনো সময় শেখা শুরু করুন।",
+      "reference": "রেফারেন্স",
+      "total": "মোট",
+      "goToCourse": "কোর্সে যান",
+      "viewCourses": "আমার কোর্স"
+    },
+    "certificate": {
+      "title": "সমাপ্তির সনদ",
+      "awardedTo": "এই সনদ প্রত্যয়ন করে যে",
+      "forCompleting": "সফলভাবে সম্পন্ন করেছেন",
+      "id": "সনদ আইডি",
+      "issued": "প্রদানের তারিখ",
+      "print": "প্রিন্ট / PDF সংরক্ষণ",
+      "invalid": "সনদ পাওয়া যায়নি।"
+    },
+    "dashboard": {
+      "title": "আমার কোর্স",
+      "empty": "আপনি এখনও কোনো কোর্সে ভর্তি হননি।",
+      "browse": "কোর্স দেখুন",
+      "resume": "চালিয়ে যান",
+      "start": "শেখা শুরু করুন",
+      "completed": "সম্পন্ন",
+      "pending": "অর্থ প্রদানের অপেক্ষায়",
+      "progress": "{percent}% সম্পন্ন"
     }
   }
 }

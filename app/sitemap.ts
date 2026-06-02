@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { routing } from "@/i18n/routing";
 import { siteConfig, publicRoutes } from "@/lib/site-config";
 import { listProducts } from "@/lib/repositories/products.repo";
+import { listCourses } from "@/lib/repositories/courses.repo";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = siteConfig.url.replace(/\/$/, "");
@@ -27,6 +28,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
   } catch {
     // DB unavailable — return static routes only.
+  }
+
+  // Published courses.
+  try {
+    const { items } = await listCourses({ status: "published", pageSize: 100 });
+    for (const c of items) {
+      const route = `/academy/course/${c.slug}`;
+      entries.push({
+        url: urlFor(route, routing.defaultLocale),
+        alternates: { languages: languagesFor(route) },
+      });
+    }
+  } catch {
+    // DB unavailable — skip course entries.
   }
 
   return entries;

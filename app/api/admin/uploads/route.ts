@@ -3,13 +3,14 @@ import { isAdmin } from "@/lib/auth/rbac";
 import { ok, fail } from "@/lib/http/respond";
 import { getStorage } from "@/lib/storage";
 
-const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
+const MAX_BYTES = 25 * 1024 * 1024; // 25 MB (covers PDF handouts)
 const ALLOWED = new Set([
   "image/jpeg",
   "image/png",
   "image/webp",
   "image/avif",
   "image/svg+xml",
+  "application/pdf",
 ]);
 
 export async function POST(req: Request) {

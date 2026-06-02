@@ -4,10 +4,12 @@ import {
   ShoppingBag,
   AlertTriangle,
   MessageSquare,
+  GraduationCap,
   type LucideIcon,
 } from "lucide-react";
 import { revenueSince } from "@/lib/repositories/orders.repo";
 import { lowStockProducts } from "@/lib/repositories/products.repo";
+import { enrollmentStatsSince } from "@/lib/repositories/enrollments.repo";
 import { formatBDT } from "@/lib/money";
 import { logger } from "@/lib/log";
 import styles from "@/components/admin/admin.module.css";
@@ -29,14 +31,17 @@ export default async function AdminDashboard({
   let revenueMinor = 0;
   let orderCount = 0;
   let lowStock = 0;
+  let newEnrollments = 0;
   try {
-    const [rev, low] = await Promise.all([
+    const [rev, low, enr] = await Promise.all([
       revenueSince(dayStart),
       lowStockProducts(),
+      enrollmentStatsSince(dayStart),
     ]);
     revenueMinor = rev.revenueMinor;
     orderCount = rev.count;
     lowStock = low.length;
+    newEnrollments = enr.count;
   } catch (e) {
     logger.warn("dashboard KPI load failed", e);
   }
@@ -66,6 +71,13 @@ export default async function AdminDashboard({
       key: "lowStock",
       value: String(lowStock),
       icon: AlertTriangle,
+      tint: "var(--color-secondary-deep)",
+      soft: "var(--color-secondary-soft)",
+    },
+    {
+      key: "enrollments",
+      value: String(newEnrollments),
+      icon: GraduationCap,
       tint: "var(--color-secondary-deep)",
       soft: "var(--color-secondary-soft)",
     },
@@ -102,10 +114,9 @@ export default async function AdminDashboard({
       </div>
 
       <div
-        className="equal-4col"
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
           gap: "var(--s-4)",
         }}
       >

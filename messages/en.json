@@ -595,24 +595,48 @@
       {
         "title": "Products",
         "links": [
-          { "label": "Spiber Instruments", "href": "/instruments" },
-          { "label": "Spiber Systems", "href": "/systems" }
+          {
+            "label": "Spiber Instruments",
+            "href": "/instruments"
+          },
+          {
+            "label": "Spiber Systems",
+            "href": "/systems"
+          }
         ]
       },
       {
         "title": "Services",
         "links": [
-          { "label": "Spiber Academy", "href": "/academy" },
-          { "label": "Spiber Tourism", "href": "/tourism" },
-          { "label": "Spiber Consulting", "href": "/consulting" }
+          {
+            "label": "Spiber Academy",
+            "href": "/academy"
+          },
+          {
+            "label": "Spiber Tourism",
+            "href": "/tourism"
+          },
+          {
+            "label": "Spiber Consulting",
+            "href": "/consulting"
+          }
         ]
       },
       {
         "title": "Company",
         "links": [
-          { "label": "About", "href": "/about" },
-          { "label": "Blog", "href": "/blog" },
-          { "label": "Contact", "href": "/contact" }
+          {
+            "label": "About",
+            "href": "/about"
+          },
+          {
+            "label": "Blog",
+            "href": "/blog"
+          },
+          {
+            "label": "Contact",
+            "href": "/contact"
+          }
         ]
       }
     ],
@@ -719,6 +743,109 @@
     "common": {
       "from": "From",
       "free": "Free"
+    }
+  },
+  "academy": {
+    "hub": {
+      "title": "Spiber Academy",
+      "lede": "Accredited courses and hands-on training for healthcare professionals — online and in person.",
+      "featured": "Featured courses",
+      "browseAll": "Browse all courses"
+    },
+    "catalog": {
+      "title": "Courses",
+      "lede": "Build clinical and operational skills with structured, bilingual courses.",
+      "results": "{count} courses",
+      "empty": "No courses match your filters."
+    },
+    "filters": {
+      "filters": "Filters",
+      "level": "Level",
+      "allLevels": "All levels",
+      "price": "Price (BDT)",
+      "min": "Min",
+      "max": "Max",
+      "search": "Search",
+      "searchPlaceholder": "Search courses",
+      "sort": "Sort by",
+      "sortNewest": "Newest",
+      "sortPriceAsc": "Price: low to high",
+      "sortPriceDesc": "Price: high to low",
+      "apply": "Apply",
+      "clear": "Clear"
+    },
+    "levels": {
+      "beginner": "Beginner",
+      "intermediate": "Intermediate",
+      "advanced": "Advanced"
+    },
+    "course": {
+      "free": "Free",
+      "enrollNow": "Enroll now",
+      "enrolling": "Enrolling…",
+      "signInToEnroll": "Sign in to enroll",
+      "alreadyEnrolled": "You're enrolled",
+      "goToCourse": "Go to course",
+      "curriculum": "Curriculum",
+      "lessons": "{count} lessons",
+      "preview": "Preview",
+      "locked": "Locked",
+      "level": "Level",
+      "overview": "Overview"
+    },
+    "player": {
+      "markComplete": "Mark complete",
+      "completed": "Completed",
+      "resources": "Resources",
+      "next": "Next lesson",
+      "previous": "Previous",
+      "notEnrolled": "You are not enrolled in this course.",
+      "viewCourse": "View course",
+      "progress": "{done} of {total} complete",
+      "lessonList": "Lessons",
+      "freePreview": "Free preview",
+      "enrollToContinue": "Enroll to unlock this lesson.",
+      "textLesson": "Reading"
+    },
+    "quiz": {
+      "title": "Quiz",
+      "submit": "Submit answers",
+      "submitting": "Submitting…",
+      "passed": "Passed",
+      "failed": "Not passed yet",
+      "score": "You scored {score}%",
+      "retry": "Try again",
+      "passMark": "Pass mark: {percent}%"
+    },
+    "enrollment": {
+      "title": "Enrollment",
+      "pendingTitle": "Almost there",
+      "pendingNote": "We've received your enrollment. Payment is arranged offline; your access opens once it's confirmed.",
+      "activeTitle": "You're enrolled",
+      "activeNote": "Your enrollment is active. Start learning any time.",
+      "reference": "Reference",
+      "total": "Total",
+      "goToCourse": "Go to course",
+      "viewCourses": "My courses"
+    },
+    "certificate": {
+      "title": "Certificate of Completion",
+      "awardedTo": "This certifies that",
+      "forCompleting": "has successfully completed",
+      "id": "Certificate ID",
+      "issued": "Issued",
+      "print": "Print / Save PDF",
+      "invalid": "Certificate not available."
+    },
+    "dashboard": {
+      "title": "My courses",
+      "empty": "You haven't enrolled in any courses yet.",
+      "browse": "Browse courses",
+      "resume": "Resume",
+      "start": "Start learning",
+      "completed": "Completed",
+      "pending": "Awaiting payment",
+      "progress": "{percent}% complete"
     }
   }
 }

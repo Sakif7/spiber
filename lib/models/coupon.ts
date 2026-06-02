@@ -1,5 +1,5 @@
 import mongoose, { Schema, type Model } from "mongoose";
-import type { CouponType } from "@/lib/schemas/coupon";
+import type { CouponType, CouponScope } from "@/lib/schemas/coupon";
 
 export interface ICoupon {
   code: string;
@@ -8,6 +8,7 @@ export interface ICoupon {
   minSubtotalMinor?: number;
   usageLimit?: number;
   usedCount: number;
+  appliesTo: CouponScope;
   expiresAt?: Date | null;
   active: boolean;
   createdAt: Date;
@@ -28,6 +29,11 @@ const couponSchema = new Schema<ICoupon>(
     minSubtotalMinor: { type: Number, min: 0 },
     usageLimit: { type: Number, min: 1 },
     usedCount: { type: Number, default: 0, min: 0 },
+    appliesTo: {
+      type: String,
+      enum: ["all", "instruments", "academy"],
+      default: "all",
+    },
     expiresAt: { type: Date, default: null },
     active: { type: Boolean, default: true, index: true },
   },

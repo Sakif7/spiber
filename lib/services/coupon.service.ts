@@ -1,5 +1,5 @@
 import { getCouponByCode } from "@/lib/repositories/coupons.repo";
-import type { CouponType } from "@/lib/schemas/coupon";
+import type { CouponType, CouponScope } from "@/lib/schemas/coupon";
 
 export type ValidatedCoupon = {
   id: string;
@@ -18,13 +18,15 @@ export type CouponResult =
         | "inactive"
         | "expired"
         | "usage_limit"
-        | "min_subtotal";
+        | "min_subtotal"
+        | "scope";
     };
 
 export async function validateCoupon(
   code: string,
   subtotalMinor: number,
   now: Date = new Date(),
+  scope: CouponScope = "instruments",
 ): Promise<CouponResult> {
   const c = await getCouponByCode(code);
   if (!c) return { ok: false, reason: "not_found" };
@@ -32,6 +34,11 @@ export async function validateCoupon(
   if (c.expiresAt && c.expiresAt < now) return { ok: false, reason: "expired" };
   if (c.usageLimit != null && c.usedCount >= c.usageLimit) {
     return { ok: false, reason: "usage_limit" };
+  }
+  // `all`-scoped coupons work anywhere; otherwise the scope must match.
+  const appliesTo = c.appliesTo ?? "all";
+  if (appliesTo !== "all" && appliesTo !== scope) {
+    return { ok: false, reason: "scope" };
   }
   if (c.minSubtotalMinor != null && subtotalMinor < c.minSubtotalMinor) {
     return { ok: false, reason: "min_subtotal" };
