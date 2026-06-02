@@ -18,11 +18,12 @@ export async function getOrCreateCart(owner: CartOwner) {
   await connectToDatabase();
   const existing = await Cart.findOne(ownerFilter(owner)).exec();
   if (existing) return existing;
-  return Cart.create({
-    userId: owner.userId ?? null,
-    guestId: owner.guestId ?? null,
-    items: [],
-  });
+  // Set only the owning field — never write a null for the other, or it lands
+  // in the partial/unique index and collides with other null-owner carts.
+  const doc = owner.userId
+    ? { userId: owner.userId, items: [] }
+    : { guestId: owner.guestId, items: [] };
+  return Cart.create(doc);
 }
 
 export async function deleteCart(owner: CartOwner) {

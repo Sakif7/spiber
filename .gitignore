@@ -60,3 +60,5 @@ Thumbs.db
 # extra
 /.playwright-mcp/
 /.docs/
+# Local dev server log (from manual restarts)
+.next-dev.log

@@ -8,6 +8,20 @@ import { useRouter } from "@/i18n/navigation";
 import { Link } from "@/i18n/navigation";
 import { loginFormSchema, type LoginFormValues } from "@/lib/schemas/user";
 import { isAdmin } from "@/lib/auth/rbac";
+import { routing } from "@/i18n/routing";
+
+/**
+ * Strip a leading locale segment (e.g. "/en/admin" → "/admin") so the
+ * locale-aware router doesn't double-prefix it ("/en/en/admin"). `next` can
+ * arrive locale-prefixed from the proxy/guard redirects or a bookmarked URL.
+ */
+function stripLocale(path: string): string {
+  for (const loc of routing.locales) {
+    if (path === `/${loc}`) return "/";
+    if (path.startsWith(`/${loc}/`)) return path.slice(loc.length + 1);
+  }
+  return path;
+}
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CtaButton } from "@/components/ui/cta-button";
@@ -46,7 +60,7 @@ export function LoginForm({
         // everyone else on the homepage.
         const dest =
           next && next.startsWith("/")
-            ? next
+            ? stripLocale(next)
             : isAdmin({ roles: json.data?.user?.roles ?? [] })
               ? "/admin"
               : "/";

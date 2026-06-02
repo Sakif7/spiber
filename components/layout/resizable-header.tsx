@@ -5,6 +5,7 @@ import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import { Arrow, Container, LocaleSwitcher } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
+import { CartButton } from "@/components/shop/cart-button";
 import {
   MobileNav,
   MobileNavHeader,
@@ -149,7 +150,10 @@ export function ResizableHeader() {
       <MobileNav>
         <MobileNavHeader>
           <Logo />
-          <MobileNavToggle isOpen={open} onClick={() => setOpen((o) => !o)} />
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <CartButton />
+            <MobileNavToggle isOpen={open} onClick={() => setOpen((o) => !o)} />
+          </div>
         </MobileNavHeader>
         <MobileNavMenu isOpen={open} onClose={() => setOpen(false)}>
           <MobileLink href="/" onClick={() => setOpen(false)}>
@@ -562,6 +566,7 @@ function DesktopActions() {
       style={{ display: "flex", alignItems: "center", gap: 10 }}
     >
       <LocaleSwitcher />
+      <CartButton />
       <Link
         href="/login"
         style={{

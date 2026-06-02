@@ -25,16 +25,27 @@ const cartItemSchema = new Schema<ICartItem>(
 
 const cartSchema = new Schema<ICart>(
   {
-    userId: { type: Schema.Types.ObjectId, ref: "User", default: null },
-    guestId: { type: String, default: null },
+    // No `default: null` — a guest cart must OMIT userId entirely (and vice
+    // versa). A sparse index still indexes explicit nulls, so multiple null
+    // userIds would collide; absent fields are what we want.
+    userId: { type: Schema.Types.ObjectId, ref: "User" },
+    guestId: { type: String },
     items: { type: [cartItemSchema], default: [] },
   },
   { collection: "carts", timestamps: true },
 );
 
-// One cart per user / per guest (sparse so nulls don't collide).
-cartSchema.index({ userId: 1 }, { unique: true, sparse: true });
-cartSchema.index({ guestId: 1 }, { unique: true, sparse: true });
+// One cart per user / per guest. Partial indexes only cover docs where the
+// field is actually present with the right type, so guest carts (no userId)
+// and user carts (no guestId) never collide on a null value.
+cartSchema.index(
+  { userId: 1 },
+  { unique: true, partialFilterExpression: { userId: { $type: "objectId" } } },
+);
+cartSchema.index(
+  { guestId: 1 },
+  { unique: true, partialFilterExpression: { guestId: { $type: "string" } } },
+);
 
 export const Cart: Model<ICart> =
   (mongoose.models.Cart as Model<ICart>) ??

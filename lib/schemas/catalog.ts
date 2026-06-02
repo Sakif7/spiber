@@ -11,17 +11,19 @@ export const productStatusEnum = z.enum(["draft", "active", "archived"]);
 export type ProductStatus = z.infer<typeof productStatusEnum>;
 
 // ---- Brand ----
+// `slug` is optional on input; the route derives it from `name.en` when blank.
 export const brandSchema = z.object({
   name: localizedSchema,
-  slug: z.string().min(1).max(120),
+  slug: z.string().max(120).optional(),
   logo: z.string().optional(),
 });
 export type BrandInput = z.infer<typeof brandSchema>;
 
 // ---- Category ----
+// `slug` is optional on input; the route derives it from `name.en` when blank.
 export const categorySchema = z.object({
   name: localizedSchema,
-  slug: z.string().min(1).max(120),
+  slug: z.string().max(120).optional(),
   parentId: z.string().optional(),
   image: z.string().optional(),
 });
@@ -36,7 +38,8 @@ export const specSchema = z.object({
 export const productSchema = z.object({
   sku: z.string().min(1).max(64),
   name: localizedSchema,
-  slug: z.string().min(1).max(160),
+  // `slug` is optional on input; the route derives it from `name.en` when blank.
+  slug: z.string().max(160).optional(),
   description: localizedSchema.optional(),
   brandId: z.string().optional(),
   categoryId: z.string().min(1),

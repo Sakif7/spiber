@@ -5,20 +5,10 @@ import { getSessionUser } from "@/lib/auth/current-user";
 import { isAdmin } from "@/lib/auth/rbac";
 import { siteConfig } from "@/lib/site-config";
 import { SignOutButton } from "@/components/admin/sign-out-button";
+import { AdminNav } from "@/components/admin/admin-nav";
 
 // Admin depends on the auth cookie; never statically prerender it.
 export const dynamic = "force-dynamic";
-
-const NAV = [
-  { href: "/admin", label: "Dashboard" },
-  { href: "/admin/products", label: "Products" },
-  { href: "/admin/categories", label: "Categories" },
-  { href: "/admin/brands", label: "Brands" },
-  { href: "/admin/inventory", label: "Inventory" },
-  { href: "/admin/orders", label: "Orders" },
-  { href: "/admin/coupons", label: "Coupons" },
-  { href: "/admin/settings", label: "Settings" },
-] as const;
 
 export default async function AdminLayout({
   children,
@@ -37,82 +27,134 @@ export default async function AdminLayout({
   }
 
   const t = await getTranslations({ locale, namespace: "admin" });
+  const initial = (user?.email ?? "?").charAt(0).toUpperCase();
 
   return (
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "minmax(0, 240px) 1fr",
+        gridTemplateColumns: "minmax(0, 248px) 1fr",
         minHeight: "100vh",
+        background: "var(--color-bg)",
       }}
     >
       <aside
         style={{
           borderRight: "1px solid var(--color-border)",
-          padding: "var(--s-6)",
           background: "var(--color-surface)",
+          position: "sticky",
+          top: 0,
+          alignSelf: "start",
+          height: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          gap: "var(--s-5)",
+          padding: "var(--s-6) var(--s-5)",
         }}
       >
         <Link
           href="/admin"
           style={{
-            fontFamily: "var(--font-display)",
-            fontWeight: 700,
-            color: "var(--color-brand-deep)",
-          }}
-        >
-          {siteConfig.brand} · {t("title")}
-        </Link>
-        <div
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "var(--fs-micro)",
-            textTransform: "uppercase",
-            letterSpacing: "var(--tracking-eyebrow)",
-            color: "var(--color-text-muted)",
-            marginTop: "var(--s-6)",
-            marginBottom: "var(--s-3)",
-          }}
-        >
-          {t("groups.instruments")}
-        </div>
-        <nav style={{ display: "grid", gap: 2 }}>
-          {NAV.map((n) => (
-            <Link
-              key={n.href}
-              href={n.href}
-              style={{
-                fontSize: "var(--fs-body-sm)",
-                color: "var(--color-text)",
-                padding: "6px 8px",
-                borderRadius: "var(--r-sm)",
-              }}
-            >
-              {n.label}
-            </Link>
-          ))}
-        </nav>
-      </aside>
-
-      <div style={{ display: "flex", flexDirection: "column" }}>
-        <header
-          style={{
             display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: "var(--s-4)",
-            padding: "var(--s-5) var(--s-8)",
-            borderBottom: "1px solid var(--color-border)",
+            flexDirection: "column",
+            gap: 2,
+            padding: "0 8px",
+            textDecoration: "none",
           }}
         >
           <span
             style={{
-              color: "var(--color-text-muted)",
-              fontSize: "var(--fs-body-sm)",
+              fontFamily: "var(--font-display)",
+              fontWeight: 700,
+              fontSize: "var(--fs-h6)",
+              letterSpacing: "var(--tracking-heading)",
+              color: "var(--color-brand-deep)",
             }}
           >
-            {t("welcome")}, {user?.email}
+            {siteConfig.brand}
           </span>
+          <span
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: "var(--fs-micro)",
+              textTransform: "uppercase",
+              letterSpacing: "var(--tracking-eyebrow)",
+              color: "var(--color-text-subtle)",
+            }}
+          >
+            {t("title")}
+          </span>
+        </Link>
+
+        <div style={{ display: "grid", gap: "var(--s-2)" }}>
+          <div
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: "var(--fs-micro)",
+              textTransform: "uppercase",
+              letterSpacing: "var(--tracking-eyebrow)",
+              color: "var(--color-text-subtle)",
+              padding: "0 10px",
+            }}
+          >
+            {t("groups.instruments")}
+          </div>
+          <AdminNav />
+        </div>
+      </aside>
+
+      <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+        <header
+          style={{
+            position: "sticky",
+            top: 0,
+            zIndex: 10,
+            display: "flex",
+            justifyContent: "flex-end",
+            alignItems: "center",
+            gap: "var(--s-4)",
+            padding: "var(--s-4) var(--s-8)",
+            borderBottom: "1px solid var(--color-border)",
+            background:
+              "color-mix(in srgb, var(--color-surface) 88%, transparent)",
+            backdropFilter: "saturate(180%) blur(8px)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--s-3)",
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                display: "grid",
+                placeItems: "center",
+                width: 32,
+                height: 32,
+                borderRadius: "var(--r-pill)",
+                background: "var(--color-brand-soft)",
+                color: "var(--color-brand-deep)",
+                fontWeight: 700,
+                fontSize: "var(--fs-small)",
+              }}
+            >
+              {initial}
+            </span>
+            <span
+              style={{
+                color: "var(--color-text-muted)",
+                fontSize: "var(--fs-body-sm)",
+              }}
+            >
+              {t("welcome")},{" "}
+              <strong style={{ color: "var(--color-text-strong)" }}>
+                {user?.email}
+              </strong>
+            </span>
+          </div>
           <SignOutButton />
         </header>
         <main style={{ padding: "var(--s-8)" }}>{children}</main>
