@@ -21,6 +21,19 @@ export function Filters({ brands }: { brands: BrandOption[] }) {
   const [inStock, setInStock] = useState(sp.get("inStock") === "1");
   const [sort, setSort] = useState(sp.get("sort") ?? "newest");
 
+  // Navigate only when the target URL actually differs from the current one. A
+  // no-op push never commits, which would otherwise strand the route overlay.
+  function navIfChanged(targetSearch: string) {
+    const canon = (s: string) => {
+      const u = new URLSearchParams(s);
+      u.sort();
+      return u.toString();
+    };
+    if (canon(targetSearch) === canon(sp.toString())) return;
+    startRouteOverlay();
+    router.push(targetSearch ? `${pathname}?${targetSearch}` : pathname);
+  }
+
   function apply() {
     const p = new URLSearchParams();
     if (search) p.set("q", search);
@@ -29,8 +42,7 @@ export function Filters({ brands }: { brands: BrandOption[] }) {
     if (max) p.set("max", max);
     if (inStock) p.set("inStock", "1");
     if (sort && sort !== "newest") p.set("sort", sort);
-    startRouteOverlay();
-    router.push(`${pathname}?${p.toString()}`);
+    navIfChanged(p.toString());
   }
 
   const field: React.CSSProperties = {
@@ -162,10 +174,7 @@ export function Filters({ brands }: { brands: BrandOption[] }) {
         </button>
         <button
           type="button"
-          onClick={() => {
-            startRouteOverlay();
-            router.push(pathname);
-          }}
+          onClick={() => navIfChanged("")}
           style={{
             height: 40,
             padding: "0 14px",

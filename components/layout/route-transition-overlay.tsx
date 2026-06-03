@@ -63,6 +63,9 @@ function RouteTransitionOverlayInner() {
   const [visible, setVisible] = useState(false);
   const showTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const safetyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // True from arming a navigation until the route commits (or the safety net
+  // fires). The show-timer checks this so an instant load can't strand the veil.
+  const armed = useRef(false);
 
   function clearTimers() {
     if (showTimer.current) clearTimeout(showTimer.current);
@@ -78,7 +81,14 @@ function RouteTransitionOverlayInner() {
   const [lastNavKey, setLastNavKey] = useState(navKey);
   if (lastNavKey !== navKey) {
     setLastNavKey(navKey);
-    if (visible) setVisible(false);
+    // Disarm synchronously at the commit render so a show-timer that fires
+    // afterwards is a no-op — an effect-based disarm can lose that race and
+    // strand the veil. The write is idempotent and paired with the setState
+    // above; a discarded speculative render would at worst hide the veil one
+    // frame early, never strand it. (Hence the scoped ref-in-render allowance.)
+    // eslint-disable-next-line react-hooks/refs -- intentional synchronous disarm at commit
+    armed.current = false;
+    setVisible(false);
   }
 
   // Cancel any pending show/safety timers once the route has changed.
@@ -89,8 +99,17 @@ function RouteTransitionOverlayInner() {
   useEffect(() => {
     function begin() {
       clearTimers();
-      showTimer.current = setTimeout(() => setVisible(true), SHOW_DELAY_MS);
-      safetyTimer.current = setTimeout(() => setVisible(false), SAFETY_MS);
+      armed.current = true;
+      showTimer.current = setTimeout(() => {
+        // Only reveal while the navigation is still in flight. If the route has
+        // already committed (instant load), `armed` is false and we skip — so
+        // the veil can never strand on top of a page that already rendered.
+        if (armed.current) setVisible(true);
+      }, SHOW_DELAY_MS);
+      safetyTimer.current = setTimeout(() => {
+        armed.current = false;
+        setVisible(false);
+      }, SAFETY_MS);
     }
 
     function onClick(event: MouseEvent) {

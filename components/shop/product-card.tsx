@@ -90,7 +90,7 @@ export function ProductCard({
             <CardItem
               as="span"
               translateZ="30"
-              className="mt-4 w-full font-medium text-[var(--color-text-muted)] text-[var(--fs-caption)]"
+              className="mt-4 w-full text-[length:var(--fs-micro)] font-medium text-[color:var(--color-text-muted)]"
             >
               {brandName}
             </CardItem>

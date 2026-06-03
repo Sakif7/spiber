@@ -19,6 +19,19 @@ export function CourseFilters() {
   const [max, setMax] = useState(sp.get("max") ?? "");
   const [sort, setSort] = useState(sp.get("sort") ?? "newest");
 
+  // Navigate only when the target URL actually differs from the current one. A
+  // no-op push never commits, which would otherwise strand the route overlay.
+  function navIfChanged(targetSearch: string) {
+    const canon = (s: string) => {
+      const u = new URLSearchParams(s);
+      u.sort();
+      return u.toString();
+    };
+    if (canon(targetSearch) === canon(sp.toString())) return;
+    startRouteOverlay();
+    router.push(targetSearch ? `${pathname}?${targetSearch}` : pathname);
+  }
+
   function apply() {
     const p = new URLSearchParams();
     if (search) p.set("q", search);
@@ -26,8 +39,7 @@ export function CourseFilters() {
     if (min) p.set("min", min);
     if (max) p.set("max", max);
     if (sort && sort !== "newest") p.set("sort", sort);
-    startRouteOverlay();
-    router.push(`${pathname}?${p.toString()}`);
+    navIfChanged(p.toString());
   }
 
   const field: React.CSSProperties = {
@@ -141,10 +153,7 @@ export function CourseFilters() {
         </button>
         <button
           type="button"
-          onClick={() => {
-            startRouteOverlay();
-            router.push(pathname);
-          }}
+          onClick={() => navIfChanged("")}
           style={{
             height: 40,
             padding: "0 14px",

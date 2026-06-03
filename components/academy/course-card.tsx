@@ -51,7 +51,7 @@ export function CourseCard({
           <CardItem
             as="span"
             translateZ="30"
-            className="mt-4 w-full font-medium text-[var(--color-text-muted)] text-[var(--fs-caption)] capitalize"
+            className="mt-4 w-full text-[length:var(--fs-caption)] font-medium text-[color:var(--color-text-muted)] capitalize"
           >
             {t(`levels.${course.level}`)} ·{" "}
             {t("course.lessons", { count: lessons })}
@@ -69,7 +69,7 @@ export function CourseCard({
             translateZ="40"
             className="mt-auto flex w-full items-center justify-between gap-3 pt-4"
           >
-            <strong className="font-bold text-[var(--color-secondary-deep)] text-[var(--fs-h5)]">
+            <strong className="text-[length:var(--fs-h5)] font-bold text-[color:var(--color-secondary-deep)]">
               {course.priceMinor > 0
                 ? formatBDT(course.priceMinor, locale)
                 : t("course.free")}

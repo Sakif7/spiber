@@ -127,7 +127,7 @@ export function RecentlyViewed({
                 {it.meta && (
                   <CardItem
                     translateZ="30"
-                    className="mt-1 w-full font-semibold text-[var(--color-brand-deep)] text-[var(--fs-caption)]"
+                    className="mt-1 w-full text-[length:var(--fs-caption)] font-semibold text-[color:var(--color-brand-deep)]"
                   >
                     {it.meta}
                   </CardItem>

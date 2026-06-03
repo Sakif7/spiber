@@ -56,7 +56,7 @@ export function SoftwareCard({
           <CardItem
             as="span"
             translateZ="30"
-            className="mt-4 w-full font-medium text-[var(--color-text-muted)] text-[var(--fs-caption)]"
+            className="mt-4 w-full text-[length:var(--fs-caption)] font-medium text-[color:var(--color-text-muted)]"
           >
             {t(`pricing.${product.pricingModel}`)}
           </CardItem>
@@ -73,7 +73,7 @@ export function SoftwareCard({
             translateZ="40"
             className="mt-auto flex w-full items-center justify-between gap-3 pt-4"
           >
-            <strong className="font-bold text-[var(--color-brand-deep)] text-[var(--fs-h5)]">
+            <strong className="text-[length:var(--fs-h5)] font-bold text-[color:var(--color-brand-deep)]">
               {priceLabel}
             </strong>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border)] px-3.5 py-2 text-[13px] font-semibold text-[var(--color-brand-deep)] transition-colors group-hover/card:border-[var(--color-brand)] group-hover/card:bg-[var(--color-brand)] group-hover/card:text-white">

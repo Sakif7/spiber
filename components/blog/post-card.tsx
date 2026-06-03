@@ -62,7 +62,7 @@ export function PostCard({
             <CardItem
               as="span"
               translateZ="30"
-              className="mt-4 w-full font-medium text-[var(--color-text-muted)] text-[var(--fs-caption)]"
+              className="mt-4 w-full text-[length:var(--fs-caption)] font-medium text-[color:var(--color-text-muted)]"
             >
               {meta}
             </CardItem>
