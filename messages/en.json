@@ -11,6 +11,39 @@
     "backHome": "Back to home",
     "loading": "Loading…"
   },
+  "search": {
+    "placeholder": "Search instruments, courses, software…",
+    "ariaLabel": "Search the Spiber Med catalog",
+    "submit": "Search",
+    "searching": "Searching…",
+    "idleHint": "Start typing to search instruments, courses, software & articles.",
+    "close": "Close search",
+    "noResults": "No matches for “{query}”",
+    "noResultsHint": "Try a different term, or press Enter to search everything.",
+    "seeAll": "See all {count} results",
+    "searchEverything": "Search everything for “{query}”",
+    "free": "Free",
+    "quote": "On request",
+    "readingTime": "{min} min read",
+    "groups": {
+      "instruments": "Instruments",
+      "academy": "Courses",
+      "systems": "Software",
+      "blog": "Articles"
+    },
+    "page": {
+      "eyebrow": "Search",
+      "title": "Results for “{query}”",
+      "titleEmpty": "Search the catalog",
+      "lede": "{count, plural, =0 {No matches yet} one {# result} other {# results}} across instruments, courses, software & articles.",
+      "ledeEmpty": "Find medical instruments, training courses, software platforms and articles — all in one place.",
+      "promptTitle": "What are you looking for?",
+      "promptBody": "Search across medical instruments, Academy courses, software platforms and articles using the box above.",
+      "noResultsTitle": "No results for “{query}”",
+      "noResultsBody": "We couldn’t find anything matching that term. Try broader or differently spelled keywords.",
+      "viewAll": "View all"
+    }
+  },
   "nav": {
     "home": "Home",
     "about": "About",
@@ -946,5 +979,24 @@
       "activation": "Activating",
       "view": "View"
     }
+  },
+  "blog": {
+    "title": "Blog",
+    "lede": "Perspectives on healthcare technology, training, and practice from the Spiber Med team.",
+    "searchPlaceholder": "Search articles",
+    "search": "Search",
+    "allCategories": "All",
+    "results": "{count} articles",
+    "empty": "No articles yet. Check back soon.",
+    "readingTime": "{min} min read",
+    "by": "By {name}",
+    "related": "Related articles",
+    "share": "Share",
+    "copyLink": "Copy link",
+    "copied": "Copied",
+    "category": "Category",
+    "tag": "Tag",
+    "inCategory": "In {name}",
+    "taggedWith": "Tagged {name}"
   }
 }

@@ -493,6 +493,44 @@ html[data-locale="bn"] h6 {
 }
 
 /* =========================================================
+   Catalog search — hero typeahead command bar + dropdown
+   ========================================================= */
+.catalog-search-input::placeholder {
+  color: var(--color-text-subtle);
+  opacity: 1;
+}
+/* Drop the browser's native search affordances — the pill provides its own. */
+.catalog-search-input::-webkit-search-cancel-button,
+.catalog-search-input::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+.catalog-search-panel {
+  scrollbar-width: thin;
+  scrollbar-color: var(--slate-300) transparent;
+}
+.catalog-search-panel::-webkit-scrollbar {
+  width: 8px;
+}
+.catalog-search-panel::-webkit-scrollbar-thumb {
+  background: var(--slate-300);
+  border-radius: 999px;
+}
+.catalog-search-spinner {
+  animation: spinnerRotate 0.7s linear infinite;
+}
+@media (max-width: 600px) {
+  .catalog-search-kbd {
+    display: none !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .catalog-search-spinner {
+    animation-duration: 1.4s;
+  }
+}
+
+/* =========================================================
    Loading states — route-transition overlay (public) +
    skeletons (admin). Motion respects prefers-reduced-motion.
    ========================================================= */
@@ -587,4 +625,68 @@ html[data-locale="bn"] h6 {
     animation: none;
     background: var(--color-surface-2);
   }
+}
+
+/* ── Blog article body (sanitized HTML from TipTap) ───────────────── */
+.blog-prose > :first-child {
+  margin-top: 0;
+}
+.blog-prose p {
+  margin: 0 0 1.1em;
+}
+.blog-prose h2 {
+  font-family: var(--font-display);
+  font-size: var(--fs-h3);
+  color: var(--color-text-strong);
+  line-height: var(--lh-heading);
+  margin: 1.6em 0 0.5em;
+}
+.blog-prose h3 {
+  font-family: var(--font-display);
+  font-size: var(--fs-h4);
+  color: var(--color-text-strong);
+  margin: 1.4em 0 0.4em;
+}
+.blog-prose ul,
+.blog-prose ol {
+  margin: 0 0 1.1em;
+  padding-left: 1.5em;
+}
+.blog-prose li {
+  margin: 0.3em 0;
+}
+.blog-prose blockquote {
+  margin: 1.4em 0;
+  padding: 0.2em 0 0.2em 1.1em;
+  border-left: 3px solid var(--color-secondary);
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+.blog-prose a {
+  color: var(--color-brand-deep);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.blog-prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--r-lg);
+  margin: 1.4em 0;
+}
+.blog-prose pre {
+  background: var(--color-surface-2);
+  padding: 14px 16px;
+  border-radius: var(--r-md);
+  overflow-x: auto;
+  margin: 1.2em 0;
+  font-size: var(--fs-body-sm);
+}
+.blog-prose code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+.blog-prose hr {
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  margin: 2em 0;
 }

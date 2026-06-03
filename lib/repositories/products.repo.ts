@@ -2,6 +2,7 @@ import { connectToDatabase } from "@/lib/db/connect";
 import { Product, type IProduct } from "@/lib/models/product";
 import type { Lean } from "@/lib/models/_shared";
 import type { ProductStatus } from "@/lib/schemas/catalog";
+import { applyPartialSearch } from "@/lib/repositories/search-filter";
 
 // Version-agnostic Mongoose filter type (Mongoose 9 renamed FilterQuery).
 type ProductFilter = NonNullable<Parameters<typeof Product.countDocuments>[0]>;
@@ -33,7 +34,7 @@ function buildQuery(params: ProductListParams): Record<string, unknown> {
     if (params.maxPriceMinor != null) price.$lte = params.maxPriceMinor;
     q.priceMinor = price;
   }
-  if (params.search) q.$text = { $search: params.search };
+  applyPartialSearch(q, params.search, ["name.en", "name.bn", "sku"]);
   return q;
 }
 

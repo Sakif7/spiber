@@ -2,6 +2,7 @@ import { connectToDatabase } from "@/lib/db/connect";
 import { Course, type ICourse, type ILesson } from "@/lib/models/course";
 import type { Lean } from "@/lib/models/_shared";
 import type { CourseLevel, CourseStatus } from "@/lib/schemas/academy";
+import { applyPartialSearch } from "@/lib/repositories/search-filter";
 
 // Version-agnostic Mongoose filter type (Mongoose 9 renamed FilterQuery).
 type CourseFilter = NonNullable<Parameters<typeof Course.countDocuments>[0]>;
@@ -29,7 +30,12 @@ function buildQuery(params: CourseListParams): Record<string, unknown> {
     if (params.maxPriceMinor != null) price.$lte = params.maxPriceMinor;
     q.priceMinor = price;
   }
-  if (params.search) q.$text = { $search: params.search };
+  applyPartialSearch(q, params.search, [
+    "title.en",
+    "title.bn",
+    "summary.en",
+    "summary.bn",
+  ]);
   return q;
 }
 

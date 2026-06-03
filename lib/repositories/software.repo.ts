@@ -5,6 +5,7 @@ import {
 } from "@/lib/models/softwareProduct";
 import type { Lean } from "@/lib/models/_shared";
 import type { SoftwareStatus } from "@/lib/schemas/systems";
+import { applyPartialSearch } from "@/lib/repositories/search-filter";
 
 type SoftwareFilter = NonNullable<
   Parameters<typeof SoftwareProduct.countDocuments>[0]
@@ -21,7 +22,12 @@ export async function listSoftwareProducts(params: SoftwareListParams = {}) {
   await connectToDatabase();
   const q: Record<string, unknown> = { deletedAt: null };
   if (params.status) q.status = params.status;
-  if (params.search) q.$text = { $search: params.search };
+  applyPartialSearch(q, params.search, [
+    "name.en",
+    "name.bn",
+    "description.en",
+    "description.bn",
+  ]);
   const page = Math.max(1, params.page ?? 1);
   const pageSize = Math.min(60, Math.max(1, params.pageSize ?? 12));
   const filter = q as unknown as SoftwareFilter;

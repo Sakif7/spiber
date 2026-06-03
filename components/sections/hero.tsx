@@ -8,6 +8,7 @@ import { Arrow, Container, Reveal } from "@/components/ui";
 import { useMagnetic } from "@/hooks";
 import DotGrid from "@/components/ui/dot-grid";
 import { Link } from "@/i18n/navigation";
+import { CatalogSearch } from "@/components/search/catalog-search";
 
 const MotionLink = motion.create(Link);
 
@@ -722,60 +723,60 @@ export function Hero() {
             <div
               style={{
                 display: "flex",
-                alignItems: "center",
+                flexDirection: "column",
                 marginTop: 36,
-                gap: 14,
-                flexWrap: "wrap",
+                gap: 18,
               }}
             >
-              <Link
-                ref={ctaMag}
-                href="/contact"
-                style={{
-                  background: "var(--color-brand)",
-                  color: "white",
-                  border: "none",
-                  borderRadius: 999,
-                  padding: "0 18px",
-                  height: 44,
-                  fontSize: 14,
-                  fontWeight: 500,
-                  cursor: "pointer",
-                  boxShadow:
-                    "0 8px 22px -8px color-mix(in oklab, var(--brand-teal) 60%, transparent)",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 10,
-                  transition: "all .25s cubic-bezier(.2,.7,.2,1)",
-                }}
-              >
-                {t("ctaQuote")} <Arrow size={14} />
-              </Link>
-              <Link
-                href="/instruments"
-                style={{
-                  background: "transparent",
-                  color: "var(--color-text-strong)",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: 999,
-                  padding: "0 18px",
-                  height: 44,
-                  fontSize: 14,
-                  fontWeight: 500,
-                  cursor: "pointer",
-                  transition: "all .25s cubic-bezier(.2,.7,.2,1)",
-                  display: "inline-flex",
-                  alignItems: "center",
-                }}
-              >
-                {t("ctaExplore")}
-              </Link>
               <div
                 style={{
                   display: "flex",
                   alignItems: "center",
                   gap: 12,
-                  marginLeft: 8,
+                  flexWrap: "wrap",
+                }}
+              >
+                <div
+                  style={{
+                    flex: "1 1 300px",
+                    minWidth: 240,
+                    maxWidth: 460,
+                    minHeight: 54,
+                  }}
+                >
+                  <CatalogSearch mode="overlay" />
+                </div>
+                <Link
+                  ref={ctaMag}
+                  href="/contact"
+                  style={{
+                    background: "var(--color-brand)",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 999,
+                    padding: "0 18px",
+                    height: 44,
+                    fontSize: 14,
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    boxShadow:
+                      "0 8px 22px -8px color-mix(in oklab, var(--brand-teal) 60%, transparent)",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 10,
+                    flexShrink: 0,
+                    transition: "all .25s cubic-bezier(.2,.7,.2,1)",
+                  }}
+                >
+                  {t("ctaQuote")} <Arrow size={14} />
+                </Link>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 16,
+                  flexWrap: "wrap",
                   color: "var(--color-text-muted)",
                   fontSize: 13,
                 }}

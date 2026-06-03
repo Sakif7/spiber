@@ -18,6 +18,8 @@ import {
   ServerCog,
   Percent,
   Inbox,
+  Newspaper,
+  Tags,
   type LucideIcon,
 } from "lucide-react";
 import styles from "./admin.module.css";
@@ -56,6 +58,13 @@ const GROUPS: NavGroup[] = [
       { href: "/admin/provisioning", label: "Provisioning", icon: ServerCog },
       { href: "/admin/commissions", label: "Commissions", icon: Percent },
       { href: "/admin/inquiries", label: "Inquiries", icon: Inbox },
+    ],
+  },
+  {
+    label: "Blog",
+    items: [
+      { href: "/admin/blog/posts", label: "Posts", icon: Newspaper },
+      { href: "/admin/blog/taxonomy", label: "Taxonomy", icon: Tags },
     ],
   },
 ];
