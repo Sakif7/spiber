@@ -19,7 +19,6 @@ export function SoftwareCard({
   const t = useTranslations("systems");
   const tc = useTranslations("common");
   const title = localize(product.name, locale);
-  const desc = product.description ? localize(product.description, locale) : "";
   const priceLabel =
     product.pricingModel === "quote"
       ? t("pricing.quote")
@@ -33,17 +32,9 @@ export function SoftwareCard({
         containerClassName="py-0 w-full h-full"
         className="h-full w-full"
       >
-        <CardBody className="group/card relative flex h-full w-full flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 transition-shadow duration-300 hover:shadow-[0_24px_60px_-20px_rgba(14,139,134,0.35)]">
-          <CardItem
-            as="h3"
-            translateZ="50"
-            className="line-clamp-2 w-full text-[17px] leading-snug font-semibold text-[var(--color-text-strong)]"
-          >
-            {title}
-          </CardItem>
-
-          <CardItem translateZ="80" className="mt-4 w-full">
-            <div className="relative aspect-[16/9] w-full overflow-hidden border border-[var(--color-hairline)] bg-[var(--color-surface-2)]">
+        <CardBody className="group/card relative flex h-full w-full flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-shadow duration-300 hover:shadow-[0_24px_60px_-20px_rgba(14,139,134,0.35)]">
+          <CardItem translateZ="70" className="w-full">
+            <div className="relative aspect-[16/9] w-full overflow-hidden rounded-lg border border-[var(--color-hairline)] bg-[var(--color-surface-2)]">
               {product.screenshots[0] ? (
                 <Image
                   src={product.screenshots[0]}
@@ -59,32 +50,28 @@ export function SoftwareCard({
                   style={{ position: "absolute", inset: 0 }}
                 />
               )}
-              <span
-                className="absolute top-3 left-3 rounded-full px-2.5 py-1 text-[11px] font-semibold backdrop-blur"
-                style={{
-                  background:
-                    "color-mix(in srgb, var(--color-surface) 90%, transparent)",
-                  color: "var(--color-brand-deep)",
-                }}
-              >
-                {t(`pricing.${product.pricingModel}`)}
-              </span>
             </div>
           </CardItem>
 
-          {desc && (
-            <CardItem
-              as="p"
-              translateZ="30"
-              className="mt-5 line-clamp-2 w-full text-[13.5px] leading-relaxed text-[var(--color-text-muted)]"
-            >
-              {desc}
-            </CardItem>
-          )}
+          <CardItem
+            as="span"
+            translateZ="30"
+            className="mt-4 w-full font-medium text-[var(--color-text-muted)] text-[var(--fs-caption)]"
+          >
+            {t(`pricing.${product.pricingModel}`)}
+          </CardItem>
+
+          <CardItem
+            as="h3"
+            translateZ="40"
+            className="mt-1 line-clamp-2 w-full text-[15px] leading-snug font-semibold text-[var(--color-text-strong)]"
+          >
+            {title}
+          </CardItem>
 
           <CardItem
             translateZ="40"
-            className="mt-auto flex w-full items-center justify-between gap-3 pt-5"
+            className="mt-auto flex w-full items-center justify-between gap-3 pt-4"
           >
             <strong className="font-bold text-[var(--color-brand-deep)] text-[var(--fs-h5)]">
               {priceLabel}

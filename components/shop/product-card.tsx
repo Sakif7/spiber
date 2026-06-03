@@ -3,6 +3,7 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { localize } from "@/lib/schemas/localized";
 import { PriceTag } from "./price-tag";
+import { WishlistButton } from "./wishlist-button";
 import { Placeholder } from "@/components/ui/placeholder";
 import { CardBody, CardContainer, CardItem } from "@/components/ui/3d-card";
 import type { Locale } from "@/i18n/routing";
@@ -12,14 +13,17 @@ import type { IProduct } from "@/lib/models/product";
 export function ProductCard({
   product,
   locale,
+  brandName,
+  wishlisted = false,
 }: {
   product: Lean<IProduct>;
   locale: Locale;
+  brandName?: string;
+  wishlisted?: boolean;
 }) {
   const t = useTranslations("shop.product");
   const tc = useTranslations("common");
   const name = localize(product.name, locale);
-  const desc = product.description ? localize(product.description, locale) : "";
   const out = product.stockQty <= 0;
   const low = !out && product.stockQty <= product.lowStockThreshold;
 
@@ -32,19 +36,10 @@ export function ProductCard({
         containerClassName="py-0 w-full h-full"
         className="h-full w-full"
       >
-        <CardBody className="group/card relative flex h-full w-full flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 transition-shadow duration-300 hover:shadow-[0_24px_60px_-20px_rgba(14,139,134,0.35)]">
-          {/* 1 — Title */}
-          <CardItem
-            as="h3"
-            translateZ="50"
-            className="line-clamp-2 w-full text-[17px] leading-snug font-semibold text-[var(--color-text-strong)]"
-          >
-            {name}
-          </CardItem>
-
-          {/* 2 — Image */}
-          <CardItem translateZ="80" className="mt-4 w-full">
-            <div className="relative aspect-[4/3] w-full overflow-hidden border border-[var(--color-hairline)] bg-[var(--color-surface-2)]">
+        <CardBody className="group/card relative flex h-full w-full flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-shadow duration-300 hover:shadow-[0_24px_60px_-20px_rgba(14,139,134,0.35)]">
+          {/* Image */}
+          <CardItem translateZ="70" className="w-full">
+            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg border border-[var(--color-hairline)] bg-[var(--color-surface-2)]">
               {product.images[0] ? (
                 <Image
                   src={product.images[0]}
@@ -60,40 +55,60 @@ export function ProductCard({
                   style={{ position: "absolute", inset: 0 }}
                 />
               )}
-              {(out || low) && (
-                <span
-                  className="absolute top-3 left-3 rounded-full px-2.5 py-1 text-[11px] font-semibold backdrop-blur"
-                  style={{
-                    background:
-                      "color-mix(in srgb, var(--color-surface) 90%, transparent)",
-                    color: out
-                      ? "var(--color-error)"
-                      : "var(--color-secondary-deep)",
-                  }}
-                >
-                  {out
-                    ? t("outOfStock")
-                    : t("lowStock", { count: product.stockQty })}
-                </span>
-              )}
             </div>
           </CardItem>
 
-          {/* 3 — Description */}
-          {desc && (
+          {/* Stock pill (out → red, low → orange) */}
+          {(out || low) && (
             <CardItem
-              as="p"
-              translateZ="30"
-              className="mt-5 line-clamp-2 w-full text-[13.5px] leading-relaxed text-[var(--color-text-muted)]"
+              translateZ="100"
+              className="absolute top-7 left-7 rounded-full px-2.5 py-1 text-[11px] font-semibold backdrop-blur"
+              style={{
+                background:
+                  "color-mix(in srgb, var(--color-surface) 92%, transparent)",
+                color: out
+                  ? "var(--color-error)"
+                  : "var(--color-secondary-deep)",
+              }}
             >
-              {desc}
+              {out
+                ? t("outOfStock")
+                : t("lowStock", { count: product.stockQty })}
             </CardItem>
           )}
 
-          {/* 4 — Price + CTA */}
+          {/* Wishlist heart */}
+          <CardItem translateZ="100" className="absolute top-7 right-7 z-10">
+            <WishlistButton
+              productId={String(product._id)}
+              initialWishlisted={wishlisted}
+            />
+          </CardItem>
+
+          {/* Brand */}
+          {brandName && (
+            <CardItem
+              as="span"
+              translateZ="30"
+              className="mt-4 w-full font-medium text-[var(--color-text-muted)] text-[var(--fs-caption)]"
+            >
+              {brandName}
+            </CardItem>
+          )}
+
+          {/* Title */}
+          <CardItem
+            as="h3"
+            translateZ="40"
+            className={`${brandName ? "mt-1" : "mt-4"} line-clamp-2 w-full text-[15px] leading-snug font-semibold text-[var(--color-text-strong)]`}
+          >
+            {name}
+          </CardItem>
+
+          {/* Price + CTA */}
           <CardItem
             translateZ="40"
-            className="mt-auto flex w-full items-center justify-between gap-3 pt-5"
+            className="mt-auto flex w-full items-center justify-between gap-3 pt-4"
           >
             <PriceTag
               minor={product.priceMinor}

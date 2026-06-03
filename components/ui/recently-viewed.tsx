@@ -95,15 +95,8 @@ export function RecentlyViewed({
               className="h-full w-full"
             >
               <CardBody className="group/card relative flex h-full w-full flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-shadow duration-300 hover:shadow-[0_18px_44px_-18px_rgba(14,139,134,0.30)]">
-                <CardItem
-                  as="h3"
-                  translateZ="40"
-                  className="line-clamp-2 w-full text-[14px] leading-snug font-semibold text-[var(--color-text-strong)]"
-                >
-                  {it.name}
-                </CardItem>
-                <CardItem translateZ="60" className="mt-3 w-full">
-                  <div className="relative aspect-[4/3] w-full overflow-hidden border border-[var(--color-hairline)] bg-[var(--color-surface-2)]">
+                <CardItem translateZ="60" className="w-full">
+                  <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg border border-[var(--color-hairline)] bg-[var(--color-surface-2)]">
                     {it.image ? (
                       <Image
                         src={it.image}
@@ -124,10 +117,17 @@ export function RecentlyViewed({
                     )}
                   </div>
                 </CardItem>
+                <CardItem
+                  as="h3"
+                  translateZ="40"
+                  className="mt-3 line-clamp-2 w-full text-[14px] leading-snug font-semibold text-[var(--color-text-strong)]"
+                >
+                  {it.name}
+                </CardItem>
                 {it.meta && (
                   <CardItem
                     translateZ="30"
-                    className="mt-3 w-full font-semibold text-[var(--color-brand-deep)] text-[var(--fs-caption)]"
+                    className="mt-1 w-full font-semibold text-[var(--color-brand-deep)] text-[var(--fs-caption)]"
                   >
                     {it.meta}
                   </CardItem>

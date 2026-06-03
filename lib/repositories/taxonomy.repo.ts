@@ -51,6 +51,12 @@ export async function getCategoryBySlug(slug: string) {
     .lean<Lean<ICategory>>()
     .exec();
 }
+export async function getCategoryById(id: string) {
+  await connectToDatabase();
+  return Category.findOne({ _id: id, deletedAt: null })
+    .lean<Lean<ICategory>>()
+    .exec();
+}
 export async function createCategory(data: Partial<ICategory>) {
   await connectToDatabase();
   return Category.create(data);

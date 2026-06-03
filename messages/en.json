@@ -750,7 +750,21 @@
       "trustDelivery": "Nationwide delivery",
       "trustSupport": "Expert support",
       "quantity": "Quantity",
-      "viewCart": "View cart"
+      "viewCart": "View cart",
+      "buyNow": "Buy now",
+      "requestQuote": "Request a bulk quote",
+      "categories": "Category",
+      "payOffline": "Offline payment",
+      "payOfflineNote": "Pay by bank transfer or cash on delivery. We confirm your order, then arrange payment, no online card needed.",
+      "deliveryNote": "On orders across Bangladesh, 2–5 business days.",
+      "genuineNote": "Genuine products with manufacturer warranty."
+    },
+    "wishlist": {
+      "add": "Add to wishlist",
+      "saved": "Saved",
+      "title": "Your wishlist",
+      "empty": "You haven't saved any products yet.",
+      "browse": "Browse equipment"
     },
     "cart": {
       "title": "Your cart",

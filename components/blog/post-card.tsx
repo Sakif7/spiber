@@ -18,13 +18,18 @@ export function PostCard({
   const t = useTranslations("blog");
   const tc = useTranslations("common");
   const title = localize(post.title, locale);
-  const excerpt = post.excerpt ? localize(post.excerpt, locale) : "";
   const date = post.publishedAt
     ? new Date(post.publishedAt).toLocaleDateString(
         locale === "bn" ? "bn-BD" : "en-GB",
         { year: "numeric", month: "short", day: "numeric" },
       )
     : "";
+  const meta = [
+    date,
+    post.readingTimeMin ? t("readingTime", { min: post.readingTimeMin }) : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <Link href={`/blog/${post.slug}`} className="block h-full">
@@ -32,17 +37,9 @@ export function PostCard({
         containerClassName="py-0 w-full h-full"
         className="h-full w-full"
       >
-        <CardBody className="group/card relative flex h-full w-full flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 transition-shadow duration-300 hover:shadow-[0_24px_60px_-20px_rgba(14,139,134,0.30)]">
-          <CardItem
-            as="h3"
-            translateZ="50"
-            className="line-clamp-2 w-full text-[18px] leading-snug font-semibold text-[var(--color-text-strong)]"
-          >
-            {title}
-          </CardItem>
-
-          <CardItem translateZ="80" className="mt-4 w-full">
-            <div className="relative aspect-[16/9] w-full overflow-hidden border border-[var(--color-hairline)] bg-[var(--color-surface-2)]">
+        <CardBody className="group/card relative flex h-full w-full flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-shadow duration-300 hover:shadow-[0_24px_60px_-20px_rgba(14,139,134,0.30)]">
+          <CardItem translateZ="70" className="w-full">
+            <div className="relative aspect-[16/9] w-full overflow-hidden rounded-lg border border-[var(--color-hairline)] bg-[var(--color-surface-2)]">
               {post.coverImage ? (
                 <Image
                   src={post.coverImage}
@@ -61,27 +58,28 @@ export function PostCard({
             </div>
           </CardItem>
 
-          {excerpt && (
+          {meta && (
             <CardItem
-              as="p"
+              as="span"
               translateZ="30"
-              className="mt-5 line-clamp-2 w-full text-[13.5px] leading-relaxed text-[var(--color-text-muted)]"
+              className="mt-4 w-full font-medium text-[var(--color-text-muted)] text-[var(--fs-caption)]"
             >
-              {excerpt}
+              {meta}
             </CardItem>
           )}
 
           <CardItem
+            as="h3"
             translateZ="40"
-            className="mt-auto flex w-full items-center justify-between gap-3 pt-5"
+            className="mt-1 line-clamp-2 w-full text-[17px] leading-snug font-semibold text-[var(--color-text-strong)]"
           >
-            <span className="text-[var(--color-text-subtle)] text-[var(--fs-caption)]">
-              {date}
-              {date && post.readingTimeMin ? " · " : ""}
-              {post.readingTimeMin
-                ? t("readingTime", { min: post.readingTimeMin })
-                : ""}
-            </span>
+            {title}
+          </CardItem>
+
+          <CardItem
+            translateZ="40"
+            className="mt-auto flex w-full items-center pt-4"
+          >
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border)] px-3.5 py-2 text-[13px] font-semibold text-[var(--color-brand-deep)] transition-colors group-hover/card:border-[var(--color-brand)] group-hover/card:bg-[var(--color-brand)] group-hover/card:text-white">
               {tc("read")}
               <span aria-hidden>→</span>

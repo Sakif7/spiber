@@ -14,6 +14,8 @@ import {
   getCategoryBySlug,
   listBrands,
 } from "@/lib/repositories/taxonomy.repo";
+import { listWishlistProductIds } from "@/lib/repositories/wishlist.repo";
+import { getSessionUser } from "@/lib/auth/current-user";
 import { localize } from "@/lib/schemas/localized";
 import { toMinor } from "@/lib/money";
 import { pageMetadata } from "@/lib/seo/metadata";
@@ -92,6 +94,12 @@ export default async function CategoryListing({
   } catch (e) {
     logger.warn("category listing load failed", e);
   }
+
+  const brandMap = new Map(brands.map((b) => [b.id, b.name]));
+  const sessionUser = await getSessionUser().catch(() => null);
+  const wish = sessionUser
+    ? new Set(await listWishlistProductIds(sessionUser.sub).catch(() => []))
+    : new Set<string>();
 
   // ---- Active-filter chips (server-rendered, removable; reset to page 1) ----
   const base = `/instruments/${category}`;
@@ -309,7 +317,15 @@ export default async function CategoryListing({
             ) : (
               <CardGrid columns={3}>
                 {result.items.map((p) => (
-                  <ProductCard key={String(p._id)} product={p} locale={l} />
+                  <ProductCard
+                    key={String(p._id)}
+                    product={p}
+                    locale={l}
+                    brandName={
+                      p.brandId ? brandMap.get(String(p.brandId)) : undefined
+                    }
+                    wishlisted={wish.has(String(p._id))}
+                  />
                 ))}
               </CardGrid>
             )}

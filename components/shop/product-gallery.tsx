@@ -22,7 +22,7 @@ export function ProductGallery({
         style={{
           position: "relative",
           aspectRatio: "1 / 1",
-          borderRadius: "var(--r-xl)",
+          borderRadius: "var(--r-lg)",
           overflow: "hidden",
           background: "var(--color-surface-2)",
           border: "1px solid var(--color-hairline)",

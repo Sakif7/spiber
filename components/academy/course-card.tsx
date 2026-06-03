@@ -20,8 +20,6 @@ export function CourseCard({
   const tc = useTranslations("common");
   const title = localize(course.title, locale);
   const lessons = course.modules.reduce((s, m) => s + m.lessons.length, 0);
-  const summary = course.summary ? localize(course.summary, locale) : "";
-  const desc = summary || t("course.lessons", { count: lessons });
 
   return (
     <Link href={`/academy/course/${course.slug}`} className="block h-full">
@@ -29,17 +27,9 @@ export function CourseCard({
         containerClassName="py-0 w-full h-full"
         className="h-full w-full"
       >
-        <CardBody className="group/card relative flex h-full w-full flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 transition-shadow duration-300 hover:shadow-[0_24px_60px_-20px_rgba(230,107,38,0.32)]">
-          <CardItem
-            as="h3"
-            translateZ="50"
-            className="line-clamp-2 w-full text-[17px] leading-snug font-semibold text-[var(--color-text-strong)]"
-          >
-            {title}
-          </CardItem>
-
-          <CardItem translateZ="80" className="mt-4 w-full">
-            <div className="relative aspect-[16/9] w-full overflow-hidden border border-[var(--color-hairline)] bg-[var(--color-surface-2)]">
+        <CardBody className="group/card relative flex h-full w-full flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-shadow duration-300 hover:shadow-[0_24px_60px_-20px_rgba(230,107,38,0.32)]">
+          <CardItem translateZ="70" className="w-full">
+            <div className="relative aspect-[16/9] w-full overflow-hidden rounded-lg border border-[var(--color-hairline)] bg-[var(--color-surface-2)]">
               {course.thumbnail ? (
                 <Image
                   src={course.thumbnail}
@@ -55,30 +45,29 @@ export function CourseCard({
                   style={{ position: "absolute", inset: 0 }}
                 />
               )}
-              <span
-                className="absolute top-3 left-3 rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize backdrop-blur"
-                style={{
-                  background:
-                    "color-mix(in srgb, var(--color-surface) 90%, transparent)",
-                  color: "var(--color-secondary-deep)",
-                }}
-              >
-                {t(`levels.${course.level}`)}
-              </span>
             </div>
           </CardItem>
 
           <CardItem
-            as="p"
+            as="span"
             translateZ="30"
-            className="mt-5 line-clamp-2 w-full text-[13.5px] leading-relaxed text-[var(--color-text-muted)]"
+            className="mt-4 w-full font-medium text-[var(--color-text-muted)] text-[var(--fs-caption)] capitalize"
           >
-            {desc}
+            {t(`levels.${course.level}`)} ·{" "}
+            {t("course.lessons", { count: lessons })}
+          </CardItem>
+
+          <CardItem
+            as="h3"
+            translateZ="40"
+            className="mt-1 line-clamp-2 w-full text-[15px] leading-snug font-semibold text-[var(--color-text-strong)]"
+          >
+            {title}
           </CardItem>
 
           <CardItem
             translateZ="40"
-            className="mt-auto flex w-full items-center justify-between gap-3 pt-5"
+            className="mt-auto flex w-full items-center justify-between gap-3 pt-4"
           >
             <strong className="font-bold text-[var(--color-secondary-deep)] text-[var(--fs-h5)]">
               {course.priceMinor > 0
