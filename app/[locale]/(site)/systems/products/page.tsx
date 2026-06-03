@@ -11,6 +11,9 @@ import type { Locale } from "@/i18n/routing";
 
 export const dynamic = "force-dynamic";
 
+type SP = Promise<{ [k: string]: string | string[] | undefined }>;
+const str = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+
 export async function generateMetadata({
   params,
 }: {
@@ -28,8 +31,10 @@ export async function generateMetadata({
 
 export default async function SoftwareCatalog({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: SP;
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
@@ -37,15 +42,24 @@ export default async function SoftwareCatalog({
   const t = await getTranslations({ locale, namespace: "systems" });
   const nav = await getTranslations({ locale, namespace: "nav" });
 
+  const q = str((await searchParams).q);
+
   let items: Awaited<ReturnType<typeof listSoftwareProducts>>["items"] = [];
   let total = 0;
   try {
-    const res = await listSoftwareProducts({ status: "active", pageSize: 60 });
+    const res = await listSoftwareProducts({
+      status: "active",
+      search: q,
+      pageSize: 60,
+    });
     items = res.items;
     total = res.total;
   } catch (e) {
     logger.warn("software catalog load failed", e);
   }
+
+  // True empty catalog (no search active) → branded "coming soon".
+  const emptyCatalog = total === 0 && !q;
 
   return (
     <>
@@ -59,29 +73,81 @@ export default async function SoftwareCatalog({
           { label: t("catalog.title") },
         ]}
       />
-      <section style={{ paddingBlock: "clamp(40px, 5vw, 80px)" }}>
-        <Container style={{ display: "grid", gap: "var(--s-6)" }}>
-          {items.length === 0 ? (
-            <ComingSoon />
-          ) : (
-            <>
-              <p
+      {emptyCatalog ? (
+        <ComingSoon />
+      ) : (
+        <section style={{ paddingBlock: "clamp(40px, 5vw, 80px)" }}>
+          <Container style={{ display: "grid", gap: "var(--s-6)" }}>
+            <form
+              action={`/${locale}/systems/products`}
+              method="get"
+              role="search"
+              style={{ display: "flex", gap: 8, maxWidth: 520 }}
+            >
+              <input
+                type="search"
+                name="q"
+                defaultValue={q ?? ""}
+                placeholder={t("catalog.searchPlaceholder")}
+                aria-label={t("catalog.search")}
                 style={{
-                  color: "var(--color-text-muted)",
-                  fontSize: "var(--fs-body-sm)",
+                  flex: 1,
+                  height: 46,
+                  padding: "0 16px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--r-pill)",
+                  background: "var(--color-surface)",
+                  font: "inherit",
+                }}
+              />
+              <button
+                type="submit"
+                style={{
+                  height: 46,
+                  padding: "0 22px",
+                  borderRadius: "var(--r-pill)",
+                  background: "var(--color-brand)",
+                  color: "#fff",
+                  border: 0,
+                  fontWeight: 600,
+                  cursor: "pointer",
                 }}
               >
-                {t("catalog.results", { count: total })}
-              </p>
+                {t("catalog.search")}
+              </button>
+            </form>
+
+            <p
+              style={{
+                color: "var(--color-text-muted)",
+                fontSize: "var(--fs-body-sm)",
+              }}
+            >
+              {t("catalog.results", { count: total })}
+            </p>
+
+            {items.length === 0 ? (
+              <div
+                style={{
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--r-lg)",
+                  padding: "var(--s-10)",
+                  textAlign: "center",
+                  color: "var(--color-text-muted)",
+                }}
+              >
+                {t("catalog.noResults")}
+              </div>
+            ) : (
               <CardGrid columns={3}>
                 {items.map((p) => (
                   <SoftwareCard key={String(p._id)} product={p} locale={l} />
                 ))}
               </CardGrid>
-            </>
-          )}
-        </Container>
-      </section>
+            )}
+          </Container>
+        </section>
+      )}
     </>
   );
 }

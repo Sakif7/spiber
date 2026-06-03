@@ -1,5 +1,7 @@
+import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/db/connect";
 import { Product, type IProduct } from "@/lib/models/product";
+import { Order } from "@/lib/models/order";
 import type { Lean } from "@/lib/models/_shared";
 import type { ProductStatus } from "@/lib/schemas/catalog";
 import { applyPartialSearch } from "@/lib/repositories/search-filter";
@@ -124,4 +126,49 @@ export async function lowStockProducts() {
   })
     .lean<Lean<IProduct>[]>()
     .exec();
+}
+
+/**
+ * "Frequently bought together" — real order co-occurrence. Aggregates orders
+ * that contain `productId`, ranks the other products by co-purchased quantity,
+ * and returns the active ones (most co-purchased first). Empty when order data
+ * is thin; callers fall back to category-related products.
+ */
+export async function frequentlyBoughtTogether(
+  productId: string,
+  limit = 4,
+): Promise<Lean<IProduct>[]> {
+  await connectToDatabase();
+  let oid: mongoose.Types.ObjectId;
+  try {
+    oid = new mongoose.Types.ObjectId(productId);
+  } catch {
+    return [];
+  }
+  const rows = await Order.aggregate<{
+    _id: mongoose.Types.ObjectId;
+    count: number;
+  }>([
+    { $match: { "items.productId": oid } },
+    { $unwind: "$items" },
+    { $match: { "items.productId": { $ne: oid } } },
+    { $group: { _id: "$items.productId", count: { $sum: "$items.qty" } } },
+    { $sort: { count: -1 } },
+    { $limit: limit },
+  ]).exec();
+
+  const ids = rows.map((r) => r._id);
+  if (!ids.length) return [];
+  const products = await Product.find({
+    _id: { $in: ids },
+    status: "active",
+    deletedAt: null,
+  })
+    .lean<Lean<IProduct>[]>()
+    .exec();
+  // Preserve co-occurrence ranking.
+  const byId = new Map(products.map((p) => [String(p._id), p]));
+  return ids
+    .map((id) => byId.get(String(id)))
+    .filter((p): p is Lean<IProduct> => Boolean(p));
 }

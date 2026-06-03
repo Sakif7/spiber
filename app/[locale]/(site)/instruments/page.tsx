@@ -4,15 +4,24 @@ import { PageHeader } from "@/components/ui/page-header";
 import { ComingSoon } from "@/components/ui/coming-soon";
 import { CardGrid } from "@/components/ui/card-grid";
 import { Link } from "@/i18n/navigation";
+import { Filters } from "@/components/shop/filters";
 import { ProductCard } from "@/components/shop/product-card";
-import { listProducts } from "@/lib/repositories/products.repo";
-import { listCategories } from "@/lib/repositories/taxonomy.repo";
+import {
+  listProducts,
+  type ProductSort,
+} from "@/lib/repositories/products.repo";
+import { listCategories, listBrands } from "@/lib/repositories/taxonomy.repo";
 import { localize } from "@/lib/schemas/localized";
+import { toMinor } from "@/lib/money";
 import { pageMetadata } from "@/lib/seo/metadata";
 import { logger } from "@/lib/log";
 import type { Locale } from "@/i18n/routing";
 
 export const dynamic = "force-dynamic";
+
+type SP = Promise<{ [k: string]: string | string[] | undefined }>;
+const str = (v: string | string[] | undefined) =>
+  typeof v === "string" ? v : undefined;
 
 export async function generateMetadata({
   params,
@@ -31,87 +40,347 @@ export async function generateMetadata({
 
 export default async function InstrumentsHub({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: SP;
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
   const l = locale as Locale;
-  const t = await getTranslations({ locale, namespace: "shop.hub" });
+  const sp = await searchParams;
+  const t = await getTranslations({ locale, namespace: "shop" });
   const nav = await getTranslations({ locale, namespace: "nav" });
   const hub = await getTranslations({ locale, namespace: "hubs.instruments" });
 
-  let products: Awaited<ReturnType<typeof listProducts>>["items"] = [];
+  const page = Math.max(1, parseInt(str(sp.page) ?? "1", 10) || 1);
+  const minMajor = str(sp.min) ? Number(str(sp.min)) : undefined;
+  const maxMajor = str(sp.max) ? Number(str(sp.max)) : undefined;
+  const hasFilter = Boolean(
+    str(sp.q) || str(sp.brand) || str(sp.min) || str(sp.max) || sp.inStock,
+  );
+
+  let result: Awaited<ReturnType<typeof listProducts>> = {
+    items: [],
+    total: 0,
+    page,
+    pageSize: 12,
+    pages: 1,
+  };
   let categories: Awaited<ReturnType<typeof listCategories>> = [];
+  let brands: { id: string; name: string }[] = [];
   try {
-    const [p, c] = await Promise.all([
-      listProducts({ status: "active", pageSize: 8 }),
+    const [r, cs, bs] = await Promise.all([
+      listProducts({
+        status: "active",
+        search: str(sp.q),
+        brandId: str(sp.brand),
+        minPriceMinor: minMajor != null ? toMinor(minMajor) : undefined,
+        maxPriceMinor: maxMajor != null ? toMinor(maxMajor) : undefined,
+        inStockOnly: sp.inStock === "1",
+        sort: (str(sp.sort) as ProductSort) ?? "newest",
+        page,
+      }),
       listCategories(),
+      listBrands(),
     ]);
-    products = p.items;
-    categories = c;
+    result = r;
+    categories = cs;
+    brands = bs.map((b) => ({ id: String(b._id), name: localize(b.name, l) }));
   } catch (e) {
-    logger.warn("instruments hub data load failed", e);
+    logger.warn("instruments catalog load failed", e);
   }
+
+  const base = "/instruments";
+  const hrefWithout = (...omit: string[]) => {
+    const p = new URLSearchParams();
+    const keep = (k: string, v?: string) => {
+      if (v && !omit.includes(k)) p.set(k, v);
+    };
+    keep("q", str(sp.q));
+    keep("brand", str(sp.brand));
+    keep("min", str(sp.min));
+    keep("max", str(sp.max));
+    if (sp.inStock === "1" && !omit.includes("inStock")) p.set("inStock", "1");
+    keep("sort", str(sp.sort));
+    const qs = p.toString();
+    return qs ? `${base}?${qs}` : base;
+  };
+  const pageHref = (n: number) => {
+    const p = new URLSearchParams();
+    const keep = (k: string, v?: string) => {
+      if (v) p.set(k, v);
+    };
+    keep("q", str(sp.q));
+    keep("brand", str(sp.brand));
+    keep("min", str(sp.min));
+    keep("max", str(sp.max));
+    if (sp.inStock === "1") p.set("inStock", "1");
+    keep("sort", str(sp.sort));
+    if (n > 1) p.set("page", String(n));
+    const qs = p.toString();
+    return qs ? `${base}?${qs}` : base;
+  };
+
+  const chips: { key: string; label: string; href: string }[] = [];
+  if (str(sp.q))
+    chips.push({
+      key: "q",
+      label: `“${str(sp.q)}”`,
+      href: hrefWithout("q", "page"),
+    });
+  if (str(sp.brand)) {
+    const bn = brands.find((b) => b.id === str(sp.brand))?.name;
+    if (bn)
+      chips.push({
+        key: "brand",
+        label: bn,
+        href: hrefWithout("brand", "page"),
+      });
+  }
+  if (str(sp.min) || str(sp.max))
+    chips.push({
+      key: "price",
+      label: `৳${str(sp.min) ?? "0"} – ৳${str(sp.max) ?? "∞"}`,
+      href: hrefWithout("min", "max", "page"),
+    });
+  if (sp.inStock === "1")
+    chips.push({
+      key: "inStock",
+      label: t("listing.inStockOnly"),
+      href: hrefWithout("inStock", "page"),
+    });
 
   return (
     <>
       <PageHeader
         eyebrow={hub("eyebrow")}
-        title={t("title")}
-        description={t("lede")}
-        breadcrumbs={[{ label: nav("home"), href: "/" }, { label: t("title") }]}
+        title={t("hub.title")}
+        description={t("hub.lede")}
+        breadcrumbs={[
+          { label: nav("home"), href: "/" },
+          { label: t("hub.title") },
+        ]}
       />
-      {products.length === 0 ? (
+
+      {result.total === 0 && !hasFilter ? (
         <ComingSoon />
       ) : (
-        <section style={{ paddingBlock: "clamp(48px, 6vw, 96px)" }}>
-          <Container
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "var(--s-10)",
-            }}
-          >
+        <section style={{ paddingBlock: "clamp(40px, 5vw, 80px)" }}>
+          <Container style={{ display: "grid", gap: "var(--s-8)" }}>
+            {/* Shop by category */}
             {categories.length > 0 && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                {categories.map((c) => (
-                  <Link
-                    key={String(c._id)}
-                    href={`/instruments/${c.slug}`}
+              <div style={{ display: "grid", gap: "var(--s-3)" }}>
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "var(--fs-caption)",
+                    textTransform: "uppercase",
+                    letterSpacing: "var(--tracking-eyebrow)",
+                    color: "var(--color-text-muted)",
+                  }}
+                >
+                  {t("hub.shopByCategory")}
+                </span>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                  {categories.map((c) => (
+                    <Link
+                      key={String(c._id)}
+                      href={`/instruments/${c.slug}`}
+                      style={{
+                        padding: "8px 16px",
+                        borderRadius: "var(--r-pill)",
+                        border: "1px solid var(--color-border)",
+                        background: "var(--color-surface)",
+                        fontSize: "var(--fs-body-sm)",
+                      }}
+                    >
+                      {localize(c.name, l)}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div
+              className="equal-2col"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "minmax(0, 260px) 1fr",
+                gap: "var(--s-8)",
+                alignItems: "start",
+              }}
+            >
+              <Filters brands={brands} />
+
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "var(--s-5)",
+                }}
+              >
+                {/* Prominent search */}
+                <form
+                  action={`/${locale}/instruments`}
+                  method="get"
+                  role="search"
+                  style={{ display: "flex", gap: 8 }}
+                >
+                  <input
+                    type="search"
+                    name="q"
+                    defaultValue={str(sp.q) ?? ""}
+                    placeholder={t("listing.searchPlaceholder")}
+                    aria-label={t("listing.search")}
                     style={{
-                      padding: "8px 16px",
-                      borderRadius: "var(--r-pill)",
+                      flex: 1,
+                      height: 46,
+                      padding: "0 16px",
                       border: "1px solid var(--color-border)",
+                      borderRadius: "var(--r-pill)",
                       background: "var(--color-surface)",
+                      font: "inherit",
+                    }}
+                  />
+                  {str(sp.brand) && (
+                    <input type="hidden" name="brand" value={str(sp.brand)} />
+                  )}
+                  {str(sp.min) && (
+                    <input type="hidden" name="min" value={str(sp.min)} />
+                  )}
+                  {str(sp.max) && (
+                    <input type="hidden" name="max" value={str(sp.max)} />
+                  )}
+                  {sp.inStock === "1" && (
+                    <input type="hidden" name="inStock" value="1" />
+                  )}
+                  {str(sp.sort) && (
+                    <input type="hidden" name="sort" value={str(sp.sort)} />
+                  )}
+                  <button
+                    type="submit"
+                    style={{
+                      height: 46,
+                      padding: "0 22px",
+                      borderRadius: "var(--r-pill)",
+                      background: "var(--color-brand)",
+                      color: "#fff",
+                      border: 0,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {t("listing.search")}
+                  </button>
+                </form>
+
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "var(--s-3)",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <span
+                    style={{
+                      color: "var(--color-text-muted)",
                       fontSize: "var(--fs-body-sm)",
                     }}
                   >
-                    {localize(c.name, l)}
-                  </Link>
-                ))}
+                    {t("listing.results", { count: result.total })}
+                  </span>
+                  {chips.map((c) => (
+                    <Link
+                      key={c.key}
+                      href={c.href}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        padding: "4px 10px 4px 12px",
+                        borderRadius: "var(--r-pill)",
+                        border: "1px solid var(--color-border)",
+                        background: "var(--color-brand-soft)",
+                        color: "var(--color-brand-deep)",
+                        fontSize: "var(--fs-caption)",
+                        fontWeight: 600,
+                        textDecoration: "none",
+                      }}
+                    >
+                      {c.label}
+                      <span aria-hidden style={{ fontSize: 14, lineHeight: 1 }}>
+                        ×
+                      </span>
+                    </Link>
+                  ))}
+                  {chips.length > 0 && (
+                    <Link
+                      href={base}
+                      style={{
+                        color: "var(--color-text-muted)",
+                        fontSize: "var(--fs-caption)",
+                        textDecoration: "underline",
+                      }}
+                    >
+                      {t("listing.clear")}
+                    </Link>
+                  )}
+                </div>
+
+                {result.items.length === 0 ? (
+                  <div
+                    style={{
+                      border: "1px solid var(--color-border)",
+                      borderRadius: "var(--r-lg)",
+                      padding: "var(--s-10)",
+                      textAlign: "center",
+                      color: "var(--color-text-muted)",
+                    }}
+                  >
+                    {t("listing.noResults")}
+                  </div>
+                ) : (
+                  <CardGrid columns={3}>
+                    {result.items.map((p) => (
+                      <ProductCard key={String(p._id)} product={p} locale={l} />
+                    ))}
+                  </CardGrid>
+                )}
+
+                {result.pages > 1 && (
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 12,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      marginTop: "var(--s-4)",
+                    }}
+                  >
+                    {page > 1 && (
+                      <Link
+                        href={pageHref(page - 1)}
+                        style={{ color: "var(--color-brand-deep)" }}
+                      >
+                        ← {t("listing.prev")}
+                      </Link>
+                    )}
+                    <span style={{ color: "var(--color-text-muted)" }}>
+                      {page} / {result.pages}
+                    </span>
+                    {page < result.pages && (
+                      <Link
+                        href={pageHref(page + 1)}
+                        style={{ color: "var(--color-brand-deep)" }}
+                      >
+                        {t("listing.next")} →
+                      </Link>
+                    )}
+                  </div>
+                )}
               </div>
-            )}
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "var(--s-6)",
-              }}
-            >
-              <h2
-                style={{
-                  fontSize: "var(--fs-h3)",
-                  color: "var(--color-text-strong)",
-                }}
-              >
-                {t("featured")}
-              </h2>
-              <CardGrid columns={4}>
-                {products.map((p) => (
-                  <ProductCard key={String(p._id)} product={p} locale={l} />
-                ))}
-              </CardGrid>
             </div>
           </Container>
         </section>

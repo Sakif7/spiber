@@ -1,21 +1,24 @@
 import { notFound } from "next/navigation";
-import Image from "next/image";
 import { setRequestLocale, getTranslations } from "next-intl/server";
+import { ShieldCheck, BadgeCheck, Truck, Headset } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { CardGrid } from "@/components/ui/card-grid";
 import { JsonLd } from "@/components/ui/json-ld";
-import { Placeholder } from "@/components/ui/placeholder";
+import { RecentlyViewed } from "@/components/ui/recently-viewed";
+import { ProductGallery } from "@/components/shop/product-gallery";
 import { AddToCart } from "@/components/shop/add-to-cart";
 import { ProductCard } from "@/components/shop/product-card";
 import { PriceTag } from "@/components/shop/price-tag";
 import {
   getProductBySlug,
   listRelatedProducts,
+  frequentlyBoughtTogether,
 } from "@/lib/repositories/products.repo";
+import { getBrandById } from "@/lib/repositories/taxonomy.repo";
 import { localize } from "@/lib/schemas/localized";
 import { pageMetadata } from "@/lib/seo/metadata";
-import { fromMinor } from "@/lib/money";
+import { fromMinor, formatBDT } from "@/lib/money";
 import { siteConfig } from "@/lib/site-config";
 import type { Locale } from "@/i18n/routing";
 
@@ -54,17 +57,28 @@ export default async function ProductDetail({
   if (!product) notFound();
 
   const name = localize(product.name, l);
-  const related = await listRelatedProducts(
-    String(product.categoryId),
-    String(product._id),
-  ).catch(() => []);
+  const [related, fbt, brand] = await Promise.all([
+    listRelatedProducts(String(product.categoryId), String(product._id)).catch(
+      () => [],
+    ),
+    frequentlyBoughtTogether(String(product._id)).catch(() => []),
+    product.brandId
+      ? getBrandById(String(product.brandId)).catch(() => null)
+      : Promise.resolve(null),
+  ]);
 
-  const stockLabel =
-    product.stockQty <= 0
-      ? t("outOfStock")
-      : product.stockQty <= product.lowStockThreshold
-        ? t("lowStock", { count: product.stockQty })
-        : t("inStock");
+  const out = product.stockQty <= 0;
+  const low = !out && product.stockQty <= product.lowStockThreshold;
+  const stockLabel = out
+    ? t("outOfStock")
+    : low
+      ? t("lowStock", { count: product.stockQty })
+      : t("inStock");
+  const stockColor = out
+    ? "var(--color-error)"
+    : low
+      ? "var(--color-secondary-deep)"
+      : "var(--color-success)";
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -74,6 +88,9 @@ export default async function ProductDetail({
     image: product.images,
     description: product.description
       ? localize(product.description, l)
+      : undefined,
+    brand: brand
+      ? { "@type": "Brand", name: localize(brand.name, l) }
       : undefined,
     offers: {
       "@type": "Offer",
@@ -87,11 +104,18 @@ export default async function ProductDetail({
     },
   };
 
+  const trust = [
+    { icon: BadgeCheck, label: t("trustGenuine") },
+    { icon: ShieldCheck, label: t("trustWarranty") },
+    { icon: Truck, label: t("trustDelivery") },
+    { icon: Headset, label: t("trustSupport") },
+  ];
+
   return (
-    <section style={{ paddingBlock: "clamp(40px, 5vw, 80px)" }}>
+    <section style={{ paddingBlock: "clamp(32px, 4vw, 64px)" }}>
       <JsonLd data={jsonLd} />
       <Container
-        style={{ display: "flex", flexDirection: "column", gap: "var(--s-8)" }}
+        style={{ display: "flex", flexDirection: "column", gap: "var(--s-10)" }}
       >
         <Breadcrumb
           items={[
@@ -101,89 +125,46 @@ export default async function ProductDetail({
           ]}
         />
 
+        {/* Gallery + buy box */}
         <div
           className="equal-2col"
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 1fr",
+            gridTemplateColumns: "1.05fr 1fr",
             gap: "var(--s-10)",
             alignItems: "start",
           }}
         >
-          {/* Gallery */}
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "var(--s-3)",
-            }}
-          >
-            <div
-              style={{
-                position: "relative",
-                aspectRatio: "1 / 1",
-                borderRadius: "var(--r-xl)",
-                overflow: "hidden",
-                background: "var(--color-surface-2)",
-              }}
-            >
-              {product.images[0] ? (
-                <Image
-                  src={product.images[0]}
-                  alt={name}
-                  fill
-                  sizes="(max-width: 980px) 100vw, 50vw"
-                  style={{ objectFit: "cover" }}
-                  priority
-                />
-              ) : (
-                <Placeholder
-                  label={name}
-                  tone="teal"
-                  style={{ position: "absolute", inset: 0 }}
-                />
-              )}
-            </div>
-            {product.images.length > 1 && (
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {product.images.slice(1, 5).map((img, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      position: "relative",
-                      width: 72,
-                      height: 72,
-                      borderRadius: "var(--r-sm)",
-                      overflow: "hidden",
-                      background: "var(--color-surface-2)",
-                    }}
-                  >
-                    <Image
-                      src={img}
-                      alt={`${name} ${i + 2}`}
-                      fill
-                      sizes="72px"
-                      style={{ objectFit: "cover" }}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <ProductGallery images={product.images} name={name} />
 
-          {/* Info */}
-          <div
+          <aside
             style={{
+              position: "sticky",
+              top: 96,
               display: "flex",
               flexDirection: "column",
               gap: "var(--s-5)",
             }}
           >
+            {brand && (
+              <span
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "var(--fs-caption)",
+                  textTransform: "uppercase",
+                  letterSpacing: "var(--tracking-eyebrow)",
+                  color: "var(--color-brand-deep)",
+                }}
+              >
+                {localize(brand.name, l)}
+              </span>
+            )}
             <h1
               style={{
                 fontSize: "var(--fs-h2)",
                 color: "var(--color-text-strong)",
                 lineHeight: 1.15,
+                margin: 0,
               }}
             >
               {name}
@@ -197,114 +178,234 @@ export default async function ProductDetail({
             >
               {t("sku")}: {product.sku}
             </span>
-            <PriceTag
-              minor={product.priceMinor}
-              locale={l}
+
+            <div
               style={{
-                fontSize: "var(--fs-h3)",
-                color: "var(--color-brand-deep)",
-                fontWeight: 600,
-              }}
-            />
-            <span
-              style={{
-                fontSize: "var(--fs-body-sm)",
-                color:
-                  product.stockQty > 0
-                    ? "var(--color-success)"
-                    : "var(--color-error)",
+                display: "flex",
+                alignItems: "baseline",
+                gap: "var(--s-4)",
+                flexWrap: "wrap",
               }}
             >
-              {stockLabel}
-            </span>
-            {product.description && (
-              <p
+              <PriceTag
+                minor={product.priceMinor}
+                locale={l}
                 style={{
-                  color: "var(--color-text-muted)",
-                  lineHeight: "var(--lh-body)",
+                  fontSize: "var(--fs-h2)",
+                  fontFamily: "var(--font-display)",
+                  color: "var(--color-brand-deep)",
+                  fontWeight: 700,
+                }}
+              />
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontSize: "var(--fs-body-sm)",
+                  fontWeight: 600,
+                  color: stockColor,
                 }}
               >
-                {localize(product.description, l)}
-              </p>
-            )}
+                <span
+                  aria-hidden
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: 999,
+                    background: stockColor,
+                  }}
+                />
+                {stockLabel}
+              </span>
+            </div>
+
             <AddToCart
               productId={String(product._id)}
               stockQty={product.stockQty}
             />
-          </div>
+
+            {/* Trust badges */}
+            <ul
+              style={{
+                listStyle: "none",
+                margin: 0,
+                marginTop: "var(--s-2)",
+                padding: "var(--s-4)",
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "var(--s-4)",
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--r-lg)",
+                background: "var(--color-surface)",
+              }}
+            >
+              {trust.map(({ icon: Icon, label }) => (
+                <li
+                  key={label}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    fontSize: "var(--fs-body-sm)",
+                    color: "var(--color-text)",
+                  }}
+                >
+                  <Icon
+                    size={20}
+                    color="var(--color-brand)"
+                    strokeWidth={1.75}
+                  />
+                  {label}
+                </li>
+              ))}
+            </ul>
+          </aside>
         </div>
 
-        {/* Specs */}
-        {product.specs.length > 0 && (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "var(--s-4)",
-              maxWidth: 720,
-            }}
-          >
-            <h2
+        {/* Content sections */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--s-8)",
+            maxWidth: 820,
+          }}
+        >
+          {product.description && (
+            <SectionBlock title={t("overview")}>
+              <p
+                style={{
+                  color: "var(--color-text)",
+                  lineHeight: "var(--lh-body)",
+                  whiteSpace: "pre-line",
+                  margin: 0,
+                }}
+              >
+                {localize(product.description, l)}
+              </p>
+            </SectionBlock>
+          )}
+
+          {product.specs.length > 0 && (
+            <SectionBlock title={t("specifications")}>
+              <table style={{ borderCollapse: "collapse", width: "100%" }}>
+                <tbody>
+                  {product.specs.map((s, i) => (
+                    <tr
+                      key={i}
+                      style={{ borderTop: "1px solid var(--color-hairline)" }}
+                    >
+                      <th
+                        style={{
+                          textAlign: "left",
+                          padding: "10px 16px 10px 0",
+                          color: "var(--color-text-muted)",
+                          fontWeight: 500,
+                          width: "40%",
+                          verticalAlign: "top",
+                        }}
+                      >
+                        {localize(s.key, l)}
+                      </th>
+                      <td style={{ padding: "10px 0" }}>
+                        {localize(s.value, l)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </SectionBlock>
+          )}
+
+          <SectionBlock title={t("shipping")}>
+            <p
               style={{
-                fontSize: "var(--fs-h4)",
-                color: "var(--color-text-strong)",
+                color: "var(--color-text-muted)",
+                lineHeight: "var(--lh-body)",
+                margin: 0,
               }}
             >
-              {t("specifications")}
-            </h2>
-            <table style={{ borderCollapse: "collapse", width: "100%" }}>
-              <tbody>
-                {product.specs.map((s, i) => (
-                  <tr
-                    key={i}
-                    style={{ borderTop: "1px solid var(--color-hairline)" }}
-                  >
-                    <th
-                      style={{
-                        textAlign: "left",
-                        padding: "10px 16px 10px 0",
-                        color: "var(--color-text-muted)",
-                        fontWeight: 500,
-                        width: "40%",
-                      }}
-                    >
-                      {localize(s.key, l)}
-                    </th>
-                    <td style={{ padding: "10px 0" }}>
-                      {localize(s.value, l)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              {t("shippingBody")}
+            </p>
+          </SectionBlock>
+        </div>
+
+        {/* Frequently bought together (real order co-occurrence) */}
+        {fbt.length > 0 && (
+          <Rail title={t("frequentlyBought")}>
+            <CardGrid columns={4}>
+              {fbt.map((p) => (
+                <ProductCard key={String(p._id)} product={p} locale={l} />
+              ))}
+            </CardGrid>
+          </Rail>
         )}
 
-        {/* Related */}
+        {/* Related / you may also like */}
         {related.length > 0 && (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "var(--s-5)",
-            }}
-          >
-            <h2
-              style={{
-                fontSize: "var(--fs-h4)",
-                color: "var(--color-text-strong)",
-              }}
-            >
-              {t("related")}
-            </h2>
+          <Rail title={t("youMayLike")}>
             <CardGrid columns={4}>
               {related.map((p) => (
                 <ProductCard key={String(p._id)} product={p} locale={l} />
               ))}
             </CardGrid>
-          </div>
+          </Rail>
         )}
+
+        {/* Recently viewed (client, localStorage) */}
+        <RecentlyViewed
+          title={t("recentlyViewed")}
+          current={{
+            href: `/instruments/product/${slug}`,
+            name,
+            image: product.images[0],
+            meta: formatBDT(product.priceMinor, l),
+          }}
+        />
       </Container>
     </section>
+  );
+}
+
+function SectionBlock({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      style={{ display: "flex", flexDirection: "column", gap: "var(--s-4)" }}
+    >
+      <h2
+        style={{ fontSize: "var(--fs-h4)", color: "var(--color-text-strong)" }}
+      >
+        {title}
+      </h2>
+      {children}
+    </div>
+  );
+}
+
+function Rail({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      style={{ display: "flex", flexDirection: "column", gap: "var(--s-5)" }}
+    >
+      <h2
+        style={{ fontSize: "var(--fs-h4)", color: "var(--color-text-strong)" }}
+      >
+        {title}
+      </h2>
+      {children}
+    </div>
   );
 }

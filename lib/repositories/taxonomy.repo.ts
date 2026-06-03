@@ -15,6 +15,12 @@ export async function getBrandBySlug(slug: string) {
   await connectToDatabase();
   return Brand.findOne({ slug, deletedAt: null }).lean<Lean<IBrand>>().exec();
 }
+export async function getBrandById(id: string) {
+  await connectToDatabase();
+  return Brand.findOne({ _id: id, deletedAt: null })
+    .lean<Lean<IBrand>>()
+    .exec();
+}
 export async function createBrand(data: Partial<IBrand>) {
   await connectToDatabase();
   return Brand.create(data);

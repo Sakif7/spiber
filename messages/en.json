@@ -9,7 +9,9 @@
     "learnMore": "Learn more",
     "contactUs": "Contact us",
     "backHome": "Back to home",
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "view": "View details",
+    "read": "Read article"
   },
   "search": {
     "placeholder": "Search instruments, courses, software…",
@@ -734,8 +736,19 @@
       "inStock": "In stock",
       "lowStock": "Only {count} left",
       "sku": "SKU",
+      "brand": "Brand",
+      "overview": "Overview",
       "specifications": "Specifications",
+      "shipping": "Shipping & returns",
+      "shippingBody": "Nationwide delivery across Bangladesh, typically 2–5 business days. All equipment is genuine with manufacturer warranty. See our refund & shipping policy for full terms.",
       "related": "Related equipment",
+      "frequentlyBought": "Frequently bought together",
+      "youMayLike": "You may also like",
+      "recentlyViewed": "Recently viewed",
+      "trustGenuine": "100% genuine",
+      "trustWarranty": "Warranty included",
+      "trustDelivery": "Nationwide delivery",
+      "trustSupport": "Expert support",
       "quantity": "Quantity",
       "viewCart": "View cart"
     },
@@ -842,7 +855,9 @@
       "preview": "Preview",
       "locked": "Locked",
       "level": "Level",
-      "overview": "Overview"
+      "overview": "Overview",
+      "more": "More courses",
+      "recentlyViewed": "Recently viewed"
     },
     "player": {
       "markComplete": "Mark complete",
@@ -914,7 +929,10 @@
       "title": "Software",
       "lede": "Digital-health products built for clinics, hospitals, and care teams.",
       "results": "{count} products",
-      "empty": "No software products yet."
+      "empty": "No software products yet.",
+      "searchPlaceholder": "Search software…",
+      "search": "Search",
+      "noResults": "No software matches your search."
     },
     "pricing": {
       "one_time": "One-time",
@@ -930,7 +948,9 @@
       "pricingLabel": "Pricing",
       "deliveryAsset": "Secure download after purchase",
       "deliveryLicense": "License key issued on purchase",
-      "deliveryExternal": "Account activated after purchase"
+      "deliveryExternal": "Account activated after purchase",
+      "more": "More solutions",
+      "recentlyViewed": "Recently viewed"
     },
     "buy": {
       "buyNow": "Buy now",

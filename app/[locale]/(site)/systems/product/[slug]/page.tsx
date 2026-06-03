@@ -3,12 +3,18 @@ import Image from "next/image";
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { Container } from "@/components/ui/container";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { CardGrid } from "@/components/ui/card-grid";
 import { JsonLd } from "@/components/ui/json-ld";
 import { Placeholder } from "@/components/ui/placeholder";
 import { CtaButton } from "@/components/ui/cta-button";
+import { RecentlyViewed } from "@/components/ui/recently-viewed";
 import { SoftwareBuyButton } from "@/components/systems/software-buy-button";
+import { SoftwareCard } from "@/components/systems/software-card";
 import { InquiryForm } from "@/components/systems/inquiry-form";
-import { getSoftwareProductBySlug } from "@/lib/repositories/software.repo";
+import {
+  getSoftwareProductBySlug,
+  listRelatedSoftware,
+} from "@/lib/repositories/software.repo";
 import { hasPaidPurchase } from "@/lib/repositories/purchases.repo";
 import { getSessionUser } from "@/lib/auth/current-user";
 import { localize } from "@/lib/schemas/localized";
@@ -58,6 +64,10 @@ export default async function SoftwareDetail({
     user && !isQuote
       ? await hasPaidPurchase(user.sub, String(product._id))
       : false;
+
+  const related = await listRelatedSoftware(String(product._id), {
+    categoryId: product.categoryId ? String(product.categoryId) : null,
+  }).catch(() => []);
 
   const priceLabel = isQuote
     ? t("pricing.quote")
@@ -330,6 +340,45 @@ export default async function SoftwareDetail({
           </div>
         )}
       </Container>
+
+      {related.length > 0 && (
+        <section
+          style={{
+            background: "var(--color-surface-2)",
+            paddingBlock: "clamp(40px, 5vw, 72px)",
+            marginTop: "clamp(40px, 5vw, 80px)",
+          }}
+        >
+          <Container style={{ display: "grid", gap: "var(--s-5)" }}>
+            <h2
+              style={{
+                fontSize: "var(--fs-h4)",
+                color: "var(--color-text-strong)",
+              }}
+            >
+              {t("product.more")}
+            </h2>
+            <CardGrid columns={3}>
+              {related.map((p) => (
+                <SoftwareCard key={String(p._id)} product={p} locale={l} />
+              ))}
+            </CardGrid>
+          </Container>
+        </section>
+      )}
+
+      <Container style={{ paddingBlock: "clamp(32px, 4vw, 64px)" }}>
+        <RecentlyViewed
+          title={t("product.recentlyViewed")}
+          current={{
+            href: `/systems/product/${product.slug}`,
+            name,
+            image: product.screenshots[0],
+            meta: priceLabel,
+          }}
+        />
+      </Container>
+
       <style>{`
         @media (max-width: 820px) {
           .equal-2col { grid-template-columns: 1fr !important; }

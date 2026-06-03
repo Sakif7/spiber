@@ -1,12 +1,16 @@
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/ui/container";
+import { CardGrid } from "@/components/ui/card-grid";
 import { JsonLd } from "@/components/ui/json-ld";
+import { RecentlyViewed } from "@/components/ui/recently-viewed";
 import { Curriculum } from "@/components/academy/curriculum";
+import { CourseCard } from "@/components/academy/course-card";
 import { EnrollButton } from "@/components/academy/enroll-button";
 import {
   getCourseBySlug,
   flattenLessons,
+  listRelatedCourses,
 } from "@/lib/repositories/courses.repo";
 import { hasCourseAccess } from "@/lib/repositories/enrollments.repo";
 import { getSessionUser } from "@/lib/auth/current-user";
@@ -56,6 +60,9 @@ export default async function CourseDetail({
   const lessons = flattenLessons(course);
   const firstLessonId = lessons[0]?.id;
   const title = localize(course.title, l);
+  const related = await listRelatedCourses(String(course._id), {
+    level: course.level,
+  }).catch(() => []);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -245,6 +252,47 @@ export default async function CourseDetail({
           </div>
         </Container>
       </section>
+
+      {related.length > 0 && (
+        <section
+          style={{
+            background: "var(--color-surface-2)",
+            paddingBlock: "clamp(40px, 5vw, 72px)",
+          }}
+        >
+          <Container style={{ display: "grid", gap: "var(--s-5)" }}>
+            <h2
+              style={{
+                fontSize: "var(--fs-h4)",
+                color: "var(--color-text-strong)",
+              }}
+            >
+              {t("course.more")}
+            </h2>
+            <CardGrid columns={3}>
+              {related.map((c) => (
+                <CourseCard key={String(c._id)} course={c} locale={l} />
+              ))}
+            </CardGrid>
+          </Container>
+        </section>
+      )}
+
+      <Container style={{ paddingBlock: "clamp(32px, 4vw, 64px)" }}>
+        <RecentlyViewed
+          title={t("course.recentlyViewed")}
+          current={{
+            href: `/academy/course/${course.slug}`,
+            name: title,
+            image: course.thumbnail,
+            meta:
+              course.priceMinor > 0
+                ? formatBDT(course.priceMinor, l)
+                : t("course.free"),
+          }}
+        />
+      </Container>
+
       <style>{`
         @media (max-width: 820px) {
           .course-hero { grid-template-columns: 1fr !important; }

@@ -105,6 +105,45 @@ export async function softDeleteCourse(id: string) {
   ).exec();
 }
 
+/** "More courses" rail — other published courses (same level preferred). */
+export async function listRelatedCourses(
+  courseId: string,
+  opts: { level?: CourseLevel; limit?: number } = {},
+) {
+  await connectToDatabase();
+  const limit = opts.limit ?? 3;
+  const base = {
+    status: "published",
+    deletedAt: null,
+    _id: { $ne: courseId },
+  } as unknown as CourseFilter;
+  const out: Lean<ICourse>[] = [];
+  if (opts.level) {
+    const sameLevel = await Course.find({
+      ...base,
+      level: opts.level,
+    } as unknown as CourseFilter)
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean<Lean<ICourse>[]>()
+      .exec();
+    out.push(...sameLevel);
+  }
+  if (out.length < limit) {
+    const seen = new Set(out.map((c) => String(c._id)));
+    const fill = await Course.find(base)
+      .sort({ createdAt: -1 })
+      .limit(limit + out.length)
+      .lean<Lean<ICourse>[]>()
+      .exec();
+    for (const c of fill) {
+      if (out.length >= limit) break;
+      if (!seen.has(String(c._id))) out.push(c);
+    }
+  }
+  return out.slice(0, limit);
+}
+
 /** Flatten a course's lessons in display order (modules → lessons by `order`). */
 export function flattenLessons(course: Pick<ICourse, "modules">): ILesson[] {
   return [...course.modules]

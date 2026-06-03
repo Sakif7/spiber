@@ -81,6 +81,45 @@ export async function updateSoftwareProduct(
   return SoftwareProduct.findByIdAndUpdate(id, data, { new: true }).exec();
 }
 
+/** "More solutions" rail — other active software (same category preferred). */
+export async function listRelatedSoftware(
+  productId: string,
+  opts: { categoryId?: string | null; limit?: number } = {},
+) {
+  await connectToDatabase();
+  const limit = opts.limit ?? 3;
+  const base = {
+    status: "active",
+    deletedAt: null,
+    _id: { $ne: productId },
+  } as unknown as SoftwareFilter;
+  const out: Lean<ISoftwareProduct>[] = [];
+  if (opts.categoryId) {
+    const sameCat = await SoftwareProduct.find({
+      ...base,
+      categoryId: opts.categoryId,
+    } as unknown as SoftwareFilter)
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean<Lean<ISoftwareProduct>[]>()
+      .exec();
+    out.push(...sameCat);
+  }
+  if (out.length < limit) {
+    const seen = new Set(out.map((p) => String(p._id)));
+    const fill = await SoftwareProduct.find(base)
+      .sort({ createdAt: -1 })
+      .limit(limit + out.length)
+      .lean<Lean<ISoftwareProduct>[]>()
+      .exec();
+    for (const p of fill) {
+      if (out.length >= limit) break;
+      if (!seen.has(String(p._id))) out.push(p);
+    }
+  }
+  return out.slice(0, limit);
+}
+
 export async function softDeleteSoftwareProduct(id: string) {
   await connectToDatabase();
   await SoftwareProduct.updateOne(
