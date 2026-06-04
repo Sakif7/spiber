@@ -27,9 +27,11 @@
     "searchEverything": "“{query}” এর জন্য সব কিছু খুঁজুন",
     "free": "ফ্রি",
     "quote": "অনুরোধে",
+    "from": "{price} থেকে",
     "readingTime": "{min} মিনিট পড়া",
     "groups": {
       "instruments": "যন্ত্রপাতি",
+      "marketplace": "মার্কেটপ্লেস",
       "academy": "কোর্স",
       "systems": "সফটওয়্যার",
       "blog": "নিবন্ধ"
@@ -38,10 +40,10 @@
       "eyebrow": "অনুসন্ধান",
       "title": "“{query}” এর ফলাফল",
       "titleEmpty": "ক্যাটালগে খুঁজুন",
-      "lede": "{count, plural, =0 {কিছু পাওয়া যায়নি} other {#টি ফলাফল}} — যন্ত্রপাতি, কোর্স, সফটওয়্যার ও নিবন্ধ জুড়ে।",
-      "ledeEmpty": "চিকিৎসা যন্ত্রপাতি, প্রশিক্ষণ কোর্স, সফটওয়্যার প্ল্যাটফর্ম ও নিবন্ধ — সব এক জায়গায় খুঁজুন।",
+      "lede": "{count, plural, =0 {কিছু পাওয়া যায়নি} other {#টি ফলাফল}} — যন্ত্রপাতি, মার্কেটপ্লেস, কোর্স, সফটওয়্যার ও নিবন্ধ জুড়ে।",
+      "ledeEmpty": "চিকিৎসা যন্ত্রপাতি, মার্কেটপ্লেস পণ্য, প্রশিক্ষণ কোর্স, সফটওয়্যার প্ল্যাটফর্ম ও নিবন্ধ — সব এক জায়গায় খুঁজুন।",
       "promptTitle": "আপনি কী খুঁজছেন?",
-      "promptBody": "উপরের বক্সে চিকিৎসা যন্ত্রপাতি, একাডেমি কোর্স, সফটওয়্যার প্ল্যাটফর্ম ও নিবন্ধ জুড়ে খুঁজুন।",
+      "promptBody": "উপরের বক্সে চিকিৎসা যন্ত্রপাতি, মার্কেটপ্লেস পণ্য, একাডেমি কোর্স, সফটওয়্যার প্ল্যাটফর্ম ও নিবন্ধ জুড়ে খুঁজুন।",
       "noResultsTitle": "“{query}” এর জন্য কোনো ফলাফল নেই",
       "noResultsBody": "এই শব্দের সাথে মিলে এমন কিছু পাওয়া যায়নি। আরও ব্যাপক বা ভিন্নভাবে বানান করা শব্দ চেষ্টা করুন।",
       "viewAll": "সব দেখুন"
@@ -648,15 +650,36 @@
     "copyright": "© 2026 SPIBER MED LTD. সর্বস্বত্ব সংরক্ষিত।",
     "nav": [
       {
-        "title": "পণ্যসমূহ",
-        "links": [
+        "sections": [
           {
-            "label": "Spiber Instruments",
-            "href": "/instruments"
+            "title": "পণ্যসমূহ",
+            "links": [
+              {
+                "label": "Spiber Instruments",
+                "href": "/instruments"
+              },
+              {
+                "label": "Spiber Systems",
+                "href": "/systems"
+              }
+            ]
           },
           {
-            "label": "Spiber Systems",
-            "href": "/systems"
+            "title": "সেবাসমূহ",
+            "links": [
+              {
+                "label": "Spiber Academy",
+                "href": "/academy"
+              },
+              {
+                "label": "Spiber Tourism",
+                "href": "/tourism"
+              },
+              {
+                "label": "Spiber Consulting",
+                "href": "/consulting"
+              }
+            ]
           }
         ]
       },
@@ -678,23 +701,6 @@
           {
             "label": "প্রযুক্তি",
             "href": "/marketplace/category/technology"
-          }
-        ]
-      },
-      {
-        "title": "সেবাসমূহ",
-        "links": [
-          {
-            "label": "Spiber Academy",
-            "href": "/academy"
-          },
-          {
-            "label": "Spiber Tourism",
-            "href": "/tourism"
-          },
-          {
-            "label": "Spiber Consulting",
-            "href": "/consulting"
           }
         ]
       },

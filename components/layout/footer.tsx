@@ -156,45 +156,67 @@ export function Footer() {
 
           {(
             t.raw("nav") as Array<{
-              title: string;
-              links: Array<{ label: string; href: string }>;
+              title?: string;
+              links?: Array<{ label: string; href: string }>;
+              sections?: Array<{
+                title: string;
+                links: Array<{ label: string; href: string }>;
+              }>;
             }>
-          ).map((col) => (
-            <div key={col.title}>
+          ).map((col, ci) => {
+            // A column is either a single titled group or several stacked
+            // sections (e.g. Products + Services share one column).
+            const sections = col.sections ?? [
+              { title: col.title ?? "", links: col.links ?? [] },
+            ];
+            return (
               <div
-                style={{
-                  fontFamily: "var(--font-display)",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  letterSpacing: ".08em",
-                  textTransform: "uppercase",
-                  color: "var(--teal-300)",
-                  marginBottom: 16,
-                }}
+                key={col.title ?? ci}
+                style={{ display: "flex", flexDirection: "column", gap: 28 }}
               >
-                {col.title}
-              </div>
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: 10 }}
-              >
-                {col.links.map((l) => (
-                  <Link
-                    key={l.href + l.label}
-                    href={l.href}
-                    className="footer-link"
-                    style={{
-                      fontSize: 14,
-                      color: "rgba(255,255,255,.78)",
-                      cursor: "pointer",
-                      transition: "color 160ms",
-                    }}
-                  >
-                    {l.label}
-                  </Link>
+                {sections.map((sec) => (
+                  <div key={sec.title}>
+                    <div
+                      style={{
+                        fontFamily: "var(--font-display)",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        letterSpacing: ".08em",
+                        textTransform: "uppercase",
+                        color: "var(--teal-300)",
+                        marginBottom: 16,
+                      }}
+                    >
+                      {sec.title}
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 10,
+                      }}
+                    >
+                      {sec.links.map((l) => (
+                        <Link
+                          key={l.href + l.label}
+                          href={l.href}
+                          className="footer-link"
+                          style={{
+                            fontSize: 14,
+                            color: "rgba(255,255,255,.78)",
+                            cursor: "pointer",
+                            transition: "color 160ms",
+                          }}
+                        >
+                          {l.label}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           <div>
             <div

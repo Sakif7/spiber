@@ -12,7 +12,10 @@ import { logger } from "@/lib/log";
 type Slice<T> = { items: Lean<T>[]; total: number };
 
 export type SearchResults = {
+  /** Instruments-storefront products (catalog / quotation). */
   products: Slice<IProduct>;
+  /** Marketplace-storefront products (retail checkout). */
+  marketplace: Slice<IProduct>;
   courses: Slice<ICourse>;
   software: Slice<ISoftwareProduct>;
   posts: Slice<IBlogPost>;
@@ -54,6 +57,7 @@ export async function searchAll(
   if (q.length < 2) {
     return {
       products: EMPTY(),
+      marketplace: EMPTY(),
       courses: EMPTY(),
       software: EMPTY(),
       posts: EMPTY(),
@@ -61,9 +65,22 @@ export async function searchAll(
   }
   const perGroup = Math.min(24, Math.max(1, opts.perGroup ?? 6));
 
-  const [products, courses, software, posts] = await Promise.all([
+  const [products, marketplace, courses, software, posts] = await Promise.all([
     safeSlice<IProduct>("instruments", () =>
-      listProducts({ status: "active", search: q, pageSize: perGroup }),
+      listProducts({
+        storefront: "instruments",
+        status: "active",
+        search: q,
+        pageSize: perGroup,
+      }),
+    ),
+    safeSlice<IProduct>("marketplace", () =>
+      listProducts({
+        storefront: "marketplace",
+        status: "active",
+        search: q,
+        pageSize: perGroup,
+      }),
     ),
     safeSlice<ICourse>("academy", () =>
       listCourses({ status: "published", search: q, pageSize: perGroup }),
@@ -76,10 +93,16 @@ export async function searchAll(
     ),
   ]);
 
-  return { products, courses, software, posts };
+  return { products, marketplace, courses, software, posts };
 }
 
 /** Total matches across all divisions (capped by `perGroup` per slice). */
 export function totalResults(r: SearchResults): number {
-  return r.products.total + r.courses.total + r.software.total + r.posts.total;
+  return (
+    r.products.total +
+    r.marketplace.total +
+    r.courses.total +
+    r.software.total +
+    r.posts.total
+  );
 }

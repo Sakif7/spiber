@@ -8,6 +8,7 @@
  */
 export const SEARCH_GROUP_KEYS = [
   "instruments",
+  "marketplace",
   "academy",
   "systems",
   "blog",

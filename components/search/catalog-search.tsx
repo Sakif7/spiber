@@ -36,6 +36,9 @@ const GROUP_ICON: Record<SearchGroupKey, ReactNode> = {
   instruments: (
     <path d="M9 3v6.5L4.8 17a3 3 0 0 0 2.6 4.5h9.2A3 3 0 0 0 19.2 17L15 9.5V3M8 3h8M9 13h6" />
   ),
+  marketplace: (
+    <path d="M6 2 3 6v1a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0V6l-3-4ZM5 10v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9M10 20v-5h4v5" />
+  ),
   academy: (
     <path d="M3 8.5 12 4l9 4.5-9 4.5-9-4.5Zm4 3v4.2c0 .9 2.2 2.3 5 2.3s5-1.4 5-2.3V11.5" />
   ),

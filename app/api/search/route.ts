@@ -40,6 +40,7 @@ export async function GET(req: Request) {
     const labels: Labels = {
       free: t("free"),
       quote: t("quote"),
+      from: (price) => t("from", { price }),
       readingTime: (min) => t("readingTime", { min }),
     };
     const groups = buildGroups(results, locale, labels);
@@ -56,6 +57,7 @@ export async function GET(req: Request) {
 type Labels = {
   free: string;
   quote: string;
+  from: (price: string) => string;
   readingTime: (min: number) => string;
 };
 
@@ -67,6 +69,27 @@ function priceLabel(
   if (minor == null) return labels.quote;
   if (minor === 0) return labels.free;
   return formatBDT(minor, locale);
+}
+
+/**
+ * Marketplace products always carry a price: either a base `priceMinor` or, for
+ * variant products (base null), per-variant prices — so show the lowest as
+ * "From ৳X". Falls back to the quote label only if a product is somehow
+ * price-less (shouldn't happen for an active marketplace product).
+ */
+function marketplacePriceLabel(
+  base: number | null | undefined,
+  variants: { priceMinorOverride?: number | null }[] | undefined,
+  locale: Locale,
+  labels: Labels,
+): string {
+  if (base != null) return priceLabel(base, locale, labels);
+  const prices = (variants ?? [])
+    .map((v) => v.priceMinorOverride)
+    .filter((n): n is number => typeof n === "number");
+  if (prices.length === 0) return labels.quote;
+  const min = Math.min(...prices);
+  return min === 0 ? labels.free : labels.from(formatBDT(min, locale));
 }
 
 function buildGroups(
@@ -86,6 +109,18 @@ function buildGroups(
       image: p.images?.[0] ?? null,
     }));
     groups.push({ key: "instruments", total: r.products.total, hits });
+  }
+
+  if (r.marketplace.total > 0) {
+    const hits: SearchHit[] = r.marketplace.items.map((p) => ({
+      id: String(p._id),
+      group: "marketplace",
+      title: localize(p.name, locale),
+      subtitle: marketplacePriceLabel(p.priceMinor, p.variants, locale, labels),
+      href: `/marketplace/product/${p.slug}`,
+      image: p.images?.[0] ?? null,
+    }));
+    groups.push({ key: "marketplace", total: r.marketplace.total, hits });
   }
 
   if (r.courses.total > 0) {

@@ -23,9 +23,9 @@ const MotionLink = motion.create(Link);
 
 const NAV_ITEMS = [
   { name: "Home", link: "/" },
+  { name: "Marketplace", link: "/marketplace" },
   { name: "Products & Solutions", link: "#" },
   { name: "Services", link: "#" },
-  { name: "Marketplace", link: "/marketplace" },
   { name: "Blog", link: "/blog" },
   { name: "About", link: "/about" },
 ];
@@ -160,6 +160,9 @@ export function ResizableHeader() {
           <MobileLink href="/" onClick={() => setOpen(false)}>
             Home
           </MobileLink>
+          <MobileLink href="/marketplace" onClick={() => setOpen(false)}>
+            Marketplace
+          </MobileLink>
           {Object.entries(MEGA_MENUS).map(([label, items]) => (
             <div key={label} style={{ width: "100%" }}>
               <div
@@ -185,9 +188,6 @@ export function ResizableHeader() {
               ))}
             </div>
           ))}
-          <MobileLink href="/marketplace" onClick={() => setOpen(false)}>
-            Marketplace
-          </MobileLink>
           <MobileLink href="/blog" onClick={() => setOpen(false)}>
             Blog
           </MobileLink>

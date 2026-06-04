@@ -26,6 +26,8 @@ function viewAllHref(group: SearchGroupKey, q: string): string {
   switch (group) {
     case "instruments":
       return "/instruments";
+    case "marketplace":
+      return `/marketplace/search?q=${e}`;
     case "academy":
       return `/academy/courses?q=${e}`;
     case "systems":
@@ -127,7 +129,32 @@ export default async function SearchPage({
                 >
                   <CardGrid columns={3}>
                     {results!.products.items.map((p) => (
-                      <ProductCard key={String(p._id)} product={p} locale={l} />
+                      <ProductCard
+                        key={String(p._id)}
+                        product={p}
+                        locale={l}
+                        mode="instruments"
+                      />
+                    ))}
+                  </CardGrid>
+                </ResultSection>
+              )}
+
+              {results!.marketplace.items.length > 0 && (
+                <ResultSection
+                  title={t("groups.marketplace")}
+                  count={results!.marketplace.total}
+                  href={viewAllHref("marketplace", q)}
+                  viewAll={t("page.viewAll")}
+                >
+                  <CardGrid columns={3}>
+                    {results!.marketplace.items.map((p) => (
+                      <ProductCard
+                        key={String(p._id)}
+                        product={p}
+                        locale={l}
+                        mode="marketplace"
+                      />
                     ))}
                   </CardGrid>
                 </ResultSection>
