@@ -29,7 +29,7 @@ export default async function EditProductPage({
   let categories: Option[] = [];
   let brands: Option[] = [];
   try {
-    const cats = await listCategories();
+    const cats = await listCategories("instruments");
     categories = cats.map((c) => ({
       id: String(c._id),
       name: localize(c.name, "en"),
@@ -57,7 +57,7 @@ export default async function EditProductPage({
       : undefined,
     categoryId: String(p.categoryId),
     brandId: p.brandId ? String(p.brandId) : undefined,
-    priceMinor: p.priceMinor,
+    priceMinor: p.priceMinor ?? undefined,
     lowStockThreshold: p.lowStockThreshold,
     status: p.status,
     specs: (p.specs ?? []).map(

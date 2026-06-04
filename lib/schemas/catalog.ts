@@ -2,13 +2,22 @@ import { z } from "zod";
 import { localizedSchema } from "./localized";
 
 /**
- * Catalog entities for Spiber Instruments: Brand, Category, Product.
- * Zod is the single source of truth; Mongoose models + TS types derive from it.
- * Money is integer poisha. Localized fields are { en, bn }.
+ * Catalog entities: Brand, Category, Product — shared by Spiber Instruments
+ * (quote-only) and Spiber Marketplace (full commerce). Zod is the single source
+ * of truth; Mongoose models + TS types derive from it. Money is integer poisha.
+ * Localized fields are { en, bn }.
  */
 
 export const productStatusEnum = z.enum(["draft", "active", "archived"]);
 export type ProductStatus = z.infer<typeof productStatusEnum>;
+
+/**
+ * Which storefront a product/category belongs to. `instruments` = B2B
+ * quote-only catalog (no cart/checkout, price optional). `marketplace` = the
+ * buyable multi-category store (full commerce engine).
+ */
+export const storefrontEnum = z.enum(["instruments", "marketplace"]);
+export type Storefront = z.infer<typeof storefrontEnum>;
 
 // ---- Brand ----
 // `slug` is optional on input; the route derives it from `name.en` when blank.
@@ -21,19 +30,69 @@ export type BrandInput = z.infer<typeof brandSchema>;
 
 // ---- Category ----
 // `slug` is optional on input; the route derives it from `name.en` when blank.
+// Categories form a per-storefront tree via `parentId`; `position` orders
+// siblings; admin manages the tree.
 export const categorySchema = z.object({
   name: localizedSchema,
   slug: z.string().max(120).optional(),
-  parentId: z.string().optional(),
+  parentId: z.string().optional().nullable(),
   image: z.string().optional(),
+  storefront: storefrontEnum.default("marketplace"),
+  description: localizedSchema.optional(),
+  position: z.number().int().nonnegative().default(0),
+  featured: z.boolean().default(false),
+  icon: z.string().max(60).optional(),
 });
 export type CategoryInput = z.infer<typeof categorySchema>;
+
+/** Drag-reorder / reparent payload for the admin category tree manager. */
+export const categoryReorderSchema = z.object({
+  updates: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        parentId: z.string().nullable().optional(),
+        position: z.number().int().nonnegative(),
+      }),
+    )
+    .min(1)
+    .max(500),
+});
+export type CategoryReorderInput = z.infer<typeof categoryReorderSchema>;
 
 // ---- Product ----
 export const specSchema = z.object({
   key: localizedSchema,
   value: localizedSchema,
 });
+
+/**
+ * A variant OPTION dimension, e.g. name="Size" with values ["S","M","L"].
+ * Localized so the storefront can render Bangla labels.
+ */
+export const variantOptionSchema = z.object({
+  name: localizedSchema,
+  values: z.array(localizedSchema).min(1),
+});
+export type VariantOptionInput = z.infer<typeof variantOptionSchema>;
+
+/**
+ * A concrete purchasable variant — one combination of option values, with its
+ * own sku, optional price override (falls back to the product base price), and
+ * its own stock (the atomic decrement target). `id` is server-assigned.
+ * `options` uses language-neutral English keys for matching.
+ */
+export const productVariantSchema = z.object({
+  id: z.string().optional(),
+  options: z
+    .array(z.object({ name: z.string().min(1), value: z.string().min(1) }))
+    .min(1),
+  sku: z.string().min(1).max(64),
+  priceMinorOverride: z.number().int().nonnegative().nullable().default(null),
+  stockQty: z.number().int().nonnegative().default(0),
+  image: z.string().optional(),
+});
+export type ProductVariantInput = z.infer<typeof productVariantSchema>;
 
 export const productSchema = z.object({
   sku: z.string().min(1).max(64),
@@ -43,15 +102,68 @@ export const productSchema = z.object({
   description: localizedSchema.optional(),
   brandId: z.string().optional(),
   categoryId: z.string().min(1),
+  storefront: storefrontEnum.default("marketplace"),
   specs: z.array(specSchema).default([]),
   images: z.array(z.string()).default([]),
-  priceMinor: z.number().int().nonnegative(),
+  // Optional: instruments products are "Price on request"; marketplace
+  // products must resolve a price (enforced by `refineProduct`).
+  priceMinor: z.number().int().nonnegative().nullable().optional(),
   stockQty: z.number().int().default(0),
   lowStockThreshold: z.number().int().nonnegative().default(5),
   status: productStatusEnum.default("draft"),
+  featured: z.boolean().default(false),
+  variantOptions: z.array(variantOptionSchema).default([]),
+  variants: z.array(productVariantSchema).default([]),
 });
 export type ProductInput = z.infer<typeof productSchema>;
 
-/** Admin create/update input — stockQty is managed via InventoryMovement, not edited directly. */
-export const productInputSchema = productSchema.omit({ stockQty: true });
+/**
+ * Cross-field price rule. Instruments products may have no price ("Price on
+ * request"). Marketplace products must resolve a price: either a base price (no
+ * variants) or, when variants exist, every variant must resolve a price from
+ * its override or the base price. Skips when storefront is absent (PATCH).
+ */
+export function refineProduct(
+  p: {
+    storefront?: Storefront;
+    priceMinor?: number | null;
+    variants?: { priceMinorOverride?: number | null }[];
+  },
+  ctx: z.RefinementCtx,
+): void {
+  if (p.storefront !== "marketplace") return; // instruments: price optional
+  const variants = p.variants ?? [];
+  if (variants.length === 0) {
+    if (p.priceMinor == null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["priceMinor"],
+        message: "price is required for marketplace products",
+      });
+    }
+    return;
+  }
+  const baseOk = p.priceMinor != null;
+  variants.forEach((v, i) => {
+    if (v.priceMinorOverride == null && !baseOk) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["variants", i, "priceMinorOverride"],
+        message: "set a price for this variant, or a base product price",
+      });
+    }
+  });
+}
+
+/** Admin create input — base `stockQty` is managed via InventoryMovement. */
+export const productInputSchema = productSchema
+  .omit({ stockQty: true })
+  .superRefine(refineProduct);
 export type ProductFormInput = z.infer<typeof productInputSchema>;
+
+/** Admin update input — partial; the route forces `storefront` per section. */
+export const productUpdateSchema = productSchema
+  .omit({ stockQty: true })
+  .partial()
+  .superRefine(refineProduct);
+export type ProductUpdateInput = z.infer<typeof productUpdateSchema>;

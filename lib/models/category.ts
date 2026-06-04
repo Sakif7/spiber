@@ -1,11 +1,17 @@
 import mongoose, { Schema, type Model } from "mongoose";
 import { localizedDef, type LocalizedDoc } from "./_shared";
+import type { Storefront } from "@/lib/schemas/catalog";
 
 export interface ICategory {
   name: LocalizedDoc;
   slug: string;
   parentId?: mongoose.Types.ObjectId | string | null;
   image?: string;
+  storefront: Storefront;
+  description?: LocalizedDoc;
+  position: number;
+  featured: boolean;
+  icon?: string;
   deletedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -22,6 +28,17 @@ const categorySchema = new Schema<ICategory>(
       index: true,
     },
     image: { type: String },
+    storefront: {
+      type: String,
+      enum: ["instruments", "marketplace"],
+      required: true,
+      default: "marketplace",
+      index: true,
+    },
+    description: { en: { type: String }, bn: { type: String } },
+    position: { type: Number, default: 0 },
+    featured: { type: Boolean, default: false },
+    icon: { type: String },
     deletedAt: { type: Date, default: null },
   },
   { collection: "categories", timestamps: true },
@@ -32,6 +49,8 @@ categorySchema.index(
   { slug: 1 },
   { unique: true, partialFilterExpression: { deletedAt: null } },
 );
+// Ordered tree reads within a storefront.
+categorySchema.index({ storefront: 1, parentId: 1, position: 1 });
 
 export const Category: Model<ICategory> =
   (mongoose.models.Category as Model<ICategory>) ??

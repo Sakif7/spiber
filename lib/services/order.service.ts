@@ -1,6 +1,10 @@
 import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/db/connect";
-import { Product, type IProduct } from "@/lib/models/product";
+import {
+  Product,
+  type IProduct,
+  type IProductVariant,
+} from "@/lib/models/product";
 import type { Lean } from "@/lib/models/_shared";
 import {
   findCart,
@@ -53,6 +57,7 @@ export async function placeOrder(
   input: CheckoutInput,
   owner: CartOwner,
   userId?: string,
+  storefront: "instruments" | "marketplace" = "marketplace",
 ): Promise<PlaceOrderResult> {
   await connectToDatabase();
 
@@ -63,21 +68,45 @@ export async function placeOrder(
   if (!cart || cart.items.length === 0)
     return { ok: false, code: "empty_cart" };
 
-  // Resolve products + current prices.
+  // Resolve products + current prices (re-resolved server-side; the cart's
+  // price snapshot is display-only and never trusted for charging).
   const ids = cart.items.map((i) => i.productId);
   const products = await Product.find({ _id: { $in: ids } })
     .lean<Lean<IProduct>[]>()
     .exec();
   const byId = new Map(products.map((p) => [String(p._id), p]));
 
-  const lines: { product: Lean<IProduct>; qty: number; priceMinor: number }[] =
-    [];
+  const lines: {
+    product: Lean<IProduct>;
+    variantId: string | null;
+    variant?: IProductVariant;
+    qty: number;
+    priceMinor: number;
+  }[] = [];
   for (const it of cart.items) {
     const p = byId.get(String(it.productId));
     if (!p || p.status !== "active" || p.deletedAt) {
       return { ok: false, code: "product_unavailable" };
     }
-    lines.push({ product: p, qty: it.qty, priceMinor: p.priceMinor });
+    const variantId = it.variantId ?? null;
+    let variant: IProductVariant | undefined;
+    let unitPrice: number | null;
+    if (variantId) {
+      variant = p.variants?.find((v) => v.id === variantId);
+      if (!variant) return { ok: false, code: "product_unavailable" };
+      unitPrice = variant.priceMinorOverride ?? p.priceMinor;
+    } else {
+      unitPrice = p.priceMinor;
+    }
+    // A buyable product must resolve a concrete price.
+    if (unitPrice == null) return { ok: false, code: "product_unavailable" };
+    lines.push({
+      product: p,
+      variantId,
+      variant,
+      qty: it.qty,
+      priceMinor: unitPrice,
+    });
   }
 
   // Totals (pure) — computed before any stock change.
@@ -86,7 +115,12 @@ export async function placeOrder(
   let couponId: string | undefined;
   let couponCode: string | undefined;
   if (input.couponCode) {
-    const v = await validateCoupon(input.couponCode, subtotalMinor);
+    const v = await validateCoupon(
+      input.couponCode,
+      subtotalMinor,
+      new Date(),
+      storefront,
+    );
     if (v.ok) {
       pricingCoupon = {
         type: v.coupon.type,
@@ -108,18 +142,27 @@ export async function placeOrder(
   const orderId = new mongoose.Types.ObjectId();
 
   // Saga: decrement stock; compensate on any failure.
-  const decremented: { productId: string; qty: number }[] = [];
+  const decremented: {
+    productId: string;
+    variantId: string | null;
+    qty: number;
+  }[] = [];
   try {
     for (const l of lines) {
       await applyMovement({
         productId: String(l.product._id),
+        variantId: l.variantId,
         type: "sale",
         qtyDelta: -l.qty,
         refOrderId: String(orderId),
         createdBy: userId,
         reason: "order",
       });
-      decremented.push({ productId: String(l.product._id), qty: l.qty });
+      decremented.push({
+        productId: String(l.product._id),
+        variantId: l.variantId,
+        qty: l.qty,
+      });
     }
   } catch (err) {
     await compensate(decremented, String(orderId));
@@ -153,9 +196,11 @@ export async function placeOrder(
     productId: l.product._id as unknown as mongoose.Types.ObjectId,
     productSnapshot: {
       name: l.product.name,
-      sku: l.product.sku,
+      sku: l.variant?.sku ?? l.product.sku,
       priceMinor: l.priceMinor,
-      image: l.product.images[0],
+      image: l.variant?.image ?? l.product.images[0],
+      variantId: l.variantId,
+      variantOptions: l.variant?.options ?? [],
     },
     qty: l.qty,
     lineTotalMinor: l.priceMinor * l.qty,
@@ -186,6 +231,7 @@ export async function placeOrder(
         shippingAddress: input.shippingAddress,
         couponCode,
         note: input.note,
+        storefront,
         idempotencyKey: input.idempotencyKey,
         timeline: [{ status: "pending", at: now, note: "Order placed" }],
       } as Partial<IOrder>);
@@ -217,12 +263,13 @@ export async function placeOrder(
 }
 
 async function compensate(
-  decremented: { productId: string; qty: number }[],
+  decremented: { productId: string; variantId: string | null; qty: number }[],
   orderId: string,
 ) {
   for (const d of decremented) {
     await applyMovement({
       productId: d.productId,
+      variantId: d.variantId,
       type: "return",
       qtyDelta: d.qty,
       refOrderId: orderId,
@@ -274,6 +321,7 @@ export async function transitionOrder(
     for (const it of order.items) {
       await applyMovement({
         productId: String(it.productId),
+        variantId: it.productSnapshot.variantId ?? null,
         type: "return",
         qtyDelta: it.qty,
         refOrderId: String(order._id),

@@ -2,6 +2,9 @@ import { connectToDatabase } from "@/lib/db/connect";
 import { Brand, type IBrand } from "@/lib/models/brand";
 import { Category, type ICategory } from "@/lib/models/category";
 import type { Lean } from "@/lib/models/_shared";
+import type { Storefront } from "@/lib/schemas/catalog";
+
+export type CategoryNode = Lean<ICategory> & { children: CategoryNode[] };
 
 // ---- Brands ----
 export async function listBrands() {
@@ -38,18 +41,69 @@ export async function softDeleteBrand(id: string) {
 }
 
 // ---- Categories ----
-export async function listCategories() {
+export async function listCategories(storefront?: Storefront) {
   await connectToDatabase();
-  return Category.find({ deletedAt: null })
-    .sort({ "name.en": 1 })
+  const q: Record<string, unknown> = { deletedAt: null };
+  if (storefront) q.storefront = storefront;
+  return Category.find(q)
+    .sort({ position: 1, "name.en": 1 })
     .lean<Lean<ICategory>[]>()
     .exec();
 }
-export async function getCategoryBySlug(slug: string) {
+export async function getCategoryBySlug(slug: string, storefront?: Storefront) {
   await connectToDatabase();
-  return Category.findOne({ slug, deletedAt: null })
-    .lean<Lean<ICategory>>()
-    .exec();
+  const q: Record<string, unknown> = { slug, deletedAt: null };
+  if (storefront) q.storefront = storefront;
+  return Category.findOne(q).lean<Lean<ICategory>>().exec();
+}
+
+/** Nested tree (roots → children) for a storefront, ordered by position. */
+export async function listCategoryTree(
+  storefront: Storefront,
+): Promise<CategoryNode[]> {
+  const flat = await listCategories(storefront);
+  const byId = new Map<string, CategoryNode>();
+  for (const c of flat) byId.set(String(c._id), { ...c, children: [] });
+  const roots: CategoryNode[] = [];
+  for (const node of byId.values()) {
+    const parentId = node.parentId ? String(node.parentId) : null;
+    const parent = parentId ? byId.get(parentId) : null;
+    if (parent) parent.children.push(node);
+    else roots.push(node);
+  }
+  const sortRec = (nodes: CategoryNode[]) => {
+    nodes.sort((a, b) => a.position - b.position);
+    nodes.forEach((n) => sortRec(n.children));
+  };
+  sortRec(roots);
+  return roots;
+}
+
+/**
+ * A category id plus all of its descendant ids (within a storefront) — used so a
+ * category listing page includes products filed under subcategories.
+ */
+export async function categoryWithDescendantIds(
+  rootId: string,
+  storefront?: Storefront,
+): Promise<string[]> {
+  const flat = await listCategories(storefront);
+  const childrenByParent = new Map<string, string[]>();
+  for (const c of flat) {
+    const pid = c.parentId ? String(c.parentId) : null;
+    if (!pid) continue;
+    const arr = childrenByParent.get(pid) ?? [];
+    arr.push(String(c._id));
+    childrenByParent.set(pid, arr);
+  }
+  const ids: string[] = [];
+  const stack = [rootId];
+  while (stack.length) {
+    const id = stack.pop() as string;
+    ids.push(id);
+    for (const child of childrenByParent.get(id) ?? []) stack.push(child);
+  }
+  return ids;
 }
 export async function getCategoryById(id: string) {
   await connectToDatabase();
@@ -71,4 +125,24 @@ export async function softDeleteCategory(id: string) {
     { _id: id },
     { $set: { deletedAt: new Date() } },
   ).exec();
+}
+
+/** Bulk reparent/reorder for the admin category tree manager. */
+export async function reorderCategories(
+  updates: { id: string; parentId?: string | null; position: number }[],
+) {
+  await connectToDatabase();
+  await Promise.all(
+    updates.map((u) =>
+      Category.updateOne(
+        { _id: u.id },
+        {
+          $set: {
+            parentId: u.parentId ? u.parentId : null,
+            position: u.position,
+          },
+        },
+      ).exec(),
+    ),
+  );
 }

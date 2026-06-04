@@ -5,6 +5,12 @@ import path from "node:path";
 import type { Storage } from "./types";
 
 const MIME: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+  avif: "image/avif",
+  gif: "image/gif",
   mp4: "video/mp4",
   webm: "video/webm",
   mov: "video/quicktime",
@@ -38,17 +44,22 @@ function safeJoin(root: string, key: string): string | null {
 }
 
 /**
- * Dev/self-hosted local storage. PUBLIC objects (images) go under
- * public/uploads and are served statically at /uploads/<key>. PRIVATE objects
- * (course videos/audio/resources, software assets) go under a SEPARATE root
- * OUTSIDE public/ so they're never statically served — they're only reachable
- * through the auth-gated /api/media routes (which call getObject). In prod each
- * root must be a persistent volume (the container fs is otherwise ephemeral).
+ * Dev/self-hosted local storage. BOTH public and private objects are streamed
+ * back through app routes (public → /api/media/asset, private/gated →
+ * /api/media/*), never via Next's static `public/` handler — under
+ * `output: 'standalone'` that handler serves a BUILD-TIME copy of `public/`, so
+ * runtime-written uploads on a mounted volume would 404. Serving from the
+ * storage layer makes uploads work on any host as long as the roots below are
+ * persistent volumes (the container fs is otherwise ephemeral).
  *
- * Override the private root with PRIVATE_UPLOADS_DIR (absolute path).
+ * Roots are configurable so the volume path is deterministic regardless of the
+ * runtime working directory:
+ *   UPLOADS_DIR          public images   (default <cwd>/public/uploads)
+ *   PRIVATE_UPLOADS_DIR  gated media     (default <cwd>/private-uploads)
  */
 export function createLocalStorage(): Storage {
-  const publicRoot = path.join(process.cwd(), "public", "uploads");
+  const publicRoot =
+    process.env.UPLOADS_DIR || path.join(process.cwd(), "public", "uploads");
   const privateRoot =
     process.env.PRIVATE_UPLOADS_DIR ||
     path.join(process.cwd(), "private-uploads");
@@ -109,12 +120,15 @@ export function createLocalStorage(): Storage {
       await mkdir(path.dirname(dest), { recursive: true });
       await writeFile(dest, body);
       // Private objects have no public URL — they're served via the gated route.
-      return { url: isPrivate ? "" : `/uploads/${key}` };
+      // Public objects are served through /api/media/asset (NOT static public/),
+      // so they work under standalone output on a mounted volume.
+      return { url: isPrivate ? "" : `/api/media/asset/${key}` };
     },
-    async getObject({ key, range }) {
-      // Gated media is private; try the private root first, then fall back to
-      // the public root for objects written before the public/private split.
-      for (const root of [privateRoot, publicRoot]) {
+    async getObject({ key, range, publicOnly }) {
+      // publicOnly (the un-authenticated asset route) may ONLY read the public
+      // root. Otherwise try private first, then public (back-compat).
+      const roots = publicOnly ? [publicRoot] : [privateRoot, publicRoot];
+      for (const root of roots) {
         const filePath = safeJoin(root, key);
         if (!filePath) continue;
         const res = await streamFile(filePath, key, range);

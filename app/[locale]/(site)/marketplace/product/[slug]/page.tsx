@@ -1,0 +1,466 @@
+import { notFound } from "next/navigation";
+import { setRequestLocale, getTranslations } from "next-intl/server";
+import { Truck, ShieldCheck } from "lucide-react";
+import { Container } from "@/components/ui/container";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { CardGrid } from "@/components/ui/card-grid";
+import { JsonLd } from "@/components/ui/json-ld";
+import { RecentlyViewed } from "@/components/ui/recently-viewed";
+import { Link } from "@/i18n/navigation";
+import { ProductGallery } from "@/components/shop/product-gallery";
+import { ProductCard } from "@/components/shop/product-card";
+import { ShareButtons } from "@/components/blog/share-buttons";
+import { MarketplaceBuyBox } from "@/components/marketplace/buy-box";
+import { RatingStars } from "@/components/marketplace/rating-stars";
+import {
+  ReviewList,
+  type ReviewView,
+} from "@/components/marketplace/review-list";
+import { ReviewForm } from "@/components/marketplace/review-form";
+import {
+  getProductBySlug,
+  listRelatedProducts,
+} from "@/lib/repositories/products.repo";
+import {
+  getBrandById,
+  getCategoryById,
+} from "@/lib/repositories/taxonomy.repo";
+import { listApprovedByProduct } from "@/lib/repositories/reviews.repo";
+import { localize } from "@/lib/schemas/localized";
+import { pageMetadata } from "@/lib/seo/metadata";
+import { fromMinor } from "@/lib/money";
+import { siteConfig } from "@/lib/site-config";
+import type { Locale } from "@/i18n/routing";
+
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string; slug: string }>;
+}) {
+  const { locale, slug } = await params;
+  const product = await getProductBySlug(slug, "marketplace").catch(() => null);
+  if (!product) return {};
+  return pageMetadata({
+    locale: locale as Locale,
+    path: `/marketplace/product/${slug}`,
+    title: localize(product.name, locale as Locale),
+    description: product.description
+      ? localize(product.description, locale as Locale)
+      : undefined,
+  });
+}
+
+export default async function MarketplaceProductDetail({
+  params,
+}: {
+  params: Promise<{ locale: string; slug: string }>;
+}) {
+  const { locale, slug } = await params;
+  setRequestLocale(locale);
+  const l = locale as Locale;
+  const t = await getTranslations({ locale, namespace: "shop.product" });
+  const tm = await getTranslations({
+    locale,
+    namespace: "marketplace.product",
+  });
+  const tr = await getTranslations({ locale, namespace: "reviews" });
+  const nav = await getTranslations({ locale, namespace: "nav" });
+  const tmh = await getTranslations({ locale, namespace: "marketplace.home" });
+
+  const product = await getProductBySlug(slug, "marketplace").catch(() => null);
+  if (!product) notFound();
+
+  const name = localize(product.name, l);
+  const productId = String(product._id);
+  const [related, brand, category, reviews] = await Promise.all([
+    listRelatedProducts(
+      String(product.categoryId),
+      productId,
+      4,
+      "marketplace",
+    ).catch(() => []),
+    product.brandId
+      ? getBrandById(String(product.brandId)).catch(() => null)
+      : Promise.resolve(null),
+    product.categoryId
+      ? getCategoryById(String(product.categoryId)).catch(() => null)
+      : Promise.resolve(null),
+    listApprovedByProduct(productId, 20).catch(() => []),
+  ]);
+
+  // Client-safe variant data.
+  const options = product.variantOptions.map((o) => ({
+    name: o.name.en,
+    label: localize(o.name, l),
+    values: o.values.map((v) => ({ value: v.en, label: localize(v, l) })),
+  }));
+  const variants = product.variants.map((v) => ({
+    id: v.id,
+    options: v.options,
+    priceMinor: v.priceMinorOverride ?? product.priceMinor,
+    stockQty: v.stockQty,
+    sku: v.sku,
+  }));
+
+  const reviewViews: ReviewView[] = reviews.map((r) => ({
+    id: String(r._id),
+    authorName: r.authorName,
+    rating: r.rating,
+    title: r.title,
+    body: r.body,
+    verifiedPurchase: r.verifiedPurchase,
+    createdAt: new Date(r.createdAt).toISOString(),
+  }));
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name,
+    sku: product.sku,
+    image: product.images,
+    description: product.description
+      ? localize(product.description, l)
+      : undefined,
+    brand: brand
+      ? { "@type": "Brand", name: localize(brand.name, l) }
+      : undefined,
+    ...(product.priceMinor != null
+      ? {
+          offers: {
+            "@type": "Offer",
+            priceCurrency: "BDT",
+            price: fromMinor(product.priceMinor).toFixed(2),
+            url: `${siteConfig.url}/${l}/marketplace/product/${slug}`,
+          },
+        }
+      : {}),
+    ...(product.ratingCount > 0
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: product.ratingAvg,
+            reviewCount: product.ratingCount,
+          },
+        }
+      : {}),
+  };
+
+  const mono: React.CSSProperties = {
+    fontFamily: "var(--font-mono)",
+    fontSize: "var(--fs-caption)",
+    color: "var(--color-text-muted)",
+  };
+
+  return (
+    <section style={{ paddingBlock: "clamp(28px, 4vw, 56px)" }}>
+      <JsonLd data={jsonLd} />
+      <Container
+        style={{ display: "flex", flexDirection: "column", gap: "var(--s-10)" }}
+      >
+        <Breadcrumb
+          items={[
+            { label: nav("home"), href: "/" },
+            { label: tmh("title"), href: "/marketplace" },
+            ...(category
+              ? [
+                  {
+                    label: localize(category.name, l),
+                    href: `/marketplace/category/${category.slug}`,
+                  },
+                ]
+              : []),
+            { label: name },
+          ]}
+        />
+
+        <div
+          className="equal-2col"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1.05fr) minmax(0, 1fr)",
+            gap: "var(--s-10)",
+            alignItems: "start",
+          }}
+        >
+          <ProductGallery images={product.images} name={name} />
+
+          <div style={{ display: "grid", gap: "var(--s-5)" }}>
+            {brand && (
+              <span style={{ ...mono, color: "var(--color-brand-deep)" }}>
+                {localize(brand.name, l)}
+              </span>
+            )}
+            <h1
+              style={{
+                fontSize: "var(--fs-h2)",
+                color: "var(--color-text-strong)",
+                lineHeight: 1.12,
+                margin: 0,
+              }}
+            >
+              {name}
+            </h1>
+            {product.ratingCount > 0 && (
+              <RatingStars
+                value={product.ratingAvg}
+                count={product.ratingCount}
+                size={16}
+              />
+            )}
+
+            <hr
+              style={{
+                border: 0,
+                borderTop: "1px solid var(--color-border)",
+                margin: 0,
+              }}
+            />
+
+            <MarketplaceBuyBox
+              productId={productId}
+              basePriceMinor={product.priceMinor}
+              baseStockQty={product.stockQty}
+              options={options}
+              variants={variants}
+              locale={l}
+            />
+
+            <ShareButtons title={name} />
+
+            <div
+              style={{
+                ...mono,
+                display: "flex",
+                gap: "var(--s-4)",
+                flexWrap: "wrap",
+              }}
+            >
+              <span>
+                {t("sku")}: {product.sku}
+              </span>
+              {category && (
+                <span>
+                  {t("categories")}:{" "}
+                  <Link
+                    href={`/marketplace/category/${category.slug}`}
+                    style={{ color: "var(--color-brand-deep)" }}
+                  >
+                    {localize(category.name, l)}
+                  </Link>
+                </span>
+              )}
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "var(--s-3)",
+              }}
+            >
+              {[
+                {
+                  icon: Truck,
+                  title: t("trustDelivery"),
+                  note: t("deliveryNote"),
+                },
+                {
+                  icon: ShieldCheck,
+                  title: t("trustGenuine"),
+                  note: t("genuineNote"),
+                },
+              ].map(({ icon: Icon, title, note }) => (
+                <div
+                  key={title}
+                  style={{
+                    display: "flex",
+                    gap: 10,
+                    alignItems: "flex-start",
+                    padding: "var(--s-3) var(--s-4)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "var(--r-lg)",
+                  }}
+                >
+                  <Icon
+                    size={18}
+                    color="var(--color-brand)"
+                    strokeWidth={1.75}
+                    style={{ flexShrink: 0, marginTop: 2 }}
+                  />
+                  <div style={{ display: "grid", gap: 2 }}>
+                    <strong
+                      style={{
+                        fontSize: "var(--fs-body-sm)",
+                        color: "var(--color-text-strong)",
+                      }}
+                    >
+                      {title}
+                    </strong>
+                    <span
+                      style={{
+                        fontSize: "var(--fs-caption)",
+                        color: "var(--color-text-muted)",
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      {note}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Overview + specs */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--s-8)",
+            maxWidth: 820,
+          }}
+        >
+          {product.description && (
+            <SectionBlock title={t("overview")}>
+              <p
+                style={{
+                  color: "var(--color-text)",
+                  lineHeight: "var(--lh-body)",
+                  whiteSpace: "pre-line",
+                  margin: 0,
+                }}
+              >
+                {localize(product.description, l)}
+              </p>
+            </SectionBlock>
+          )}
+          {product.specs.length > 0 && (
+            <SectionBlock title={t("specifications")}>
+              <table style={{ borderCollapse: "collapse", width: "100%" }}>
+                <tbody>
+                  {product.specs.map((s, i) => (
+                    <tr
+                      key={i}
+                      style={{ borderTop: "1px solid var(--color-hairline)" }}
+                    >
+                      <th
+                        style={{
+                          textAlign: "left",
+                          padding: "10px 16px 10px 0",
+                          color: "var(--color-text-muted)",
+                          fontWeight: 500,
+                          width: "40%",
+                          verticalAlign: "top",
+                        }}
+                      >
+                        {localize(s.key, l)}
+                      </th>
+                      <td style={{ padding: "10px 0" }}>
+                        {localize(s.value, l)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </SectionBlock>
+          )}
+        </div>
+
+        {/* Reviews */}
+        <div style={{ display: "grid", gap: "var(--s-6)", maxWidth: 820 }}>
+          <h2
+            style={{
+              fontSize: "var(--fs-h3)",
+              color: "var(--color-text-strong)",
+              margin: 0,
+            }}
+          >
+            {tr("sectionTitle")}
+          </h2>
+          <div
+            className="equal-2col"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "minmax(0, 1.3fr) minmax(0, 1fr)",
+              gap: "var(--s-6)",
+              alignItems: "start",
+            }}
+          >
+            <ReviewList reviews={reviewViews} locale={l} />
+            <ReviewForm productId={productId} />
+          </div>
+        </div>
+
+        {related.length > 0 && (
+          <Rail title={tm("more")}>
+            <CardGrid columns={4}>
+              {related.map((p) => (
+                <ProductCard
+                  key={String(p._id)}
+                  product={p}
+                  locale={l}
+                  mode="marketplace"
+                />
+              ))}
+            </CardGrid>
+          </Rail>
+        )}
+
+        <RecentlyViewed
+          title={tm("recentlyViewed")}
+          current={{
+            href: `/marketplace/product/${slug}`,
+            name,
+            image: product.images[0],
+            meta: undefined,
+          }}
+        />
+      </Container>
+    </section>
+  );
+}
+
+function SectionBlock({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      style={{ display: "flex", flexDirection: "column", gap: "var(--s-4)" }}
+    >
+      <h2
+        style={{ fontSize: "var(--fs-h4)", color: "var(--color-text-strong)" }}
+      >
+        {title}
+      </h2>
+      {children}
+    </div>
+  );
+}
+
+function Rail({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      style={{ display: "flex", flexDirection: "column", gap: "var(--s-5)" }}
+    >
+      <h2
+        style={{ fontSize: "var(--fs-h4)", color: "var(--color-text-strong)" }}
+      >
+        {title}
+      </h2>
+      {children}
+    </div>
+  );
+}

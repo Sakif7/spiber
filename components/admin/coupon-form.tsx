@@ -37,6 +37,7 @@ export function CouponForm() {
   const [value, setValue] = useState("");
   const [minSubtotal, setMinSubtotal] = useState("");
   const [usageLimit, setUsageLimit] = useState("");
+  const [appliesTo, setAppliesTo] = useState("all");
   const [active, setActive] = useState(true);
 
   const [submitting, setSubmitting] = useState(false);
@@ -48,6 +49,7 @@ export function CouponForm() {
     setValue("");
     setMinSubtotal("");
     setUsageLimit("");
+    setAppliesTo("all");
     setActive(true);
   }
 
@@ -79,6 +81,7 @@ export function CouponForm() {
       code: trimmedCode,
       type,
       value: payloadValue,
+      appliesTo,
       active,
     };
 
@@ -192,6 +195,22 @@ export function CouponForm() {
             placeholder="Optional"
           />
           <span style={hint}>Leave blank for no minimum.</span>
+        </div>
+
+        <div style={fieldWrap}>
+          <Label htmlFor="coupon-scope">Applies to</Label>
+          <select
+            id="coupon-scope"
+            value={appliesTo}
+            onChange={(e) => setAppliesTo(e.target.value)}
+            style={selectStyle}
+          >
+            <option value="all">All storefronts</option>
+            <option value="marketplace">Marketplace</option>
+            <option value="instruments">Instruments</option>
+            <option value="academy">Academy</option>
+            <option value="systems">Systems</option>
+          </select>
         </div>
 
         <div style={fieldWrap}>

@@ -31,7 +31,7 @@ const couponSchema = new Schema<ICoupon>(
     usedCount: { type: Number, default: 0, min: 0 },
     appliesTo: {
       type: String,
-      enum: ["all", "instruments", "academy", "systems"],
+      enum: ["all", "instruments", "marketplace", "academy", "systems"],
       default: "all",
     },
     expiresAt: { type: Date, default: null },

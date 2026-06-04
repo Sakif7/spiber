@@ -28,7 +28,7 @@ export function CartView() {
         }}
       >
         <p style={{ color: "var(--color-text-muted)" }}>{t("empty")}</p>
-        <CtaButton href="/instruments">{t("emptyCta")}</CtaButton>
+        <CtaButton href="/marketplace">{t("emptyCta")}</CtaButton>
       </div>
     );
   }
@@ -53,7 +53,7 @@ export function CartView() {
       >
         {cart.items.map((item) => (
           <li
-            key={item.productId}
+            key={`${item.productId}:${item.variantId ?? ""}`}
             style={{
               display: "grid",
               gridTemplateColumns: "72px 1fr auto",
@@ -93,11 +93,21 @@ export function CartView() {
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <Link
-                href={`/instruments/product/${item.slug}`}
+                href={`/marketplace/product/${item.slug}`}
                 style={{ fontWeight: 600, color: "var(--color-text-strong)" }}
               >
                 {item.name}
               </Link>
+              {item.variantLabel && (
+                <span
+                  style={{
+                    fontSize: "var(--fs-caption)",
+                    color: "var(--color-text-muted)",
+                  }}
+                >
+                  {item.variantLabel}
+                </span>
+              )}
               <span style={{ color: "var(--color-brand-deep)" }}>
                 {formatBDT(item.priceMinor, locale)}
               </span>
@@ -115,7 +125,11 @@ export function CartView() {
                 value={item.qty}
                 max={Math.min(item.stockQty, 999)}
                 onChange={(qty) =>
-                  update.mutate({ productId: item.productId, qty })
+                  update.mutate({
+                    productId: item.productId,
+                    variantId: item.variantId,
+                    qty,
+                  })
                 }
               />
             </div>
@@ -130,7 +144,12 @@ export function CartView() {
               <strong>{formatBDT(item.lineTotalMinor, locale)}</strong>
               <button
                 type="button"
-                onClick={() => remove.mutate({ productId: item.productId })}
+                onClick={() =>
+                  remove.mutate({
+                    productId: item.productId,
+                    variantId: item.variantId,
+                  })
+                }
                 style={{
                   background: "none",
                   border: 0,
@@ -165,8 +184,8 @@ export function CartView() {
       </div>
 
       <div style={{ display: "flex", gap: "var(--s-4)", flexWrap: "wrap" }}>
-        <CtaButton href="/instruments/checkout">{t("checkout")}</CtaButton>
-        <CtaButton href="/instruments" variant="secondary">
+        <CtaButton href="/marketplace/checkout">{t("checkout")}</CtaButton>
+        <CtaButton href="/marketplace" variant="secondary">
           {t("continue")}
         </CtaButton>
       </div>

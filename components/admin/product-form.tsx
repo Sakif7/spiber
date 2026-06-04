@@ -65,13 +65,16 @@ export function ProductForm({
     setSaving(true);
     setError(null);
     const payload = {
+      // Instruments products are quote-only (catalog + RFQ; no cart/checkout).
+      storefront: "instruments" as const,
       sku,
       slug,
       name: { en: nameEn, bn: nameBn || undefined },
       description: descEn ? { en: descEn, bn: descBn || undefined } : undefined,
       categoryId,
       brandId: brandId || undefined,
-      priceMinor: toMinor(Number(price) || 0),
+      // Optional — blank means "Price on request".
+      priceMinor: price.trim() ? toMinor(Number(price) || 0) : null,
       lowStockThreshold: Number(lowStock) || 0,
       status,
       specs: specs.filter((s) => s.key.en && s.value.en),
@@ -196,10 +199,11 @@ export function ProductForm({
       </div>
       <div style={row}>
         <div style={field}>
-          <Label>Price (BDT)</Label>
+          <Label>Price (BDT, optional)</Label>
           <Input
             type="number"
             value={price}
+            placeholder="Leave blank for “Price on request”"
             onChange={(e) => setPrice(e.target.value)}
           />
         </div>

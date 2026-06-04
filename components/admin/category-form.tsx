@@ -7,11 +7,18 @@ import { Label } from "@/components/ui/label";
 import { CtaButton } from "@/components/ui/cta-button";
 import { formatApiError } from "@/lib/http/form-error";
 
-export function CategoryForm() {
+export function CategoryForm({
+  storefront = "instruments",
+  parents,
+}: {
+  storefront?: "instruments" | "marketplace";
+  parents?: { id: string; name: string }[];
+}) {
   const router = useRouter();
   const [nameEn, setNameEn] = useState("");
   const [nameBn, setNameBn] = useState("");
   const [slug, setSlug] = useState("");
+  const [parentId, setParentId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -25,6 +32,8 @@ export function CategoryForm() {
     const payload = {
       name: { en: nameEn.trim(), bn: nameBn.trim() || undefined },
       slug: slug.trim() || undefined,
+      storefront,
+      parentId: parentId || undefined,
     };
     let json: {
       ok?: boolean;
@@ -41,6 +50,7 @@ export function CategoryForm() {
         setNameEn("");
         setNameBn("");
         setSlug("");
+        setParentId("");
         router.refresh();
         setSaving(false);
         return;
@@ -84,6 +94,31 @@ export function CategoryForm() {
           onChange={(e) => setSlug(e.target.value)}
         />
       </div>
+
+      {parents && (
+        <div style={field}>
+          <Label>Parent category</Label>
+          <select
+            value={parentId}
+            onChange={(e) => setParentId(e.target.value)}
+            style={{
+              height: 40,
+              padding: "0 10px",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--r-sm)",
+              font: "inherit",
+              background: "var(--color-surface)",
+            }}
+          >
+            <option value="">— top level —</option>
+            {parents.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {error && (
         <p style={{ margin: 0, color: "var(--color-error)" }}>{error}</p>

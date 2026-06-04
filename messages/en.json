@@ -11,7 +11,8 @@
     "backHome": "Back to home",
     "loading": "Loading…",
     "view": "View details",
-    "read": "Read article"
+    "read": "Read article",
+    "from": "From"
   },
   "search": {
     "placeholder": "Search instruments, courses, software…",
@@ -55,7 +56,8 @@
     "systems": "Systems",
     "tourism": "Tourism",
     "consulting": "Consulting",
-    "blog": "Blog"
+    "blog": "Blog",
+    "marketplace": "Marketplace"
   },
   "localeSwitcher": {
     "label": "Language",
@@ -659,6 +661,27 @@
         ]
       },
       {
+        "title": "Marketplace",
+        "links": [
+          {
+            "label": "All products",
+            "href": "/marketplace"
+          },
+          {
+            "label": "Medical",
+            "href": "/marketplace/category/medical"
+          },
+          {
+            "label": "Health & Wellness",
+            "href": "/marketplace/category/health-and-wellness"
+          },
+          {
+            "label": "Technology",
+            "href": "/marketplace/category/technology"
+          }
+        ]
+      },
+      {
         "title": "Services",
         "links": [
           {
@@ -726,7 +749,10 @@
       "clear": "Clear all",
       "noResults": "No products match your filters.",
       "prev": "Previous",
-      "next": "Next"
+      "next": "Next",
+      "rating": "Rating",
+      "anyRating": "Any rating",
+      "starsAndUp": "{n} stars & up"
     },
     "product": {
       "addToCart": "Add to cart",
@@ -1032,5 +1058,108 @@
     "tag": "Tag",
     "inCategory": "In {name}",
     "taggedWith": "Tagged {name}"
+  },
+  "quotation": {
+    "quantity": "Quantity",
+    "adding": "Adding…",
+    "addToQuote": "Add to quote",
+    "addedToQuote": "Added to your quote list",
+    "requestQuotation": "Request quotation",
+    "requestQuotationShort": "Request quote",
+    "viewQuoteList": "View quote list",
+    "priceOnRequest": "Price on request",
+    "priceOnRequestNote": "Pricing for medical instruments is provided per request. Add items to your quote list and request a tailored quotation.",
+    "priceOnRequestNoteShort": "Request a tailored quotation",
+    "pageTitle": "Request for Quotation",
+    "pageLede": "Review your selected instruments, set quantities, and submit a single quotation request. Our team will respond with pricing and availability.",
+    "myQuotations": "My quotations",
+    "reference": "Reference",
+    "date": "Date",
+    "items": "Items",
+    "status": "Status",
+    "quotedTotal": "Quoted total",
+    "deliverTo": "Deliver to",
+    "validUntil": "Valid until",
+    "downloadQuote": "Download quote (PDF)",
+    "emptyTitle": "Your quote list is empty",
+    "emptyNote": "Browse the instruments catalog and add products to your quote list to request a quotation.",
+    "browseCatalog": "Browse catalog",
+    "itemsTitle": "Items in this request",
+    "detailsTitle": "Your details",
+    "name": "Full name",
+    "email": "Email",
+    "organization": "Organization",
+    "phone": "Phone",
+    "district": "District",
+    "city": "City / area",
+    "timeline": "Preferred timeline",
+    "timelinePlaceholder": "e.g. within 2 weeks",
+    "notes": "Notes",
+    "remove": "Remove",
+    "submitRequest": "Submit quotation request",
+    "submitting": "Submitting…",
+    "error": "Something went wrong. Please try again.",
+    "successTitle": "Quotation request received",
+    "successNote": "Thanks — we've received your request and emailed you a confirmation. Our team will respond with a quotation shortly.",
+    "continueBrowsing": "Continue browsing",
+    "viewMyQuotations": "View my quotations",
+    "statuses": {
+      "new": "New",
+      "quoted": "Quoted",
+      "negotiating": "Negotiating",
+      "won": "Won",
+      "lost": "Lost"
+    }
+  },
+  "marketplace": {
+    "home": {
+      "metaTitle": "Spiber Marketplace — Healthcare, technology & lifestyle",
+      "metaDescription": "Shop medical, health & wellness, technology, home and more across the Spiber Marketplace. Delivered across Bangladesh.",
+      "eyebrow": "Spiber Marketplace",
+      "title": "Everything for health, home & life",
+      "lede": "A multi-category marketplace — medical essentials, wellness, technology, home and more, delivered across Bangladesh.",
+      "search": "Search",
+      "searchPlaceholder": "Search products across the marketplace…",
+      "shopByCategory": "Shop by category",
+      "deals": "Featured deals",
+      "featured": "Featured products",
+      "comingSoonTitle": "Products coming soon",
+      "comingSoonNote": "We're stocking the shelves. Browse the categories above — products will appear here shortly.",
+      "allProducts": "All products",
+      "resultsFor": "Results for “{q}”"
+    },
+    "product": {
+      "more": "More products",
+      "recentlyViewed": "Recently viewed",
+      "selectOptions": "Select options",
+      "selectToSeePrice": "Select options to see price"
+    },
+    "trust": {
+      "deliveryTitle": "Nationwide delivery",
+      "deliveryNote": "Pathao, Steadfast, RedX & more",
+      "paymentTitle": "Flexible payment",
+      "paymentNote": "bKash, Nagad, cards & cash on delivery",
+      "genuineTitle": "100% genuine",
+      "genuineNote": "Sourced from verified suppliers",
+      "returnsTitle": "Easy returns",
+      "returnsNote": "Hassle-free return policy"
+    }
+  },
+  "reviews": {
+    "sectionTitle": "Customer reviews",
+    "none": "No reviews yet. Be the first to review this product.",
+    "verified": "Verified purchase",
+    "writeTitle": "Write a review",
+    "titleLabel": "Title (optional)",
+    "bodyLabel": "Your review",
+    "submit": "Submit review",
+    "submitting": "Submitting…",
+    "submitted": "Thanks for your review!",
+    "pendingNote": "Your review will appear once it's approved.",
+    "signInPrompt": "Sign in to write a review.",
+    "signIn": "Sign in",
+    "ratingRequired": "Please select a rating.",
+    "alreadyReviewed": "You've already reviewed this product.",
+    "error": "Something went wrong. Please try again."
   }
 }

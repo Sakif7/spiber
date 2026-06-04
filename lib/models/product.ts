@@ -1,10 +1,26 @@
 import mongoose, { Schema, type Model } from "mongoose";
 import { localizedDef, type LocalizedDoc } from "./_shared";
-import type { ProductStatus } from "@/lib/schemas/catalog";
+import type { ProductStatus, Storefront } from "@/lib/schemas/catalog";
 
 export interface ISpec {
   key: LocalizedDoc;
   value: LocalizedDoc;
+}
+
+/** A variant OPTION dimension (e.g. Size → S/M/L), localized for display. */
+export interface IVariantOption {
+  name: LocalizedDoc;
+  values: LocalizedDoc[];
+}
+
+/** A concrete purchasable variant with its own price + stock. */
+export interface IProductVariant {
+  id: string;
+  options: { name: string; value: string }[];
+  sku: string;
+  priceMinorOverride?: number | null;
+  stockQty: number;
+  image?: string;
 }
 
 export interface IProduct {
@@ -14,12 +30,19 @@ export interface IProduct {
   description?: LocalizedDoc;
   brandId?: mongoose.Types.ObjectId | string | null;
   categoryId: mongoose.Types.ObjectId | string;
+  storefront: Storefront;
   specs: ISpec[];
   images: string[];
-  priceMinor: number;
+  /** null = "Price on request" (instruments) or variant-priced (marketplace). */
+  priceMinor: number | null;
   stockQty: number;
   lowStockThreshold: number;
   status: ProductStatus;
+  featured: boolean;
+  variantOptions: IVariantOption[];
+  variants: IProductVariant[];
+  ratingAvg: number;
+  ratingCount: number;
   deletedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -27,6 +50,34 @@ export interface IProduct {
 
 const specSchema = new Schema<ISpec>(
   { key: { ...localizedDef }, value: { ...localizedDef } },
+  { _id: false },
+);
+
+const variantOptionSchema = new Schema<IVariantOption>(
+  { name: { ...localizedDef }, values: { type: [localizedDef], default: [] } },
+  { _id: false },
+);
+
+const productVariantSchema = new Schema<IProductVariant>(
+  {
+    id: { type: String, required: true },
+    options: {
+      type: [
+        new Schema(
+          {
+            name: { type: String, required: true },
+            value: { type: String, required: true },
+          },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
+    sku: { type: String, required: true, trim: true },
+    priceMinorOverride: { type: Number, default: null, min: 0 },
+    stockQty: { type: Number, default: 0, min: 0 },
+    image: { type: String },
+  },
   { _id: false },
 );
 
@@ -48,9 +99,17 @@ const productSchema = new Schema<IProduct>(
       required: true,
       index: true,
     },
+    storefront: {
+      type: String,
+      enum: ["instruments", "marketplace"],
+      required: true,
+      default: "marketplace",
+      index: true,
+    },
     specs: { type: [specSchema], default: [] },
     images: { type: [String], default: [] },
-    priceMinor: { type: Number, required: true, min: 0 },
+    // null = "Price on request" (instruments) or variant-priced (marketplace).
+    priceMinor: { type: Number, default: null, min: 0 },
     stockQty: { type: Number, default: 0 },
     lowStockThreshold: { type: Number, default: 5, min: 0 },
     status: {
@@ -59,6 +118,11 @@ const productSchema = new Schema<IProduct>(
       default: "draft",
       index: true,
     },
+    featured: { type: Boolean, default: false },
+    variantOptions: { type: [variantOptionSchema], default: [] },
+    variants: { type: [productVariantSchema], default: [] },
+    ratingAvg: { type: Number, default: 0, min: 0, max: 5 },
+    ratingCount: { type: Number, default: 0, min: 0 },
     deletedAt: { type: Date, default: null },
   },
   { collection: "products", timestamps: true },
@@ -76,8 +140,10 @@ productSchema.index(
 );
 // Search across localized names + SKU.
 productSchema.index({ "name.en": "text", "name.bn": "text", sku: "text" });
-// Common listing sort/filter.
-productSchema.index({ status: 1, categoryId: 1, priceMinor: 1 });
+// Storefront-scoped listing/filter/sort.
+productSchema.index({ storefront: 1, status: 1, categoryId: 1, priceMinor: 1 });
+productSchema.index({ storefront: 1, featured: 1, status: 1 });
+productSchema.index({ storefront: 1, status: 1, ratingAvg: -1 });
 
 export const Product: Model<IProduct> =
   (mongoose.models.Product as Model<IProduct>) ??

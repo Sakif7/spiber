@@ -29,3 +29,7 @@ export const licenseKey = (): string => makeId("SPM-LIC", 8);
 export const inquiryNumber = (): string => makeId("SPM-INQ");
 /** SPM-TASK-… — a provisioning-task reference. */
 export const provisioningTaskRef = (): string => makeId("SPM-TASK");
+/** SPM-RFQ-… — an instruments quotation (request-for-quote) reference. */
+export const quotationNumber = (): string => makeId("SPM-RFQ");
+/** VAR-… — a stable product-variant id (referenced by cart/order/inventory). */
+export const variantId = (): string => makeId("VAR", 6);

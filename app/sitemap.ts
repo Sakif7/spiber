@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { routing } from "@/i18n/routing";
 import { siteConfig, publicRoutes } from "@/lib/site-config";
 import { listProducts } from "@/lib/repositories/products.repo";
+import { listCategories } from "@/lib/repositories/taxonomy.repo";
 import { listCourses } from "@/lib/repositories/courses.repo";
 import { listSoftwareProducts } from "@/lib/repositories/software.repo";
 import { listVisiblePostsForFeed } from "@/lib/repositories/blog.repo";
@@ -18,11 +19,37 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     alternates: { languages: languagesFor(route) },
   }));
 
-  // Active products (best-effort; sitemap still builds if the DB is down).
+  // Active products per storefront (best-effort; sitemap builds if DB is down).
   try {
-    const { items } = await listProducts({ status: "active", pageSize: 60 });
-    for (const p of items) {
+    const [instruments, marketplace, mpCategories] = await Promise.all([
+      listProducts({
+        storefront: "instruments",
+        status: "active",
+        pageSize: 60,
+      }),
+      listProducts({
+        storefront: "marketplace",
+        status: "active",
+        pageSize: 60,
+      }),
+      listCategories("marketplace"),
+    ]);
+    for (const p of instruments.items) {
       const route = `/instruments/product/${p.slug}`;
+      entries.push({
+        url: urlFor(route, routing.defaultLocale),
+        alternates: { languages: languagesFor(route) },
+      });
+    }
+    for (const p of marketplace.items) {
+      const route = `/marketplace/product/${p.slug}`;
+      entries.push({
+        url: urlFor(route, routing.defaultLocale),
+        alternates: { languages: languagesFor(route) },
+      });
+    }
+    for (const c of mpCategories) {
+      const route = `/marketplace/category/${c.slug}`;
       entries.push({
         url: urlFor(route, routing.defaultLocale),
         alternates: { languages: languagesFor(route) },

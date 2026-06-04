@@ -8,7 +8,13 @@ import { startRouteOverlay } from "@/components/layout/route-transition-overlay"
 
 export type BrandOption = { id: string; name: string };
 
-export function Filters({ brands }: { brands: BrandOption[] }) {
+export function Filters({
+  brands,
+  showRating = false,
+}: {
+  brands: BrandOption[];
+  showRating?: boolean;
+}) {
   const t = useTranslations("shop.listing");
   const router = useRouter();
   const pathname = usePathname();
@@ -19,6 +25,7 @@ export function Filters({ brands }: { brands: BrandOption[] }) {
   const [min, setMin] = useState(sp.get("min") ?? "");
   const [max, setMax] = useState(sp.get("max") ?? "");
   const [inStock, setInStock] = useState(sp.get("inStock") === "1");
+  const [rating, setRating] = useState(sp.get("rating") ?? "");
   const [sort, setSort] = useState(sp.get("sort") ?? "newest");
 
   // Navigate only when the target URL actually differs from the current one. A
@@ -41,6 +48,7 @@ export function Filters({ brands }: { brands: BrandOption[] }) {
     if (min) p.set("min", min);
     if (max) p.set("max", max);
     if (inStock) p.set("inStock", "1");
+    if (showRating && rating) p.set("rating", rating);
     if (sort && sort !== "newest") p.set("sort", sort);
     navIfChanged(p.toString());
   }
@@ -141,6 +149,22 @@ export function Filters({ brands }: { brands: BrandOption[] }) {
         />
         {t("inStockOnly")}
       </label>
+
+      {showRating && (
+        <div style={{ display: "grid", gap: 6 }}>
+          <span style={label}>{t("rating")}</span>
+          <select
+            style={field}
+            value={rating}
+            onChange={(e) => setRating(e.target.value)}
+          >
+            <option value="">{t("anyRating")}</option>
+            <option value="4">{t("starsAndUp", { n: 4 })}</option>
+            <option value="3">{t("starsAndUp", { n: 3 })}</option>
+            <option value="2">{t("starsAndUp", { n: 2 })}</option>
+          </select>
+        </div>
+      )}
 
       <div style={{ display: "grid", gap: 6 }}>
         <span style={label}>{t("sortBy")}</span>

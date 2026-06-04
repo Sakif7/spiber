@@ -74,6 +74,7 @@ export default async function InstrumentsHub({
   try {
     const [r, cs, bs] = await Promise.all([
       listProducts({
+        storefront: "instruments",
         status: "active",
         search: str(sp.q),
         brandId: str(sp.brand),
@@ -83,7 +84,7 @@ export default async function InstrumentsHub({
         sort: (str(sp.sort) as ProductSort) ?? "newest",
         page,
       }),
-      listCategories(),
+      listCategories("instruments"),
       listBrands(),
     ]);
     result = r;
@@ -356,6 +357,7 @@ export default async function InstrumentsHub({
                         key={String(p._id)}
                         product={p}
                         locale={l}
+                        mode="instruments"
                         brandName={
                           p.brandId
                             ? brandMap.get(String(p.brandId))

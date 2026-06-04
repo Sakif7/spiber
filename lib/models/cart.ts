@@ -2,6 +2,8 @@ import mongoose, { Schema, type Model } from "mongoose";
 
 export interface ICartItem {
   productId: mongoose.Types.ObjectId;
+  /** null = the product itself (no variants); else a Product.variants[].id. */
+  variantId?: string | null;
   qty: number;
   priceMinorSnapshot: number;
 }
@@ -17,6 +19,7 @@ export interface ICart {
 const cartItemSchema = new Schema<ICartItem>(
   {
     productId: { type: Schema.Types.ObjectId, ref: "Product", required: true },
+    variantId: { type: String, default: null },
     qty: { type: Number, required: true, min: 1 },
     priceMinorSnapshot: { type: Number, required: true, min: 0 },
   },

@@ -18,7 +18,7 @@ export default async function NewProductPage({
 
   let categories: Option[] = [];
   try {
-    const rows = await listCategories();
+    const rows = await listCategories("instruments");
     categories = rows.map((c) => ({
       id: String(c._id),
       name: localize(c.name, "en"),

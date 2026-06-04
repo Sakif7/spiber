@@ -36,8 +36,10 @@ export function createR2Storage(): Storage {
       // Private objects are served only through the gated route (no public URL).
       return { url: isPrivate ? "" : `${base}/${key}` };
     },
-    async getObject({ key, range }) {
-      for (const b of new Set([privateBucket, bucket])) {
+    async getObject({ key, range, publicOnly }) {
+      // publicOnly (un-authenticated asset route) may only read the public bucket.
+      const buckets = publicOnly ? [bucket] : [privateBucket, bucket];
+      for (const b of new Set(buckets)) {
         const res = await getFromBucket(b, key, range);
         if (res) return res;
       }

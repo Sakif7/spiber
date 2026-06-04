@@ -32,5 +32,10 @@ export interface Storage {
   getObject(input: {
     key: string;
     range?: string;
+    /**
+     * When true, only PUBLIC objects are eligible (the public asset route is
+     * un-authenticated, so it must never reach into the private/gated store).
+     */
+    publicOnly?: boolean;
   }): Promise<GetObjectResult | null>;
 }

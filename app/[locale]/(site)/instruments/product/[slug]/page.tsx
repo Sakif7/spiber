@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { setRequestLocale, getTranslations } from "next-intl/server";
-import { CreditCard, Truck, BadgeCheck } from "lucide-react";
+import { Truck, BadgeCheck } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { CardGrid } from "@/components/ui/card-grid";
@@ -8,15 +8,13 @@ import { JsonLd } from "@/components/ui/json-ld";
 import { RecentlyViewed } from "@/components/ui/recently-viewed";
 import { Link } from "@/i18n/navigation";
 import { ProductGallery } from "@/components/shop/product-gallery";
-import { BuyBox } from "@/components/shop/buy-box";
+import { AddToQuoteBox } from "@/components/shop/add-to-quote-box";
 import { WishlistButton } from "@/components/shop/wishlist-button";
 import { ProductCard } from "@/components/shop/product-card";
-import { PriceTag } from "@/components/shop/price-tag";
 import { ShareButtons } from "@/components/blog/share-buttons";
 import {
   getProductBySlug,
   listRelatedProducts,
-  frequentlyBoughtTogether,
 } from "@/lib/repositories/products.repo";
 import {
   getBrandById,
@@ -26,8 +24,6 @@ import { listWishlistProductIds } from "@/lib/repositories/wishlist.repo";
 import { getSessionUser } from "@/lib/auth/current-user";
 import { localize } from "@/lib/schemas/localized";
 import { pageMetadata } from "@/lib/seo/metadata";
-import { fromMinor } from "@/lib/money";
-import { siteConfig } from "@/lib/site-config";
 import type { Locale } from "@/i18n/routing";
 
 export const dynamic = "force-dynamic";
@@ -38,7 +34,7 @@ export async function generateMetadata({
   params: Promise<{ locale: string; slug: string }>;
 }) {
   const { locale, slug } = await params;
-  const product = await getProductBySlug(slug).catch(() => null);
+  const product = await getProductBySlug(slug, "instruments").catch(() => null);
   if (!product) return {};
   return pageMetadata({
     locale: locale as Locale,
@@ -59,17 +55,22 @@ export default async function ProductDetail({
   setRequestLocale(locale);
   const l = locale as Locale;
   const t = await getTranslations({ locale, namespace: "shop.product" });
+  const tq = await getTranslations({ locale, namespace: "quotation" });
   const nav = await getTranslations({ locale, namespace: "nav" });
 
-  const product = await getProductBySlug(slug).catch(() => null);
+  const product = await getProductBySlug(slug, "instruments").catch(() => null);
   if (!product) notFound();
 
   const name = localize(product.name, l);
   const productId = String(product._id);
   const sessionUser = await getSessionUser().catch(() => null);
-  const [related, fbt, brand, category, wishIds] = await Promise.all([
-    listRelatedProducts(String(product.categoryId), productId).catch(() => []),
-    frequentlyBoughtTogether(productId).catch(() => []),
+  const [related, brand, category, wishIds] = await Promise.all([
+    listRelatedProducts(
+      String(product.categoryId),
+      productId,
+      4,
+      "instruments",
+    ).catch(() => []),
     product.brandId
       ? getBrandById(String(product.brandId)).catch(() => null)
       : Promise.resolve(null),
@@ -81,19 +82,6 @@ export default async function ProductDetail({
       : Promise.resolve<string[]>([]),
   ]);
   const wishlisted = wishIds.includes(productId);
-
-  const out = product.stockQty <= 0;
-  const low = !out && product.stockQty <= product.lowStockThreshold;
-  const stockLabel = out
-    ? t("outOfStock")
-    : low
-      ? t("lowStock", { count: product.stockQty })
-      : t("inStock");
-  const stockColor = out
-    ? "var(--color-error)"
-    : low
-      ? "var(--color-secondary-deep)"
-      : "var(--color-success)";
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -107,16 +95,6 @@ export default async function ProductDetail({
     brand: brand
       ? { "@type": "Brand", name: localize(brand.name, l) }
       : undefined,
-    offers: {
-      "@type": "Offer",
-      priceCurrency: "BDT",
-      price: fromMinor(product.priceMinor).toFixed(2),
-      availability:
-        product.stockQty > 0
-          ? "https://schema.org/InStock"
-          : "https://schema.org/OutOfStock",
-      url: `${siteConfig.url}/${l}/instruments/product/${slug}`,
-    },
   };
 
   const mono: React.CSSProperties = {
@@ -158,7 +136,7 @@ export default async function ProductDetail({
         >
           <ProductGallery images={product.images} name={name} />
 
-          {/* Buy column */}
+          {/* Quote column */}
           <div style={{ display: "grid", gap: "var(--s-5)" }}>
             {brand && (
               <span style={{ ...mono, color: "var(--color-brand-deep)" }}>
@@ -178,44 +156,27 @@ export default async function ProductDetail({
 
             <div
               style={{
-                display: "flex",
-                alignItems: "baseline",
-                gap: "var(--s-4)",
-                flexWrap: "wrap",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                fontSize: "var(--fs-h4)",
+                fontFamily: "var(--font-display)",
+                color: "var(--color-brand-deep)",
+                fontWeight: 700,
               }}
             >
-              <PriceTag
-                minor={product.priceMinor}
-                locale={l}
-                style={{
-                  fontSize: "var(--fs-h2)",
-                  fontFamily: "var(--font-display)",
-                  color: "var(--color-brand-deep)",
-                  fontWeight: 700,
-                }}
-              />
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  fontSize: "var(--fs-body-sm)",
-                  fontWeight: 600,
-                  color: stockColor,
-                }}
-              >
-                <span
-                  aria-hidden
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: 999,
-                    background: stockColor,
-                  }}
-                />
-                {stockLabel}
-              </span>
+              {tq("priceOnRequest")}
             </div>
+            <p
+              style={{
+                margin: 0,
+                fontSize: "var(--fs-body-sm)",
+                color: "var(--color-text-muted)",
+                maxWidth: "46ch",
+              }}
+            >
+              {tq("priceOnRequestNote")}
+            </p>
 
             <hr
               style={{
@@ -225,46 +186,7 @@ export default async function ProductDetail({
               }}
             />
 
-            {/* Offline-payment info (honest Klarna equivalent) */}
-            <div
-              style={{
-                display: "flex",
-                gap: "var(--s-3)",
-                alignItems: "flex-start",
-                padding: "var(--s-4)",
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--r-lg)",
-                background: "var(--color-surface-2)",
-              }}
-            >
-              <CreditCard
-                size={20}
-                color="var(--color-brand)"
-                strokeWidth={1.75}
-                style={{ flexShrink: 0, marginTop: 2 }}
-              />
-              <div style={{ display: "grid", gap: 2 }}>
-                <strong
-                  style={{
-                    fontSize: "var(--fs-body-sm)",
-                    color: "var(--color-text-strong)",
-                  }}
-                >
-                  {t("payOffline")}
-                </strong>
-                <span
-                  style={{
-                    fontSize: "var(--fs-caption)",
-                    color: "var(--color-text-muted)",
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {t("payOfflineNote")}
-                </span>
-              </div>
-            </div>
-
-            <BuyBox productId={productId} stockQty={product.stockQty} />
+            <AddToQuoteBox productId={productId} />
 
             <div
               style={{
@@ -279,16 +201,6 @@ export default async function ProductDetail({
                 initialWishlisted={wishlisted}
                 withLabel
               />
-              <Link
-                href="/contact"
-                style={{
-                  fontSize: "var(--fs-body-sm)",
-                  fontWeight: 600,
-                  color: "var(--color-text-muted)",
-                }}
-              >
-                {t("requestQuote")}
-              </Link>
             </div>
 
             <ShareButtons title={name} />
@@ -317,23 +229,7 @@ export default async function ProductDetail({
               )}
             </div>
 
-            {product.description && (
-              <p
-                style={{
-                  margin: 0,
-                  color: "var(--color-text-muted)",
-                  lineHeight: "var(--lh-body)",
-                  display: "-webkit-box",
-                  WebkitLineClamp: 3,
-                  WebkitBoxOrient: "vertical",
-                  overflow: "hidden",
-                }}
-              >
-                {localize(product.description, l)}
-              </p>
-            )}
-
-            {/* Delivery / genuine info boxes */}
+            {/* Trust badges */}
             <div
               style={{
                 display: "grid",
@@ -449,35 +345,18 @@ export default async function ProductDetail({
               </table>
             </SectionBlock>
           )}
-
-          <SectionBlock title={t("shipping")}>
-            <p
-              style={{
-                color: "var(--color-text-muted)",
-                lineHeight: "var(--lh-body)",
-                margin: 0,
-              }}
-            >
-              {t("shippingBody")}
-            </p>
-          </SectionBlock>
         </div>
-
-        {fbt.length > 0 && (
-          <Rail title={t("frequentlyBought")}>
-            <CardGrid columns={4}>
-              {fbt.map((p) => (
-                <ProductCard key={String(p._id)} product={p} locale={l} />
-              ))}
-            </CardGrid>
-          </Rail>
-        )}
 
         {related.length > 0 && (
           <Rail title={t("youMayLike")}>
             <CardGrid columns={4}>
               {related.map((p) => (
-                <ProductCard key={String(p._id)} product={p} locale={l} />
+                <ProductCard
+                  key={String(p._id)}
+                  product={p}
+                  locale={l}
+                  mode="instruments"
+                />
               ))}
             </CardGrid>
           </Rail>

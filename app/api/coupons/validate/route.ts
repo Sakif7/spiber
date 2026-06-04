@@ -16,7 +16,12 @@ export async function POST(req: Request) {
 
   const owner = await resolveCartOwner();
   const cart = await getCartView(owner, "en");
-  const result = await validateCoupon(parsed.data.code, cart.subtotalMinor);
+  const result = await validateCoupon(
+    parsed.data.code,
+    cart.subtotalMinor,
+    new Date(),
+    "marketplace",
+  );
   if (!result.ok) return fail({ code: result.reason }, 400);
 
   return ok({ coupon: result.coupon });

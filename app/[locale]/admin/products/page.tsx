@@ -11,7 +11,7 @@ type ProductRow = {
   id: string;
   name: string;
   sku: string;
-  priceMinor: number;
+  priceMinor: number | null;
   stockQty: number;
   lowStockThreshold: number;
   status: string;
@@ -27,7 +27,10 @@ export default async function AdminProductsPage({
 
   let rows: ProductRow[] = [];
   try {
-    const { items } = await listProducts({ pageSize: 60 });
+    const { items } = await listProducts({
+      storefront: "instruments",
+      pageSize: 60,
+    });
     rows = items.map((p) => ({
       id: String(p._id),
       name: localize(p.name, "en"),
@@ -155,7 +158,9 @@ export default async function AdminProductsPage({
                         {p.sku}
                       </td>
                       <td style={{ ...tdStyle, textAlign: "right" }}>
-                        {formatBDT(p.priceMinor, "en")}
+                        {p.priceMinor != null
+                          ? formatBDT(p.priceMinor, "en")
+                          : "On request"}
                       </td>
                       <td
                         style={{

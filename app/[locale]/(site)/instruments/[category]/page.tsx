@@ -59,7 +59,9 @@ export default async function CategoryListing({
   const t = await getTranslations({ locale, namespace: "shop.listing" });
   const nav = await getTranslations({ locale, namespace: "nav" });
 
-  const cat = await getCategoryBySlug(category).catch(() => null);
+  const cat = await getCategoryBySlug(category, "instruments").catch(
+    () => null,
+  );
   if (!cat) notFound();
 
   const page = Math.max(1, parseInt(str(sp.page) ?? "1", 10) || 1);
@@ -77,6 +79,7 @@ export default async function CategoryListing({
   try {
     const [r, bs] = await Promise.all([
       listProducts({
+        storefront: "instruments",
         status: "active",
         categoryId: String(cat._id),
         search: str(sp.q),
@@ -321,6 +324,7 @@ export default async function CategoryListing({
                     key={String(p._id)}
                     product={p}
                     locale={l}
+                    mode="instruments"
                     brandName={
                       p.brandId ? brandMap.get(String(p.brandId)) : undefined
                     }

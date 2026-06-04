@@ -14,6 +14,10 @@ export interface IOrderItem {
     sku: string;
     priceMinor: number;
     image?: string;
+    /** null = no variant; else the Product.variants[].id purchased. */
+    variantId?: string | null;
+    /** Resolved option labels for display, e.g. [{name:"Size",value:"M"}]. */
+    variantOptions?: { name: string; value: string }[];
   };
   qty: number;
   lineTotalMinor: number;
@@ -51,6 +55,7 @@ export interface IOrder {
   couponCode?: string;
   note?: string;
   trackingNumber?: string;
+  storefront: "instruments" | "marketplace";
   idempotencyKey: string;
   timeline: ITimelineEntry[];
   createdAt: Date;
@@ -65,6 +70,16 @@ const orderItemSchema = new Schema<IOrderItem>(
       sku: { type: String, required: true },
       priceMinor: { type: Number, required: true },
       image: { type: String },
+      variantId: { type: String, default: null },
+      variantOptions: {
+        type: [
+          new Schema(
+            { name: { type: String }, value: { type: String } },
+            { _id: false },
+          ),
+        ],
+        default: [],
+      },
     },
     qty: { type: Number, required: true, min: 1 },
     lineTotalMinor: { type: Number, required: true },
@@ -142,6 +157,12 @@ const orderSchema = new Schema<IOrder>(
     couponCode: String,
     note: String,
     trackingNumber: String,
+    storefront: {
+      type: String,
+      enum: ["instruments", "marketplace"],
+      default: "marketplace",
+      index: true,
+    },
     idempotencyKey: { type: String, required: true },
     timeline: {
       type: [
@@ -159,6 +180,7 @@ const orderSchema = new Schema<IOrder>(
 // Idempotent order creation: same key never creates two orders.
 orderSchema.index({ idempotencyKey: 1 }, { unique: true });
 orderSchema.index({ createdAt: -1 });
+orderSchema.index({ storefront: 1, status: 1, createdAt: -1 });
 
 export const Order: Model<IOrder> =
   (mongoose.models.Order as Model<IOrder>) ??

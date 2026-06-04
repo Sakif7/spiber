@@ -22,16 +22,19 @@ export function pageMetadata({
   path: p,
   title,
   description,
+  noindex,
 }: {
   locale: Locale;
   path: string;
   title: string;
   description?: string;
+  noindex?: boolean;
 }): Metadata {
   return {
     title,
     description,
     alternates: alternatesFor(locale, p),
+    ...(noindex ? { robots: { index: false, follow: false } } : {}),
     openGraph: {
       title,
       description,

@@ -7,6 +7,7 @@ export type CouponType = z.infer<typeof couponTypeEnum>;
 export const couponScopeEnum = z.enum([
   "all",
   "instruments",
+  "marketplace",
   "academy",
   "systems",
 ]);

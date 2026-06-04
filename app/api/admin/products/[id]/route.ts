@@ -2,12 +2,9 @@ import { ok, fail } from "@/lib/http/respond";
 import { parseJson } from "@/lib/http/validate";
 import { requireAdmin } from "@/lib/auth/guard";
 import { productInputSchema } from "@/lib/schemas/catalog";
-import {
-  updateProduct,
-  softDeleteProduct,
-} from "@/lib/repositories/products.repo";
+import { softDeleteProduct } from "@/lib/repositories/products.repo";
+import { updateCatalogProduct } from "@/lib/services/catalog-admin.service";
 import { writeAudit } from "@/lib/repositories/audit.repo";
-import { slugify } from "@/lib/slug";
 
 export async function PATCH(
   req: Request,
@@ -21,20 +18,31 @@ export async function PATCH(
   if (!parsed.success) {
     return fail({ code: "invalid_input", details: parsed.issues }, 400);
   }
-  const data = {
-    ...parsed.data,
-    slug: slugify(parsed.data.slug || parsed.data.name.en),
-  };
-  const doc = await updateProduct(id, data);
-  if (!doc) return fail({ code: "not_found" }, 404);
-  await writeAudit({
-    actorId: admin.sub,
-    action: "product.update",
-    entityType: "Product",
-    entityId: id,
-    after: data,
-  });
-  return ok({ id });
+  try {
+    const doc = await updateCatalogProduct(id, parsed.data, admin.sub);
+    if (!doc) return fail({ code: "not_found" }, 404);
+    await writeAudit({
+      actorId: admin.sub,
+      action: "product.update",
+      entityType: "Product",
+      entityId: id,
+      after: { ...parsed.data, storefront: doc.storefront },
+    });
+    return ok({ id });
+  } catch (e: unknown) {
+    if (
+      typeof e === "object" &&
+      e &&
+      "code" in e &&
+      (e as { code?: number }).code === 11000
+    ) {
+      return fail(
+        { code: "duplicate", message: "SKU or slug already exists" },
+        409,
+      );
+    }
+    throw e;
+  }
 }
 
 export async function DELETE(

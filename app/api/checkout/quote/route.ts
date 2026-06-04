@@ -26,7 +26,12 @@ export async function POST(req: Request) {
   let coupon: PricingCoupon = null;
   let couponValid: boolean | undefined;
   if (couponCode) {
-    const v = await validateCoupon(couponCode, cart.subtotalMinor);
+    const v = await validateCoupon(
+      couponCode,
+      cart.subtotalMinor,
+      new Date(),
+      "marketplace",
+    );
     couponValid = v.ok;
     if (v.ok) {
       coupon = {

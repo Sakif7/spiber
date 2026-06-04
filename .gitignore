@@ -57,6 +57,11 @@ Thumbs.db
 # locally-stored uploaded media — public images + private gated media
 /public/uploads/
 /private-uploads/
+# local data dir (when UPLOADS_DIR / PRIVATE_UPLOADS_DIR point at ./data)
+/data/
+
+# local-only sample data for screenshots/QA (not for production)
+/scripts/demo-seed.mjs
 
 # extra
 /.playwright-mcp/

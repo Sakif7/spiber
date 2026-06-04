@@ -21,7 +21,7 @@ export default async function CategoriesPage({
 
   let categories: CategoryRow[] = [];
   try {
-    const rows = await listCategories();
+    const rows = await listCategories("instruments");
     categories = rows.map((c) => ({
       id: String(c._id),
       nameEn: localize(c.name, "en"),

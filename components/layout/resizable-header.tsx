@@ -5,7 +5,7 @@ import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import { Arrow, Container, LocaleSwitcher } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
-import { CartButton } from "@/components/shop/cart-button";
+import { StorefrontAction } from "@/components/shop/storefront-action";
 import { UserMenu } from "@/components/layout/user-menu";
 import { useSession } from "@/components/auth/use-session";
 import { useAuthModal } from "@/components/auth/auth-modal";
@@ -25,6 +25,7 @@ const NAV_ITEMS = [
   { name: "Home", link: "/" },
   { name: "Products & Solutions", link: "#" },
   { name: "Services", link: "#" },
+  { name: "Marketplace", link: "/marketplace" },
   { name: "Blog", link: "/blog" },
   { name: "About", link: "/about" },
 ];
@@ -151,7 +152,7 @@ export function ResizableHeader() {
         <MobileNavHeader>
           <Logo />
           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <CartButton />
+            <StorefrontAction />
             <MobileNavToggle isOpen={open} onClick={() => setOpen((o) => !o)} />
           </div>
         </MobileNavHeader>
@@ -184,6 +185,9 @@ export function ResizableHeader() {
               ))}
             </div>
           ))}
+          <MobileLink href="/marketplace" onClick={() => setOpen(false)}>
+            Marketplace
+          </MobileLink>
           <MobileLink href="/blog" onClick={() => setOpen(false)}>
             Blog
           </MobileLink>
@@ -612,7 +616,7 @@ function DesktopActions() {
       style={{ display: "flex", alignItems: "center", gap: 10 }}
     >
       <LocaleSwitcher />
-      <CartButton />
+      <StorefrontAction />
       <UserMenu />
       <CtaButton />
     </div>

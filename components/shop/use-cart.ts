@@ -5,8 +5,10 @@ import { useLocale } from "next-intl";
 
 export type CartLine = {
   productId: string;
+  variantId: string | null;
   slug: string;
   name: string;
+  variantLabel?: string;
   image?: string;
   priceMinor: number;
   qty: number;
@@ -19,6 +21,12 @@ export type Cart = {
   items: CartLine[];
   subtotalMinor: number;
   count: number;
+};
+
+export type CartMutationInput = {
+  productId: string;
+  qty?: number;
+  variantId?: string | null;
 };
 
 async function cartApi(
@@ -48,17 +56,16 @@ export function useCart() {
   });
 
   const add = useMutation({
-    mutationFn: (v: { productId: string; qty: number }) =>
-      cartApi("POST", locale, v),
+    mutationFn: (v: CartMutationInput) => cartApi("POST", locale, v),
     onSuccess: set,
   });
   const update = useMutation({
-    mutationFn: (v: { productId: string; qty: number }) =>
-      cartApi("PATCH", locale, v),
+    mutationFn: (v: CartMutationInput) => cartApi("PATCH", locale, v),
     onSuccess: set,
   });
   const remove = useMutation({
-    mutationFn: (v: { productId: string }) => cartApi("DELETE", locale, v),
+    mutationFn: (v: { productId: string; variantId?: string | null }) =>
+      cartApi("DELETE", locale, v),
     onSuccess: set,
   });
 

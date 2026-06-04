@@ -16,7 +16,7 @@ export async function POST(req: Request) {
   }
   const owner = await resolveCartOwner();
   const user = await getSessionUser();
-  const result = await placeOrder(parsed.data, owner, user?.sub);
+  const result = await placeOrder(parsed.data, owner, user?.sub, "marketplace");
   if (!result.ok) return fail({ code: result.code }, 409);
   return ok({
     orderNumber: result.order.orderNumber,

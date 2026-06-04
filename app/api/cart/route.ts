@@ -28,7 +28,12 @@ export async function POST(req: Request) {
   if (!parsed.success) return fail({ code: "invalid_input" }, 400);
   const owner = await resolveCartOwner();
   try {
-    await addToCart(owner, parsed.data.productId, parsed.data.qty);
+    await addToCart(
+      owner,
+      parsed.data.productId,
+      parsed.data.qty,
+      parsed.data.variantId ?? null,
+    );
   } catch {
     return fail({ code: "product_unavailable" }, 400);
   }
@@ -39,7 +44,12 @@ export async function PATCH(req: Request) {
   const parsed = await parseJson(req, updateCartItemSchema);
   if (!parsed.success) return fail({ code: "invalid_input" }, 400);
   const owner = await resolveCartOwner();
-  await updateCartItem(owner, parsed.data.productId, parsed.data.qty);
+  await updateCartItem(
+    owner,
+    parsed.data.productId,
+    parsed.data.qty,
+    parsed.data.variantId ?? null,
+  );
   return ok(await getCartView(owner, readLocale(req)));
 }
 
@@ -47,6 +57,10 @@ export async function DELETE(req: Request) {
   const parsed = await parseJson(req, removeCartItemSchema);
   if (!parsed.success) return fail({ code: "invalid_input" }, 400);
   const owner = await resolveCartOwner();
-  await removeCartItem(owner, parsed.data.productId);
+  await removeCartItem(
+    owner,
+    parsed.data.productId,
+    parsed.data.variantId ?? null,
+  );
   return ok(await getCartView(owner, readLocale(req)));
 }

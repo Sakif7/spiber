@@ -20,6 +20,11 @@ import {
   Inbox,
   Newspaper,
   Tags,
+  Store,
+  Star,
+  FileText,
+  Image as ImageIcon,
+  Trash2,
   type LucideIcon,
 } from "lucide-react";
 import styles from "./admin.module.css";
@@ -31,13 +36,32 @@ type NavGroup = { label?: string; items: NavItem[] };
 const GROUPS: NavGroup[] = [
   { items: [{ href: "/admin", label: "Dashboard", icon: LayoutDashboard }] },
   {
-    label: "Instruments",
+    label: "Instruments (Quotes)",
     items: [
       { href: "/admin/products", label: "Products", icon: Package },
       { href: "/admin/categories", label: "Categories", icon: FolderTree },
       { href: "/admin/brands", label: "Brands", icon: Tag },
-      { href: "/admin/inventory", label: "Inventory", icon: Boxes },
+      { href: "/admin/quotations", label: "Quotations", icon: FileText },
+    ],
+  },
+  {
+    label: "Marketplace",
+    items: [
+      { href: "/admin/marketplace/products", label: "Products", icon: Store },
+      {
+        href: "/admin/marketplace/categories",
+        label: "Categories",
+        icon: FolderTree,
+      },
+      { href: "/admin/marketplace/banners", label: "Banners", icon: ImageIcon },
+      { href: "/admin/marketplace/reviews", label: "Reviews", icon: Star },
+    ],
+  },
+  {
+    label: "Commerce",
+    items: [
       { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
+      { href: "/admin/inventory", label: "Inventory", icon: Boxes },
       { href: "/admin/coupons", label: "Coupons", icon: Ticket },
       { href: "/admin/settings", label: "Settings", icon: Settings },
     ],
@@ -66,6 +90,10 @@ const GROUPS: NavGroup[] = [
       { href: "/admin/blog/posts", label: "Posts", icon: Newspaper },
       { href: "/admin/blog/taxonomy", label: "Taxonomy", icon: Tags },
     ],
+  },
+  {
+    label: "System",
+    items: [{ href: "/admin/maintenance", label: "Maintenance", icon: Trash2 }],
   },
 ];
 

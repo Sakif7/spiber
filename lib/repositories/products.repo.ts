@@ -3,21 +3,25 @@ import { connectToDatabase } from "@/lib/db/connect";
 import { Product, type IProduct } from "@/lib/models/product";
 import { Order } from "@/lib/models/order";
 import type { Lean } from "@/lib/models/_shared";
-import type { ProductStatus } from "@/lib/schemas/catalog";
+import type { ProductStatus, Storefront } from "@/lib/schemas/catalog";
 import { applyPartialSearch } from "@/lib/repositories/search-filter";
 
 // Version-agnostic Mongoose filter type (Mongoose 9 renamed FilterQuery).
 type ProductFilter = NonNullable<Parameters<typeof Product.countDocuments>[0]>;
 
-export type ProductSort = "newest" | "price_asc" | "price_desc";
+export type ProductSort = "newest" | "price_asc" | "price_desc" | "rating_desc";
 
 export type ProductListParams = {
+  storefront?: Storefront;
   categoryId?: string;
+  categoryIds?: string[];
   brandId?: string;
   search?: string;
   minPriceMinor?: number;
   maxPriceMinor?: number;
+  minRating?: number;
   inStockOnly?: boolean;
+  featured?: boolean;
   status?: ProductStatus;
   sort?: ProductSort;
   page?: number;
@@ -26,17 +30,33 @@ export type ProductListParams = {
 
 function buildQuery(params: ProductListParams): Record<string, unknown> {
   const q: Record<string, unknown> = { deletedAt: null };
+  if (params.storefront) q.storefront = params.storefront;
   if (params.status) q.status = params.status;
-  if (params.categoryId) q.categoryId = params.categoryId;
+  if (params.featured) q.featured = true;
+  if (params.categoryIds && params.categoryIds.length > 0) {
+    q.categoryId = { $in: params.categoryIds };
+  } else if (params.categoryId) {
+    q.categoryId = params.categoryId;
+  }
   if (params.brandId) q.brandId = params.brandId;
-  if (params.inStockOnly) q.stockQty = { $gt: 0 };
+  if (params.minRating != null) q.ratingAvg = { $gte: params.minRating };
+  if (params.inStockOnly) {
+    // In stock if the base product has stock OR any variant does.
+    q.$or = [{ stockQty: { $gt: 0 } }, { "variants.stockQty": { $gt: 0 } }];
+  }
   if (params.minPriceMinor != null || params.maxPriceMinor != null) {
     const price: Record<string, number> = {};
     if (params.minPriceMinor != null) price.$gte = params.minPriceMinor;
     if (params.maxPriceMinor != null) price.$lte = params.maxPriceMinor;
     q.priceMinor = price;
   }
-  applyPartialSearch(q, params.search, ["name.en", "name.bn", "sku"]);
+  applyPartialSearch(q, params.search, [
+    "name.en",
+    "name.bn",
+    "description.en",
+    "description.bn",
+    "sku",
+  ]);
   return q;
 }
 
@@ -50,7 +70,9 @@ export async function listProducts(params: ProductListParams) {
       ? { priceMinor: 1 }
       : params.sort === "price_desc"
         ? { priceMinor: -1 }
-        : { createdAt: -1 };
+        : params.sort === "rating_desc"
+          ? { ratingAvg: -1 }
+          : { createdAt: -1 };
 
   const filter = q as unknown as ProductFilter;
   const [items, total] = await Promise.all([
@@ -71,9 +93,11 @@ export async function listProducts(params: ProductListParams) {
   };
 }
 
-export async function getProductBySlug(slug: string) {
+export async function getProductBySlug(slug: string, storefront?: Storefront) {
   await connectToDatabase();
-  return Product.findOne({ slug, deletedAt: null })
+  const q: Record<string, unknown> = { slug, deletedAt: null };
+  if (storefront) q.storefront = storefront;
+  return Product.findOne(q as unknown as ProductFilter)
     .lean<Lean<IProduct>>()
     .exec();
 }
@@ -87,14 +111,35 @@ export async function listRelatedProducts(
   categoryId: string,
   excludeId: string,
   limit = 4,
+  storefront?: Storefront,
 ) {
   await connectToDatabase();
-  return Product.find({
+  const q: Record<string, unknown> = {
     categoryId,
     _id: { $ne: excludeId },
     status: "active",
     deletedAt: null,
+  };
+  if (storefront) q.storefront = storefront;
+  return Product.find(q as unknown as ProductFilter)
+    .limit(limit)
+    .lean<Lean<IProduct>[]>()
+    .exec();
+}
+
+/** Featured, active products for a storefront's homepage rails. */
+export async function listFeaturedProducts(
+  storefront: Storefront,
+  limit = 8,
+): Promise<Lean<IProduct>[]> {
+  await connectToDatabase();
+  return Product.find({
+    storefront,
+    featured: true,
+    status: "active",
+    deletedAt: null,
   })
+    .sort({ createdAt: -1 })
     .limit(limit)
     .lean<Lean<IProduct>[]>()
     .exec();
@@ -107,7 +152,9 @@ export async function createProduct(data: Partial<IProduct>) {
 
 export async function updateProduct(id: string, data: Partial<IProduct>) {
   await connectToDatabase();
-  return Product.findByIdAndUpdate(id, data, { new: true }).exec();
+  return Product.findOneAndUpdate({ _id: id, deletedAt: null }, data, {
+    new: true,
+  }).exec();
 }
 
 export async function softDeleteProduct(id: string) {
@@ -118,14 +165,39 @@ export async function softDeleteProduct(id: string) {
   ).exec();
 }
 
-export async function lowStockProducts() {
+/**
+ * Low-stock products (marketplace only — instruments is quote-only). Variant
+ * products are low when ANY variant is at/under the product's threshold; simple
+ * products when the base stock is.
+ */
+export async function lowStockProducts(): Promise<Lean<IProduct>[]> {
   await connectToDatabase();
-  return Product.find({
-    deletedAt: null,
-    $expr: { $lte: ["$stockQty", "$lowStockThreshold"] },
-  })
-    .lean<Lean<IProduct>[]>()
-    .exec();
+  return Product.aggregate<Lean<IProduct>>([
+    {
+      $match: { deletedAt: null, storefront: "marketplace", status: "active" },
+    },
+    {
+      $addFields: {
+        _isLow: {
+          $cond: [
+            { $gt: [{ $size: "$variants" }, 0] },
+            {
+              $anyElementTrue: {
+                $map: {
+                  input: "$variants",
+                  as: "v",
+                  in: { $lte: ["$$v.stockQty", "$lowStockThreshold"] },
+                },
+              },
+            },
+            { $lte: ["$stockQty", "$lowStockThreshold"] },
+          ],
+        },
+      },
+    },
+    { $match: { _isLow: true } },
+    { $project: { _isLow: 0 } },
+  ]).exec();
 }
 
 /**
@@ -137,6 +209,7 @@ export async function lowStockProducts() {
 export async function frequentlyBoughtTogether(
   productId: string,
   limit = 4,
+  storefront?: Storefront,
 ): Promise<Lean<IProduct>[]> {
   await connectToDatabase();
   let oid: mongoose.Types.ObjectId;
@@ -159,11 +232,13 @@ export async function frequentlyBoughtTogether(
 
   const ids = rows.map((r) => r._id);
   if (!ids.length) return [];
-  const products = await Product.find({
+  const q: Record<string, unknown> = {
     _id: { $in: ids },
     status: "active",
     deletedAt: null,
-  })
+  };
+  if (storefront) q.storefront = storefront;
+  const products = await Product.find(q as unknown as ProductFilter)
     .lean<Lean<IProduct>[]>()
     .exec();
   // Preserve co-occurrence ranking.

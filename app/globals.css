@@ -329,18 +329,24 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-family: var(--font-display);
-  font-weight: 600;
-  margin: 0;
-}
-p {
-  margin: 0;
+/* Element base resets live in @layer base so Tailwind utilities (a later
+   layer) win — otherwise an unlayered `h3 { margin: 0 }` would override every
+   `mt-*`/`mb-*` margin utility on a heading (which silently squished cards and
+   any heading/paragraph that relied on a margin utility). */
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    margin: 0;
+  }
+  p {
+    margin: 0;
+  }
 }
 a {
   color: inherit;

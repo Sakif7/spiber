@@ -106,10 +106,10 @@ export default async function AccountOrdersPage({
                   maxWidth: "48ch",
                 }}
               >
-                Browse our medical instruments and place your first order.
+                Browse the marketplace and place your first order.
               </p>
-              <CtaButton href="/instruments" variant="primary">
-                Shop instruments
+              <CtaButton href="/marketplace" variant="primary">
+                Shop marketplace
               </CtaButton>
             </div>
           ) : (
