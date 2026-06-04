@@ -24,7 +24,10 @@ import { getShippingSettings } from "./shop-settings.service";
 import { validateCoupon } from "./coupon.service";
 import { getPaymentProvider } from "@/lib/payments";
 import { getMailer } from "@/lib/mailer";
-import { siteConfig } from "@/lib/site-config";
+import {
+  renderEmail,
+  type EmailDetailRow,
+} from "@/lib/mailer/templates/email-layout";
 import { formatBDT } from "@/lib/money";
 import { logger } from "@/lib/log";
 import {
@@ -314,21 +317,49 @@ async function sendOrderEmail(
     paid: `Payment confirmed for ${order.orderNumber}`,
     shipped: `Your order ${order.orderNumber} has shipped`,
   };
-  const lines = order.items
-    .map((i) => `- ${i.productSnapshot.name.en} ×${i.qty}`)
-    .join("\n");
-  const tracking =
-    event === "shipped" && order.trackingNumber
-      ? `\nTracking: ${order.trackingNumber}`
-      : "";
+  const eyebrowMap: Record<typeof event, string> = {
+    placed: "Order received",
+    paid: "Payment confirmed",
+    shipped: "On its way",
+  };
+  const headingMap: Record<typeof event, string> = {
+    placed: "Thanks — your order is in",
+    paid: "Your payment is confirmed",
+    shipped: "Your order has shipped",
+  };
+  const introMap: Record<typeof event, string> = {
+    placed:
+      "We've received your order and will confirm your offline payment shortly. Here's a summary for your records.",
+    paid: "Your payment has been confirmed — we're now preparing your order for shipment.",
+    shipped: "Good news — your order is on its way.",
+  };
+
+  const rows: EmailDetailRow[] = order.items.map((i) => ({
+    label: `${i.productSnapshot.name.en} ×${i.qty}`,
+    value: formatBDT(i.lineTotalMinor),
+  }));
+  if (event === "shipped" && order.trackingNumber) {
+    rows.push({ label: "Tracking", value: order.trackingNumber });
+  }
+  rows.push({
+    label: "Total",
+    value: formatBDT(order.totalMinor),
+    strong: true,
+  });
+
+  const { html, text, attachments } = renderEmail({
+    accent: "teal",
+    preheader: introMap[event],
+    eyebrow: eyebrowMap[event],
+    heading: headingMap[event],
+    paragraphs: [introMap[event]],
+    details: { title: `Order ${order.orderNumber}`, rows },
+  });
   await getMailer().send({
     to: order.email,
     subject: subjectMap[event],
-    text: `${subjectMap[event]}\n\n${lines}\n\nTotal: ${formatBDT(order.totalMinor)}${tracking}\n\n${siteConfig.brand}`,
-    html: `<p>${subjectMap[event]}</p><ul>${order.items
-      .map((i) => `<li>${i.productSnapshot.name.en} ×${i.qty}</li>`)
-      .join(
-        "",
-      )}</ul><p><strong>Total: ${formatBDT(order.totalMinor)}</strong>${tracking ? `<br/>${tracking}` : ""}</p>`,
+    html,
+    text,
+    attachments,
   });
 }

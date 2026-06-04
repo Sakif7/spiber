@@ -1,6 +1,7 @@
 import { useTranslations } from "next-intl";
 
 import { Container } from "@/components/ui";
+import { SOCIALS } from "./social-links";
 
 export function UtilityBar() {
   const t = useTranslations("utilityBar");
@@ -53,7 +54,7 @@ export function UtilityBar() {
             info@spibermed.com
           </a>
           <a
-            href="tel:+8801765193751"
+            href="tel:+8801346092798"
             style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
           >
             <svg
@@ -70,7 +71,7 @@ export function UtilityBar() {
                 strokeLinejoin="round"
               />
             </svg>
-            +8801765193751
+            +8801346092798
           </a>
           <span
             style={{
@@ -95,9 +96,11 @@ export function UtilityBar() {
         <div style={{ display: "flex", gap: 18, alignItems: "center" }}>
           <span style={{ opacity: 0.7 }}>{t("hours")}</span>
           <span style={{ display: "flex", gap: 8 }}>
-            {["fb", "x", "in", "ig"].map((s) => (
+            {SOCIALS.map((s) => (
               <span
-                key={s}
+                key={s.key}
+                title={s.label}
+                aria-label={s.label}
                 style={{
                   width: 18,
                   height: 18,
@@ -105,11 +108,10 @@ export function UtilityBar() {
                   display: "grid",
                   placeItems: "center",
                   background: "rgba(255,255,255,.06)",
-                  fontSize: 9,
-                  textTransform: "uppercase",
+                  color: "rgba(255,255,255,.85)",
                 }}
               >
-                {s}
+                {s.icon(11)}
               </span>
             ))}
           </span>

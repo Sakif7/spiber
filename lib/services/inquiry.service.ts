@@ -6,6 +6,10 @@ import {
   getInquiryById,
 } from "@/lib/repositories/inquiries.repo";
 import { getMailer } from "@/lib/mailer";
+import {
+  renderEmail,
+  type EmailDetailRow,
+} from "@/lib/mailer/templates/email-layout";
 import { siteConfig } from "@/lib/site-config";
 import { logger } from "@/lib/log";
 import { inquiryNumber } from "@/lib/ids";
@@ -73,11 +77,25 @@ async function sendInquiryAck(inquiry: IInquiry) {
   const subject = inquiry.subject
     ? `We received your inquiry: ${inquiry.subject}`
     : `We received your inquiry`;
-  const body = `Thanks for reaching out to ${siteConfig.brand}. We've received your inquiry and our team will get back to you shortly.`;
+  const rows: EmailDetailRow[] = [];
+  if (inquiry.subject) rows.push({ label: "Subject", value: inquiry.subject });
+  rows.push({ label: "Reference", value: inquiry.inquiryNumber });
+
+  const built = renderEmail({
+    accent: "teal",
+    preheader: "We've received your inquiry and will get back to you shortly.",
+    eyebrow: "Inquiry received",
+    heading: "Thanks for reaching out",
+    paragraphs: [
+      `Thanks for contacting ${siteConfig.brand}. We've received your inquiry and our team will get back to you shortly.`,
+    ],
+    details: { rows },
+  });
   await getMailer().send({
     to: inquiry.email,
     subject,
-    text: `${subject}\n\n${body}\n\nReference: ${inquiry.inquiryNumber}\n\n${siteConfig.brand}`,
-    html: `<p>${body}</p><p>Reference: <strong>${inquiry.inquiryNumber}</strong></p><p>${siteConfig.brand}</p>`,
+    html: built.html,
+    text: built.text,
+    attachments: built.attachments,
   });
 }

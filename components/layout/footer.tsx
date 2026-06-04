@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { Container } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
+import { SOCIALS } from "./social-links";
 
 function NewsletterForm() {
   const t = useTranslations("footer");
@@ -128,10 +129,12 @@ export function Footer() {
               {t("tagline")}
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 22 }}>
-              {["fb", "x", "in", "ig"].map((s) => (
+              {SOCIALS.map((s) => (
                 <Link
-                  key={s}
-                  href="/contact"
+                  key={s.key}
+                  href={s.href}
+                  aria-label={s.label}
+                  title={s.label}
                   className="footer-social"
                   style={{
                     width: 36,
@@ -140,15 +143,12 @@ export function Footer() {
                     border: "1px solid rgba(255,255,255,.16)",
                     display: "grid",
                     placeItems: "center",
-                    fontFamily: "var(--font-mono)",
-                    fontSize: 11,
-                    fontWeight: 600,
                     color: "rgba(255,255,255,.8)",
                     cursor: "pointer",
                     transition: "all 200ms",
                   }}
                 >
-                  {s}
+                  {s.icon(18)}
                 </Link>
               ))}
             </div>
@@ -229,15 +229,20 @@ export function Footer() {
                 color: "rgba(255,255,255,.7)",
               }}
             >
+              <div>Head Office:</div>
               <div style={{ marginBottom: 10 }}>
                 {t("addressLine1")}
                 <br />
                 {t("addressLine2")}
               </div>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>
-                +880 1765 193751
+              <div>Regional Office:</div>
+              <div style={{ marginBottom: 10 }}>
+                Summer Hill, House-2226/2641,
                 <br />
-                +880 1711 739797
+                Panchlaish, Chittagong-4211, Bangladesh
+              </div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>
+                <a href="tel:+8801346092798">+880 1346 092798</a>
               </div>
               <div
                 style={{
@@ -294,7 +299,7 @@ export function Footer() {
       </Container>
 
       <style>{`
-        .footer-social:hover { background: var(--color-brand); border-color: var(--color-brand) !important; }
+        .footer-social:hover { background: var(--color-brand); border-color: var(--color-brand) !important; color: #fff; }
         .footer-link:hover { color: var(--teal-300); }
         @media (max-width: 980px) {
           .footer-grid { grid-template-columns: 1fr 1fr !important; }

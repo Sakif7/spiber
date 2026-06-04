@@ -7,6 +7,7 @@ import {
   getCommissionByPurchaseId,
 } from "@/lib/repositories/commissions.repo";
 import { getMailer } from "@/lib/mailer";
+import { renderEmail } from "@/lib/mailer/templates/email-layout";
 import { siteConfig } from "@/lib/site-config";
 import { localize } from "@/lib/schemas/localized";
 import { formatBDT } from "@/lib/money";
@@ -113,14 +114,30 @@ async function notifyExternalAdmin(
   }
   const product = localize(ctx.snapshot.name, "en");
   const subject = `[${externalApp}] Activate access for ${ctx.email}`;
-  const body =
-    `A ${externalApp} purchase was paid on ${siteConfig.brand} and needs manual activation.\n\n` +
-    `Product: ${product}\nUser: ${ctx.email}\nAmount: ${formatBDT(ctx.chargedMinor)}\n\n` +
-    `Please activate this user in ${externalApp}, then mark the provisioning task done in the admin panel.`;
+  const built = renderEmail({
+    accent: "teal",
+    preheader: `A ${externalApp} purchase needs manual activation.`,
+    eyebrow: "Action required",
+    heading: `Activate ${externalApp} access`,
+    paragraphs: [
+      `A ${externalApp} purchase was paid on ${siteConfig.brand} and needs manual activation.`,
+    ],
+    details: {
+      rows: [
+        { label: "Product", value: product },
+        { label: "User", value: ctx.email },
+        { label: "Amount", value: formatBDT(ctx.chargedMinor), strong: true },
+      ],
+    },
+    outro: [
+      `Activate this user in ${externalApp}, then mark the provisioning task done in the admin panel.`,
+    ],
+  });
   await getMailer().send({
     to,
     subject,
-    text: `${subject}\n\n${body}\n\n${siteConfig.brand}`,
-    html: `<p>A <strong>${externalApp}</strong> purchase was paid on ${siteConfig.brand} and needs manual activation.</p><ul><li>Product: ${product}</li><li>User: ${ctx.email}</li><li>Amount: ${formatBDT(ctx.chargedMinor)}</li></ul><p>Activate the user in ${externalApp}, then mark the provisioning task done in the admin panel.</p>`,
+    html: built.html,
+    text: built.text,
+    attachments: built.attachments,
   });
 }

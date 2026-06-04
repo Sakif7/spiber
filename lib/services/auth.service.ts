@@ -15,6 +15,7 @@ import {
   updatePasswordHash,
 } from "@/lib/repositories/users.repo";
 import { getMailer } from "@/lib/mailer";
+import { renderEmail } from "@/lib/mailer/templates/email-layout";
 import { siteConfig } from "@/lib/site-config";
 import { logger } from "@/lib/log";
 import type { Role } from "@/lib/schemas/user";
@@ -94,11 +95,26 @@ export async function register(input: RegisterInput): Promise<RegisterResult> {
 
   const token = await signVerifyToken(user.id);
   const link = `${siteConfig.url}/api/auth/verify-email?token=${encodeURIComponent(token)}&locale=${locale}`;
+  const verifyEmail = renderEmail({
+    accent: "teal",
+    preheader: `Confirm your email to activate your ${siteConfig.brand} account.`,
+    eyebrow: "Welcome",
+    heading: `Welcome to ${siteConfig.brand}`,
+    greetingName: user.name,
+    paragraphs: [
+      "Thanks for creating an account. Please confirm your email address to activate it.",
+    ],
+    button: { label: "Confirm your email", url: link },
+    outro: [
+      "This link expires in 24 hours. If you didn't create this account, you can ignore this email.",
+    ],
+  });
   await getMailer().send({
     to: user.email,
     subject: `Verify your ${siteConfig.brand} account`,
-    text: `Welcome to ${siteConfig.brand}!\n\nConfirm your email:\n${link}\n\nThis link expires in 24 hours.`,
-    html: `<p>Welcome to ${siteConfig.brand}!</p><p><a href="${link}">Confirm your email</a> (expires in 24 hours).</p>`,
+    html: verifyEmail.html,
+    text: verifyEmail.text,
+    attachments: verifyEmail.attachments,
   });
 
   return { ok: true, user };
@@ -166,11 +182,26 @@ export async function requestPasswordReset(
     const locale = localePrefix(input.locale);
     const token = await signResetToken(String(doc._id), doc.tokenVersion ?? 0);
     const link = `${siteConfig.url}/${locale}/reset-password?token=${encodeURIComponent(token)}`;
+    const resetEmail = renderEmail({
+      accent: "teal",
+      preheader: `Reset your ${siteConfig.brand} password.`,
+      eyebrow: "Password reset",
+      heading: "Reset your password",
+      greetingName: doc.name,
+      paragraphs: [
+        "We received a request to reset your password. Click the button below to choose a new one.",
+      ],
+      button: { label: "Reset password", url: link },
+      outro: [
+        "This link expires in 1 hour and can be used once. If you didn't request this, you can safely ignore this email — your password won't change.",
+      ],
+    });
     await getMailer().send({
       to: doc.email,
       subject: `Reset your ${siteConfig.brand} password`,
-      text: `Reset your password:\n${link}\n\nThis link expires in 1 hour. If you didn't request this, ignore this email.`,
-      html: `<p><a href="${link}">Reset your password</a> (expires in 1 hour).</p><p>If you didn't request this, ignore this email.</p>`,
+      html: resetEmail.html,
+      text: resetEmail.text,
+      attachments: resetEmail.attachments,
     });
   } else {
     logger.info("password reset requested for unknown email");

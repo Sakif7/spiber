@@ -50,6 +50,7 @@ export const smtpMailer: Mailer = {
       subject: mail.subject,
       text: mail.text,
       html: mail.html,
+      attachments: mail.attachments,
     });
     logger.info("email sent (smtp)", { to: mail.to, subject: mail.subject });
   },

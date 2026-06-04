@@ -18,7 +18,10 @@ import { validateCoupon } from "./coupon.service";
 import { getPaymentProvider } from "@/lib/payments";
 import { getFulfillmentProvider } from "@/lib/fulfillment";
 import { getMailer } from "@/lib/mailer";
-import { siteConfig } from "@/lib/site-config";
+import {
+  renderEmail,
+  type EmailDetailRow,
+} from "@/lib/mailer/templates/email-layout";
 import { formatBDT } from "@/lib/money";
 import { localize } from "@/lib/schemas/localized";
 import { logger } from "@/lib/log";
@@ -357,14 +360,39 @@ async function sendPurchaseEmail(
     event === "paid"
       ? `Purchase confirmed: ${productName}`
       : `Order received: ${productName}`;
-  const bodyLine =
-    event === "paid"
-      ? `Your purchase of "${productName}" is confirmed. ${deliveryNote}`
-      : `We received your order for "${productName}". Payment is arranged offline; your access opens once it's confirmed. Total due: ${formatBDT(p.totalMinor)}.`;
+  const rows: EmailDetailRow[] = [{ label: "Product", value: productName }];
+  if (event !== "paid") {
+    rows.push({
+      label: "Total due",
+      value: formatBDT(p.totalMinor),
+      strong: true,
+    });
+  }
+  rows.push({ label: "Reference", value: p.purchaseNumber });
+
+  const built = renderEmail({
+    accent: "teal",
+    preheader:
+      event === "paid"
+        ? `Your purchase of "${productName}" is confirmed.`
+        : `We received your order for "${productName}".`,
+    eyebrow: event === "paid" ? "Purchase confirmed" : "Order received",
+    heading:
+      event === "paid"
+        ? "Your purchase is confirmed"
+        : "We've received your order",
+    paragraphs: [
+      event === "paid"
+        ? `Your purchase of "${productName}" is confirmed. ${deliveryNote}`
+        : `Thanks for your order for "${productName}". Payment is arranged offline — your access opens as soon as it's confirmed.`,
+    ],
+    details: { rows },
+  });
   await getMailer().send({
     to: p.email,
     subject,
-    text: `${subject}\n\n${bodyLine}\n\nReference: ${p.purchaseNumber}\n\n${siteConfig.brand}`,
-    html: `<p>${bodyLine}</p><p>Reference: <strong>${p.purchaseNumber}</strong></p><p>${siteConfig.brand}</p>`,
+    html: built.html,
+    text: built.text,
+    attachments: built.attachments,
   });
 }

@@ -18,6 +18,7 @@ import { makeId } from "@/lib/ids";
 import { validateCoupon } from "./coupon.service";
 import { getPaymentProvider } from "@/lib/payments";
 import { getMailer } from "@/lib/mailer";
+import { renderEmail } from "@/lib/mailer/templates/email-layout";
 import { siteConfig } from "@/lib/site-config";
 import { formatBDT } from "@/lib/money";
 import { localize } from "@/lib/schemas/localized";
@@ -476,25 +477,85 @@ async function sendEnrollmentEmail(
     event === "active"
       ? `You're enrolled: ${courseTitle}`
       : `Enrollment received: ${courseTitle}`;
-  const bodyLine =
+  const built =
     event === "active"
-      ? `Your enrollment in "${courseTitle}" is active. You can start learning now.`
-      : `We received your enrollment in "${courseTitle}". Payment is arranged offline; your access opens once it's confirmed. Total due: ${formatBDT(e.totalMinor)}.`;
+      ? renderEmail({
+          accent: "orange",
+          preheader: `Your enrollment in "${courseTitle}" is active.`,
+          eyebrow: "Enrollment active",
+          heading: "You're enrolled — start learning",
+          paragraphs: [
+            `Your enrollment in "${courseTitle}" is now active. You can start learning right away.`,
+          ],
+          details: {
+            rows: [
+              { label: "Course", value: courseTitle },
+              { label: "Reference", value: e.enrollmentNumber },
+            ],
+          },
+          button: {
+            label: "Go to your courses",
+            url: `${siteConfig.url}/en/academy`,
+          },
+        })
+      : renderEmail({
+          accent: "orange",
+          preheader: `We received your enrollment in "${courseTitle}".`,
+          eyebrow: "Enrollment received",
+          heading: "We've received your enrollment",
+          paragraphs: [
+            `Thanks for enrolling in "${courseTitle}". Payment is arranged offline — your access opens as soon as it's confirmed.`,
+          ],
+          details: {
+            rows: [
+              { label: "Course", value: courseTitle },
+              {
+                label: "Total due",
+                value: formatBDT(e.totalMinor),
+                strong: true,
+              },
+              { label: "Reference", value: e.enrollmentNumber },
+            ],
+          },
+        });
   await getMailer().send({
     to: e.email,
     subject,
-    text: `${subject}\n\n${bodyLine}\n\nReference: ${e.enrollmentNumber}\n\n${siteConfig.brand}`,
-    html: `<p>${bodyLine}</p><p>Reference: <strong>${e.enrollmentNumber}</strong></p><p>${siteConfig.brand}</p>`,
+    html: built.html,
+    text: built.text,
+    attachments: built.attachments,
   });
 }
 
 async function sendCompletionEmail(e: IEnrollment, courseTitle: string) {
-  const subject = `Course completed: ${courseTitle}`;
-  const body = `Congratulations on completing "${courseTitle}"! Your certificate (${e.certificateId}) is available in your dashboard.`;
+  const certUrl = e.certificateId
+    ? `${siteConfig.url}/en/academy/certificate/${e.certificateId}`
+    : undefined;
+  const built = renderEmail({
+    accent: "orange",
+    preheader: `You completed "${courseTitle}" — your certificate is ready.`,
+    eyebrow: "Course completed",
+    heading: "Congratulations! 🎉",
+    paragraphs: [
+      `You've completed "${courseTitle}". Your certificate is ready — view or print it any time from your account.`,
+    ],
+    details: e.certificateId
+      ? {
+          rows: [
+            { label: "Course", value: courseTitle },
+            { label: "Certificate ID", value: e.certificateId },
+          ],
+        }
+      : undefined,
+    button: certUrl
+      ? { label: "View your certificate", url: certUrl }
+      : undefined,
+  });
   await getMailer().send({
     to: e.email,
-    subject,
-    text: `${subject}\n\n${body}\n\n${siteConfig.brand}`,
-    html: `<p>${body}</p><p>${siteConfig.brand}</p>`,
+    subject: `Course completed: ${courseTitle}`,
+    html: built.html,
+    text: built.text,
+    attachments: built.attachments,
   });
 }
