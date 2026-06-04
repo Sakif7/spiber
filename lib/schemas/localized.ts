@@ -7,7 +7,7 @@ import type { Locale } from "@/i18n/routing";
  * (products, courses, posts, …) per the data model.
  */
 export const localizedSchema = z.object({
-  en: z.string().min(1),
+  en: z.string().min(1, "is required"),
   bn: z.string().optional(),
 });
 

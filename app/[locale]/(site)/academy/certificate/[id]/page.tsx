@@ -1,10 +1,12 @@
 import { setRequestLocale, getTranslations } from "next-intl/server";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Container } from "@/components/ui/container";
 import { PrintButton } from "@/components/academy/print-button";
 import { getEnrollmentByCertificateId } from "@/lib/repositories/enrollments.repo";
 import { getCourseById } from "@/lib/repositories/courses.repo";
 import { findUserById } from "@/lib/repositories/users.repo";
+import { getSessionUser } from "@/lib/auth/current-user";
+import { isAdmin } from "@/lib/auth/rbac";
 import { localize } from "@/lib/schemas/localized";
 import { siteConfig } from "@/lib/site-config";
 import type { Locale } from "@/i18n/routing";
@@ -23,6 +25,16 @@ export default async function CertificatePage({
 
   const enrollment = await getEnrollmentByCertificateId(id);
   if (!enrollment || !enrollment.completedAt) notFound();
+
+  // Certificates are private: only the owner (or an admin) may view one.
+  const session = await getSessionUser();
+  if (!session) {
+    redirect(
+      `/${l}?auth=login&next=${encodeURIComponent(`/${l}/academy/certificate/${id}`)}`,
+    );
+  }
+  const isOwner = session.sub === String(enrollment.userId);
+  if (!isOwner && !isAdmin(session)) notFound();
 
   const [course, user] = await Promise.all([
     getCourseById(String(enrollment.courseId)),

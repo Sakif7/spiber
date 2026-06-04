@@ -2,6 +2,13 @@ export interface PutInput {
   key: string;
   body: Buffer | Uint8Array;
   contentType: string;
+  /**
+   * Private objects (course videos/audio/resources, software assets) are stored
+   * OUTSIDE the statically-served public dir and are only reachable through the
+   * auth-gated /api/media routes. Public objects (images/thumbnails) get a
+   * directly-servable URL. Defaults to public.
+   */
+  private?: boolean;
 }
 
 export type GetObjectResult = {

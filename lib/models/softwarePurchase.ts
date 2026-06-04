@@ -123,6 +123,17 @@ const purchaseSchema = new Schema<ISoftwarePurchase>(
 
 // Idempotent purchase creation: same key never creates two purchases.
 purchaseSchema.index({ idempotencyKey: 1 }, { unique: true });
+// At most ONE live (pending|paid) purchase per user+product, enforced at the DB
+// layer so concurrent buys with different idempotency keys can't double-charge
+// or double-fulfill (double license / double commission). Cancelled/refunded
+// purchases are exempt, so a user can re-buy after a refund.
+purchaseSchema.index(
+  { userId: 1, softwareProductId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { status: { $in: ["pending", "paid"] } },
+  },
+);
 // "Does this user own this product (paid)?" lookups for the secure asset route.
 purchaseSchema.index({ userId: 1, softwareProductId: 1, status: 1 });
 purchaseSchema.index({ createdAt: -1 });

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CtaButton } from "@/components/ui/cta-button";
 import { RichTextEditor } from "./rich-text-editor";
+import { formatApiError } from "@/lib/http/form-error";
 import type { BlogStatus } from "@/lib/schemas/blog";
 
 type L = { en: string; bn: string };
@@ -143,7 +144,7 @@ export function PostEditor({
       router.push("/admin/blog/posts");
       router.refresh();
     } else {
-      setError(json?.error?.message ?? json?.error?.code ?? "save_failed");
+      setError(formatApiError(json));
     }
   }
 

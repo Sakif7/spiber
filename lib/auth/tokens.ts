@@ -58,14 +58,20 @@ export function signAccessToken(claims: AccessClaims): Promise<string> {
     roles: claims.roles,
   });
 }
-export function signRefreshToken(sub: string): Promise<string> {
-  return sign("refresh", sub);
+/** Refresh + reset tokens carry the user's tokenVersion (`tv`) so they can be revoked. */
+export type PurposeClaims = { sub: string; tokenVersion: number };
+
+export function signRefreshToken(
+  sub: string,
+  tokenVersion = 0,
+): Promise<string> {
+  return sign("refresh", sub, { tv: tokenVersion });
 }
 export function signVerifyToken(sub: string): Promise<string> {
   return sign("verify", sub);
 }
-export function signResetToken(sub: string): Promise<string> {
-  return sign("reset", sub);
+export function signResetToken(sub: string, tokenVersion = 0): Promise<string> {
+  return sign("reset", sub, { tv: tokenVersion });
 }
 
 export async function verifyAccessToken(
@@ -86,25 +92,25 @@ export async function verifyAccessToken(
 
 export async function verifyRefreshToken(
   token: string,
-): Promise<string | null> {
+): Promise<PurposeClaims | null> {
   try {
     const { payload } = await jwtVerify(token, secretFor("refresh"));
     if (payload.purpose !== "refresh") return null;
-    return String(payload.sub);
+    return { sub: String(payload.sub), tokenVersion: Number(payload.tv ?? 0) };
   } catch {
     return null;
   }
 }
 
-/** Verify a single-purpose token (verify/reset); returns the subject (userId). */
+/** Verify a single-purpose token (verify/reset); returns the subject + tokenVersion. */
 export async function verifyPurposeToken(
   token: string,
   purpose: "verify" | "reset",
-): Promise<string | null> {
+): Promise<PurposeClaims | null> {
   try {
     const { payload } = await jwtVerify(token, secretFor(purpose));
     if (payload.purpose !== purpose) return null;
-    return String(payload.sub);
+    return { sub: String(payload.sub), tokenVersion: Number(payload.tv ?? 0) };
   } catch {
     return null;
   }

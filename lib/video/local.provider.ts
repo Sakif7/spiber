@@ -20,7 +20,8 @@ export function createLocalVideoProvider(): VideoProvider {
         : "mp4";
       const rand = Math.random().toString(36).slice(2, 10);
       const key = `academy/videos/${Date.now()}-${rand}.${ext}`;
-      await getStorage().put({ key, body, contentType });
+      // Private: lesson media must never be a public URL (gated /api/media only).
+      await getStorage().put({ key, body, contentType, private: true });
       // The uid is the storage key; playback goes through the gated /api/media
       // route (the object is never exposed as a public URL).
       return { uid: key, status: "ready" };

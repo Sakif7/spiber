@@ -116,9 +116,26 @@ const enrollmentSchema = new Schema<IEnrollment>(
 
 // Idempotent enrollment creation: same key never creates two records.
 enrollmentSchema.index({ idempotencyKey: 1 }, { unique: true });
-// Fast "is this user enrolled in this course" lookups (uniqueness of the active
-// record is enforced in the service, since partial indexes can't use $in).
-enrollmentSchema.index({ userId: 1, courseId: 1 });
+// At most ONE live (pending|active) enrollment per user+course, enforced at the
+// DB layer so concurrent enrolls (double-click / two tabs with different
+// idempotency keys) can't create duplicates. Partial filter expressions DO
+// support $in, so cancelled/refunded records are exempt and can be re-enrolled.
+enrollmentSchema.index(
+  { userId: 1, courseId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { status: { $in: ["pending", "active"] } },
+  },
+);
+// Unique + indexed certificate id (sole credential for the certificate page);
+// partial so the many null certificateIds don't collide.
+enrollmentSchema.index(
+  { certificateId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { certificateId: { $type: "string" } },
+  },
+);
 enrollmentSchema.index({ courseId: 1, status: 1 });
 enrollmentSchema.index({ createdAt: -1 });
 

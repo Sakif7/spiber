@@ -70,6 +70,57 @@ export const softwareProductSchema = z
   });
 export type SoftwareProductInput = z.infer<typeof softwareProductSchema>;
 
+/**
+ * Partial-update schema for PATCH: every field optional and NO defaults, so
+ * omitting a field leaves it untouched (the create schema's `status: draft` /
+ * empty-array defaults would otherwise silently un-publish or wipe data). The
+ * delivery-type invariants are still enforced when the relevant fields are sent
+ * (the admin form always sends deliveryType together with its dependent field).
+ */
+export const softwareProductUpdateSchema = z
+  .object({
+    name: localizedSchema.optional(),
+    slug: z.string().max(160).optional(),
+    categoryId: z.string().optional(),
+    description: localizedSchema.optional(),
+    screenshots: z.array(z.string()).optional(),
+    features: z.array(localizedSchema).optional(),
+    pricingModel: softwarePricingModelEnum.optional(),
+    priceMinor: z.number().int().nonnegative().optional(),
+    demoUrl: z.preprocess(
+      (v) => (v === "" ? undefined : v),
+      z.string().url().optional(),
+    ),
+    deliveryType: deliveryTypeEnum.optional(),
+    assetKey: z.string().optional(),
+    externalApp: z.string().max(120).optional(),
+    affiliate: affiliateConfigSchema.optional(),
+    status: softwareStatusEnum.optional(),
+  })
+  .superRefine((d, ctx) => {
+    if (d.deliveryType === "asset" && !d.assetKey)
+      ctx.addIssue({
+        code: "custom",
+        path: ["assetKey"],
+        message: "assetKey is required for asset delivery",
+      });
+    if (d.deliveryType === "external" && !d.externalApp)
+      ctx.addIssue({
+        code: "custom",
+        path: ["externalApp"],
+        message: "externalApp is required for external delivery",
+      });
+    if (d.pricingModel && d.pricingModel !== "quote" && d.priceMinor == null)
+      ctx.addIssue({
+        code: "custom",
+        path: ["priceMinor"],
+        message: "priceMinor is required unless pricingModel is 'quote'",
+      });
+  });
+export type SoftwareProductUpdateInput = z.infer<
+  typeof softwareProductUpdateSchema
+>;
+
 // ---- SoftwarePurchase (digital order-lite) ----
 export const purchaseStatusEnum = z.enum([
   "pending",

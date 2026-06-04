@@ -25,5 +25,10 @@ export async function markEmailVerified(id: string) {
 
 export async function updatePasswordHash(id: string, passwordHash: string) {
   await connectToDatabase();
-  await User.updateOne({ _id: id }, { $set: { passwordHash } }).exec();
+  // Bump tokenVersion so every outstanding refresh/reset token is invalidated:
+  // this both makes a reset link single-use and logs the user out everywhere.
+  await User.updateOne(
+    { _id: id },
+    { $set: { passwordHash }, $inc: { tokenVersion: 1 } },
+  ).exec();
 }

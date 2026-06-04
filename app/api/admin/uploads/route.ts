@@ -4,12 +4,13 @@ import { ok, fail } from "@/lib/http/respond";
 import { getStorage } from "@/lib/storage";
 
 const MAX_BYTES = 25 * 1024 * 1024; // 25 MB (covers PDF handouts)
+// Note: image/svg+xml is intentionally excluded — SVGs can carry inline scripts
+// and would be a stored-XSS vector when served same-origin.
 const ALLOWED = new Set([
   "image/jpeg",
   "image/png",
   "image/webp",
   "image/avif",
-  "image/svg+xml",
   "application/pdf",
 ]);
 
@@ -23,6 +24,10 @@ export async function POST(req: Request) {
   if (file.size > MAX_BYTES) return fail({ code: "too_large" }, 413);
   if (!ALLOWED.has(file.type)) return fail({ code: "bad_type" }, 415);
 
+  // Gated course resources (PDF handouts) upload with visibility=private so they
+  // land in the private root and are only served through /api/media/resource.
+  const isPrivate = form?.get("visibility") === "private";
+
   const ext = file.name.includes(".")
     ? file.name
         .split(".")
@@ -31,11 +36,16 @@ export async function POST(req: Request) {
         .replace(/[^a-z0-9]/g, "")
     : "bin";
   const rand = Math.random().toString(36).slice(2, 10);
-  const key = `products/${Date.now()}-${rand}.${ext}`;
+  const key = `${isPrivate ? "resources" : "products"}/${Date.now()}-${rand}.${ext}`;
   const body = Buffer.from(await file.arrayBuffer());
 
-  const { url } = await getStorage().put({ key, body, contentType: file.type });
-  // `url` is the public URL (images/thumbnails); `key` is the raw storage key,
+  const { url } = await getStorage().put({
+    key,
+    body,
+    contentType: file.type,
+    private: isPrivate,
+  });
+  // `url` is the public URL (empty for private); `key` is the raw storage key,
   // used for gated course resources streamed through /api/media/resource.
   return ok({ url, key });
 }

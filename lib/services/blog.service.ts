@@ -13,7 +13,7 @@ import type { BlogPostInput } from "@/lib/schemas/blog";
 
 export type SavePostResult =
   | { ok: true; id: string; slug: string }
-  | { ok: false; code: "duplicate" };
+  | { ok: false; code: "duplicate" | "not_found" };
 
 /**
  * Create or update a post. Sanitizes the localized HTML body, derives reading
@@ -39,7 +39,11 @@ export async function savePost(args: {
 
   let publishedAt: Date | null = null;
   if (input.status === "published") {
-    publishedAt = existing?.publishedAt ?? now;
+    // Preserve the original publish date ONLY if the post was already public
+    // (a past publishedAt). A scheduled post being published now carries a
+    // FUTURE publishedAt which must be reset to now, or it would stay hidden.
+    const prev = existing?.publishedAt ? new Date(existing.publishedAt) : null;
+    publishedAt = prev && prev <= now ? prev : now;
   } else if (input.status === "scheduled") {
     publishedAt = input.scheduledFor ?? now;
   }
@@ -73,7 +77,8 @@ export async function savePost(args: {
   try {
     if (args.id) {
       const updated = await updatePost(args.id, data);
-      return { ok: true, id: args.id, slug: updated?.slug ?? data.slug! };
+      if (!updated) return { ok: false, code: "not_found" };
+      return { ok: true, id: args.id, slug: updated.slug };
     }
     const created = await createPost(data);
     return { ok: true, id: String(created._id), slug: created.slug };

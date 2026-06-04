@@ -76,9 +76,21 @@ export async function createSoftwareProduct(data: Partial<ISoftwareProduct>) {
 export async function updateSoftwareProduct(
   id: string,
   data: Partial<ISoftwareProduct>,
+  unset: string[] = [],
 ) {
   await connectToDatabase();
-  return SoftwareProduct.findByIdAndUpdate(id, data, { new: true }).exec();
+  const update: Record<string, unknown> = { $set: data };
+  if (unset.length) {
+    update.$unset = Object.fromEntries(unset.map((k) => [k, ""]));
+  }
+  // Guard `deletedAt: null` so a soft-deleted product can't be silently edited.
+  return SoftwareProduct.findOneAndUpdate(
+    { _id: id, deletedAt: null },
+    update,
+    {
+      new: true,
+    },
+  ).exec();
 }
 
 /** "More solutions" rail — other active software (same category preferred). */

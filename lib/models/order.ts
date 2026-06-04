@@ -25,6 +25,7 @@ export interface IPaymentRef {
   status: PaymentStatus;
   raw?: unknown;
   paidAt?: Date | null;
+  refundedAt?: Date | null;
 }
 
 export interface ITimelineEntry {
@@ -122,11 +123,20 @@ const orderSchema = new Schema<IOrder>(
       index: true,
     },
     payment: {
-      provider: { type: String, default: "manual" },
+      provider: {
+        type: String,
+        enum: ["manual", "sslcommerz", "aamarpay", "stripe"],
+        default: "manual",
+      },
       txnId: String,
-      status: { type: String, default: "unpaid" },
+      status: {
+        type: String,
+        enum: ["unpaid", "paid", "failed", "refunded"],
+        default: "unpaid",
+      },
       raw: Schema.Types.Mixed,
       paidAt: { type: Date, default: null },
+      refundedAt: { type: Date, default: null },
     },
     shippingAddress: { type: addressSchema, required: true },
     couponCode: String,

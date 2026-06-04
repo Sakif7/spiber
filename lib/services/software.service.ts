@@ -9,7 +9,11 @@ import {
   createPurchase,
 } from "@/lib/repositories/purchases.repo";
 import { getCommissionByPurchaseId } from "@/lib/repositories/commissions.repo";
-import { incrementCouponUsage } from "@/lib/repositories/coupons.repo";
+import {
+  reserveCouponUsage,
+  releaseCouponUsage,
+  releaseCouponUsageByCode,
+} from "@/lib/repositories/coupons.repo";
 import { validateCoupon } from "./coupon.service";
 import { getPaymentProvider } from "@/lib/payments";
 import { getFulfillmentProvider } from "@/lib/fulfillment";
@@ -138,7 +142,22 @@ export async function buySoftware(args: {
     }
   }
 
-  const totals = priceSoftware(product.priceMinor, coupon);
+  let totals = priceSoftware(product.priceMinor, coupon);
+
+  // Atomically claim the coupon's slot before creating the purchase; if it was
+  // exhausted in a race, drop the discount and re-price at full amount.
+  let couponReserved = false;
+  if (couponId) {
+    couponReserved = await reserveCouponUsage(couponId);
+    if (!couponReserved) {
+      logger.warn(`coupon ${couponCode} exhausted at buy; dropping discount`);
+      coupon = null;
+      couponId = undefined;
+      couponCode = undefined;
+      totals = priceSoftware(product.priceMinor, null);
+    }
+  }
+
   const free = totals.totalMinor <= 0;
   const now = new Date();
   const status: PurchaseStatus = free ? "paid" : "pending";
@@ -181,13 +200,22 @@ export async function buySoftware(args: {
     } as Partial<ISoftwarePurchase>);
   } catch (err: unknown) {
     if (isDuplicateKey(err)) {
+      // Concurrent retry (idempotency key) OR concurrent buy (userId+productId
+      // partial unique index). Return the canonical purchase and release the
+      // slot we just claimed, since the winning request reserved its own.
+      if (couponReserved && couponId)
+        await releaseCouponUsage(couponId).catch(() => {});
       const dup = await getPurchaseByIdempotencyKey(args.idempotencyKey);
       if (dup) return { ok: true, purchase: dup.toObject() };
+      const open = await getOpenPurchase(args.userId, args.softwareProductId);
+      if (open) {
+        return open.status === "paid"
+          ? { ok: false, code: "already_owned" }
+          : { ok: true, purchase: open.toObject() };
+      }
     }
     throw err;
   }
-
-  if (couponId) await incrementCouponUsage(couponId).catch(() => {});
 
   // Free purchases are paid immediately → fulfill now.
   if (free) {
@@ -217,6 +245,7 @@ async function runFulfillment(
     email: purchase.email,
     softwareProductId: String(purchase.softwareProductId),
     snapshot: purchase.productSnapshot,
+    chargedMinor: purchase.totalMinor,
   };
   try {
     const result = await getFulfillmentProvider(
@@ -273,6 +302,14 @@ export async function transitionPurchase(
       localize(purchase.productSnapshot.name, "en"),
       "paid",
     ).catch((e) => logger.warn("purchase email failed", e));
+  }
+  if (to === "refunded" || to === "cancelled") {
+    // Return the coupon's redemption slot (terminal states → runs once).
+    if (purchase.couponCode) {
+      await releaseCouponUsageByCode(purchase.couponCode).catch((e) =>
+        logger.warn("coupon release failed", e),
+      );
+    }
   }
   if (to === "refunded") {
     // Void the affiliate commission; the provisioning task is left to the

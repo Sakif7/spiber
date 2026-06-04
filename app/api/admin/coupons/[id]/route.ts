@@ -1,7 +1,7 @@
 import { ok, fail } from "@/lib/http/respond";
 import { parseJson } from "@/lib/http/validate";
 import { requireAdmin } from "@/lib/auth/guard";
-import { couponSchema } from "@/lib/schemas/coupon";
+import { couponUpdateSchema } from "@/lib/schemas/coupon";
 import { updateCoupon } from "@/lib/repositories/coupons.repo";
 import { writeAudit } from "@/lib/repositories/audit.repo";
 
@@ -12,7 +12,7 @@ export async function PATCH(
   const admin = await requireAdmin();
   if (!admin) return fail({ code: "forbidden" }, 403);
   const { id } = await params;
-  const parsed = await parseJson(req, couponSchema.partial());
+  const parsed = await parseJson(req, couponUpdateSchema);
   if (!parsed.success)
     return fail({ code: "invalid_input", details: parsed.issues }, 400);
   await updateCoupon(id, parsed.data);

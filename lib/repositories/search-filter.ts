@@ -62,5 +62,12 @@ export function applyPartialSearch(
 ): void {
   if (!term) return;
   const filter = partialMatchFilter(term, fields);
-  if (filter) Object.assign(query, filter);
+  if (!filter) return;
+  // Merge into any pre-existing $and rather than clobbering it.
+  const existing = query.$and;
+  if (Array.isArray(existing)) {
+    query.$and = [...existing, ...(filter.$and as unknown[])];
+  } else {
+    Object.assign(query, filter);
+  }
 }

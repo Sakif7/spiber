@@ -215,6 +215,35 @@ describe("enrollment flow (integration)", () => {
     if (!again.ok) expect(again.code).toBe("already_enrolled");
   });
 
+  it("prevents duplicate active enrollments under a concurrent double-enroll", async () => {
+    const c = await seedCourse({ priceMinor: 0 });
+    const u = uid();
+    // Two simultaneous enrolls with DIFFERENT idempotency keys (double-click).
+    const [a, b] = await Promise.all([
+      enrollCourse({
+        courseId: String(c._id),
+        userId: u,
+        email: "s@example.com",
+        idempotencyKey: `k-${rid()}`,
+      }),
+      enrollCourse({
+        courseId: String(c._id),
+        userId: u,
+        email: "s@example.com",
+        idempotencyKey: `k-${rid()}`,
+      }),
+    ]);
+    // At least one succeeds; the DB partial-unique index prevents a 2nd live row.
+    expect([a, b].some((r) => r.ok)).toBe(true);
+    expect(
+      await Enrollment.countDocuments({
+        userId: u,
+        courseId: c._id,
+        status: { $in: ["pending", "active"] },
+      }),
+    ).toBe(1);
+  });
+
   it("tracks progress and issues a certificate on 100% completion", async () => {
     const c = await seedCourse({ priceMinor: 0 });
     const u = uid();

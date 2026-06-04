@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CtaButton } from "@/components/ui/cta-button";
 import { fromMinor, toMinor } from "@/lib/money";
+import { formatApiError } from "@/lib/http/form-error";
 import { ImageUploader } from "./image-uploader";
 import { SpecsEditor, type SpecRow } from "./specs-editor";
 
@@ -90,7 +91,7 @@ export function ProductForm({
       router.push("/admin/products");
       router.refresh();
     } else {
-      setError(json?.error?.message ?? json?.error?.code ?? "save_failed");
+      setError(formatApiError(json));
     }
   }
 

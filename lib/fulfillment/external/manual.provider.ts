@@ -71,7 +71,9 @@ async function ensureCommission(
   const existing = await getCommissionByPurchaseId(ctx.purchaseId);
   if (existing) return String(existing._id);
 
-  const basePriceMinor = ctx.snapshot.priceMinor;
+  // Commission is on the amount actually charged (after any coupon), so a
+  // discounted sale doesn't accrue commission on revenue never collected.
+  const basePriceMinor = ctx.chargedMinor;
   const rateBp = ctx.snapshot.affiliate?.rateBp ?? 0;
   const amountMinor = Math.round((basePriceMinor * rateBp) / 10000);
 
@@ -113,12 +115,12 @@ async function notifyExternalAdmin(
   const subject = `[${externalApp}] Activate access for ${ctx.email}`;
   const body =
     `A ${externalApp} purchase was paid on ${siteConfig.brand} and needs manual activation.\n\n` +
-    `Product: ${product}\nUser: ${ctx.email}\nAmount: ${formatBDT(ctx.snapshot.priceMinor)}\n\n` +
+    `Product: ${product}\nUser: ${ctx.email}\nAmount: ${formatBDT(ctx.chargedMinor)}\n\n` +
     `Please activate this user in ${externalApp}, then mark the provisioning task done in the admin panel.`;
   await getMailer().send({
     to,
     subject,
     text: `${subject}\n\n${body}\n\n${siteConfig.brand}`,
-    html: `<p>A <strong>${externalApp}</strong> purchase was paid on ${siteConfig.brand} and needs manual activation.</p><ul><li>Product: ${product}</li><li>User: ${ctx.email}</li><li>Amount: ${formatBDT(ctx.snapshot.priceMinor)}</li></ul><p>Activate the user in ${externalApp}, then mark the provisioning task done in the admin panel.</p>`,
+    html: `<p>A <strong>${externalApp}</strong> purchase was paid on ${siteConfig.brand} and needs manual activation.</p><ul><li>Product: ${product}</li><li>User: ${ctx.email}</li><li>Amount: ${formatBDT(ctx.chargedMinor)}</li></ul><p>Activate the user in ${externalApp}, then mark the provisioning task done in the admin panel.</p>`,
   });
 }

@@ -293,6 +293,7 @@ describe("fulfillment providers are idempotent", () => {
         priceMinor: 100000,
         deliveryType: "license" as DeliveryType,
       },
+      chargedMinor: 100000,
     };
     const a = await licenseProvider.fulfill(ctx);
     const b = await licenseProvider.fulfill(ctx);
@@ -316,6 +317,7 @@ describe("fulfillment providers are idempotent", () => {
         externalApp: "zenhcare",
         affiliate: { rateBp: 2000 },
       },
+      chargedMinor: 1000000,
     };
     const a = await externalManualProvider.fulfill(ctx);
     const b = await externalManualProvider.fulfill(ctx);
@@ -327,5 +329,30 @@ describe("fulfillment providers are idempotent", () => {
     expect(
       await AffiliateCommission.countDocuments({ purchaseId: ctx.purchaseId }),
     ).toBe(1);
+  });
+
+  it("accrues commission on the amount charged, not the list price", async () => {
+    const ctx = {
+      purchaseId: uid(),
+      userId: uid(),
+      email: "u@example.com",
+      softwareProductId: uid(),
+      snapshot: {
+        name: { en: "ZenHcare" },
+        slug: "zenhcare",
+        priceMinor: 1000000, // list price
+        deliveryType: "external" as DeliveryType,
+        externalApp: "zenhcare",
+        affiliate: { rateBp: 1500 }, // 15%
+      },
+      chargedMinor: 800000, // 20% coupon was applied
+    };
+    await externalManualProvider.fulfill(ctx);
+    const commission = await AffiliateCommission.findOne({
+      purchaseId: ctx.purchaseId,
+    });
+    // 15% of the CHARGED 800000 = 120000, not 15% of list 1000000 = 150000.
+    expect(commission?.amountMinor).toBe(120000);
+    expect(commission?.basePriceMinor).toBe(800000);
   });
 });

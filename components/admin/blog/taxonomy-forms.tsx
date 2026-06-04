@@ -5,6 +5,7 @@ import { useRouter } from "@/i18n/navigation";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CtaButton } from "@/components/ui/cta-button";
+import { formatApiError } from "@/lib/http/form-error";
 
 const field: CSSProperties = { display: "grid", gap: 6 };
 const row: CSSProperties = {
@@ -47,7 +48,7 @@ function TaxonomyForm({
       setNameBn("");
       router.refresh();
     } else {
-      setError(json?.error?.code ?? "save_failed");
+      setError(formatApiError(json));
     }
   }
 

@@ -9,7 +9,12 @@ import {
   getEnrollmentById,
   createEnrollment,
 } from "@/lib/repositories/enrollments.repo";
-import { incrementCouponUsage } from "@/lib/repositories/coupons.repo";
+import {
+  reserveCouponUsage,
+  releaseCouponUsage,
+  releaseCouponUsageByCode,
+} from "@/lib/repositories/coupons.repo";
+import { makeId } from "@/lib/ids";
 import { validateCoupon } from "./coupon.service";
 import { getPaymentProvider } from "@/lib/payments";
 import { getMailer } from "@/lib/mailer";
@@ -22,23 +27,10 @@ import {
   type EnrollmentStatus,
 } from "@/lib/schemas/enrollment";
 
-function genEnrollmentNumber(): string {
-  const ts = Date.now().toString(36).toUpperCase();
-  const rand = Math.floor(Math.random() * 46656)
-    .toString(36)
-    .toUpperCase()
-    .padStart(3, "0");
-  return `SPM-EDU-${ts}-${rand}`;
-}
-
-function genCertificateId(): string {
-  const ts = Date.now().toString(36).toUpperCase();
-  const rand = Math.floor(Math.random() * 1679616)
-    .toString(36)
-    .toUpperCase()
-    .padStart(4, "0");
-  return `CERT-${ts}-${rand}`;
-}
+const genEnrollmentNumber = (): string => makeId("SPM-EDU");
+// 8 crypto base36 chars: the certificate id is the sole credential for a
+// shareable-by-link certificate, so it must be hard to brute-force.
+const genCertificateId = (): string => makeId("CERT", 8);
 
 // ---- Pricing (pure, unit-tested) ----
 
@@ -147,13 +139,29 @@ export async function enrollCourse(args: {
     }
   }
 
-  const totals = args.grant
+  let totals = args.grant
     ? {
         subtotalMinor: course.priceMinor,
         discountMinor: course.priceMinor,
         totalMinor: 0,
       }
     : priceEnrollment(course.priceMinor, coupon);
+
+  // Atomically claim the coupon's slot before creating the enrollment; if it was
+  // exhausted in a race, drop the discount and re-price at full amount.
+  let couponReserved = false;
+  if (couponId) {
+    couponReserved = await reserveCouponUsage(couponId);
+    if (!couponReserved) {
+      logger.warn(
+        `coupon ${couponCode} exhausted at enroll; dropping discount`,
+      );
+      coupon = null;
+      couponId = undefined;
+      couponCode = undefined;
+      totals = priceEnrollment(course.priceMinor, null);
+    }
+  }
 
   const free = totals.totalMinor <= 0;
   const now = new Date();
@@ -194,13 +202,23 @@ export async function enrollCourse(args: {
     } as Partial<IEnrollment>);
   } catch (err: unknown) {
     if (isDuplicateKey(err)) {
+      // Concurrent retry (idempotency key) OR concurrent enroll (userId+courseId
+      // partial unique index). Return the canonical record and release the slot
+      // we just claimed, since the winning request reserved its own.
+      if (couponReserved && couponId)
+        await releaseCouponUsage(couponId).catch(() => {});
       const dup = await getEnrollmentByIdempotencyKey(args.idempotencyKey);
       if (dup) return { ok: true, enrollment: dup.toObject() };
+      const active = await getActiveEnrollment(args.userId, args.courseId);
+      if (active) {
+        return active.status === "active"
+          ? { ok: false, code: "already_enrolled" }
+          : { ok: true, enrollment: active.toObject() };
+      }
     }
     throw err;
   }
 
-  if (couponId) await incrementCouponUsage(couponId).catch(() => {});
   await sendEnrollmentEmail(
     enrollment.toObject(),
     localize(course.title, "en"),
@@ -244,6 +262,14 @@ export async function transitionEnrollment(
     enrollment.payment.paidAt = now;
   }
   if (to === "refunded") enrollment.payment.status = "refunded";
+
+  // Return the coupon's redemption slot on cancel/refund (terminal states, so
+  // this runs at most once per enrollment).
+  if ((to === "cancelled" || to === "refunded") && enrollment.couponCode) {
+    await releaseCouponUsageByCode(enrollment.couponCode).catch((e) =>
+      logger.warn("coupon release failed", e),
+    );
+  }
 
   enrollment.status = to;
   enrollment.timeline.push({ status: to, at: now, note: opts.note });
@@ -405,6 +431,11 @@ export async function submitQuiz(
     passed,
     attemptedAt: now,
   });
+  // Bound the attempt history so a determined student can't grow the document
+  // without limit (keep the most recent 50 attempts).
+  if (enrollment.quizScores.length > 50) {
+    enrollment.quizScores = enrollment.quizScores.slice(-50);
+  }
   await enrollment.save();
 
   let courseCompleted = false;

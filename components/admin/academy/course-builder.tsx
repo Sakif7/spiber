@@ -30,6 +30,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CtaButton } from "@/components/ui/cta-button";
 import { fromMinor, toMinor } from "@/lib/money";
+import { formatApiError } from "@/lib/http/form-error";
 import type {
   CourseLevel,
   CourseStatus,
@@ -335,7 +336,39 @@ export function CourseBuilder({ initial }: { initial?: CourseBuilderInitial }) {
     };
   }
 
+  /** Instant client-side check for the required fields the API also enforces. */
+  function validate(): string | null {
+    if (!title.en.trim()) return "Course title (EN) is required.";
+    for (let mi = 0; mi < modules.length; mi++) {
+      const m = modules[mi];
+      if (!m.title.en.trim())
+        return `Module ${mi + 1}: title (EN) is required.`;
+      for (let li = 0; li < m.lessons.length; li++) {
+        const l = m.lessons[li];
+        if (!l.title.en.trim())
+          return `Module ${mi + 1} → Lesson ${li + 1}: title (EN) is required.`;
+        if (l.type === "quiz") {
+          for (let qi = 0; qi < l.quiz.questions.length; qi++) {
+            const q = l.quiz.questions[qi];
+            if (!q.prompt.en.trim())
+              return `Module ${mi + 1} → Lesson ${li + 1} → Question ${qi + 1}: prompt (EN) is required.`;
+            if (q.options.some((o) => !o.text.en.trim()))
+              return `Module ${mi + 1} → Lesson ${li + 1} → Question ${qi + 1}: every option needs text (EN).`;
+            if (!q.correctOptionId)
+              return `Module ${mi + 1} → Lesson ${li + 1} → Question ${qi + 1}: select the correct option.`;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
   async function submit() {
+    const problem = validate();
+    if (problem) {
+      setError(problem);
+      return;
+    }
     setSaving(true);
     setError(null);
     const res = await fetch(
@@ -354,7 +387,7 @@ export function CourseBuilder({ initial }: { initial?: CourseBuilderInitial }) {
       router.push("/admin/courses");
       router.refresh();
     } else {
-      setError(json?.error?.message ?? json?.error?.code ?? "save_failed");
+      setError(formatApiError(json));
     }
   }
 
@@ -886,6 +919,8 @@ function ResourceEditor({
     setBusy(true);
     const fd = new FormData();
     fd.append("file", file);
+    // Private: course resources are gated, never served from a public URL.
+    fd.append("visibility", "private");
     const res = await fetch("/api/admin/uploads", { method: "POST", body: fd });
     const json = await res.json().catch(() => null);
     setBusy(false);

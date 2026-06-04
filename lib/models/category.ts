@@ -14,7 +14,7 @@ export interface ICategory {
 const categorySchema = new Schema<ICategory>(
   {
     name: { ...localizedDef },
-    slug: { type: String, required: true, unique: true, trim: true },
+    slug: { type: String, required: true, trim: true },
     parentId: {
       type: Schema.Types.ObjectId,
       ref: "Category",
@@ -25,6 +25,12 @@ const categorySchema = new Schema<ICategory>(
     deletedAt: { type: Date, default: null },
   },
   { collection: "categories", timestamps: true },
+);
+
+// Unique slug among non-deleted categories (soft-deleted rows free their slug).
+categorySchema.index(
+  { slug: 1 },
+  { unique: true, partialFilterExpression: { deletedAt: null } },
 );
 
 export const Category: Model<ICategory> =

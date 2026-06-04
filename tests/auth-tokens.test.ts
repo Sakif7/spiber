@@ -27,17 +27,19 @@ describe("auth tokens", () => {
     expect(await verifyAccessToken(refresh)).toBeNull();
   });
 
-  it("verifies refresh tokens and extracts the subject", async () => {
-    const refresh = await signRefreshToken("user42");
-    expect(await verifyRefreshToken(refresh)).toBe("user42");
+  it("verifies refresh tokens and extracts the subject + tokenVersion", async () => {
+    const refresh = await signRefreshToken("user42", 3);
+    const claims = await verifyRefreshToken(refresh);
+    expect(claims?.sub).toBe("user42");
+    expect(claims?.tokenVersion).toBe(3);
   });
 
   it("enforces purpose on verify/reset tokens", async () => {
     const verify = await signVerifyToken("user1");
     const reset = await signResetToken("user1");
-    expect(await verifyPurposeToken(verify, "verify")).toBe("user1");
+    expect((await verifyPurposeToken(verify, "verify"))?.sub).toBe("user1");
     expect(await verifyPurposeToken(verify, "reset")).toBeNull();
-    expect(await verifyPurposeToken(reset, "reset")).toBe("user1");
+    expect((await verifyPurposeToken(reset, "reset"))?.sub).toBe("user1");
     expect(await verifyPurposeToken(reset, "verify")).toBeNull();
   });
 

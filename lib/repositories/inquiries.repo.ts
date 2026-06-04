@@ -13,11 +13,15 @@ export async function createInquiry(data: Partial<IInquiry>) {
 
 export async function getInquiryById(id: string) {
   await connectToDatabase();
+  // A malformed id would otherwise throw a CastError (→ unhandled 500); treat it
+  // as "not found" so callers return a clean 404.
+  if (!mongoose.isValidObjectId(id)) return null;
   return Inquiry.findById(id).exec();
 }
 
 export async function getInquiryByIdLean(id: string) {
   await connectToDatabase();
+  if (!mongoose.isValidObjectId(id)) return null;
   return Inquiry.findById(id).lean<Lean<IInquiry>>().exec();
 }
 

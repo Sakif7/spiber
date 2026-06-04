@@ -31,6 +31,9 @@ const OPTIONS: sanitizeHtml.IOptions = {
     img: ["src", "alt", "title"],
   },
   allowedSchemes: ["http", "https", "mailto"],
+  // Reject protocol-relative URLs (//evil.com) — without an explicit scheme they
+  // bypass the allowlist and can point off-site / at javascript: in some contexts.
+  allowProtocolRelative: false,
   // External links open safely; relative R2/upload image URLs are allowed.
   transformTags: {
     a: sanitizeHtml.simpleTransform("a", { rel: "noopener noreferrer" }, true),

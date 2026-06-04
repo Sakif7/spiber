@@ -31,7 +31,7 @@ export interface ISoftwareProduct {
 const softwareProductSchema = new Schema<ISoftwareProduct>(
   {
     name: { ...localizedDef },
-    slug: { type: String, required: true, unique: true, trim: true },
+    slug: { type: String, required: true, trim: true },
     categoryId: {
       type: Schema.Types.ObjectId,
       ref: "Category",
@@ -68,6 +68,11 @@ const softwareProductSchema = new Schema<ISoftwareProduct>(
   { collection: "software_products", timestamps: true },
 );
 
+// Unique slug among non-deleted products (soft-deleted rows free their slug).
+softwareProductSchema.index(
+  { slug: 1 },
+  { unique: true, partialFilterExpression: { deletedAt: null } },
+);
 softwareProductSchema.index({ "name.en": "text", "name.bn": "text" });
 softwareProductSchema.index({ status: 1, createdAt: -1 });
 

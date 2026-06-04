@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { CtaButton } from "@/components/ui/cta-button";
 import { ImageUploader } from "@/components/admin/image-uploader";
 import { fromMinor, toMinor } from "@/lib/money";
+import { formatApiError } from "@/lib/http/form-error";
 import type {
   SoftwarePricingModel,
   DeliveryType,
@@ -167,7 +168,7 @@ export function SoftwareProductForm({
       router.push("/admin/software-products");
       router.refresh();
     } else {
-      setError(json?.error?.message ?? json?.error?.code ?? "save_failed");
+      setError(formatApiError(json));
     }
   }
 

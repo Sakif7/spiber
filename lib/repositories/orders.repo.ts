@@ -86,6 +86,10 @@ export async function revenueSince(dayStart: Date) {
       $match: {
         "payment.status": "paid",
         "payment.paidAt": { $gte: dayStart },
+        // Defensive: a paid order that was later cancelled/refunded must never
+        // count as revenue (transitionOrder also flips payment.status, but this
+        // guards any legacy rows written before that fix).
+        status: { $nin: ["cancelled", "refunded"] },
       },
     },
     {

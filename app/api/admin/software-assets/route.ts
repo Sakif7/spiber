@@ -34,10 +34,12 @@ export async function POST(req: Request) {
 
   try {
     const body = Buffer.from(await file.arrayBuffer());
+    // Private: software assets are delivered only via the gated /api/media route.
     await getStorage().put({
       key,
       body,
       contentType: file.type || "application/octet-stream",
+      private: true,
     });
     return ok({ key, name: file.name });
   } catch (e) {

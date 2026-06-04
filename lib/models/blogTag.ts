@@ -12,10 +12,16 @@ export interface IBlogTag {
 const blogTagSchema = new Schema<IBlogTag>(
   {
     name: { ...localizedDef },
-    slug: { type: String, required: true, unique: true, trim: true },
+    slug: { type: String, required: true, trim: true },
     deletedAt: { type: Date, default: null },
   },
   { collection: "blog_tags", timestamps: true },
+);
+
+// Unique slug among non-deleted tags (soft-deleted rows free their slug).
+blogTagSchema.index(
+  { slug: 1 },
+  { unique: true, partialFilterExpression: { deletedAt: null } },
 );
 
 export const BlogTag: Model<IBlogTag> =

@@ -1,14 +1,24 @@
-import { ok } from "@/lib/http/respond";
+import { z } from "zod";
+import { ok, fail } from "@/lib/http/respond";
+import { parseJson } from "@/lib/http/validate";
 import { resolveCartOwner } from "@/lib/shop/cart-owner";
 import { getCartView } from "@/lib/services/cart.service";
 import { validateCoupon } from "@/lib/services/coupon.service";
 import { getShippingSettings } from "@/lib/services/shop-settings.service";
 import { priceCart, type PricingCoupon } from "@/lib/services/pricing.service";
+import { rateLimit, clientIp } from "@/lib/auth/rate-limit";
+
+const quoteSchema = z.object({
+  couponCode: z.string().trim().max(64).optional(),
+});
 
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => ({}) as Record<string, unknown>);
-  const couponCode =
-    typeof body?.couponCode === "string" ? body.couponCode : undefined;
+  if (!rateLimit(`checkout-quote:${clientIp(req)}`, 30, 60_000).ok) {
+    return fail({ code: "rate_limited" }, 429);
+  }
+  const parsed = await parseJson(req, quoteSchema);
+  if (!parsed.success) return fail({ code: "invalid_input" }, 400);
+  const couponCode = parsed.data.couponCode;
 
   const owner = await resolveCartOwner();
   const cart = await getCartView(owner, "en");

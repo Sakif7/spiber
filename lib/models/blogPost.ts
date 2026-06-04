@@ -34,7 +34,7 @@ const optionalLocalized = { en: { type: String }, bn: { type: String } };
 const blogPostSchema = new Schema<IBlogPost>(
   {
     title: { ...localizedDef },
-    slug: { type: String, required: true, unique: true, trim: true },
+    slug: { type: String, required: true, trim: true },
     excerpt: optionalLocalized,
     body: { ...localizedDef },
     coverImage: { type: String },
@@ -70,6 +70,11 @@ const blogPostSchema = new Schema<IBlogPost>(
   { collection: "blog_posts", timestamps: true },
 );
 
+// Unique slug among non-deleted posts (soft-deleted rows free their slug).
+blogPostSchema.index(
+  { slug: 1 },
+  { unique: true, partialFilterExpression: { deletedAt: null } },
+);
 // Visibility + ordering: status published/scheduled with publishedAt ≤ now.
 blogPostSchema.index({ status: 1, publishedAt: -1 });
 // Search across localized titles + excerpts.

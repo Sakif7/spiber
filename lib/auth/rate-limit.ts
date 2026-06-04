@@ -27,7 +27,13 @@ export function rateLimit(
 }
 
 export function clientIp(req: Request): string {
+  // Prefer x-real-ip: a trusted reverse proxy (Coolify/Traefik) overwrites it
+  // with the real peer, so a client can't forge it to dodge per-IP limits. Only
+  // fall back to the (client-spoofable) left-most X-Forwarded-For when no proxy
+  // header is present, e.g. local dev. Ensure the proxy strips inbound x-real-ip.
+  const realIp = req.headers.get("x-real-ip");
+  if (realIp) return realIp.trim();
   const xff = req.headers.get("x-forwarded-for");
   if (xff) return xff.split(",")[0]!.trim();
-  return req.headers.get("x-real-ip") ?? "unknown";
+  return "unknown";
 }

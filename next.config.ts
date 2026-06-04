@@ -17,6 +17,24 @@ const r2Patterns = (() => {
   }
 })();
 
+// Baseline security headers applied to every response. (A strict Content-
+// Security-Policy is intentionally deferred — the marketing pages rely on inline
+// styles; adding CSP needs a nonce pass to avoid breaking them.) X-Frame-Options
+// is SAMEORIGIN (not DENY) because the lesson player frames same-origin PDFs.
+const securityHeaders = [
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "SAMEORIGIN" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Strict-Transport-Security",
+    value: "max-age=63072000; includeSubDomains",
+  },
+  {
+    key: "Permissions-Policy",
+    value: "camera=(), microphone=(), geolocation=()",
+  },
+];
+
 const nextConfig: NextConfig = {
   // Lean, self-contained build for Coolify / Docker.
   output: "standalone",
@@ -24,6 +42,9 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["mongoose", "nodemailer"],
   images: {
     remotePatterns: r2Patterns,
+  },
+  async headers() {
+    return [{ source: "/:path*", headers: securityHeaders }];
   },
 };
 

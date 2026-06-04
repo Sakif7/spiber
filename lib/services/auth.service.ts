@@ -48,10 +48,10 @@ function toAuthUser(doc: IUser & { _id: unknown }): AuthUser {
   };
 }
 
-function issueTokens(user: AuthUser): Promise<Tokens> {
+function issueTokens(user: AuthUser, tokenVersion: number): Promise<Tokens> {
   return Promise.all([
     signAccessToken({ sub: user.id, email: user.email, roles: user.roles }),
-    signRefreshToken(user.id),
+    signRefreshToken(user.id, tokenVersion),
   ]).then(([accessToken, refreshToken]) => ({ accessToken, refreshToken }));
 }
 
@@ -65,6 +65,11 @@ function bootstrapRoles(email: string): Role[] {
 }
 
 const localePrefix = (locale?: string) => (locale === "bn" ? "bn" : "en");
+
+// A throwaway cost-12 bcrypt hash compared against when the email is unknown, so
+// login takes the same time whether or not the account exists (anti-enumeration).
+const DUMMY_PASSWORD_HASH =
+  "$2b$12$CJ9ihBPwQ1zLkvmsoNImC.Eo/M4P8B1kyzIe5TcDEEiiG1Kdn98j.";
 
 // ---- Register ----
 
@@ -102,9 +107,9 @@ export async function register(input: RegisterInput): Promise<RegisterResult> {
 // ---- Verify email ----
 
 export async function verifyEmail(token: string): Promise<{ ok: boolean }> {
-  const userId = await verifyPurposeToken(token, "verify");
-  if (!userId) return { ok: false };
-  await markEmailVerified(userId);
+  const claims = await verifyPurposeToken(token, "verify");
+  if (!claims) return { ok: false };
+  await markEmailVerified(claims.sub);
   return { ok: true };
 }
 
@@ -116,13 +121,18 @@ export type LoginResult =
 
 export async function login(input: LoginInput): Promise<LoginResult> {
   const doc = await findUserByEmail(input.email);
-  if (!doc) return { ok: false, code: "invalid_credentials" };
-  const valid = await verifyPassword(input.password, doc.passwordHash);
-  if (!valid) return { ok: false, code: "invalid_credentials" };
+  // Always run a bcrypt comparison — even when the user doesn't exist — so login
+  // timing doesn't reveal whether an email is registered (enumeration oracle).
+  const valid = await verifyPassword(
+    input.password,
+    doc?.passwordHash ?? DUMMY_PASSWORD_HASH,
+  );
+  if (!doc || !valid) return { ok: false, code: "invalid_credentials" };
+  if (doc.disabled) return { ok: false, code: "invalid_credentials" };
   if (!doc.emailVerified) return { ok: false, code: "email_not_verified" };
 
   const user = toAuthUser(doc);
-  const tokens = await issueTokens(user);
+  const tokens = await issueTokens(user, doc.tokenVersion ?? 0);
   return { ok: true, user, tokens };
 }
 
@@ -133,12 +143,15 @@ export type RefreshResult =
   | { ok: false };
 
 export async function refresh(refreshToken: string): Promise<RefreshResult> {
-  const userId = await verifyRefreshToken(refreshToken);
-  if (!userId) return { ok: false };
-  const doc = await findUserById(userId);
-  if (!doc) return { ok: false };
+  const claims = await verifyRefreshToken(refreshToken);
+  if (!claims) return { ok: false };
+  const doc = await findUserById(claims.sub);
+  if (!doc || doc.disabled) return { ok: false };
+  // Reject a refresh token issued before the current tokenVersion (revoked by a
+  // password reset / forced logout) — this is the "log out everywhere" kill switch.
+  if ((doc.tokenVersion ?? 0) !== claims.tokenVersion) return { ok: false };
   const user = toAuthUser(doc);
-  const tokens = await issueTokens(user);
+  const tokens = await issueTokens(user, doc.tokenVersion ?? 0);
   return { ok: true, user, tokens };
 }
 
@@ -151,7 +164,7 @@ export async function requestPasswordReset(
   // Always return ok to avoid leaking which emails are registered.
   if (doc) {
     const locale = localePrefix(input.locale);
-    const token = await signResetToken(String(doc._id));
+    const token = await signResetToken(String(doc._id), doc.tokenVersion ?? 0);
     const link = `${siteConfig.url}/${locale}/reset-password?token=${encodeURIComponent(token)}`;
     await getMailer().send({
       to: doc.email,
@@ -168,9 +181,14 @@ export async function requestPasswordReset(
 export async function resetPassword(
   input: PasswordResetConfirmInput,
 ): Promise<{ ok: boolean }> {
-  const userId = await verifyPurposeToken(input.token, "reset");
-  if (!userId) return { ok: false };
+  const claims = await verifyPurposeToken(input.token, "reset");
+  if (!claims) return { ok: false };
+  const doc = await findUserById(claims.sub);
+  if (!doc) return { ok: false };
+  // Reject a stale/already-used reset link: once a reset succeeds, tokenVersion
+  // is bumped, so the same link (carrying the old tokenVersion) no longer matches.
+  if ((doc.tokenVersion ?? 0) !== claims.tokenVersion) return { ok: false };
   const passwordHash = await hashPassword(input.password);
-  await updatePasswordHash(userId, passwordHash);
+  await updatePasswordHash(claims.sub, passwordHash); // bumps tokenVersion
   return { ok: true };
 }

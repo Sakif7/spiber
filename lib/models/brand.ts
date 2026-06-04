@@ -13,11 +13,17 @@ export interface IBrand {
 const brandSchema = new Schema<IBrand>(
   {
     name: { ...localizedDef },
-    slug: { type: String, required: true, unique: true, trim: true },
+    slug: { type: String, required: true, trim: true },
     logo: { type: String },
     deletedAt: { type: Date, default: null },
   },
   { collection: "brands", timestamps: true },
+);
+
+// Unique slug among non-deleted brands (soft-deleted rows free their slug).
+brandSchema.index(
+  { slug: 1 },
+  { unique: true, partialFilterExpression: { deletedAt: null } },
 );
 
 export const Brand: Model<IBrand> =

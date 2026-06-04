@@ -3,7 +3,7 @@ import {
   PutObjectCommand,
   GetObjectCommand,
 } from "@aws-sdk/client-s3";
-import type { Storage } from "./types";
+import type { Storage, GetObjectResult } from "./types";
 
 /** Cloudflare R2 via the S3-compatible API. Uploads go through the server
  *  (admin-only, low volume) — no bucket CORS or presigning required. */
@@ -17,43 +17,57 @@ export function createR2Storage(): Storage {
     },
   });
   const bucket = process.env.R2_BUCKET!;
+  // Private/gated media should live in a bucket that is NOT exposed at the public
+  // base URL. Falls back to the main bucket if a dedicated one isn't configured.
+  const privateBucket = process.env.R2_PRIVATE_BUCKET || bucket;
   const base = (process.env.R2_PUBLIC_BASE_URL ?? "").replace(/\/$/, "");
 
   return {
     name: "r2",
-    async put({ key, body, contentType }) {
+    async put({ key, body, contentType, private: isPrivate }) {
       await client.send(
         new PutObjectCommand({
-          Bucket: bucket,
+          Bucket: isPrivate ? privateBucket : bucket,
           Key: key,
           Body: body,
           ContentType: contentType,
         }),
       );
-      return { url: `${base}/${key}` };
+      // Private objects are served only through the gated route (no public URL).
+      return { url: isPrivate ? "" : `${base}/${key}` };
     },
     async getObject({ key, range }) {
-      try {
-        const res = await client.send(
-          new GetObjectCommand({ Bucket: bucket, Key: key, Range: range }),
-        );
-        const body = res.Body as unknown as {
-          transformToWebStream?: () => ReadableStream<Uint8Array>;
-        };
-        if (!body?.transformToWebStream) return null;
-        return {
-          body: body.transformToWebStream(),
-          contentType: res.ContentType ?? "application/octet-stream",
-          contentLength:
-            typeof res.ContentLength === "number"
-              ? res.ContentLength
-              : undefined,
-          contentRange: res.ContentRange,
-          status: res.ContentRange ? 206 : 200,
-        };
-      } catch {
-        return null;
+      for (const b of new Set([privateBucket, bucket])) {
+        const res = await getFromBucket(b, key, range);
+        if (res) return res;
       }
+      return null;
     },
   };
+
+  async function getFromBucket(
+    b: string,
+    key: string,
+    range?: string,
+  ): Promise<GetObjectResult | null> {
+    try {
+      const res = await client.send(
+        new GetObjectCommand({ Bucket: b, Key: key, Range: range }),
+      );
+      const body = res.Body as unknown as {
+        transformToWebStream?: () => ReadableStream<Uint8Array>;
+      };
+      if (!body?.transformToWebStream) return null;
+      return {
+        body: body.transformToWebStream(),
+        contentType: res.ContentType ?? "application/octet-stream",
+        contentLength:
+          typeof res.ContentLength === "number" ? res.ContentLength : undefined,
+        contentRange: res.ContentRange,
+        status: res.ContentRange ? 206 : 200,
+      };
+    } catch {
+      return null;
+    }
+  }
 }

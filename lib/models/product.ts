@@ -32,9 +32,9 @@ const specSchema = new Schema<ISpec>(
 
 const productSchema = new Schema<IProduct>(
   {
-    sku: { type: String, required: true, unique: true, trim: true },
+    sku: { type: String, required: true, trim: true },
     name: { ...localizedDef },
-    slug: { type: String, required: true, unique: true, trim: true },
+    slug: { type: String, required: true, trim: true },
     description: { en: { type: String }, bn: { type: String } },
     brandId: {
       type: Schema.Types.ObjectId,
@@ -64,6 +64,16 @@ const productSchema = new Schema<IProduct>(
   { collection: "products", timestamps: true },
 );
 
+// Unique sku/slug among NON-deleted products (soft-deleted rows free their
+// sku/slug for reuse). Partial filter on deletedAt:null.
+productSchema.index(
+  { sku: 1 },
+  { unique: true, partialFilterExpression: { deletedAt: null } },
+);
+productSchema.index(
+  { slug: 1 },
+  { unique: true, partialFilterExpression: { deletedAt: null } },
+);
 // Search across localized names + SKU.
 productSchema.index({ "name.en": "text", "name.bn": "text", sku: "text" });
 // Common listing sort/filter.

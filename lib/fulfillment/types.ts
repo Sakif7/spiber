@@ -8,6 +8,9 @@ export interface FulfillmentContext {
   email: string;
   softwareProductId: string;
   snapshot: IPurchaseProductSnapshot;
+  /** Amount actually charged for this purchase (after coupon) = purchase.totalMinor.
+   *  Affiliate commission is computed from this, not the list price. */
+  chargedMinor: number;
 }
 
 /** Ids of whatever fulfillment produced; merged into purchase.fulfillment. */

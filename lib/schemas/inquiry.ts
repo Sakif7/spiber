@@ -48,7 +48,17 @@ export const inquiryCreateSchema = z.object({
   message: z.string().min(1).max(5000),
   budgetRange: z.string().max(60).optional(),
   linkedEntity: inquiryLinkedEntitySchema.optional(),
-  payload: z.record(z.string(), z.unknown()).optional(),
+  // Bounded so this public (only-rate-limited) endpoint can't be used to store
+  // an arbitrarily large/deep blob: ≤30 keys of primitive values.
+  payload: z
+    .record(
+      z.string().max(64),
+      z.union([z.string().max(2000), z.number(), z.boolean()]),
+    )
+    .refine((p) => Object.keys(p).length <= 30, {
+      message: "too many fields",
+    })
+    .optional(),
 });
 export type InquiryCreateInput = z.infer<typeof inquiryCreateSchema>;
 

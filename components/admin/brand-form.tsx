@@ -5,6 +5,7 @@ import { useRouter } from "@/i18n/navigation";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CtaButton } from "@/components/ui/cta-button";
+import { formatApiError } from "@/lib/http/form-error";
 
 export function BrandForm() {
   const router = useRouter();
@@ -39,7 +40,7 @@ export function BrandForm() {
       setSlug("");
       router.refresh();
     } else {
-      setError(json?.error?.message ?? json?.error?.code ?? "save_failed");
+      setError(formatApiError(json));
     }
   }
 
@@ -98,9 +99,7 @@ export function BrandDeleteButton({ id, name }: { id: string; name: string }) {
     if (res.ok && json?.ok) {
       router.refresh();
     } else {
-      window.alert(
-        json?.error?.message ?? json?.error?.code ?? "delete_failed",
-      );
+      window.alert(formatApiError(json, "delete_failed"));
     }
   }
 

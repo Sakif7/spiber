@@ -133,7 +133,7 @@ const moduleSchema = new Schema<IModule>(
 const courseSchema = new Schema<ICourse>(
   {
     title: { ...localizedDef },
-    slug: { type: String, required: true, unique: true, trim: true },
+    slug: { type: String, required: true, trim: true },
     summary: { en: { type: String }, bn: { type: String } },
     description: { en: { type: String }, bn: { type: String } },
     thumbnail: { type: String },
@@ -161,6 +161,11 @@ const courseSchema = new Schema<ICourse>(
   { collection: "courses", timestamps: true },
 );
 
+// Unique slug among non-deleted courses (soft-deleted rows free their slug).
+courseSchema.index(
+  { slug: 1 },
+  { unique: true, partialFilterExpression: { deletedAt: null } },
+);
 courseSchema.index({
   "title.en": "text",
   "title.bn": "text",

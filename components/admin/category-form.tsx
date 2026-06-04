@@ -5,6 +5,7 @@ import { useRouter } from "@/i18n/navigation";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CtaButton } from "@/components/ui/cta-button";
+import { formatApiError } from "@/lib/http/form-error";
 
 export function CategoryForm() {
   const router = useRouter();
@@ -48,7 +49,7 @@ export function CategoryForm() {
       /* fall through to error */
     }
     setSaving(false);
-    setError(json?.error?.message ?? json?.error?.code ?? "save_failed");
+    setError(formatApiError(json));
   }
 
   const field = { display: "grid", gap: 6 } as const;
@@ -120,9 +121,7 @@ export function DeleteCategoryButton({
         router.refresh();
         return;
       }
-      window.alert(
-        json?.error?.message ?? json?.error?.code ?? "delete_failed",
-      );
+      window.alert(formatApiError(json, "delete_failed"));
     } catch {
       window.alert("delete_failed");
     } finally {

@@ -24,6 +24,8 @@ import { InventoryMovement } from "@/lib/models/inventoryMovement";
 import { addToCart } from "@/lib/services/cart.service";
 import { placeOrder, transitionOrder } from "@/lib/services/order.service";
 import { validateCoupon } from "@/lib/services/coupon.service";
+import { reserveCouponUsage } from "@/lib/repositories/coupons.repo";
+import { revenueSince } from "@/lib/repositories/orders.repo";
 
 const rid = () => Math.random().toString(36).slice(2, 9);
 
@@ -153,5 +155,68 @@ describe("order flow (integration)", () => {
     );
     expect(res.ok).toBe(true);
     if (res.ok) expect(res.order.discountMinor).toBe(20000);
+  });
+
+  it("treats a paid→cancelled order as a refund and excludes it from revenue", async () => {
+    const p = await seedProduct(5, 100000);
+    const owner = { guestId: `g-${rid()}` };
+    await addToCart(owner, String(p._id), 1);
+    const placed = await placeOrder(checkout("paid-cancel"), owner);
+    expect(placed.ok).toBe(true);
+    const id = String(
+      (await Order.findOne({ idempotencyKey: "paid-cancel" }))!._id,
+    );
+
+    await transitionOrder(id, "paid");
+    const dayStart = new Date(Date.now() - 60_000);
+    expect((await revenueSince(dayStart)).count).toBe(1); // counted while paid
+
+    const t = await transitionOrder(id, "cancelled");
+    expect(t.ok).toBe(true);
+    const after = await Order.findById(id).lean();
+    expect(after?.payment.status).toBe("refunded"); // reconciled, not "paid"
+    expect((await revenueSince(dayStart)).count).toBe(0); // no longer revenue
+    expect((await Product.findById(p._id).lean())?.stockQty).toBe(5); // restocked
+  });
+
+  it("reserves a coupon at placement and releases it on cancel", async () => {
+    const p = await seedProduct(5, 100000);
+    await Coupon.create({
+      code: "REL10",
+      type: "percent",
+      value: 10,
+      usageLimit: 1,
+      active: true,
+    });
+    const owner = { guestId: `g-${rid()}` };
+    await addToCart(owner, String(p._id), 1);
+    const placed = await placeOrder(
+      { ...checkout("rel-key"), couponCode: "REL10" },
+      owner,
+    );
+    expect(placed.ok).toBe(true);
+    expect((await Coupon.findOne({ code: "REL10" }))?.usedCount).toBe(1);
+
+    const id = String(
+      (await Order.findOne({ idempotencyKey: "rel-key" }))!._id,
+    );
+    await transitionOrder(id, "cancelled");
+    expect((await Coupon.findOne({ code: "REL10" }))?.usedCount).toBe(0);
+  });
+
+  it("enforces the coupon usage limit atomically (no overcommit)", async () => {
+    const c = await Coupon.create({
+      code: "ONE",
+      type: "percent",
+      value: 10,
+      usageLimit: 1,
+      active: true,
+    });
+    const [a, b] = await Promise.all([
+      reserveCouponUsage(String(c._id)),
+      reserveCouponUsage(String(c._id)),
+    ]);
+    expect([a, b].filter(Boolean).length).toBe(1); // exactly one slot granted
+    expect((await Coupon.findById(c._id))?.usedCount).toBe(1);
   });
 });

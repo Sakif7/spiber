@@ -1,0 +1,41 @@
+# Keep build context small and never bake local-only data into the image.
+node_modules
+.next
+out
+build
+coverage
+
+# Locally-stored uploaded media — provided at runtime via persistent volumes,
+# never baked into the image (the container fs is otherwise ephemeral).
+public/uploads
+private-uploads
+
+# Secrets & local env (env vars are provided by Coolify at runtime).
+.env
+.env.*
+!.env.example
+
+# Git & CI
+.git
+.github
+.husky
+.gitignore
+
+# Tests & artifacts
+tests
+e2e
+test-results
+playwright-report
+blob-report
+playwright/.cache
+.eslintcache
+*.tsbuildinfo
+
+# Editor / OS / docs
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+.docs
+.playwright-mcp
+README.md

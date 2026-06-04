@@ -23,6 +23,7 @@ export async function PATCH(
     id,
   });
   if (!result.ok) {
+    if (result.code === "not_found") return fail({ code: "not_found" }, 404);
     return fail({ code: result.code, message: "Slug already exists" }, 409);
   }
   await writeAudit({

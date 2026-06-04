@@ -13,11 +13,17 @@ export interface IBlogCategory {
 const blogCategorySchema = new Schema<IBlogCategory>(
   {
     name: { ...localizedDef },
-    slug: { type: String, required: true, unique: true, trim: true },
+    slug: { type: String, required: true, trim: true },
     description: { en: { type: String }, bn: { type: String } },
     deletedAt: { type: Date, default: null },
   },
   { collection: "blog_categories", timestamps: true },
+);
+
+// Unique slug among non-deleted categories (soft-deleted rows free their slug).
+blogCategorySchema.index(
+  { slug: 1 },
+  { unique: true, partialFilterExpression: { deletedAt: null } },
 );
 
 export const BlogCategory: Model<IBlogCategory> =

@@ -32,6 +32,11 @@ const auditLogSchema = new Schema<IAuditLog>(
   },
 );
 
+// Audit log is browsed newest-first; index the sort key.
+auditLogSchema.index({ createdAt: -1 });
+// Entity history lookups.
+auditLogSchema.index({ entityType: 1, entityId: 1, createdAt: -1 });
+
 export const AuditLog: Model<IAuditLog> =
   (mongoose.models.AuditLog as Model<IAuditLog>) ??
   mongoose.model<IAuditLog>("AuditLog", auditLogSchema);

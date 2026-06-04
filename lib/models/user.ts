@@ -8,6 +8,12 @@ export interface IUser {
   roles: Role[];
   emailVerified: boolean;
   locale: "en" | "bn";
+  // Bumped on password reset / forced logout; embedded in refresh + reset tokens
+  // and checked on use, so outstanding tokens can be revoked ("log out everywhere"
+  // and single-use reset links).
+  tokenVersion: number;
+  // Hard account lock: a disabled user cannot refresh a session or pass admin guards.
+  disabled: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -26,6 +32,8 @@ const userSchema = new Schema<IUser>(
     roles: { type: [String], enum: ROLES, default: ["customer"] },
     emailVerified: { type: Boolean, default: false },
     locale: { type: String, enum: ["en", "bn"], default: "en" },
+    tokenVersion: { type: Number, default: 0 },
+    disabled: { type: Boolean, default: false },
   },
   { collection: "users", timestamps: true },
 );

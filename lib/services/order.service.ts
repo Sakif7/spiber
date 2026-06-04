@@ -12,7 +12,12 @@ import {
   getOrderById,
   getOrderByIdempotencyKey,
 } from "@/lib/repositories/orders.repo";
-import { incrementCouponUsage } from "@/lib/repositories/coupons.repo";
+import {
+  reserveCouponUsage,
+  releaseCouponUsage,
+  releaseCouponUsageByCode,
+} from "@/lib/repositories/coupons.repo";
+import { makeId } from "@/lib/ids";
 import { applyMovement, InsufficientStockError } from "./inventory.service";
 import { priceCart, type PricingCoupon } from "./pricing.service";
 import { getShippingSettings } from "./shop-settings.service";
@@ -29,14 +34,7 @@ import {
 } from "@/lib/schemas/order";
 import type { IOrder, IOrderItem } from "@/lib/models/order";
 
-function genOrderNumber(): string {
-  const ts = Date.now().toString(36).toUpperCase();
-  const rand = Math.floor(Math.random() * 46656)
-    .toString(36)
-    .toUpperCase()
-    .padStart(3, "0");
-  return `SPM-${ts}-${rand}`;
-}
+const genOrderNumber = (): string => makeId("SPM");
 
 export type PlaceOrderResult =
   | { ok: true; order: IOrder }
@@ -97,7 +95,7 @@ export async function placeOrder(
     }
   }
   const shipping = await getShippingSettings();
-  const totals = priceCart(
+  let totals = priceCart(
     lines.map((l) => ({ priceMinor: l.priceMinor, qty: l.qty })),
     pricingCoupon,
     shipping,
@@ -127,6 +125,27 @@ export async function placeOrder(
     throw err;
   }
 
+  // Atomically claim the coupon's redemption slot BEFORE committing the order,
+  // so two concurrent checkouts can't both redeem a usage-limited coupon. If it
+  // was exhausted in the race, drop the discount and re-price at full amount.
+  let couponReserved = false;
+  if (couponId) {
+    couponReserved = await reserveCouponUsage(couponId);
+    if (!couponReserved) {
+      logger.warn(
+        `coupon ${couponCode} exhausted at placement; dropping discount`,
+      );
+      pricingCoupon = null;
+      couponId = undefined;
+      couponCode = undefined;
+      totals = priceCart(
+        lines.map((l) => ({ priceMinor: l.priceMinor, qty: l.qty })),
+        null,
+        shipping,
+      );
+    }
+  }
+
   const items: IOrderItem[] = lines.map((l) => ({
     productId: l.product._id as unknown as mongoose.Types.ObjectId,
     productSnapshot: {
@@ -140,40 +159,52 @@ export async function placeOrder(
   }));
 
   const now = new Date();
-  let order;
-  try {
-    order = await createOrder({
-      _id: orderId,
-      orderNumber: genOrderNumber(),
-      userId: userId ? new mongoose.Types.ObjectId(userId) : null,
-      email: input.email,
-      items,
-      subtotalMinor: totals.subtotalMinor,
-      shippingMinor: totals.shippingMinor,
-      taxMinor: totals.taxMinor,
-      discountMinor: totals.discountMinor,
-      totalMinor: totals.totalMinor,
-      currency: "BDT",
-      status: "pending",
-      payment: { provider: getPaymentProvider().name, status: "unpaid" },
-      shippingAddress: input.shippingAddress,
-      couponCode,
-      note: input.note,
-      idempotencyKey: input.idempotencyKey,
-      timeline: [{ status: "pending", at: now, note: "Order placed" }],
-    } as Partial<IOrder>);
-  } catch (err: unknown) {
-    // Duplicate idempotency key (concurrent retry): undo this attempt's stock, return existing.
-    if (isDuplicateKey(err)) {
+  // Create the order, retrying ONLY an orderNumber collision (regenerate the
+  // number, keep the already-decremented stock). Any other unique-key failure
+  // is treated as a concurrent same-idempotency-key placement.
+  const MAX_ORDER_TRIES = 5;
+  let createdOrder: Awaited<ReturnType<typeof createOrder>> | null = null;
+  for (let attempt = 1; attempt <= MAX_ORDER_TRIES; attempt++) {
+    try {
+      createdOrder = await createOrder({
+        _id: orderId,
+        orderNumber: genOrderNumber(),
+        userId: userId ? new mongoose.Types.ObjectId(userId) : null,
+        email: input.email,
+        items,
+        subtotalMinor: totals.subtotalMinor,
+        shippingMinor: totals.shippingMinor,
+        taxMinor: totals.taxMinor,
+        discountMinor: totals.discountMinor,
+        totalMinor: totals.totalMinor,
+        currency: "BDT",
+        status: "pending",
+        payment: { provider: getPaymentProvider().name, status: "unpaid" },
+        shippingAddress: input.shippingAddress,
+        couponCode,
+        note: input.note,
+        idempotencyKey: input.idempotencyKey,
+        timeline: [{ status: "pending", at: now, note: "Order placed" }],
+      } as Partial<IOrder>);
+      break;
+    } catch (err: unknown) {
+      const field = duplicateKeyField(err);
+      if (field === "orderNumber" && attempt < MAX_ORDER_TRIES) continue;
+      // Roll back this attempt's side effects EXACTLY ONCE.
       await compensate(decremented, String(orderId));
-      const dup = await getOrderByIdempotencyKey(input.idempotencyKey);
-      if (dup) return { ok: true, order: dup.toObject() };
+      if (couponReserved && couponId)
+        await releaseCouponUsage(couponId).catch(() => {});
+      if (field) {
+        // Concurrent placement with the same idempotency key won the race.
+        const dup = await getOrderByIdempotencyKey(input.idempotencyKey);
+        if (dup) return { ok: true, order: dup.toObject() };
+      }
+      throw err;
     }
-    await compensate(decremented, String(orderId));
-    throw err;
   }
+  if (!createdOrder) throw new Error("order creation failed after retries");
+  const order = createdOrder;
 
-  if (couponId) await incrementCouponUsage(couponId).catch(() => {});
   await deleteCart(owner).catch(() => {});
   await sendOrderEmail(order, "placed").catch((e) =>
     logger.warn("order confirmation email failed", e),
@@ -197,13 +228,18 @@ async function compensate(
   }
 }
 
-function isDuplicateKey(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code?: number }).code === 11000
-  );
+/**
+ * For a Mongo duplicate-key (11000) error, the name of the unique field that
+ * collided (e.g. "orderNumber" or "idempotencyKey"); null if it isn't a 11000.
+ * Lets the caller retry an orderNumber collision while treating an
+ * idempotencyKey collision as a concurrent duplicate placement.
+ */
+function duplicateKeyField(err: unknown): string | null {
+  if (!err || typeof err !== "object") return null;
+  const e = err as { code?: number; keyPattern?: Record<string, unknown> };
+  if (e.code !== 11000) return null;
+  const keys = e.keyPattern ? Object.keys(e.keyPattern) : [];
+  return keys[0] ?? "unknown";
 }
 
 // ---- Lifecycle transitions ----
@@ -241,7 +277,19 @@ export async function transitionOrder(
         reason: to,
       }).catch((e) => logger.error("restock on " + to + " failed", e));
     }
-    if (to === "refunded") order.payment.status = "refunded";
+    // A paid order that is cancelled is effectively a refund — reconcile payment
+    // so it stops counting as revenue (cancelled/refunded are terminal, so this
+    // runs at most once per order).
+    if (to === "refunded" || order.payment.status === "paid") {
+      order.payment.status = "refunded";
+      order.payment.refundedAt = now;
+    }
+    // Return the coupon's redemption slot.
+    if (order.couponCode) {
+      await releaseCouponUsageByCode(order.couponCode).catch((e) =>
+        logger.warn("coupon release failed", e),
+      );
+    }
   }
 
   if (opts.trackingNumber) order.trackingNumber = opts.trackingNumber;

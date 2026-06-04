@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CtaButton } from "@/components/ui/cta-button";
 import { toMinor } from "@/lib/money";
+import { formatApiError } from "@/lib/http/form-error";
 
 type CouponType = "percent" | "fixed";
 
@@ -109,11 +110,7 @@ export function CouponForm() {
       const json = await res.json().catch(() => null);
 
       if (!res.ok || !json?.ok) {
-        setError(
-          json?.error?.message ??
-            json?.error?.code ??
-            "Failed to create coupon.",
-        );
+        setError(formatApiError(json, "Failed to create coupon."));
         return;
       }
 
