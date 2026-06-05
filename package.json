@@ -16,6 +16,7 @@
     "create-admin": "node scripts/create-admin.mjs",
     "sync-indexes": "node scripts/sync-indexes.mjs",
     "reset-seed": "node scripts/reset-and-seed.mjs",
+    "import-catalog": "node scripts/import-catalog-xlsx.mjs",
     "prepare": "husky"
   },
   "lint-staged": {

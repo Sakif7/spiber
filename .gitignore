@@ -47,6 +47,13 @@ next-env.d.ts
 .idea/
 Thumbs.db
 
+# test suite + configs (solo project — run locally, not needed in the repo or the
+# Coolify build; note: `next build` still needs eslint.config.mjs + tsconfig.json)
+/tests/
+/e2e/
+/playwright.config.ts
+/vitest.config.ts
+
 # test artifacts
 /test-results/
 /playwright-report/
@@ -62,6 +69,12 @@ Thumbs.db
 
 # local-only sample data for screenshots/QA (not for production)
 /scripts/demo-seed.mjs
+
+# Claude assistant memory (local notes; durable facts live in CLAUDE.md)
+/memory/
+
+# client-supplied source data (imported into the DB, not needed at runtime)
+*.xlsx
 
 # extra
 /.playwright-mcp/

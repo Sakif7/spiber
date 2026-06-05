@@ -24,6 +24,8 @@ private-uploads
 # Tests & artifacts
 tests
 e2e
+playwright.config.ts
+vitest.config.ts
 test-results
 playwright-report
 blob-report
@@ -31,7 +33,7 @@ playwright/.cache
 .eslintcache
 *.tsbuildinfo
 
-# Editor / OS / docs
+# Editor / OS / docs / local-only data
 .vscode
 .idea
 .DS_Store
@@ -39,3 +41,5 @@ Thumbs.db
 .docs
 .playwright-mcp
 README.md
+memory
+*.xlsx
