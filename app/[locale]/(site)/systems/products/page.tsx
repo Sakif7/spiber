@@ -5,6 +5,7 @@ import { ComingSoon } from "@/components/ui/coming-soon";
 import { CardGrid } from "@/components/ui/card-grid";
 import { SoftwareCard } from "@/components/systems/software-card";
 import { listSoftwareProducts } from "@/lib/repositories/software.repo";
+import { HERO } from "@/lib/hero-images";
 import { pageMetadata } from "@/lib/seo/metadata";
 import { logger } from "@/lib/log";
 import type { Locale } from "@/i18n/routing";
@@ -67,6 +68,8 @@ export default async function SoftwareCatalog({
         eyebrow={t("hub.title")}
         title={t("catalog.title")}
         description={t("catalog.lede")}
+        image={HERO.systemsHub}
+        imageAlt={t("catalog.title")}
         breadcrumbs={[
           { label: nav("home"), href: "/" },
           { label: t("hub.title"), href: "/systems" },

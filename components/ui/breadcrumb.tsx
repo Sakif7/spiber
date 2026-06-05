@@ -3,7 +3,17 @@ import { Link } from "@/i18n/navigation";
 export type Crumb = { label: string; href?: string };
 
 /** Accessible breadcrumb trail; the last item is rendered as the current page. */
-export function Breadcrumb({ items }: { items: Crumb[] }) {
+export function Breadcrumb({
+  items,
+  tone = "default",
+}: {
+  items: Crumb[];
+  tone?: "default" | "onDark";
+}) {
+  const dark = tone === "onDark";
+  const muted = dark ? "rgba(255,255,255,0.72)" : "var(--color-text-muted)";
+  const current = dark ? "#fff" : "var(--color-text-strong)";
+
   return (
     <nav aria-label="Breadcrumb">
       <ol
@@ -17,7 +27,7 @@ export function Breadcrumb({ items }: { items: Crumb[] }) {
           padding: 0,
           fontFamily: "var(--font-mono)",
           fontSize: "var(--fs-caption)",
-          color: "var(--color-text-muted)",
+          color: muted,
         }}
       >
         {items.map((item, i) => {
@@ -28,18 +38,13 @@ export function Breadcrumb({ items }: { items: Crumb[] }) {
               style={{ display: "flex", alignItems: "center", gap: 8 }}
             >
               {item.href && !last ? (
-                <Link
-                  href={item.href}
-                  style={{ color: "var(--color-text-muted)" }}
-                >
+                <Link href={item.href} style={{ color: muted }}>
                   {item.label}
                 </Link>
               ) : (
                 <span
                   aria-current={last ? "page" : undefined}
-                  style={{
-                    color: last ? "var(--color-text-strong)" : undefined,
-                  }}
+                  style={{ color: last ? current : muted }}
                 >
                   {item.label}
                 </span>

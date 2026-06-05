@@ -17,6 +17,7 @@ import {
 import { listWishlistProductIds } from "@/lib/repositories/wishlist.repo";
 import { getSessionUser } from "@/lib/auth/current-user";
 import { localize } from "@/lib/schemas/localized";
+import { marketplaceHero } from "@/lib/hero-images";
 import { toMinor } from "@/lib/money";
 import { pageMetadata } from "@/lib/seo/metadata";
 import { logger } from "@/lib/log";
@@ -73,6 +74,8 @@ export default async function MarketplaceCategory({
   };
   let brands: { id: string; name: string }[] = [];
   let subcategories: { slug: string; name: string }[] = [];
+  let categoryNav: { slug: string; name: string }[] = [];
+  let currentTopSlug = slug;
   try {
     const [ids, flat, bs] = await Promise.all([
       categoryWithDescendantIds(String(cat._id), "marketplace"),
@@ -82,6 +85,11 @@ export default async function MarketplaceCategory({
     subcategories = flat
       .filter((c) => String(c.parentId) === String(cat._id))
       .map((c) => ({ slug: c.slug, name: localize(c.name, l) }));
+    categoryNav = flat
+      .filter((c) => !c.parentId)
+      .map((c) => ({ slug: c.slug, name: localize(c.name, l) }));
+    const topId = cat.parentId ? String(cat.parentId) : String(cat._id);
+    currentTopSlug = flat.find((c) => String(c._id) === topId)?.slug ?? slug;
     brands = bs.map((b) => ({ id: String(b._id), name: localize(b.name, l) }));
     result = await listProducts({
       storefront: "marketplace",
@@ -121,6 +129,8 @@ export default async function MarketplaceCategory({
       <PageHeader
         title={localize(cat.name, l)}
         description={cat.description ? localize(cat.description, l) : undefined}
+        image={marketplaceHero(slug)}
+        imageAlt={localize(cat.name, l)}
         breadcrumbs={[
           { label: nav("home"), href: "/" },
           { label: tm("title"), href: "/marketplace" },
@@ -139,6 +149,8 @@ export default async function MarketplaceCategory({
             brandNameById={brandNameById}
             wishlistedIds={wishlistedIds}
             subcategories={subcategories}
+            categories={categoryNav}
+            currentSlug={currentTopSlug}
           />
         </Container>
       </Section>

@@ -2,18 +2,30 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { useRouter, usePathname } from "@/i18n/navigation";
+import { Link, useRouter, usePathname } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
 import { startRouteOverlay } from "@/components/layout/route-transition-overlay";
 
 export type BrandOption = { id: string; name: string };
+export type CategoryNavItem = { slug: string; name: string };
 
 export function Filters({
   brands,
   showRating = false,
+  categories,
+  currentSlug,
+  categoryBasePath = "/instruments",
+  categoryLinkPrefix,
 }: {
   brands: BrandOption[];
   showRating?: boolean;
+  /** When provided, renders a category nav at the top of the sidebar. */
+  categories?: CategoryNavItem[];
+  currentSlug?: string;
+  /** Href for the "All categories" link. */
+  categoryBasePath?: string;
+  /** Prefix for each category link (`${prefix}/${slug}`). Defaults to base. */
+  categoryLinkPrefix?: string;
 }) {
   const t = useTranslations("shop.listing");
   const router = useRouter();
@@ -69,6 +81,15 @@ export function Filters({
     letterSpacing: "var(--tracking-eyebrow)",
     color: "var(--color-text-muted)",
   };
+  const catLinkStyle = (active: boolean): React.CSSProperties => ({
+    padding: "7px 12px",
+    borderRadius: "var(--r-md)",
+    fontSize: "var(--fs-body-sm)",
+    fontWeight: active ? 600 : 400,
+    textDecoration: "none",
+    color: active ? "var(--color-brand-deep)" : "var(--color-text)",
+    background: active ? "var(--color-brand-soft)" : "transparent",
+  });
 
   return (
     <aside
@@ -83,6 +104,37 @@ export function Filters({
         height: "fit-content",
       }}
     >
+      {categories && categories.length > 0 && (
+        <nav
+          aria-label="Categories"
+          style={{
+            display: "grid",
+            gap: 2,
+            paddingBottom: "var(--s-4)",
+            borderBottom: "1px solid var(--color-hairline)",
+          }}
+        >
+          <span style={{ ...label, marginBottom: 6 }}>{t("categories")}</span>
+          <Link
+            href={categoryBasePath}
+            onClick={() => startRouteOverlay()}
+            style={catLinkStyle(!currentSlug)}
+          >
+            {t("allCategories")}
+          </Link>
+          {categories.map((c) => (
+            <Link
+              key={c.slug}
+              href={`${categoryLinkPrefix ?? categoryBasePath}/${c.slug}`}
+              onClick={() => startRouteOverlay()}
+              style={catLinkStyle(currentSlug === c.slug)}
+            >
+              {c.name}
+            </Link>
+          ))}
+        </nav>
+      )}
+
       <strong style={{ fontFamily: "var(--font-display)" }}>
         {t("filters")}
       </strong>

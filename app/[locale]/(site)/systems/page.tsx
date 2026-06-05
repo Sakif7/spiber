@@ -6,6 +6,7 @@ import { CardGrid } from "@/components/ui/card-grid";
 import { CtaButton } from "@/components/ui/cta-button";
 import { SoftwareCard } from "@/components/systems/software-card";
 import { listSoftwareProducts } from "@/lib/repositories/software.repo";
+import { HERO } from "@/lib/hero-images";
 import { namespaceMetadata } from "@/lib/seo/metadata";
 import { logger } from "@/lib/log";
 import type { Locale } from "@/i18n/routing";
@@ -47,6 +48,8 @@ export default async function SystemsHub({
         eyebrow={hub("eyebrow")}
         title={t("hub.title")}
         description={t("hub.lede")}
+        image={HERO.systemsHub}
+        imageAlt={t("hub.title")}
         breadcrumbs={[
           { label: nav("home"), href: "/" },
           { label: t("hub.title") },

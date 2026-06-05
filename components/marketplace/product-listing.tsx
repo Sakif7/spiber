@@ -26,6 +26,8 @@ export async function MarketplaceProductListing({
   wishlistedIds = [],
   brandNameById = {},
   subcategories = [],
+  categories = [],
+  currentSlug,
 }: {
   locale: Locale;
   basePath: string;
@@ -36,6 +38,8 @@ export async function MarketplaceProductListing({
   wishlistedIds?: string[];
   brandNameById?: Record<string, string>;
   subcategories?: { slug: string; name: string }[];
+  categories?: { slug: string; name: string }[];
+  currentSlug?: string;
 }) {
   const t = await getTranslations({ locale, namespace: "shop.listing" });
   const wish = new Set(wishlistedIds);
@@ -102,7 +106,14 @@ export async function MarketplaceProductListing({
         alignItems: "start",
       }}
     >
-      <Filters brands={brands} showRating />
+      <Filters
+        brands={brands}
+        showRating
+        categories={categories}
+        currentSlug={currentSlug}
+        categoryBasePath="/marketplace"
+        categoryLinkPrefix="/marketplace/category"
+      />
 
       <div
         style={{ display: "flex", flexDirection: "column", gap: "var(--s-5)" }}

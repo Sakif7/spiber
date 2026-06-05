@@ -1,7 +1,14 @@
 import { getTranslations } from "next-intl/server";
 import { PageHeader } from "./page-header";
 import { ComingSoon } from "./coming-soon";
+import { HERO } from "@/lib/hero-images";
 import type { Locale } from "@/i18n/routing";
+
+// Hero photo per division (others fall back to the plain text header).
+const DIVISION_HERO: Record<string, string | undefined> = {
+  tourism: HERO.tourismHub,
+  consulting: HERO.consultingHub,
+};
 
 /**
  * Standard division/blog hub: localized page header + branded "Coming soon"
@@ -23,6 +30,8 @@ export async function DivisionHub({
         eyebrow={t("eyebrow")}
         title={t("title")}
         description={t("description")}
+        image={DIVISION_HERO[division]}
+        imageAlt={t("title")}
         breadcrumbs={[{ label: nav("home"), href: "/" }, { label: t("title") }]}
       />
       <ComingSoon />

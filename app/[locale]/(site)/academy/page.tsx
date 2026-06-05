@@ -6,6 +6,7 @@ import { CardGrid } from "@/components/ui/card-grid";
 import { CtaButton } from "@/components/ui/cta-button";
 import { CourseCard } from "@/components/academy/course-card";
 import { listCourses } from "@/lib/repositories/courses.repo";
+import { HERO } from "@/lib/hero-images";
 import { pageMetadata } from "@/lib/seo/metadata";
 import { logger } from "@/lib/log";
 import type { Locale } from "@/i18n/routing";
@@ -53,6 +54,8 @@ export default async function AcademyHub({
         eyebrow={hub("eyebrow")}
         title={t("hub.title")}
         description={t("hub.lede")}
+        image={HERO.academyHub}
+        imageAlt={t("hub.title")}
         breadcrumbs={[
           { label: nav("home"), href: "/" },
           { label: t("hub.title") },

@@ -1,20 +1,27 @@
 import { setRequestLocale, getTranslations } from "next-intl/server";
+import { PageHeader } from "@/components/ui/page-header";
 import { Container } from "@/components/ui/container";
 import { Section } from "@/components/ui/section";
-import { CardGrid } from "@/components/ui/card-grid";
-import { ProductCard } from "@/components/shop/product-card";
-import { CategoryMegaGrid } from "@/components/marketplace/category-mega-grid";
-import { BannerCarousel } from "@/components/marketplace/banner-carousel";
-import { DealSlots } from "@/components/marketplace/deal-slots";
-import { TrustStrip } from "@/components/marketplace/trust-strip";
-import { listCategoryTree } from "@/lib/repositories/taxonomy.repo";
-import { listFeaturedProducts } from "@/lib/repositories/products.repo";
-import { listActiveBanners } from "@/lib/repositories/banners.repo";
+import { MarketplaceProductListing } from "@/components/marketplace/product-listing";
+import {
+  listProducts,
+  type ProductSort,
+} from "@/lib/repositories/products.repo";
+import { listBrands, listCategories } from "@/lib/repositories/taxonomy.repo";
+import { listWishlistProductIds } from "@/lib/repositories/wishlist.repo";
+import { getSessionUser } from "@/lib/auth/current-user";
+import { localize } from "@/lib/schemas/localized";
+import { MARKETPLACE_HUB_IMAGES } from "@/lib/hero-images";
+import { toMinor } from "@/lib/money";
 import { pageMetadata } from "@/lib/seo/metadata";
 import { logger } from "@/lib/log";
 import type { Locale } from "@/i18n/routing";
 
 export const dynamic = "force-dynamic";
+
+type SP = Promise<{ [k: string]: string | string[] | undefined }>;
+const str = (v: string | string[] | undefined) =>
+  typeof v === "string" ? v : undefined;
 
 export async function generateMetadata({
   params,
@@ -33,224 +40,106 @@ export async function generateMetadata({
 
 export default async function MarketplaceHome({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: SP;
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
   const l = locale as Locale;
-  const t = await getTranslations({ locale, namespace: "marketplace.home" });
+  const sp = await searchParams;
+  const nav = await getTranslations({ locale, namespace: "nav" });
+  const tm = await getTranslations({ locale, namespace: "marketplace.home" });
+  const tl = await getTranslations({ locale, namespace: "shop.listing" });
 
-  let tree: Awaited<ReturnType<typeof listCategoryTree>> = [];
-  let featured: Awaited<ReturnType<typeof listFeaturedProducts>> = [];
-  let heroBanners: Awaited<ReturnType<typeof listActiveBanners>> = [];
-  let dealBanners: Awaited<ReturnType<typeof listActiveBanners>> = [];
+  const page = Math.max(1, parseInt(str(sp.page) ?? "1", 10) || 1);
+  const minMajor = str(sp.min) ? Number(str(sp.min)) : undefined;
+  const maxMajor = str(sp.max) ? Number(str(sp.max)) : undefined;
+
+  let result: Awaited<ReturnType<typeof listProducts>> = {
+    items: [],
+    total: 0,
+    page,
+    pageSize: 12,
+    pages: 1,
+  };
+  let brands: { id: string; name: string }[] = [];
+  let categoryNav: { slug: string; name: string }[] = [];
   try {
-    [tree, featured, heroBanners, dealBanners] = await Promise.all([
-      listCategoryTree("marketplace"),
-      listFeaturedProducts("marketplace", 8),
-      listActiveBanners("hero"),
-      listActiveBanners("deal"),
+    const [r, bs, cs] = await Promise.all([
+      listProducts({
+        storefront: "marketplace",
+        status: "active",
+        search: str(sp.q),
+        brandId: str(sp.brand),
+        minPriceMinor: minMajor != null ? toMinor(minMajor) : undefined,
+        maxPriceMinor: maxMajor != null ? toMinor(maxMajor) : undefined,
+        minRating: str(sp.rating) ? Number(str(sp.rating)) : undefined,
+        inStockOnly: sp.inStock === "1",
+        sort: (str(sp.sort) as ProductSort) ?? "newest",
+        page,
+      }),
+      listBrands(),
+      listCategories("marketplace"),
     ]);
+    result = r;
+    brands = bs.map((b) => ({ id: String(b._id), name: localize(b.name, l) }));
+    categoryNav = cs
+      .filter((c) => !c.parentId)
+      .map((c) => ({ slug: c.slug, name: localize(c.name, l) }));
   } catch (e) {
     logger.warn("marketplace home load failed", e);
   }
 
-  const gridCategories = tree.map((c) => ({
-    id: String(c._id),
-    name: c.name,
-    slug: c.slug,
-    icon: c.icon,
-    childCount: c.children.length,
-  }));
+  const brandNameById = Object.fromEntries(brands.map((b) => [b.id, b.name]));
+  const sessionUser = await getSessionUser().catch(() => null);
+  const wishlistedIds = sessionUser
+    ? await listWishlistProductIds(sessionUser.sub).catch((): string[] => [])
+    : [];
 
-  const hero = heroBanners.map((b) => ({
-    id: String(b._id),
-    title: b.title,
-    subtitle: b.subtitle,
-    image: b.image,
-    href: b.href,
-    cta: b.cta,
-  }));
-  const deals = dealBanners.map((b) => ({
-    id: String(b._id),
-    title: b.title,
-    subtitle: b.subtitle,
-    image: b.image,
-    href: b.href,
-  }));
+  const spFlat: Record<string, string | undefined> = {
+    q: str(sp.q),
+    brand: str(sp.brand),
+    min: str(sp.min),
+    max: str(sp.max),
+    inStock: sp.inStock === "1" ? "1" : undefined,
+    rating: str(sp.rating),
+    sort: str(sp.sort),
+  };
 
   return (
-    <Section py="clamp(28px, 4vw, 56px)">
-      <Container
-        style={{ display: "flex", flexDirection: "column", gap: "var(--s-10)" }}
-      >
-        {/* Eyebrow + search */}
-        <div style={{ display: "grid", gap: "var(--s-4)" }}>
-          <div style={{ display: "grid", gap: 6 }}>
-            <span
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: "var(--fs-caption)",
-                textTransform: "uppercase",
-                letterSpacing: "var(--tracking-eyebrow)",
-                color: "var(--color-brand-deep)",
-              }}
-            >
-              {t("eyebrow")}
-            </span>
-            <h1
-              style={{
-                margin: 0,
-                fontFamily: "var(--font-display)",
-                fontSize: "var(--fs-h1)",
-                color: "var(--color-text-strong)",
-                lineHeight: 1.05,
-              }}
-            >
-              {t("title")}
-            </h1>
-            <p
-              style={{
-                margin: 0,
-                color: "var(--color-text-muted)",
-                maxWidth: "60ch",
-                fontSize: "var(--fs-body-lg)",
-              }}
-            >
-              {t("lede")}
-            </p>
-          </div>
-          <form
-            action={`/${locale}/marketplace/search`}
-            method="get"
-            role="search"
-            style={{ display: "flex", gap: 10, maxWidth: 640 }}
-          >
-            <input
-              type="search"
-              name="q"
-              placeholder={t("searchPlaceholder")}
-              aria-label={t("search")}
-              style={{
-                flex: 1,
-                height: 52,
-                padding: "0 20px",
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--r-pill)",
-                background: "var(--color-surface)",
-                font: "inherit",
-                fontSize: "var(--fs-body)",
-              }}
-            />
-            <button
-              type="submit"
-              style={{
-                height: 52,
-                padding: "0 28px",
-                borderRadius: "var(--r-pill)",
-                background: "var(--color-brand)",
-                color: "#fff",
-                border: 0,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              {t("search")}
-            </button>
-          </form>
-        </div>
-
-        {hero.length > 0 && <BannerCarousel banners={hero} locale={l} />}
-
-        {/* Categories */}
-        {gridCategories.length > 0 && (
-          <div style={{ display: "grid", gap: "var(--s-4)" }}>
-            <SectionTitle title={t("shopByCategory")} />
-            <CategoryMegaGrid categories={gridCategories} locale={l} />
-          </div>
-        )}
-
-        {deals.length > 0 && (
-          <div style={{ display: "grid", gap: "var(--s-4)" }}>
-            <SectionTitle title={t("deals")} />
-            <DealSlots deals={deals} locale={l} />
-          </div>
-        )}
-
-        {/* Featured */}
-        {featured.length > 0 ? (
-          <div style={{ display: "grid", gap: "var(--s-4)" }}>
-            <SectionTitle title={t("featured")} />
-            <CardGrid columns={4}>
-              {featured.map((p) => (
-                <ProductCard
-                  key={String(p._id)}
-                  product={p}
-                  locale={l}
-                  mode="marketplace"
-                />
-              ))}
-            </CardGrid>
-          </div>
-        ) : (
-          <div
-            style={{
-              border: "1px dashed var(--color-border)",
-              borderRadius: "var(--r-lg)",
-              padding: "var(--s-10)",
-              textAlign: "center",
-              color: "var(--color-text-muted)",
-              background: "var(--color-surface)",
-            }}
-          >
-            <p
-              style={{
-                margin: 0,
-                fontWeight: 600,
-                color: "var(--color-text-strong)",
-              }}
-            >
-              {t("comingSoonTitle")}
-            </p>
-            <p
-              style={{
-                margin: "6px 0 0",
-                maxWidth: "48ch",
-                marginInline: "auto",
-              }}
-            >
-              {t("comingSoonNote")}
-            </p>
-          </div>
-        )}
-
-        <TrustStrip locale={l} />
-      </Container>
-    </Section>
-  );
-}
-
-function SectionTitle({ title }: { title: string }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "baseline",
-        justifyContent: "space-between",
-        gap: "var(--s-4)",
-      }}
-    >
-      <h2
-        style={{
-          margin: 0,
-          fontFamily: "var(--font-display)",
-          fontSize: "var(--fs-h3)",
-          color: "var(--color-text-strong)",
-        }}
-      >
-        {title}
-      </h2>
-    </div>
+    <>
+      <PageHeader
+        eyebrow={tm("eyebrow")}
+        title={tm("title")}
+        description={tm("lede")}
+        images={MARKETPLACE_HUB_IMAGES}
+        imageAlt={tm("title")}
+        stats={[
+          { value: String(result.total), label: tm("allProducts") },
+          { value: String(categoryNav.length), label: tl("categories") },
+        ]}
+        breadcrumbs={[
+          { label: nav("home"), href: "/" },
+          { label: tm("title") },
+        ]}
+      />
+      <Section py="clamp(40px, 5vw, 80px)">
+        <Container>
+          <MarketplaceProductListing
+            locale={l}
+            basePath="/marketplace"
+            formAction={`/${locale}/marketplace`}
+            sp={spFlat}
+            result={result}
+            brands={brands}
+            brandNameById={brandNameById}
+            wishlistedIds={wishlistedIds}
+            categories={categoryNav}
+          />
+        </Container>
+      </Section>
+    </>
   );
 }

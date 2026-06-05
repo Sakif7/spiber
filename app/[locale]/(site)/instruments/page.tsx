@@ -14,6 +14,7 @@ import { listCategories, listBrands } from "@/lib/repositories/taxonomy.repo";
 import { listWishlistProductIds } from "@/lib/repositories/wishlist.repo";
 import { getSessionUser } from "@/lib/auth/current-user";
 import { localize } from "@/lib/schemas/localized";
+import { INSTRUMENTS_HUB_IMAGES } from "@/lib/hero-images";
 import { toMinor } from "@/lib/money";
 import { pageMetadata } from "@/lib/seo/metadata";
 import { logger } from "@/lib/log";
@@ -166,6 +167,15 @@ export default async function InstrumentsHub({
         eyebrow={hub("eyebrow")}
         title={t("hub.title")}
         description={t("hub.lede")}
+        images={INSTRUMENTS_HUB_IMAGES}
+        imageAlt={t("hub.title")}
+        stats={[
+          {
+            value: String(categories.filter((c) => !c.parentId).length),
+            label: t("listing.categories"),
+          },
+          { value: String(brands.length), label: t("listing.allBrands") },
+        ]}
         breadcrumbs={[
           { label: nav("home"), href: "/" },
           { label: t("hub.title") },
@@ -177,40 +187,6 @@ export default async function InstrumentsHub({
       ) : (
         <section style={{ paddingBlock: "clamp(40px, 5vw, 80px)" }}>
           <Container style={{ display: "grid", gap: "var(--s-8)" }}>
-            {/* Shop by category */}
-            {categories.length > 0 && (
-              <div style={{ display: "grid", gap: "var(--s-3)" }}>
-                <span
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "var(--fs-caption)",
-                    textTransform: "uppercase",
-                    letterSpacing: "var(--tracking-eyebrow)",
-                    color: "var(--color-text-muted)",
-                  }}
-                >
-                  {t("hub.shopByCategory")}
-                </span>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                  {categories.map((c) => (
-                    <Link
-                      key={String(c._id)}
-                      href={`/instruments/${c.slug}`}
-                      style={{
-                        padding: "8px 16px",
-                        borderRadius: "var(--r-pill)",
-                        border: "1px solid var(--color-border)",
-                        background: "var(--color-surface)",
-                        fontSize: "var(--fs-body-sm)",
-                      }}
-                    >
-                      {localize(c.name, l)}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-
             <div
               className="equal-2col"
               style={{
@@ -220,7 +196,16 @@ export default async function InstrumentsHub({
                 alignItems: "start",
               }}
             >
-              <Filters brands={brands} />
+              <Filters
+                brands={brands}
+                categories={categories
+                  .filter((c) => !c.parentId)
+                  .map((c) => ({
+                    slug: c.slug,
+                    name: localize(c.name, l),
+                  }))}
+                categoryBasePath="/instruments"
+              />
 
               <div
                 style={{

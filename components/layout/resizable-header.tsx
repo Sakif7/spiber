@@ -7,6 +7,9 @@ import { Arrow, Container, LocaleSwitcher } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { StorefrontAction } from "@/components/shop/storefront-action";
 import { UserMenu } from "@/components/layout/user-menu";
+import { ProductsMega } from "@/components/layout/products-mega";
+import { ServicesMega } from "@/components/layout/services-mega";
+import { MarketplaceMega } from "@/components/layout/marketplace-mega";
 import { useSession } from "@/components/auth/use-session";
 import { useAuthModal } from "@/components/auth/auth-modal";
 import {
@@ -40,6 +43,7 @@ type MegaItem = {
   desc: string;
   href: string;
   tone: Tone;
+  links?: { label: string; href: string }[];
 };
 
 const MEGA_MENUS: Record<string, MegaItem[]> = {
@@ -69,6 +73,10 @@ const MEGA_MENUS: Record<string, MegaItem[]> = {
       desc: "Accredited programmes and hands-on training for doctors, nurses, and biomedical technicians.",
       href: "/academy",
       tone: "orange",
+      links: [
+        { label: "Browse courses", href: "/academy/courses" },
+        { label: "All programmes", href: "/academy" },
+      ],
     },
     {
       key: "tourism",
@@ -77,6 +85,10 @@ const MEGA_MENUS: Record<string, MegaItem[]> = {
       desc: "Curated treatment packages with accredited partner facilities, plus travel and air-ticket support.",
       href: "/tourism",
       tone: "orange",
+      links: [
+        { label: "Explore packages", href: "/tourism" },
+        { label: "Plan a medical trip", href: "/contact" },
+      ],
     },
     {
       key: "consulting",
@@ -85,26 +97,12 @@ const MEGA_MENUS: Record<string, MegaItem[]> = {
       desc: "Strategic management and advisory services for hospitals and healthcare organisations.",
       href: "/consulting",
       tone: "orange",
+      links: [
+        { label: "Our services", href: "/consulting" },
+        { label: "Book a consultation", href: "/contact" },
+      ],
     },
   ],
-};
-
-const TONE: Record<
-  Tone,
-  { soft: string; line: string; accent: string; chip: string }
-> = {
-  teal: {
-    soft: "var(--teal-50)",
-    line: "var(--teal-100)",
-    accent: "var(--teal-700)",
-    chip: "var(--color-brand)",
-  },
-  orange: {
-    soft: "var(--orange-50)",
-    line: "var(--orange-100)",
-    accent: "var(--orange-700)",
-    chip: "var(--orange-500)",
-  },
 };
 
 export function ResizableHeader() {
@@ -126,7 +124,7 @@ export function ResizableHeader() {
   };
   const openMega = (name: string | null) => {
     cancelClose();
-    if (name && MEGA_MENUS[name]) setMegaOpen(name);
+    if (name && (MEGA_MENUS[name] || name === "Marketplace")) setMegaOpen(name);
     else setMegaOpen(null);
   };
 
@@ -146,6 +144,7 @@ export function ResizableHeader() {
         open={megaOpen}
         onMouseEnter={cancelClose}
         onMouseLeave={scheduleClose}
+        onNavigate={() => setMegaOpen(null)}
       />
 
       <MobileNav>
@@ -299,24 +298,22 @@ function MegaMenu({
   open,
   onMouseEnter,
   onMouseLeave,
+  onNavigate,
 }: {
   open: string | null;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
+  onNavigate: () => void;
 }) {
-  const items = open ? MEGA_MENUS[open] : null;
-  const [active, setActive] = useState(0);
-  // Reset the highlighted item when the open menu changes (adjust-during-render
-  // pattern; avoids a setState-in-effect).
-  const [prevOpen, setPrevOpen] = useState(open);
-  if (open !== prevOpen) {
-    setPrevOpen(open);
-    setActive(0);
-  }
+  const isProducts = open === "Products & Solutions";
+  const isMarketplace = open === "Marketplace";
+  const services =
+    open && !isProducts && !isMarketplace ? MEGA_MENUS[open] : null;
+  const show = isProducts || isMarketplace || !!services;
 
   return (
     <AnimatePresence>
-      {items && (
+      {show && (
         <motion.div
           key={open}
           initial={{ opacity: 0, y: -8 }}
@@ -335,11 +332,12 @@ function MegaMenu({
             zIndex: 70,
           }}
         >
-          <Container>
+          <Container style={{ display: "flex", justifyContent: "center" }}>
             <div
               style={{
-                maxWidth: 900,
-                background: "rgba(255,255,255,0.97)",
+                width: "100%",
+                maxWidth: isProducts ? 820 : isMarketplace ? 900 : 760,
+                background: "rgba(255,255,255,0.98)",
                 backdropFilter: "saturate(180%) blur(20px)",
                 WebkitBackdropFilter: "saturate(180%) blur(20px)",
                 border: "1px solid var(--color-hairline)",
@@ -347,98 +345,20 @@ function MegaMenu({
                 boxShadow:
                   "0 1px 2px rgba(10,31,44,.05), 0 32px 80px -24px rgba(10,31,44,.22), 0 0 0 1px rgba(10,31,44,.04)",
                 overflow: "hidden",
-                display: "grid",
-                gridTemplateColumns: "1fr 1.05fr",
               }}
             >
-              {/* Item list */}
-              <div
-                style={{
-                  padding: 18,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 2,
-                }}
-              >
-                {items.map((it, i) => (
-                  <Link
-                    key={it.key}
-                    href={it.href}
-                    onMouseEnter={() => setActive(i)}
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 4,
-                      padding: "14px 16px",
-                      borderRadius: "var(--r-lg)",
-                      background:
-                        i === active ? TONE[it.tone].soft : "transparent",
-                      transition: "background 200ms var(--ease-out-expo)",
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontFamily: "var(--font-mono)",
-                        fontSize: 10,
-                        letterSpacing: ".14em",
-                        textTransform: "uppercase",
-                        color: TONE[it.tone].accent,
-                      }}
-                    >
-                      {it.kicker}
-                    </span>
-                    <span
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        fontFamily: "var(--font-display)",
-                        fontSize: 17,
-                        fontWeight: 600,
-                        color: "var(--color-text-strong)",
-                      }}
-                    >
-                      {it.title}
-                      <motion.span
-                        animate={{ x: i === active ? 2 : 0 }}
-                        style={{
-                          display: "inline-flex",
-                          color: TONE[it.tone].accent,
-                        }}
-                      >
-                        <Arrow size={13} />
-                      </motion.span>
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 12.5,
-                        lineHeight: 1.5,
-                        color: "var(--color-text-muted)",
-                      }}
-                    >
-                      {it.desc}
-                    </span>
-                  </Link>
-                ))}
-              </div>
-
-              {/* Page snapshot preview */}
-              <div
-                style={{ position: "relative", padding: 18, paddingLeft: 0 }}
-              >
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={items[active]?.key}
-                    initial={{ opacity: 0, scale: 0.985 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                    style={{ height: "100%" }}
-                  >
-                    <PreviewSnapshot item={items[active]} />
-                  </motion.div>
-                </AnimatePresence>
-              </div>
+              {isProducts ? (
+                <ProductsMega
+                  divisions={MEGA_MENUS["Products & Solutions"]}
+                  onNavigate={onNavigate}
+                />
+              ) : isMarketplace ? (
+                <MarketplaceMega onNavigate={onNavigate} />
+              ) : (
+                services && (
+                  <ServicesMega items={services} onNavigate={onNavigate} />
+                )
+              )}
             </div>
           </Container>
         </motion.div>
@@ -447,154 +367,12 @@ function MegaMenu({
   );
 }
 
-/** A stylised snapshot of the destination page (swap for a real screenshot later). */
-function PreviewSnapshot({ item }: { item: MegaItem }) {
-  const tone = TONE[item.tone];
-  return (
-    <div
-      style={{
-        height: "100%",
-        minHeight: 248,
-        borderRadius: "var(--r-lg)",
-        border: `1px solid ${tone.line}`,
-        overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
-        background: "var(--color-surface)",
-      }}
-    >
-      {/* faux browser chrome */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "10px 12px",
-          borderBottom: `1px solid ${tone.line}`,
-          background: "var(--color-surface)",
-        }}
-      >
-        <span style={{ display: "flex", gap: 5 }}>
-          {["#E3E9EB", "#E3E9EB", "#E3E9EB"].map((c, i) => (
-            <span
-              key={i}
-              style={{ width: 8, height: 8, borderRadius: 999, background: c }}
-            />
-          ))}
-        </span>
-        <span
-          style={{
-            flex: 1,
-            fontFamily: "var(--font-mono)",
-            fontSize: 10.5,
-            color: "var(--color-text-subtle)",
-            background: "var(--color-surface-2)",
-            borderRadius: 999,
-            padding: "3px 10px",
-            textAlign: "center",
-          }}
-        >
-          spibermed.com{item.href}
-        </span>
-      </div>
-      {/* faux page body */}
-      <div
-        style={{
-          flex: 1,
-          padding: 20,
-          background: `linear-gradient(160deg, ${tone.soft}, var(--color-surface))`,
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-        }}
-      >
-        <span
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: 10,
-            letterSpacing: ".14em",
-            textTransform: "uppercase",
-            color: tone.accent,
-          }}
-        >
-          {item.kicker}
-        </span>
-        <span
-          style={{
-            fontFamily: "var(--font-display)",
-            fontSize: 22,
-            fontWeight: 600,
-            letterSpacing: "-.01em",
-            color: "var(--color-text-strong)",
-            lineHeight: 1.1,
-          }}
-        >
-          {item.title}
-        </span>
-        <span
-          style={{
-            width: "85%",
-            height: 8,
-            borderRadius: 4,
-            background: tone.line,
-          }}
-        />
-        <span
-          style={{
-            width: "60%",
-            height: 8,
-            borderRadius: 4,
-            background: tone.line,
-          }}
-        />
-        <div
-          style={{
-            marginTop: "auto",
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: 8,
-          }}
-        >
-          {[0, 1, 2].map((i) => (
-            <span
-              key={i}
-              style={{
-                height: 40,
-                borderRadius: 8,
-                background: "var(--color-surface)",
-                border: `1px solid ${tone.line}`,
-              }}
-            />
-          ))}
-        </div>
-        <span
-          style={{
-            alignSelf: "flex-start",
-            marginTop: 4,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            background: tone.chip,
-            color: "#fff",
-            fontSize: 12,
-            fontWeight: 500,
-            padding: "6px 12px",
-            borderRadius: 999,
-          }}
-        >
-          Explore <Arrow size={12} />
-        </span>
-      </div>
-    </div>
-  );
-}
-
 function Logo() {
   return (
     <Link
       href="/"
       className="relative z-20 flex items-center"
-      style={{ paddingInline: 4 }}
+      style={{ paddingInline: 4, flexShrink: 0 }}
       aria-label="SPIBER MED"
     >
       <Image
@@ -603,7 +381,13 @@ function Logo() {
         width={1007}
         height={301}
         priority
-        style={{ height: 30, width: "auto", display: "block" }}
+        style={{
+          height: 30,
+          width: "auto",
+          maxWidth: "none",
+          flexShrink: 0,
+          display: "block",
+        }}
       />
     </Link>
   );
@@ -613,7 +397,7 @@ function DesktopActions() {
   return (
     <div
       className="relative z-20"
-      style={{ display: "flex", alignItems: "center", gap: 10 }}
+      style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}
     >
       <LocaleSwitcher />
       <StorefrontAction />

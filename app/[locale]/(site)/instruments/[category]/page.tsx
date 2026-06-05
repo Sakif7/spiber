@@ -13,10 +13,13 @@ import {
 import {
   getCategoryBySlug,
   listBrands,
+  listCategories,
+  categoryWithDescendantIds,
 } from "@/lib/repositories/taxonomy.repo";
 import { listWishlistProductIds } from "@/lib/repositories/wishlist.repo";
 import { getSessionUser } from "@/lib/auth/current-user";
 import { localize } from "@/lib/schemas/localized";
+import { instrumentsHero } from "@/lib/hero-images";
 import { toMinor } from "@/lib/money";
 import { pageMetadata } from "@/lib/seo/metadata";
 import { logger } from "@/lib/log";
@@ -76,12 +79,17 @@ export default async function CategoryListing({
     pages: 1,
   };
   let brands: { id: string; name: string }[] = [];
+  let categoryNav: { slug: string; name: string }[] = [];
+  const catIds = await categoryWithDescendantIds(
+    String(cat._id),
+    "instruments",
+  ).catch(() => [String(cat._id)]);
   try {
-    const [r, bs] = await Promise.all([
+    const [r, bs, cs] = await Promise.all([
       listProducts({
         storefront: "instruments",
         status: "active",
-        categoryId: String(cat._id),
+        categoryIds: catIds,
         search: str(sp.q),
         brandId: str(sp.brand),
         minPriceMinor: minMajor != null ? toMinor(minMajor) : undefined,
@@ -91,9 +99,13 @@ export default async function CategoryListing({
         page,
       }),
       listBrands(),
+      listCategories("instruments"),
     ]);
     result = r;
     brands = bs.map((b) => ({ id: String(b._id), name: localize(b.name, l) }));
+    categoryNav = cs
+      .filter((c) => !c.parentId)
+      .map((c) => ({ slug: c.slug, name: localize(c.name, l) }));
   } catch (e) {
     logger.warn("category listing load failed", e);
   }
@@ -170,6 +182,8 @@ export default async function CategoryListing({
     <>
       <PageHeader
         title={localize(cat.name, l)}
+        image={instrumentsHero(category)}
+        imageAlt={localize(cat.name, l)}
         breadcrumbs={[
           { label: nav("home"), href: "/" },
           { label: nav("instruments"), href: "/instruments" },
@@ -186,7 +200,12 @@ export default async function CategoryListing({
           }}
           className="equal-2col"
         >
-          <Filters brands={brands} />
+          <Filters
+            brands={brands}
+            categories={categoryNav}
+            currentSlug={category}
+            categoryBasePath="/instruments"
+          />
 
           <div
             style={{

@@ -6,6 +6,7 @@ import { Link } from "@/i18n/navigation";
 import { CourseCard } from "@/components/academy/course-card";
 import { CourseFilters } from "@/components/academy/course-filters";
 import { listCourses, type CourseSort } from "@/lib/repositories/courses.repo";
+import { HERO } from "@/lib/hero-images";
 import { toMinor } from "@/lib/money";
 import { pageMetadata } from "@/lib/seo/metadata";
 import { logger } from "@/lib/log";
@@ -83,6 +84,8 @@ export default async function CoursesCatalog({
         eyebrow={t("hub.title")}
         title={t("catalog.title")}
         description={t("catalog.lede")}
+        image={HERO.academyHub}
+        imageAlt={t("catalog.title")}
         breadcrumbs={[
           { label: nav("home"), href: "/" },
           { label: t("hub.title"), href: "/academy" },

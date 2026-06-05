@@ -66,9 +66,9 @@ export const Navbar = ({ children, className }: NavbarProps) => {
         React.isValidElement(child)
           ? React.cloneElement(
               child as React.ReactElement<{ visible?: boolean }>,
-              { visible }
+              { visible },
             )
-          : child
+          : child,
       )}
     </motion.div>
   );
@@ -82,15 +82,15 @@ export const NavBody = ({ children, className, visible }: NavBodyProps) => {
         boxShadow: visible
           ? "0 1px 2px rgba(10,31,44,.05), 0 12px 36px -8px rgba(10,31,44,.12), 0 0 0 1px rgba(10,31,44,.04)"
           : "none",
-        width: visible ? "62%" : "100%",
+        width: visible ? "72%" : "100%",
         y: visible ? 8 : 0,
       }}
       transition={{ type: "spring", stiffness: 200, damping: 50 }}
-      style={{ minWidth: 780 }}
+      style={{ minWidth: 820 }}
       className={cn(
         "relative z-[60] mx-auto hidden w-full max-w-[1240px] flex-row items-center justify-between self-start rounded-full bg-transparent px-4 py-2 lg:flex",
         visible && "bg-white/80",
-        className
+        className,
       )}
     >
       {children}
@@ -98,7 +98,12 @@ export const NavBody = ({ children, className, visible }: NavBodyProps) => {
   );
 };
 
-export const NavItems = ({ items, className, onItemClick, onItemHover }: NavItemsProps) => {
+export const NavItems = ({
+  items,
+  className,
+  onItemClick,
+  onItemHover,
+}: NavItemsProps) => {
   const [hovered, setHovered] = useState<number | null>(null);
 
   return (
@@ -109,7 +114,7 @@ export const NavItems = ({ items, className, onItemClick, onItemHover }: NavItem
       }}
       className={cn(
         "hidden flex-1 flex-row items-center justify-center text-sm font-medium lg:flex",
-        className
+        className,
       )}
     >
       {items.map((item, idx) => (
@@ -126,7 +131,7 @@ export const NavItems = ({ items, className, onItemClick, onItemHover }: NavItem
             if (item.link === "#") e.preventDefault();
             onItemClick?.(item);
           }}
-          className="relative px-4 py-2"
+          className="relative px-3 py-2 whitespace-nowrap"
           style={{ color: "var(--color-text)" }}
           key={`link-${idx}`}
           href={item.link}
@@ -139,7 +144,10 @@ export const NavItems = ({ items, className, onItemClick, onItemHover }: NavItem
               style={{ background: "var(--teal-50)" }}
             />
           )}
-          <span className="relative z-20" style={{ color: "var(--color-text)" }}>
+          <span
+            className="relative z-20"
+            style={{ color: "var(--color-text)" }}
+          >
             {item.name}
           </span>
         </a>
@@ -166,7 +174,7 @@ export const MobileNav = ({ children, className, visible }: MobileNavProps) => {
       className={cn(
         "relative z-50 mx-auto flex w-full max-w-[calc(100vw-2rem)] flex-col items-center justify-between bg-transparent px-0 py-2 lg:hidden",
         visible && "bg-white/85",
-        className
+        className,
       )}
     >
       {children}
@@ -174,15 +182,27 @@ export const MobileNav = ({ children, className, visible }: MobileNavProps) => {
   );
 };
 
-export const MobileNavHeader = ({ children, className }: MobileNavHeaderProps) => {
+export const MobileNavHeader = ({
+  children,
+  className,
+}: MobileNavHeaderProps) => {
   return (
-    <div className={cn("flex w-full flex-row items-center justify-between", className)}>
+    <div
+      className={cn(
+        "flex w-full flex-row items-center justify-between",
+        className,
+      )}
+    >
       {children}
     </div>
   );
 };
 
-export const MobileNavMenu = ({ children, className, isOpen }: MobileNavMenuProps) => {
+export const MobileNavMenu = ({
+  children,
+  className,
+  isOpen,
+}: MobileNavMenuProps) => {
   return (
     <AnimatePresence>
       {isOpen && (
@@ -193,7 +213,7 @@ export const MobileNavMenu = ({ children, className, isOpen }: MobileNavMenuProp
           transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
           className={cn(
             "absolute inset-x-0 top-16 z-50 flex w-full flex-col items-start justify-start gap-2 rounded-2xl bg-white px-4 py-6",
-            className
+            className,
           )}
           style={{
             boxShadow:
