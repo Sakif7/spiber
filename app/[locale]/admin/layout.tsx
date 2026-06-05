@@ -6,6 +6,7 @@ import { isAdmin } from "@/lib/auth/rbac";
 import { siteConfig } from "@/lib/site-config";
 import { SignOutButton } from "@/components/admin/sign-out-button";
 import { AdminNav } from "@/components/admin/admin-nav";
+import { SessionKeepAlive } from "@/components/admin/session-keep-alive";
 
 // Admin depends on the auth cookie; never statically prerender it.
 export const dynamic = "force-dynamic";
@@ -38,6 +39,7 @@ export default async function AdminLayout({
         background: "var(--color-bg)",
       }}
     >
+      <SessionKeepAlive />
       <aside
         style={{
           borderRight: "1px solid var(--color-border)",
@@ -46,6 +48,9 @@ export default async function AdminLayout({
           top: 0,
           alignSelf: "start",
           height: "100vh",
+          // Scroll the nav independently so long sidebars (8 groups) never cut
+          // off the bottom items.
+          overflowY: "auto",
           display: "flex",
           flexDirection: "column",
           gap: "var(--s-5)",
@@ -53,7 +58,7 @@ export default async function AdminLayout({
         }}
       >
         <Link
-          href="/admin"
+          href="/"
           style={{
             display: "flex",
             flexDirection: "column",

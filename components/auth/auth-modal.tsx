@@ -173,7 +173,11 @@ function AuthModalView({
     const dest = next && next.startsWith("/") ? stripLocale(next) : null;
     close();
     if (dest) router.replace(dest);
-    else router.refresh();
+    // Always refresh so the new auth cookies take effect: this clears the App
+    // Router cache. Without it, navigating to a protected route (e.g. /admin)
+    // can render the stale pre-login RSC and bounce straight back to the modal
+    // — the "login loop" where only a manual browser refresh recovers.
+    router.refresh();
   }
 
   const enter = reduce ? { duration: 0 } : { duration: 0.3, ease: EASE };

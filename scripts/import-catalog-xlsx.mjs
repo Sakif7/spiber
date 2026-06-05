@@ -8,6 +8,15 @@
  *   Columns: A=S/N, B=item description, C=model, D="brand + origin",
  *            E="E-COMMERCE" flag (marks marketplace items).
  *
+ * FIELD MAPPING (project decision 2026-06-05, revised):
+ *   name        = MODEL (col C) — the product's identity. (Col B repeats per
+ *                 section, so it is NOT the name.) Falls back to col B only for
+ *                 the few rows whose model cell is a stray catalog number.
+ *   description = the TYPE text (col B, e.g. "ECG Machine (12 Lead)").
+ *   brand       = manufacturer from col D (deduped); origin -> "Country of
+ *                 Origin" spec. Model is NOT duplicated as a spec.
+ *   A (S/N) is ignored (row counter / stray catalog refs).
+ *
  * PLACEMENT (project decision 2026-06-05):
  *   - ALL products  -> Instruments storefront (B2B quote-only catalog).
  *   - Items flagged E-COMMERCE are ALSO duplicated into the Marketplace
@@ -389,10 +398,12 @@ function extractProducts(sheets) {
   return items;
 }
 
+// The product's identity is its MODEL (col C). The type text (col B) is the
+// description, the brand has its own field. Fall back to the type only for the
+// few rows whose model cell was a stray catalog number (dropped by realModel).
 function productName(p) {
-  if (p.desc) return clean(p.desc);
-  if (p.brand && p.model) return `${p.brand} ${p.model}`;
   if (p.model) return p.model;
+  if (p.desc) return clean(p.desc);
   if (p.brand) return p.brand;
   return "Untitled product";
 }
@@ -487,8 +498,12 @@ export function buildPlan(sheets) {
   const products = [];
   for (const p of items) {
     const name = productName(p);
+    // The type text (col B) becomes the description — but only when it isn't
+    // already serving as the name (the stray-numeric-model rows), to avoid
+    // name === description duplication.
+    const description = p.model ? clean(p.desc) || null : null;
+    // Model is the name now, so it is NOT repeated as a spec. Origin only.
     const specs = [];
-    if (p.model) specs.push({ key: { en: "Model" }, value: { en: p.model } });
     if (p.origin)
       specs.push({
         key: { en: "Country of Origin" },
@@ -503,6 +518,7 @@ export function buildPlan(sheets) {
       makeProduct({
         sku: insSku,
         name,
+        description,
         specs,
         brand: p.brand,
         catKey: insCatKey,
@@ -516,6 +532,7 @@ export function buildPlan(sheets) {
         makeProduct({
           sku: mpSku,
           name,
+          description,
           specs,
           brand: p.brand,
           catKey: MP_SUBS[mpSubKey(p.sheet, p.section)].key,
@@ -533,10 +550,19 @@ export function buildPlan(sheets) {
   };
 }
 
-function makeProduct({ sku, name, specs, brand, catKey, storefront }) {
+function makeProduct({
+  sku,
+  name,
+  description,
+  specs,
+  brand,
+  catKey,
+  storefront,
+}) {
   return {
     sku,
     name: { en: name },
+    description: description || null,
     slug: `${slugify(name).slice(0, 90)}-${sku.toLowerCase()}`,
     brandCanonical: brand || null,
     catKey,
@@ -622,9 +648,12 @@ function report(plan) {
   }
 
   console.log("\nData notes:");
+  console.log(
+    `  • Name = model (col C); type (col B) = description; origin (col D) = spec.`,
+  );
   console.log(`  • ${noBrand} products have no brand (brand left empty).`);
   console.log(
-    `  • Stray numeric "model" cells were dropped (name comes from the description).`,
+    `  • Stray numeric "model" cells dropped → those rows fall back to the type for their name.`,
   );
   console.log(
     `  • All products import as status:"draft", priceMinor:null, images:[].`,
@@ -636,7 +665,7 @@ function report(plan) {
   )) {
     const cat = plan.categories.find((c) => c.key === p.catKey);
     console.log(
-      `  [${p.storefront}] ${p.sku}  "${p.name.en}"  brand=${p.brandCanonical ?? "—"}  cat=${cat?.slug}  specs=${p.specs.map((s) => `${s.key.en}:${s.value.en}`).join("; ") || "—"}`,
+      `  [${p.storefront}] ${p.sku}  name="${p.name.en}"  desc="${p.description ?? "—"}"  brand=${p.brandCanonical ?? "—"}  cat=${cat?.slug}  specs=${p.specs.map((s) => `${s.key.en}:${s.value.en}`).join("; ") || "—"}`,
     );
   }
   void droppedModels;
@@ -730,6 +759,7 @@ export async function commitPlan(plan, { uri, dbName, forceProd = false }) {
           $setOnInsert: {
             sku: p.sku,
             name: p.name,
+            description: p.description ? { en: p.description } : null,
             slug: p.slug,
             brandId: p.brandCanonical ? brandId[p.brandCanonical] : null,
             categoryId: catId[p.catKey],
