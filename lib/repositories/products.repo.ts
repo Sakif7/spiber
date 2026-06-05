@@ -165,6 +165,72 @@ export async function softDeleteProduct(id: string) {
   ).exec();
 }
 
+// ── Bulk admin operations (status change / soft-delete over many products) ──
+
+/** Minimal fields the bulk service needs to decide eligibility. */
+export type BulkProductLite = Pick<
+  Lean<IProduct>,
+  "_id" | "status" | "priceMinor" | "variants"
+>;
+
+/**
+ * Resolve the set of products a bulk action targets — either an explicit `ids`
+ * list or everything matching the current list filter (`all`). Scoped to the
+ * given storefront and non-deleted; capped to a sane ceiling.
+ */
+export async function findProductsForBulk(params: {
+  storefront: Storefront;
+  ids?: string[];
+  status?: ProductStatus;
+  search?: string;
+  limit?: number;
+}): Promise<BulkProductLite[]> {
+  await connectToDatabase();
+  const limit = Math.min(2000, Math.max(1, params.limit ?? 2000));
+  let q: Record<string, unknown>;
+  if (params.ids && params.ids.length > 0) {
+    const ids = params.ids.filter((id) => mongoose.isValidObjectId(id));
+    if (ids.length === 0) return [];
+    q = { _id: { $in: ids }, storefront: params.storefront, deletedAt: null };
+  } else {
+    q = buildQuery({
+      storefront: params.storefront,
+      status: params.status,
+      search: params.search,
+    });
+  }
+  return Product.find(q as unknown as ProductFilter)
+    .select("_id status priceMinor variants")
+    .limit(limit)
+    .lean<BulkProductLite[]>()
+    .exec();
+}
+
+export async function bulkSetProductStatus(
+  ids: string[],
+  status: ProductStatus,
+): Promise<number> {
+  await connectToDatabase();
+  const objIds = ids.filter((id) => mongoose.isValidObjectId(id));
+  if (objIds.length === 0) return 0;
+  const res = await Product.updateMany(
+    { _id: { $in: objIds }, deletedAt: null },
+    { $set: { status } },
+  ).exec();
+  return res.modifiedCount ?? 0;
+}
+
+export async function bulkSoftDeleteProducts(ids: string[]): Promise<number> {
+  await connectToDatabase();
+  const objIds = ids.filter((id) => mongoose.isValidObjectId(id));
+  if (objIds.length === 0) return 0;
+  const res = await Product.updateMany(
+    { _id: { $in: objIds }, deletedAt: null },
+    { $set: { deletedAt: new Date(), status: "archived" } },
+  ).exec();
+  return res.modifiedCount ?? 0;
+}
+
 /**
  * Low-stock products (marketplace only — instruments is quote-only). Variant
  * products are low when ANY variant is at/under the product's threshold; simple

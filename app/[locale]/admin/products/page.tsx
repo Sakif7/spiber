@@ -1,190 +1,79 @@
 import { setRequestLocale } from "next-intl/server";
-import { Link } from "@/i18n/navigation";
-import { CtaButton } from "@/components/ui/cta-button";
+import {
+  ProductsManager,
+  type ProductManagerRow,
+} from "@/components/admin/products-manager";
 import { listProducts } from "@/lib/repositories/products.repo";
 import { formatBDT } from "@/lib/money";
 import { localize } from "@/lib/schemas/localized";
+import type { ProductStatus } from "@/lib/schemas/catalog";
 
 export const dynamic = "force-dynamic";
 
-type ProductRow = {
-  id: string;
-  name: string;
-  sku: string;
-  priceMinor: number | null;
-  stockQty: number;
-  lowStockThreshold: number;
-  status: string;
-};
+const STATUSES = ["draft", "active", "archived"];
 
 export default async function AdminProductsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
+  const sp = await searchParams;
 
-  let rows: ProductRow[] = [];
+  const q = typeof sp.q === "string" ? sp.q : "";
+  const status =
+    typeof sp.status === "string" && STATUSES.includes(sp.status)
+      ? (sp.status as ProductStatus)
+      : undefined;
+  const page = Math.max(
+    1,
+    parseInt(typeof sp.page === "string" ? sp.page : "1", 10) || 1,
+  );
+
+  let rows: ProductManagerRow[] = [];
+  let total = 0;
+  let pages = 1;
   try {
-    const { items } = await listProducts({
+    const res = await listProducts({
       storefront: "instruments",
+      search: q || undefined,
+      status,
+      page,
       pageSize: 60,
     });
-    rows = items.map((p) => ({
+    total = res.total;
+    pages = res.pages;
+    rows = res.items.map((p) => ({
       id: String(p._id),
       name: localize(p.name, "en"),
       sku: p.sku,
-      priceMinor: p.priceMinor,
-      stockQty: p.stockQty,
-      lowStockThreshold: p.lowStockThreshold,
+      priceLabel:
+        p.priceMinor != null ? formatBDT(p.priceMinor, "en") : "On request",
+      stock: p.stockQty,
+      lowStock: p.stockQty <= p.lowStockThreshold,
       status: p.status,
+      featured: false,
     }));
   } catch {
     rows = [];
   }
 
-  const thStyle: React.CSSProperties = {
-    textAlign: "left",
-    padding: "var(--s-3) var(--s-4)",
-    fontSize: "var(--fs-sm)",
-    fontWeight: 600,
-    color: "var(--color-text-muted)",
-    borderBottom: "1px solid var(--color-border)",
-    whiteSpace: "nowrap",
-  };
-
-  const tdStyle: React.CSSProperties = {
-    padding: "var(--s-3) var(--s-4)",
-    fontSize: "var(--fs-sm)",
-    color: "var(--color-text)",
-    borderBottom: "1px solid var(--color-border)",
-    verticalAlign: "middle",
-  };
-
   return (
-    <div
-      style={{ display: "flex", flexDirection: "column", gap: "var(--s-6)" }}
-    >
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "var(--s-4)",
-          flexWrap: "wrap",
-        }}
-      >
-        <h1
-          style={{
-            fontFamily: "var(--font-display)",
-            fontSize: "var(--fs-2xl)",
-            fontWeight: 700,
-            color: "var(--color-text-strong)",
-            margin: 0,
-          }}
-        >
-          Products
-        </h1>
-        <CtaButton href="/admin/products/new" variant="primary">
-          New product
-        </CtaButton>
-      </header>
-
-      {rows.length === 0 ? (
-        <div
-          style={{
-            border: "1px solid var(--color-border)",
-            background: "var(--color-surface)",
-            borderRadius: "var(--r-lg)",
-            padding: "var(--s-8)",
-            textAlign: "center",
-            color: "var(--color-text-muted)",
-            fontSize: "var(--fs-base)",
-          }}
-        >
-          No products yet.
-        </div>
-      ) : (
-        <div
-          style={{
-            border: "1px solid var(--color-border)",
-            background: "var(--color-surface)",
-            borderRadius: "var(--r-lg)",
-            overflow: "hidden",
-          }}
-        >
-          <div style={{ overflowX: "auto" }}>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                minWidth: "640px",
-              }}
-            >
-              <thead>
-                <tr>
-                  <th style={thStyle}>Name</th>
-                  <th style={thStyle}>SKU</th>
-                  <th style={{ ...thStyle, textAlign: "right" }}>Price</th>
-                  <th style={{ ...thStyle, textAlign: "right" }}>Stock</th>
-                  <th style={thStyle}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((p) => {
-                  const low = p.stockQty <= p.lowStockThreshold;
-                  return (
-                    <tr key={p.id}>
-                      <td style={tdStyle}>
-                        <Link
-                          href={`/admin/products/${p.id}`}
-                          style={{
-                            color: "var(--color-brand-deep)",
-                            fontWeight: 600,
-                            textDecoration: "none",
-                          }}
-                        >
-                          {p.name || "(untitled)"}
-                        </Link>
-                      </td>
-                      <td
-                        style={{
-                          ...tdStyle,
-                          fontFamily: "var(--font-mono)",
-                          color: "var(--color-text-muted)",
-                        }}
-                      >
-                        {p.sku}
-                      </td>
-                      <td style={{ ...tdStyle, textAlign: "right" }}>
-                        {p.priceMinor != null
-                          ? formatBDT(p.priceMinor, "en")
-                          : "On request"}
-                      </td>
-                      <td
-                        style={{
-                          ...tdStyle,
-                          textAlign: "right",
-                          fontWeight: low ? 700 : 400,
-                          color: low
-                            ? "var(--color-error)"
-                            : "var(--color-text)",
-                        }}
-                      >
-                        {p.stockQty}
-                      </td>
-                      <td style={{ ...tdStyle, textTransform: "capitalize" }}>
-                        {p.status}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-    </div>
+    <ProductsManager
+      key={`${q}|${status ?? ""}|${page}`}
+      storefront="instruments"
+      title="Products"
+      basePath="/admin/products"
+      newHref="/admin/products/new"
+      rows={rows}
+      total={total}
+      page={page}
+      pages={pages}
+      q={q}
+      status={status ?? ""}
+    />
   );
 }

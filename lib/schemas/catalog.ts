@@ -167,3 +167,33 @@ export const productUpdateSchema = productSchema
   .partial()
   .superRefine(refineProduct);
 export type ProductUpdateInput = z.infer<typeof productUpdateSchema>;
+
+/**
+ * Bulk admin action over many products — status change or soft-delete from the
+ * product list, without opening each one. Either an explicit `ids` list OR
+ * `all: true` to act on every product matching the current list filter
+ * (storefront + optional status/search), so an admin can e.g. activate every
+ * draft in one go.
+ */
+export const productBulkActionEnum = z.enum([
+  "activate",
+  "draft",
+  "archive",
+  "delete",
+]);
+export type ProductBulkAction = z.infer<typeof productBulkActionEnum>;
+
+export const productBulkSchema = z
+  .object({
+    action: productBulkActionEnum,
+    storefront: storefrontEnum,
+    ids: z.array(z.string().min(1)).max(1000).optional(),
+    all: z.boolean().optional(),
+    status: productStatusEnum.optional(), // current filter (only with `all`)
+    search: z.string().max(120).optional(), // current filter (only with `all`)
+  })
+  .refine((d) => d.all === true || (d.ids?.length ?? 0) > 0, {
+    message: "Select at least one product",
+    path: ["ids"],
+  });
+export type ProductBulkInput = z.infer<typeof productBulkSchema>;

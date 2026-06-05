@@ -4,9 +4,17 @@ import {
   createProduct,
   getProductById,
   updateProduct,
+  findProductsForBulk,
+  bulkSetProductStatus,
+  bulkSoftDeleteProducts,
+  type BulkProductLite,
 } from "@/lib/repositories/products.repo";
 import { applyMovement } from "./inventory.service";
-import type { ProductFormInput } from "@/lib/schemas/catalog";
+import type {
+  ProductFormInput,
+  ProductBulkInput,
+  ProductStatus,
+} from "@/lib/schemas/catalog";
 import type { IProduct, IProductVariant } from "@/lib/models/product";
 
 /**
@@ -126,4 +134,70 @@ export async function updateCatalogProduct(
     });
   }
   return doc;
+}
+
+/**
+ * A marketplace product can only go `active` if it resolves a price (mirrors
+ * `refineProduct`): a base price, or — when it has variants — every variant
+ * carries an override (or the base price covers them). Instruments are
+ * quote-only so price is optional. Prevents a bulk-activate from publishing a
+ * price-less marketplace product that would break the storefront.
+ */
+function canActivate(
+  storefront: ProductBulkInput["storefront"],
+  p: BulkProductLite,
+) {
+  if (storefront !== "marketplace") return true;
+  const variants = p.variants ?? [];
+  if (variants.length === 0) return p.priceMinor != null;
+  return variants.every(
+    (v) => v.priceMinorOverride != null || p.priceMinor != null,
+  );
+}
+
+export type BulkResult = {
+  matched: number;
+  modified: number;
+  skipped: number;
+};
+
+/**
+ * Bulk status change / soft-delete over many products. Targets either an
+ * explicit `ids` list or everything matching the current list filter (`all`).
+ * Returns how many matched, were modified, and were skipped (marketplace
+ * products that can't be activated without a price).
+ */
+export async function bulkUpdateProducts(
+  input: ProductBulkInput,
+): Promise<BulkResult> {
+  const candidates = await findProductsForBulk({
+    storefront: input.storefront,
+    ids: input.all ? undefined : input.ids,
+    status: input.status,
+    search: input.search,
+  });
+  const matched = candidates.length;
+  let ids = candidates.map((c) => String(c._id));
+
+  if (input.action === "delete") {
+    const modified = await bulkSoftDeleteProducts(ids);
+    return { matched, modified, skipped: 0 };
+  }
+
+  const status: ProductStatus =
+    input.action === "activate"
+      ? "active"
+      : input.action === "draft"
+        ? "draft"
+        : "archived";
+
+  let skipped = 0;
+  if (status === "active") {
+    const eligible = candidates.filter((c) => canActivate(input.storefront, c));
+    skipped = candidates.length - eligible.length;
+    ids = eligible.map((c) => String(c._id));
+  }
+
+  const modified = await bulkSetProductStatus(ids, status);
+  return { matched, modified, skipped };
 }
