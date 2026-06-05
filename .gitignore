@@ -73,9 +73,6 @@ Thumbs.db
 # Claude assistant memory (local notes; durable facts live in CLAUDE.md)
 /memory/
 
-# client-supplied source data (imported into the DB, not needed at runtime)
-*.xlsx
-
 # extra
 /.playwright-mcp/
 /.docs/
