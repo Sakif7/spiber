@@ -80,6 +80,8 @@ export default async function CategoryListing({
   };
   let brands: { id: string; name: string }[] = [];
   let categoryNav: { slug: string; name: string }[] = [];
+  // CATEGORY eyebrow: productId-category → name (delete to drop the eyebrow).
+  let catMap = new Map<string, string>();
   const catIds = await categoryWithDescendantIds(
     String(cat._id),
     "instruments",
@@ -106,6 +108,7 @@ export default async function CategoryListing({
     categoryNav = cs
       .filter((c) => !c.parentId)
       .map((c) => ({ slug: c.slug, name: localize(c.name, l) }));
+    catMap = new Map(cs.map((c) => [String(c._id), localize(c.name, l)]));
   } catch (e) {
     logger.warn("category listing load failed", e);
   }
@@ -346,6 +349,11 @@ export default async function CategoryListing({
                     mode="instruments"
                     brandName={
                       p.brandId ? brandMap.get(String(p.brandId)) : undefined
+                    }
+                    categoryName={
+                      p.categoryId
+                        ? catMap.get(String(p.categoryId))
+                        : undefined
                     }
                     wishlisted={wish.has(String(p._id))}
                   />

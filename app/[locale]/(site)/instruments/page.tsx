@@ -96,6 +96,10 @@ export default async function InstrumentsHub({
   }
 
   const brandMap = new Map(brands.map((b) => [b.id, b.name]));
+  // CATEGORY eyebrow: productId-category → name (delete to drop the eyebrow).
+  const catMap = new Map(
+    categories.map((c) => [String(c._id), localize(c.name, l)]),
+  );
   const sessionUser = await getSessionUser().catch(() => null);
   const wish = sessionUser
     ? new Set(await listWishlistProductIds(sessionUser.sub).catch(() => []))
@@ -339,6 +343,11 @@ export default async function InstrumentsHub({
                         brandName={
                           p.brandId
                             ? brandMap.get(String(p.brandId))
+                            : undefined
+                        }
+                        categoryName={
+                          p.categoryId
+                            ? catMap.get(String(p.categoryId))
                             : undefined
                         }
                         wishlisted={wish.has(String(p._id))}

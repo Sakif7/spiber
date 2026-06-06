@@ -7,7 +7,7 @@ import {
   listProducts,
   type ProductSort,
 } from "@/lib/repositories/products.repo";
-import { listBrands } from "@/lib/repositories/taxonomy.repo";
+import { listBrands, listCategories } from "@/lib/repositories/taxonomy.repo";
 import { listWishlistProductIds } from "@/lib/repositories/wishlist.repo";
 import { getSessionUser } from "@/lib/auth/current-user";
 import { localize } from "@/lib/schemas/localized";
@@ -63,8 +63,10 @@ export default async function MarketplaceSearch({
     pages: 1,
   };
   let brands: { id: string; name: string }[] = [];
+  // CATEGORY eyebrow: productId-category → name (delete to drop the eyebrow).
+  let categoryNameById: Record<string, string> = {};
   try {
-    const [r, bs] = await Promise.all([
+    const [r, bs, cs] = await Promise.all([
       listProducts({
         storefront: "marketplace",
         status: "active",
@@ -78,9 +80,13 @@ export default async function MarketplaceSearch({
         page,
       }),
       listBrands(),
+      listCategories("marketplace"),
     ]);
     result = r;
     brands = bs.map((b) => ({ id: String(b._id), name: localize(b.name, l) }));
+    categoryNameById = Object.fromEntries(
+      cs.map((c) => [String(c._id), localize(c.name, l)]),
+    );
   } catch (e) {
     logger.warn("marketplace search load failed", e);
   }
@@ -124,6 +130,7 @@ export default async function MarketplaceSearch({
             result={result}
             brands={brands}
             brandNameById={brandNameById}
+            categoryNameById={categoryNameById}
             wishlistedIds={wishlistedIds}
           />
         </Container>

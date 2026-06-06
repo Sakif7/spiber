@@ -66,6 +66,8 @@ export default async function MarketplaceHome({
   };
   let brands: { id: string; name: string }[] = [];
   let categoryNav: { slug: string; name: string }[] = [];
+  // CATEGORY eyebrow: productId-category → name (delete to drop the eyebrow).
+  let categoryNameById: Record<string, string> = {};
   try {
     const [r, bs, cs] = await Promise.all([
       listProducts({
@@ -88,6 +90,9 @@ export default async function MarketplaceHome({
     categoryNav = cs
       .filter((c) => !c.parentId)
       .map((c) => ({ slug: c.slug, name: localize(c.name, l) }));
+    categoryNameById = Object.fromEntries(
+      cs.map((c) => [String(c._id), localize(c.name, l)]),
+    );
   } catch (e) {
     logger.warn("marketplace home load failed", e);
   }
@@ -136,6 +141,7 @@ export default async function MarketplaceHome({
             result={result}
             brands={brands}
             brandNameById={brandNameById}
+            categoryNameById={categoryNameById}
             wishlistedIds={wishlistedIds}
             categories={categoryNav}
           />

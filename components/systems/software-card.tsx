@@ -1,10 +1,7 @@
-import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
 import { localize } from "@/lib/schemas/localized";
 import { formatBDT } from "@/lib/money";
-import { Placeholder } from "@/components/ui/placeholder";
-import { CardBody, CardContainer, CardItem } from "@/components/ui/3d-card";
+import { CatalogCard } from "@/components/ui/catalog-card";
 import type { Locale } from "@/i18n/routing";
 import type { Lean } from "@/lib/models/_shared";
 import type { ISoftwareProduct } from "@/lib/models/softwareProduct";
@@ -27,62 +24,26 @@ export function SoftwareCard({
         : t("pricing.free");
 
   return (
-    <Link href={`/systems/product/${product.slug}`} className="block h-full">
-      <CardContainer
-        containerClassName="py-0 w-full h-full"
-        className="h-full w-full"
-      >
-        <CardBody className="group/card relative flex h-full w-full flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-shadow duration-300 hover:shadow-[0_24px_60px_-20px_rgba(14,139,134,0.35)]">
-          <CardItem translateZ="70" className="w-full">
-            <div className="relative aspect-[16/9] w-full overflow-hidden rounded-lg border border-[var(--color-hairline)] bg-[var(--color-surface-2)]">
-              {product.screenshots[0] ? (
-                <Image
-                  src={product.screenshots[0]}
-                  alt={title}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 33vw"
-                  className="object-cover transition-transform duration-500 group-hover/card:scale-[1.05]"
-                />
-              ) : (
-                <Placeholder
-                  label={title}
-                  tone="slate"
-                  style={{ position: "absolute", inset: 0 }}
-                />
-              )}
-            </div>
-          </CardItem>
-
-          <CardItem
-            as="span"
-            translateZ="30"
-            className="mt-4 w-full text-[length:var(--fs-caption)] font-medium text-[color:var(--color-text-muted)]"
-          >
-            {t(`pricing.${product.pricingModel}`)}
-          </CardItem>
-
-          <CardItem
-            as="h3"
-            translateZ="40"
-            className="mt-1 line-clamp-2 w-full text-[15px] leading-snug font-semibold text-[var(--color-text-strong)]"
-          >
-            {title}
-          </CardItem>
-
-          <CardItem
-            translateZ="40"
-            className="mt-auto flex w-full items-center justify-between gap-3 pt-4"
-          >
-            <strong className="text-[length:var(--fs-h5)] font-bold text-[color:var(--color-brand-deep)]">
-              {priceLabel}
-            </strong>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border)] px-3.5 py-2 text-[13px] font-semibold text-[var(--color-brand-deep)] transition-colors group-hover/card:border-[var(--color-brand)] group-hover/card:bg-[var(--color-brand)] group-hover/card:text-white">
-              {tc("view")}
-              <span aria-hidden>→</span>
-            </span>
-          </CardItem>
-        </CardBody>
-      </CardContainer>
-    </Link>
+    <CatalogCard
+      href={`/systems/product/${product.slug}`}
+      image={product.screenshots[0]}
+      imageAlt={title}
+      placeholderLabel={title}
+      placeholderTone="slate"
+      topLabel={t(`pricing.${product.pricingModel}`)}
+      title={title}
+      footerLeft={
+        <strong
+          style={{
+            fontSize: "var(--fs-h5)",
+            fontWeight: 700,
+            color: "var(--color-brand-deep)",
+          }}
+        >
+          {priceLabel}
+        </strong>
+      }
+      action={tc("view")}
+    />
   );
 }

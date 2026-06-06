@@ -19,6 +19,7 @@ import {
 import {
   getBrandById,
   getCategoryById,
+  listBrands,
 } from "@/lib/repositories/taxonomy.repo";
 import { listWishlistProductIds } from "@/lib/repositories/wishlist.repo";
 import { getSessionUser } from "@/lib/auth/current-user";
@@ -64,7 +65,7 @@ export default async function ProductDetail({
   const name = localize(product.name, l);
   const productId = String(product._id);
   const sessionUser = await getSessionUser().catch(() => null);
-  const [related, brand, category, wishIds] = await Promise.all([
+  const [related, brand, category, wishIds, allBrands] = await Promise.all([
     listRelatedProducts(
       String(product.categoryId),
       productId,
@@ -80,8 +81,15 @@ export default async function ProductDetail({
     sessionUser
       ? listWishlistProductIds(sessionUser.sub).catch((): string[] => [])
       : Promise.resolve<string[]>([]),
+    listBrands().catch(() => []),
   ]);
   const wishlisted = wishIds.includes(productId);
+  // Brand + category labels for the related rail (categoryName drives the
+  // eyebrow — delete the categoryName prop below to drop it).
+  const relBrandMap = new Map(
+    allBrands.map((b) => [String(b._id), localize(b.name, l)]),
+  );
+  const relCategoryName = category ? localize(category.name, l) : undefined;
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -356,6 +364,10 @@ export default async function ProductDetail({
                   product={p}
                   locale={l}
                   mode="instruments"
+                  brandName={
+                    p.brandId ? relBrandMap.get(String(p.brandId)) : undefined
+                  }
+                  categoryName={relCategoryName}
                 />
               ))}
             </CardGrid>

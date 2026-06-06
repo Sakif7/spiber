@@ -11,6 +11,8 @@ import { CourseCard } from "@/components/academy/course-card";
 import { SoftwareCard } from "@/components/systems/software-card";
 import { PostCard } from "@/components/blog/post-card";
 import { searchAll, totalResults } from "@/lib/services/search.service";
+import { listBrands } from "@/lib/repositories/taxonomy.repo";
+import { localize } from "@/lib/schemas/localized";
 import { pageMetadata } from "@/lib/seo/metadata";
 import type { Locale } from "@/i18n/routing";
 import type { SearchGroupKey } from "@/lib/search/dto";
@@ -75,6 +77,11 @@ export default async function SearchPage({
 
   const results = hasQuery ? await searchAll(q, { perGroup: 12 }) : null;
   const total = results ? totalResults(results) : 0;
+  // Brand labels for the product result cards.
+  const brandList = hasQuery ? await listBrands().catch(() => []) : [];
+  const brandNameById = new Map(
+    brandList.map((b) => [String(b._id), localize(b.name, l)]),
+  );
 
   return (
     <>
@@ -134,6 +141,11 @@ export default async function SearchPage({
                         product={p}
                         locale={l}
                         mode="instruments"
+                        brandName={
+                          p.brandId
+                            ? brandNameById.get(String(p.brandId))
+                            : undefined
+                        }
                       />
                     ))}
                   </CardGrid>
@@ -154,6 +166,11 @@ export default async function SearchPage({
                         product={p}
                         locale={l}
                         mode="marketplace"
+                        brandName={
+                          p.brandId
+                            ? brandNameById.get(String(p.brandId))
+                            : undefined
+                        }
                       />
                     ))}
                   </CardGrid>

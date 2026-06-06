@@ -10,6 +10,7 @@
 export { Arrow } from "./arrow";
 export { Breadcrumb, type Crumb } from "./breadcrumb";
 export { CardGrid } from "./card-grid";
+export { CatalogCard } from "./catalog-card";
 export { ComingSoon } from "./coming-soon";
 export { Container } from "./container";
 export { CtaButton } from "./cta-button";

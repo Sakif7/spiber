@@ -75,6 +75,8 @@ export default async function MarketplaceCategory({
   let brands: { id: string; name: string }[] = [];
   let subcategories: { slug: string; name: string }[] = [];
   let categoryNav: { slug: string; name: string }[] = [];
+  // CATEGORY eyebrow: productId-category → name (delete to drop the eyebrow).
+  let categoryNameById: Record<string, string> = {};
   let currentTopSlug = slug;
   try {
     const [ids, flat, bs] = await Promise.all([
@@ -88,6 +90,9 @@ export default async function MarketplaceCategory({
     categoryNav = flat
       .filter((c) => !c.parentId)
       .map((c) => ({ slug: c.slug, name: localize(c.name, l) }));
+    categoryNameById = Object.fromEntries(
+      flat.map((c) => [String(c._id), localize(c.name, l)]),
+    );
     const topId = cat.parentId ? String(cat.parentId) : String(cat._id);
     currentTopSlug = flat.find((c) => String(c._id) === topId)?.slug ?? slug;
     brands = bs.map((b) => ({ id: String(b._id), name: localize(b.name, l) }));
@@ -147,6 +152,7 @@ export default async function MarketplaceCategory({
             result={result}
             brands={brands}
             brandNameById={brandNameById}
+            categoryNameById={categoryNameById}
             wishlistedIds={wishlistedIds}
             subcategories={subcategories}
             categories={categoryNav}

@@ -24,6 +24,7 @@ import {
 import {
   getBrandById,
   getCategoryById,
+  listBrands,
 } from "@/lib/repositories/taxonomy.repo";
 import { listApprovedByProduct } from "@/lib/repositories/reviews.repo";
 import { localize } from "@/lib/schemas/localized";
@@ -74,7 +75,7 @@ export default async function MarketplaceProductDetail({
 
   const name = localize(product.name, l);
   const productId = String(product._id);
-  const [related, brand, category, reviews] = await Promise.all([
+  const [related, brand, category, reviews, allBrands] = await Promise.all([
     listRelatedProducts(
       String(product.categoryId),
       productId,
@@ -88,7 +89,14 @@ export default async function MarketplaceProductDetail({
       ? getCategoryById(String(product.categoryId)).catch(() => null)
       : Promise.resolve(null),
     listApprovedByProduct(productId, 20).catch(() => []),
+    listBrands().catch(() => []),
   ]);
+  // Brand + category labels for the related rail (categoryName drives the
+  // eyebrow — delete the categoryName prop below to drop it).
+  const relBrandMap = new Map(
+    allBrands.map((b) => [String(b._id), localize(b.name, l)]),
+  );
+  const relCategoryName = category ? localize(category.name, l) : undefined;
 
   // Client-safe variant data.
   const options = product.variantOptions.map((o) => ({
@@ -403,6 +411,10 @@ export default async function MarketplaceProductDetail({
                   product={p}
                   locale={l}
                   mode="marketplace"
+                  brandName={
+                    p.brandId ? relBrandMap.get(String(p.brandId)) : undefined
+                  }
+                  categoryName={relCategoryName}
                 />
               ))}
             </CardGrid>

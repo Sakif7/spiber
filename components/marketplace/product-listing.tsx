@@ -25,6 +25,7 @@ export async function MarketplaceProductListing({
   brands,
   wishlistedIds = [],
   brandNameById = {},
+  categoryNameById = {},
   subcategories = [],
   categories = [],
   currentSlug,
@@ -37,6 +38,8 @@ export async function MarketplaceProductListing({
   brands: { id: string; name: string }[];
   wishlistedIds?: string[];
   brandNameById?: Record<string, string>;
+  // CATEGORY eyebrow data (productId-category map); harmless if omitted.
+  categoryNameById?: Record<string, string>;
   subcategories?: { slug: string; name: string }[];
   categories?: { slug: string; name: string }[];
   currentSlug?: string;
@@ -258,6 +261,11 @@ export async function MarketplaceProductListing({
                 mode="marketplace"
                 brandName={
                   p.brandId ? brandNameById[String(p.brandId)] : undefined
+                }
+                categoryName={
+                  p.categoryId
+                    ? categoryNameById[String(p.categoryId)]
+                    : undefined
                 }
                 wishlisted={wish.has(String(p._id))}
               />
