@@ -1,26 +1,29 @@
 @import "tailwindcss";
 
 /* =========================================================
-   SPIBER MED — Design Tokens (v1, derived from logo)
-   teal #0E8B86 · orange #E66B26
+   SPIBER MED — Design Tokens (v2, derived from logo)
+   teal #0D8F91 · orange #E66B26
+   v2 (2026-06-06): teal refreshed to the new logo's brighter cyan-teal.
+   The 500/brand step stays legible (~3.9:1 on white) for buttons + eyebrow
+   text; the lighter tints (50–400) and aqua are vivid to match the logo.
    ========================================================= */
 
 :root {
   /* ---------- BRAND CORE ---------- */
-  --brand-teal: #0e8b86;
+  --brand-teal: #0d8f91;
   --brand-orange: #e66b26;
 
   /* ---------- TEAL SCALE ---------- */
-  --teal-50: #ecf7f6;
-  --teal-100: #d2edeb;
-  --teal-200: #a6dbd7;
-  --teal-300: #6ec4be;
-  --teal-400: #36aaa3;
-  --teal-500: #0e8b86;
-  --teal-600: #0a6e6a;
-  --teal-700: #075350;
-  --teal-800: #053c39;
-  --teal-900: #03251f;
+  --teal-50: #eefbfb;
+  --teal-100: #c9f3f3;
+  --teal-200: #8ee0e1;
+  --teal-300: #51cacd;
+  --teal-400: #1cb8ba;
+  --teal-500: #0d8f91;
+  --teal-600: #097377;
+  --teal-700: #085659;
+  --teal-800: #07393c;
+  --teal-900: #062527;
 
   /* ---------- ORANGE SCALE ---------- */
   --orange-50: #fdf1e9;
@@ -35,10 +38,10 @@
   --orange-900: #4a1e09;
 
   /* ---------- AQUA ACCENT ---------- */
-  --aqua-300: #74e0ce;
-  --aqua-400: #36ccb3;
-  --aqua-500: #10b398;
-  --aqua-600: #0c8e78;
+  --aqua-300: #54e8e3;
+  --aqua-400: #19e1de;
+  --aqua-500: #10bcbc;
+  --aqua-600: #0b9193;
 
   /* ---------- NEUTRALS · cool slate ---------- */
   --slate-0: #ffffff;
@@ -161,6 +164,9 @@
     0 4px 8px rgba(10, 31, 44, 0.05), 0 24px 60px rgba(10, 31, 44, 0.12);
   --shadow-brand: 0 8px 24px -8px
     color-mix(in srgb, var(--brand-teal) 50%, transparent);
+  /* Brand-teal glow color for card hover shadows (geometry stays per-use, so
+     the brand color lives in one place). */
+  --glow-brand: color-mix(in srgb, var(--brand-teal) 30%, transparent);
 
   /* ---------- MOTION ---------- */
   --ease-out-quad: cubic-bezier(0.25, 0.46, 0.45, 0.94);

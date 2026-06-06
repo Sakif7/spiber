@@ -31,37 +31,46 @@ export function Placeholder({
     tone === "teal"
       ? "linear-gradient(135deg, var(--teal-100), var(--teal-200))"
       : tone === "orange"
-      ? "linear-gradient(135deg, var(--orange-50), var(--orange-100))"
-      : tone === "slate"
-      ? "linear-gradient(135deg, var(--slate-100), var(--slate-200))"
-      : tone === "dark"
-      ? "linear-gradient(135deg, var(--slate-800), var(--slate-900))"
-      : "var(--color-surface-2)";
+        ? "linear-gradient(135deg, var(--orange-50), var(--orange-100))"
+        : tone === "slate"
+          ? "linear-gradient(135deg, var(--slate-100), var(--slate-200))"
+          : tone === "dark"
+            ? "linear-gradient(135deg, var(--slate-800), var(--slate-900))"
+            : "var(--color-surface-2)";
   const stroke =
     tone === "teal"
-      ? "rgba(14,139,134,.26)"
+      ? "color-mix(in srgb, var(--brand-teal) 26%, transparent)"
       : tone === "orange"
-      ? "rgba(230,107,38,.18)"
-      : tone === "slate"
-      ? "rgba(10,19,24,.08)"
-      : tone === "dark"
-      ? "rgba(255,255,255,.08)"
-      : "rgba(10,19,24,.08)";
+        ? "rgba(230,107,38,.18)"
+        : tone === "slate"
+          ? "rgba(10,19,24,.08)"
+          : tone === "dark"
+            ? "rgba(255,255,255,.08)"
+            : "rgba(10,19,24,.08)";
   const txt =
     tone === "dark"
       ? "rgba(255,255,255,.85)"
       : tone === "orange"
-      ? "var(--orange-700)"
-      : tone === "teal"
-      ? "var(--teal-700)"
-      : "var(--slate-700)";
+        ? "var(--orange-700)"
+        : tone === "teal"
+          ? "var(--teal-700)"
+          : "var(--slate-700)";
 
   return (
     <div
       className={className}
-      style={{ position: "relative", overflow: "hidden", background: bg, ...style }}
+      style={{
+        position: "relative",
+        overflow: "hidden",
+        background: bg,
+        ...style,
+      }}
     >
-      <svg width="100%" height="100%" style={{ position: "absolute", inset: 0 }}>
+      <svg
+        width="100%"
+        height="100%"
+        style={{ position: "absolute", inset: 0 }}
+      >
         <defs>
           <pattern
             id={id}
@@ -70,7 +79,14 @@ export function Placeholder({
             patternUnits="userSpaceOnUse"
             patternTransform="rotate(45)"
           >
-            <line x1="0" y1="0" x2="0" y2="10" stroke={stroke} strokeWidth="1" />
+            <line
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="10"
+              stroke={stroke}
+              strokeWidth="1"
+            />
           </pattern>
         </defs>
         <rect width="100%" height="100%" fill={`url(#${id})`} />
@@ -92,7 +108,8 @@ export function Placeholder({
               letterSpacing: ".14em",
               textTransform: "uppercase",
               color: txt,
-              background: tone === "dark" ? "rgba(10,19,24,.6)" : "rgba(255,255,255,.78)",
+              background:
+                tone === "dark" ? "rgba(10,19,24,.6)" : "rgba(255,255,255,.78)",
               padding: "5px 9px",
               borderRadius: 4,
               backdropFilter: "blur(4px)",

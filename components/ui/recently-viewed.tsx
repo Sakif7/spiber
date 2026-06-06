@@ -94,7 +94,7 @@ export function RecentlyViewed({
               containerClassName="py-0 w-full h-full"
               className="h-full w-full"
             >
-              <CardBody className="group/card relative flex h-full w-full flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-shadow duration-300 hover:shadow-[0_18px_44px_-18px_rgba(14,139,134,0.30)]">
+              <CardBody className="group/card relative flex h-full w-full flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-shadow duration-300 hover:shadow-[0_18px_44px_-18px_var(--glow-brand)]">
                 <CardItem translateZ="60" className="w-full">
                   <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg border border-[var(--color-hairline)] bg-[var(--color-surface-2)]">
                     {it.image ? (

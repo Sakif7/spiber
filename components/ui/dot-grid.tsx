@@ -3,10 +3,16 @@
 import React, { useRef, useEffect, useCallback, useMemo } from "react";
 import { gsap } from "gsap";
 import { InertiaPlugin } from "gsap/InertiaPlugin";
+// Canvas fillStyle can't read CSS vars, so brand colors come from the shared
+// JS token mirror (lib/design-tokens.ts) rather than a loose literal.
+import { colors } from "@/lib/design-tokens";
 
 gsap.registerPlugin(InertiaPlugin);
 
-const throttle = <T extends (...args: unknown[]) => void>(func: T, limit: number) => {
+const throttle = <T extends (...args: unknown[]) => void>(
+  func: T,
+  limit: number,
+) => {
   let lastCall = 0;
   return function (this: unknown, ...args: Parameters<T>) {
     const now = performance.now();
@@ -54,8 +60,8 @@ function hexToRgb(hex: string) {
 const DotGrid: React.FC<DotGridProps> = ({
   dotSize = 4,
   gap = 22,
-  baseColor = "#D2EDEB",
-  activeColor = "#0E8B86",
+  baseColor = colors.teal[100],
+  activeColor = colors.brand.teal,
   proximity = 140,
   speedTrigger = 100,
   shockRadius = 220,
@@ -280,18 +286,38 @@ const DotGrid: React.FC<DotGridProps> = ({
       window.removeEventListener("mousemove", throttledMove);
       window.removeEventListener("click", onClick);
     };
-  }, [maxSpeed, speedTrigger, proximity, resistance, returnDuration, shockRadius, shockStrength]);
+  }, [
+    maxSpeed,
+    speedTrigger,
+    proximity,
+    resistance,
+    returnDuration,
+    shockRadius,
+    shockStrength,
+  ]);
 
   return (
     <div
       ref={wrapperRef}
       className={className}
-      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", ...style }}
+      style={{
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        ...style,
+      }}
       aria-hidden
     >
       <canvas
         ref={canvasRef}
-        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          pointerEvents: "none",
+        }}
       />
     </div>
   );

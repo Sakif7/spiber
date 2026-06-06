@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { Arrow, Container, Reveal } from "@/components/ui";
 import { useMagnetic } from "@/hooks";
 import DotGrid from "@/components/ui/dot-grid";
+import { colors } from "@/lib/design-tokens";
 import { Link } from "@/i18n/navigation";
 import { CatalogSearch } from "@/components/search/catalog-search";
 
@@ -237,8 +238,8 @@ function HeroBackground({ hoveredId }: { hoveredId: string | null }) {
       <DotGrid
         dotSize={4}
         gap={26}
-        baseColor="#D2EDEB"
-        activeColor="#0E8B86"
+        baseColor={colors.teal[100]}
+        activeColor={colors.brand.teal}
         proximity={140}
         style={{ pointerEvents: "auto" }}
       />
@@ -372,7 +373,7 @@ function FeaturedTile({
         color: "white",
         background: "var(--slate-900)",
         boxShadow:
-          "0 1px 2px rgba(10,31,44,.05), 0 32px 80px -28px rgba(14,139,134,.32), 0 0 0 1px rgba(14,139,134,.06)",
+          "0 1px 2px rgba(10,31,44,.05), 0 32px 80px -28px color-mix(in srgb, var(--brand-teal) 32%, transparent), 0 0 0 1px color-mix(in srgb, var(--brand-teal) 6%, transparent)",
         display: "block",
         minHeight: 260,
       }}

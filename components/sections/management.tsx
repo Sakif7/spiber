@@ -221,7 +221,7 @@ function TeamCard({
                 y: -10,
                 scale: 1.06,
                 boxShadow:
-                  "0 1px 2px rgba(10,31,44,.05), 0 30px 60px -20px rgba(14,139,134,.40), 0 0 0 1px rgba(14,139,134,.12)",
+                  "0 1px 2px rgba(10,31,44,.05), 0 30px 60px -20px color-mix(in srgb, var(--brand-teal) 40%, transparent), 0 0 0 1px color-mix(in srgb, var(--brand-teal) 12%, transparent)",
               }
             : {
                 y: 0,

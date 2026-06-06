@@ -59,7 +59,7 @@ const ACCENTS: Record<
   EmailAccent,
   { main: string; deep: string; soft: string }
 > = {
-  teal: { main: "#0e8b86", deep: "#0a6e6a", soft: "#ecf7f6" },
+  teal: { main: "#0d8f91", deep: "#097377", soft: "#eefbfb" },
   orange: { main: "#e66b26", deep: "#c2531a", soft: "#fdf1e9" },
 };
 

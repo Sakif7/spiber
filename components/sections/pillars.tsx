@@ -66,7 +66,7 @@ const ITEMS: PillarStatic[] = [
 
 const CARD_CLASS =
   "!bg-[color:var(--color-surface)] !border !border-[color:var(--teal-100)] " +
-  "!shadow-[0_24px_60px_-28px_rgba(14,139,134,0.28)] !rounded-[32px] " +
+  "!shadow-[0_24px_60px_-28px_var(--glow-brand)] !rounded-[32px] " +
   "!p-0 !h-96 !mt-0 overflow-hidden";
 
 export function Pillars() {
