@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useReducedMotion } from "framer-motion";
+import { heroPosition } from "@/lib/hero-images";
 
 /**
  * Crossfading hero background. Renders as two absolutely-positioned siblings
@@ -44,7 +45,7 @@ export function HeroCarousel({
             sizes="100vw"
             style={{
               objectFit: "cover",
-              objectPosition: "center",
+              objectPosition: heroPosition(src),
               opacity: i === idx ? 1 : 0,
               transition: "opacity 900ms ease-in-out",
             }}

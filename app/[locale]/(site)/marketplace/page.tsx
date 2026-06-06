@@ -117,8 +117,9 @@ export default async function MarketplaceHome({
         images={MARKETPLACE_HUB_IMAGES}
         imageAlt={tm("title")}
         stats={[
-          { value: String(result.total), label: tm("allProducts") },
+          { value: String(brands.length), label: tl("allBrands") },
           { value: String(categoryNav.length), label: tl("categories") },
+          { value: String(result.total), label: tm("allProducts") },
         ]}
         breadcrumbs={[
           { label: nav("home"), href: "/" },

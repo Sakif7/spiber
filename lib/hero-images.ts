@@ -39,12 +39,12 @@ export const INSTRUMENTS_HUB_IMAGES = [
   "/modern-operating-room-equipment.jpeg",
   "/icu-ventilators-between-hospital-beds.jpeg",
   "/c-arm-xray-imaging-system.jpeg",
-  "/lab-technician-using-analyzer-machine.jpeg",
+  "/radiology-technician-by-ct-scanner.jpeg",
 ];
 
 export const MARKETPLACE_HUB_IMAGES = [
   "/diverse-medical-team-cheering.jpeg",
-  "/hospital-bed-control-panel-closeup.jpeg",
+  "/elderly-patient-bedside-vital-signs-monitor.jpeg",
   "/icu-patient-blood-pressure-monitor.jpeg",
   "/iv-infusion-pump-bedside.jpeg",
 ];
@@ -57,4 +57,48 @@ export function instrumentsHero(slug?: string): string {
 /** Hero photo for a Marketplace category (falls back to the hub image). */
 export function marketplaceHero(slug?: string): string {
   return (slug && MARKETPLACE_BY_SLUG[slug]) || HERO.marketplaceHub;
+}
+
+/**
+ * ── FINE-TUNE HERO FRAMING HERE ──────────────────────────────────────────
+ * Hero photos use `object-fit: cover`, so the wide/short hero band crops the
+ * top + bottom of each image. To control WHICH part stays visible, set a CSS
+ * `object-position` per image below (keyed by its /public path).
+ *
+ * Format: "<horizontal> <vertical>", values are keywords or %:
+ *   "center"        → centred (default)
+ *   "top"           → pin the TOP edge (shows the top, crops the bottom)
+ *   "bottom"        → pin the bottom (shows the bottom, crops the top)
+ *   "center 30%"    → bias UP a bit (0% = top, 50% = middle, 100% = bottom)
+ *   "center 70%"    → bias DOWN a bit
+ *
+ * If a photo is "cut off at the top", lower the vertical value (try "top",
+ * then "center 20%", "center 30%") until the subject is framed. Anything not
+ * listed defaults to "center".
+ */
+const POSITIONS: Record<string, string> = {
+  // Instruments hub carousel
+  "/modern-operating-room-equipment.jpeg": "center",
+  "/icu-ventilators-between-hospital-beds.jpeg": "center 20%",
+  "/c-arm-xray-imaging-system.jpeg": "center 50%",
+  "/radiology-technician-by-ct-scanner.jpeg": "center 35%",
+  // Marketplace hub carousel
+  "/diverse-medical-team-cheering.jpeg": "center 25%",
+  "/elderly-patient-bedside-vital-signs-monitor.jpeg": "center 40%",
+  "/icu-patient-blood-pressure-monitor.jpeg": "center 40%",
+  "/iv-infusion-pump-bedside.jpeg": "center 40%",
+  // Category / other hub photos
+  "/empty-hospital-ward-beds.jpeg": "center",
+  "/surgeons-operating-closeup-with-instruments.jpeg": "center 40%",
+  "/doctor-by-ct-scanner-with-patient.jpeg": "center 35%",
+  "/nurse-comforting-elderly-woman-home-care.jpeg": "center 30%",
+  "/surgeon-viewing-medical-imaging-screen.jpeg": "center 35%",
+  "/smiling-medical-team-portrait.jpeg": "center 25%",
+  "/cpr-training-manikin-with-aed.jpeg": "center 35%",
+  "/cherry-blossom-tree-lined-road.jpeg": "center 40%",
+};
+
+/** CSS object-position for a hero image (see POSITIONS above). */
+export function heroPosition(src: string): string {
+  return POSITIONS[src] ?? "center";
 }

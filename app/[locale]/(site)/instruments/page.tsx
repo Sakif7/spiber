@@ -170,11 +170,12 @@ export default async function InstrumentsHub({
         images={INSTRUMENTS_HUB_IMAGES}
         imageAlt={t("hub.title")}
         stats={[
+          { value: String(brands.length), label: t("listing.allBrands") },
           {
             value: String(categories.filter((c) => !c.parentId).length),
             label: t("listing.categories"),
           },
-          { value: String(brands.length), label: t("listing.allBrands") },
+          { value: String(result.total), label: t("listing.allProducts") },
         ]}
         breadcrumbs={[
           { label: nav("home"), href: "/" },
@@ -277,14 +278,6 @@ export default async function InstrumentsHub({
                     flexWrap: "wrap",
                   }}
                 >
-                  <span
-                    style={{
-                      color: "var(--color-text-muted)",
-                      fontSize: "var(--fs-body-sm)",
-                    }}
-                  >
-                    {t("listing.results", { count: result.total })}
-                  </span>
                   {chips.map((c) => (
                     <Link
                       key={c.key}

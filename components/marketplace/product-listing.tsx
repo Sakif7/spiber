@@ -198,14 +198,6 @@ export async function MarketplaceProductListing({
             flexWrap: "wrap",
           }}
         >
-          <span
-            style={{
-              color: "var(--color-text-muted)",
-              fontSize: "var(--fs-body-sm)",
-            }}
-          >
-            {t("results", { count: result.total })}
-          </span>
           {chips.map((c) => (
             <Link
               key={c.key}

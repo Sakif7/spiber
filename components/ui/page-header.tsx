@@ -4,6 +4,7 @@ import { Eyebrow } from "./eyebrow";
 import { Reveal } from "./reveal";
 import { HeroCarousel } from "./hero-carousel";
 import { Breadcrumb, type Crumb } from "./breadcrumb";
+import { heroPosition } from "@/lib/hero-images";
 
 type Stat = { value: string; label: string };
 
@@ -134,7 +135,11 @@ function HeroHeader({
           fill
           priority
           sizes="100vw"
-          style={{ objectFit: "cover", zIndex: -2 }}
+          style={{
+            objectFit: "cover",
+            objectPosition: heroPosition(image ?? images![0]),
+            zIndex: -2,
+          }}
         />
       )}
       {/* Legibility wash: ink gradient from the bottom-left + a teal tint. */}

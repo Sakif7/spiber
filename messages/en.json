@@ -751,9 +751,10 @@
       "min": "Min",
       "max": "Max",
       "brand": "Brand",
-      "allBrands": "All brands",
+      "allBrands": "Brands",
+      "allProducts": "Products",
       "categories": "Categories",
-      "allCategories": "All categories",
+      "allCategories": "Categories",
       "inStockOnly": "In stock only",
       "apply": "Apply",
       "clear": "Clear all",
@@ -1135,7 +1136,7 @@
       "featured": "Featured products",
       "comingSoonTitle": "Products coming soon",
       "comingSoonNote": "We're stocking the shelves. Browse the categories above — products will appear here shortly.",
-      "allProducts": "All products",
+      "allProducts": "Products",
       "resultsFor": "Results for “{q}”"
     },
     "product": {
