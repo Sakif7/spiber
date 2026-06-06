@@ -1,19 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocale } from "next-intl";
-import { Link } from "@/i18n/navigation";
-import { Arrow } from "@/components/ui";
+import { Cascade, type CascadeNode } from "@/components/layout/cascade/cascade";
+import { loadCatalogProducts } from "@/components/layout/cascade/load-products";
 
-type Cat = {
-  slug: string;
-  name: string;
-  children: { slug: string; name: string }[];
-};
+type Sub = { id: string; slug: string; name: string };
+type Cat = { id: string; slug: string; name: string; children: Sub[] };
 
 /**
- * Marketplace mega-menu: the category tree as a grid of top categories, each
- * with a few subcategory links. Data from /api/catalog/marketplace.
+ * Marketplace mega-menu — a single-column cascade following the same rules as
+ * the others: column 1 = top categories, hovering one opens its subcategories
+ * (L2), hovering a subcategory opens its products (L3). Top categories with no
+ * subcategories cascade straight to products (2 levels). No division rail.
  */
 export function MarketplaceMega({ onNavigate }: { onNavigate?: () => void }) {
   const locale = useLocale();
@@ -26,135 +25,93 @@ export function MarketplaceMega({ onNavigate }: { onNavigate?: () => void }) {
       .then((j) => {
         if (alive && j?.ok) setCats(j.data.categories);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (alive) setCats([]);
+      });
     return () => {
       alive = false;
     };
   }, [locale]);
 
-  return (
-    <div style={{ width: "100%" }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "14px 18px",
-          borderBottom: "1px solid var(--color-hairline)",
-        }}
-      >
-        <span
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: 10,
-            letterSpacing: ".14em",
-            textTransform: "uppercase",
-            color: "var(--teal-700)",
-          }}
-        >
-          Spiber Marketplace
-        </span>
-        <Link
-          href="/marketplace"
-          onClick={onNavigate}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            fontSize: 12.5,
-            fontWeight: 600,
-            color: "var(--color-brand-deep)",
-            textDecoration: "none",
-          }}
-        >
-          Shop all products <Arrow size={12} />
-        </Link>
-      </div>
+  const roots = useMemo<CascadeNode[]>(() => {
+    if (!cats) return [];
+    const catNodes: CascadeNode[] = cats.map((c) => ({
+      id: `c:${c.id}`,
+      label: c.name,
+      kind: "category",
+      href: `/marketplace/category/${c.slug}`,
+      loadChildren: () => {
+        if (c.children.length) {
+          return Promise.resolve(
+            c.children.map((sub) => ({
+              id: `s:${sub.id}`,
+              label: sub.name,
+              kind: "subcategory" as const,
+              href: `/marketplace/category/${sub.slug}`,
+              loadChildren: () =>
+                loadCatalogProducts(
+                  locale,
+                  `storefront=marketplace&categoryId=${sub.id}`,
+                  "/marketplace/product",
+                ),
+            })),
+          );
+        }
+        return loadCatalogProducts(
+          locale,
+          `storefront=marketplace&categoryId=${c.id}`,
+          "/marketplace/product",
+        );
+      },
+    }));
+    return [
+      {
+        id: "all",
+        label: "Shop all products",
+        kind: "link",
+        href: "/marketplace",
+      },
+      ...catNodes,
+    ];
+  }, [cats, locale]);
 
-      <div
-        style={{
-          padding: 16,
-          display: "grid",
-          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-          gap: 8,
-          maxHeight: 360,
-          overflowY: "auto",
-        }}
-      >
-        {!cats &&
-          Array.from({ length: 6 }).map((_, i) => (
-            <span
-              key={i}
-              aria-hidden
-              style={{
-                height: 96,
-                borderRadius: 10,
-                background:
-                  "linear-gradient(90deg, var(--color-surface-2), var(--color-surface) 50%, var(--color-surface-2))",
-                opacity: 0.7,
-              }}
-            />
-          ))}
-        {cats && cats.length === 0 && (
-          <span
-            style={{
-              gridColumn: "1 / -1",
-              padding: 12,
-              fontSize: 13,
-              color: "var(--color-text-muted)",
-            }}
-          >
-            Categories coming online soon.
-          </span>
-        )}
-        {cats?.map((c) => (
-          <div key={c.slug} style={{ padding: "10px 12px" }}>
-            <Link
-              href={`/marketplace/category/${c.slug}`}
-              onClick={onNavigate}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                fontFamily: "var(--font-display)",
-                fontSize: 14,
-                fontWeight: 600,
-                color: "var(--color-text-strong)",
-                textDecoration: "none",
-              }}
-            >
-              {c.name}
-            </Link>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 1,
-                marginTop: 6,
-              }}
-            >
-              {c.children.slice(0, 4).map((ch) => (
-                <Link
-                  key={ch.slug}
-                  href={`/marketplace/category/${ch.slug}`}
-                  onClick={onNavigate}
-                  className="mp-sub"
-                  style={{
-                    padding: "5px 8px",
-                    borderRadius: "var(--r-sm)",
-                    fontSize: 12.5,
-                    color: "var(--color-text-muted)",
-                    textDecoration: "none",
-                  }}
-                >
-                  {ch.name}
-                </Link>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-      <style>{`.mp-sub:hover { background: var(--color-surface-2); color: var(--color-text); }`}</style>
+  return (
+    <div
+      className="mega-scroll"
+      style={{ display: "flex", minWidth: 0, overflowX: "auto" }}
+    >
+      {cats === null ? (
+        <ColumnSkeleton />
+      ) : (
+        <Cascade roots={roots} onNavigate={onNavigate} />
+      )}
+    </div>
+  );
+}
+
+function ColumnSkeleton() {
+  return (
+    <div
+      style={{
+        width: 252,
+        padding: 12,
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
+      }}
+    >
+      {Array.from({ length: 7 }).map((_, i) => (
+        <span
+          key={i}
+          aria-hidden
+          style={{
+            height: 34,
+            borderRadius: 8,
+            background:
+              "linear-gradient(90deg, rgba(255,255,255,.06), rgba(255,255,255,.12) 50%, rgba(255,255,255,.06))",
+          }}
+        />
+      ))}
     </div>
   );
 }

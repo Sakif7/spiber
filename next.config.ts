@@ -38,6 +38,11 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   // Lean, self-contained build for Coolify / Docker.
   output: "standalone",
+  // Dev only: allow the Next dev server's /_next/* assets + HMR to be served
+  // when the app is reached through a tunnel (e.g. ngrok) instead of localhost.
+  // Without this, Next 16 returns 403 for cross-origin dev requests → the page
+  // loads unstyled with no JS. Harmless in production builds.
+  allowedDevOrigins: ["*.ngrok-free.app", "*.ngrok.app", "*.ngrok.io"],
   // Must run in the Node.js runtime, not be bundled by Turbopack/webpack.
   serverExternalPackages: ["mongoose", "nodemailer"],
   images: {

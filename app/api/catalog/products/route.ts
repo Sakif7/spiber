@@ -7,22 +7,25 @@ import type { Locale } from "@/i18n/routing";
 export const dynamic = "force-dynamic";
 
 /**
- * Products for the header mega-menu browser, filtered by an Instruments
- * category (descendant-resolved so a top category returns its whole subtree) or
- * a brand. Minimal fields. Public read.
+ * Products for the header mega-menu cascade, filtered by a category
+ * (descendant-resolved so a top category returns its whole subtree) or a brand,
+ * within a storefront (`instruments` default, or `marketplace`). Minimal
+ * fields. Public read.
  */
 export async function GET(req: Request) {
   const sp = new URL(req.url).searchParams;
   const locale: Locale = sp.get("locale") === "bn" ? "bn" : "en";
+  const storefront =
+    sp.get("storefront") === "marketplace" ? "marketplace" : "instruments";
   const categoryId = sp.get("categoryId") || undefined;
   const brandId = sp.get("brandId") || undefined;
   if (!categoryId && !brandId) return ok({ products: [] });
   try {
     const categoryIds = categoryId
-      ? await categoryWithDescendantIds(categoryId, "instruments")
+      ? await categoryWithDescendantIds(categoryId, storefront)
       : undefined;
     const { items, total } = await listProducts({
-      storefront: "instruments",
+      storefront,
       status: "active",
       categoryIds,
       brandId,

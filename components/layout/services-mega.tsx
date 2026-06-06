@@ -13,10 +13,13 @@ type ServiceItem = {
   links?: { label: string; href: string }[];
 };
 
+const ORANGE = "var(--orange-400)"; // orange-700 dies on black; 400 is ~6.3:1 on the dark panel
+
 /**
- * Services mega-menu: division cards on the left; hovering one changes the right
- * panel to that service's quick links (mirrors the Products menu's left+right
- * shape — services have no catalog to browse, so the right is curated links).
+ * Services mega-menu (dark): service cards on the LEFT; hovering one changes the
+ * RIGHT panel to that service's quick links. Two-level (no deeper cascade) —
+ * services have no catalog to browse. Orange is the Services-only signature
+ * accent (kept sparing: kicker labels + the active card wash).
  */
 export function ServicesMega({
   items,
@@ -30,82 +33,94 @@ export function ServicesMega({
   const links = cur?.links ?? [];
 
   return (
-    <div
-      style={{ display: "grid", gridTemplateColumns: "minmax(240px, 1fr) 1fr" }}
-    >
+    <div style={{ display: "flex", alignItems: "stretch" }}>
       {/* Left: service cards */}
       <div
         style={{
-          padding: 14,
+          width: 300,
+          flexShrink: 0,
+          padding: 12,
           display: "flex",
           flexDirection: "column",
           gap: 4,
         }}
       >
-        {items.map((it, i) => (
-          <Link
-            key={it.key}
-            href={it.href}
-            onMouseEnter={() => setActive(i)}
-            onFocus={() => setActive(i)}
-            onClick={onNavigate}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-              padding: "14px 16px",
-              borderRadius: "var(--r-lg)",
-              textDecoration: "none",
-              background: i === active ? "var(--orange-50)" : "transparent",
-              transition: "background 180ms",
-            }}
-          >
-            <span
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 10,
-                letterSpacing: ".14em",
-                textTransform: "uppercase",
-                color: "var(--orange-700)",
-              }}
-            >
-              {it.kicker}
-            </span>
-            <span
+        {items.map((it, i) => {
+          const activeCard = i === active;
+          return (
+            <Link
+              key={it.key}
+              href={it.href}
+              role="menuitem"
+              onMouseEnter={() => setActive(i)}
+              onFocus={() => setActive(i)}
+              onClick={onNavigate}
+              className="mega-card"
               style={{
                 display: "flex",
-                alignItems: "center",
-                gap: 6,
-                fontFamily: "var(--font-display)",
-                fontSize: 16,
-                fontWeight: 600,
-                color: "var(--color-text-strong)",
+                flexDirection: "column",
+                gap: 4,
+                padding: "13px 14px",
+                borderRadius: "var(--r-lg)",
+                textDecoration: "none",
+                background: activeCard
+                  ? "linear-gradient(90deg, rgba(236,125,63,0.22), rgba(236,125,63,0) 85%)"
+                  : "transparent",
+                boxShadow: activeCard
+                  ? "inset 2px 0 0 var(--orange-400)"
+                  : "none",
+                transition: "background 160ms",
               }}
             >
-              {it.title}
-              <Arrow size={12} />
-            </span>
-            <span
-              style={{
-                fontSize: 12.5,
-                lineHeight: 1.5,
-                color: "var(--color-text-muted)",
-              }}
-            >
-              {it.desc}
-            </span>
-          </Link>
-        ))}
+              <span
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 10,
+                  letterSpacing: ".14em",
+                  textTransform: "uppercase",
+                  color: ORANGE,
+                }}
+              >
+                {it.kicker}
+              </span>
+              <span
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontFamily: "var(--font-display)",
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: "var(--color-text-strong)",
+                }}
+              >
+                {it.title}
+                <Arrow size={12} />
+              </span>
+              <span
+                style={{
+                  fontSize: 12,
+                  lineHeight: 1.5,
+                  color: "var(--color-text-muted)",
+                }}
+              >
+                {it.desc}
+              </span>
+            </Link>
+          );
+        })}
       </div>
 
       {/* Right: quick links for the active service */}
       <div
         style={{
-          padding: 18,
+          width: 280,
+          flexShrink: 0,
+          padding: 16,
           borderLeft: "1px solid var(--color-hairline)",
           display: "flex",
           flexDirection: "column",
-          gap: 10,
+          gap: 8,
         }}
       >
         <span
@@ -114,7 +129,7 @@ export function ServicesMega({
             fontSize: 10,
             letterSpacing: ".14em",
             textTransform: "uppercase",
-            color: "var(--orange-700)",
+            color: ORANGE,
           }}
         >
           {cur?.title}
@@ -124,6 +139,7 @@ export function ServicesMega({
             <Link
               key={l.href + l.label}
               href={l.href}
+              role="menuitem"
               onClick={onNavigate}
               className="svc-link"
               style={{
@@ -144,7 +160,6 @@ export function ServicesMega({
             </Link>
           ))}
         </div>
-        <style>{`.svc-link:hover { background: var(--color-surface-2); }`}</style>
       </div>
     </div>
   );

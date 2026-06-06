@@ -1,12 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
+import { useEffect, useMemo, useState } from "react";
 import { useLocale } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Arrow } from "@/components/ui";
+import { Cascade, type CascadeNode } from "@/components/layout/cascade/cascade";
+import { loadCatalogProducts } from "@/components/layout/cascade/load-products";
 
-type NavCat = { id: string; slug: string; name: string };
+type NavCat = {
+  id: string;
+  slug: string;
+  name: string;
+  children: { id: string; slug: string; name: string }[];
+};
 type NavBrand = { id: string; name: string };
 type MiniProduct = { slug: string; name: string; image: string | null };
 type Division = {
@@ -17,14 +23,15 @@ type Division = {
   href: string;
 };
 
-const TEAL = "var(--teal-700)";
+const TEAL = "var(--teal-300)";
 
 /**
- * Products & Solutions mega-menu. LEFT: the division cards (Instruments,
- * Systems) — hovering one drives the RIGHT panel. For Instruments the right
- * panel offers Category + Brand (stacked in one column); picking one replaces
- * the panel in place with that selection's products. For Systems it lists the
- * software products. Data: /api/catalog/{nav,products,systems}, cached.
+ * Products & Solutions mega-menu — a dark 3-LEVEL cascade. The LEFT rail (the
+ * Instruments / Systems division cards) drives the cascade roots; hovering a
+ * top category opens its subcategories (L2), hovering a subcategory opens its
+ * products (L3). Brands and empty-subtree categories cascade straight to
+ * products (2 levels). Systems is a flat product grid. The engine
+ * (`Cascade`) owns hover-intent + safe-triangle + keyboard.
  */
 export function ProductsMega({
   divisions,
@@ -38,19 +45,10 @@ export function ProductsMega({
   const division = divisions[active] ?? divisions[0];
   const isSystems = division?.key === "systems";
 
-  // Instruments browser state
   const [nav, setNav] = useState<{
     categories: NavCat[];
     brands: NavBrand[];
   } | null>(null);
-  const [view, setView] = useState<"browse" | "products">("browse");
-  const [selLabel, setSelLabel] = useState("");
-  const [selHref, setSelHref] = useState("/instruments");
-  const [products, setProducts] = useState<MiniProduct[]>([]);
-  const [loadingP, setLoadingP] = useState(false);
-  const cache = useRef<Map<string, MiniProduct[]>>(new Map());
-
-  // Systems product list
   const [systems, setSystems] = useState<MiniProduct[] | null>(null);
 
   useEffect(() => {
@@ -82,445 +80,179 @@ export function ProductsMega({
     };
   }, [isSystems, systems, locale]);
 
-  function pickDivision(i: number) {
-    setActive(i);
-    setView("browse");
-  }
-  function loadProducts(key: string, qs: string, label: string, href: string) {
-    setSelLabel(label);
-    setSelHref(href);
-    setView("products");
-    const cached = cache.current.get(key);
-    if (cached) {
-      setProducts(cached);
-      return;
+  const roots = useMemo<CascadeNode[]>(() => {
+    if (isSystems) {
+      return (systems ?? []).map((p) => ({
+        id: p.slug,
+        label: p.name,
+        kind: "product",
+        href: `/systems/product/${p.slug}`,
+        image: p.image,
+      }));
     }
-    setLoadingP(true);
-    setProducts([]);
-    fetch(`/api/catalog/products?locale=${locale}&${qs}`)
-      .then((r) => r.json())
-      .then((j) => {
-        const list: MiniProduct[] = j?.ok ? j.data.products : [];
-        cache.current.set(key, list);
-        setProducts(list);
-      })
-      .catch(() => setProducts([]))
-      .finally(() => setLoadingP(false));
-  }
+    if (!nav) return [];
+    const catNodes: CascadeNode[] = nav.categories.map((c) => ({
+      id: `c:${c.id}`,
+      label: c.name,
+      kind: "category",
+      href: `/instruments/${c.slug}`,
+      group: "By category",
+      loadChildren: () => {
+        if (c.children.length) {
+          return Promise.resolve(
+            c.children.map((sub) => ({
+              id: `s:${sub.id}`,
+              label: sub.name,
+              kind: "subcategory" as const,
+              href: `/instruments/${sub.slug}`,
+              loadChildren: () =>
+                loadCatalogProducts(
+                  locale,
+                  `categoryId=${sub.id}`,
+                  "/instruments/product",
+                ),
+            })),
+          );
+        }
+        // No subcategories → jump straight to this category's products (2 levels).
+        return loadCatalogProducts(
+          locale,
+          `categoryId=${c.id}`,
+          "/instruments/product",
+        );
+      },
+    }));
+    const brandNodes: CascadeNode[] = nav.brands.map((b) => ({
+      id: `b:${b.id}`,
+      label: b.name,
+      kind: "brand",
+      href: `/instruments?brand=${b.id}`,
+      group: "By brand",
+      loadChildren: () =>
+        loadCatalogProducts(locale, `brandId=${b.id}`, "/instruments/product"),
+    }));
+    return [...catNodes, ...brandNodes];
+  }, [isSystems, systems, nav, locale]);
 
-  const headerLeft =
-    !isSystems && view === "products" ? (
-      <button
-        type="button"
-        onClick={() => setView("browse")}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          border: "none",
-          background: "transparent",
-          cursor: "pointer",
-          fontFamily: "inherit",
-          fontSize: 12.5,
-          fontWeight: 600,
-          color: "var(--color-text-muted)",
-          padding: 0,
-        }}
-      >
-        ← Back
-      </button>
-    ) : (
-      <span
-        style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: 10,
-          letterSpacing: ".14em",
-          textTransform: "uppercase",
-          color: TEAL,
-        }}
-      >
-        {division?.title}
-      </span>
-    );
-
-  const headerHref = isSystems
-    ? "/systems"
-    : view === "products"
-      ? selHref
-      : "/instruments";
-  const headerCta = isSystems
-    ? "All systems"
-    : view === "products"
-      ? "View all"
-      : "All products";
+  const loading =
+    (!isSystems && nav === null) || (isSystems && systems === null);
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "minmax(0, 280px) 1fr",
-      }}
-    >
-      {/* Left: division cards drive the right panel */}
+    <div style={{ display: "flex", alignItems: "stretch", minWidth: 0 }}>
+      {/* LEFT: division rail (drives the cascade roots). */}
       <div
         style={{
-          padding: 14,
+          flexShrink: 0,
+          width: 264,
+          padding: 12,
           display: "flex",
           flexDirection: "column",
           gap: 4,
         }}
       >
-        {divisions.map((d, i) => (
-          <Link
-            key={d.key}
-            href={d.href}
-            onMouseEnter={() => pickDivision(i)}
-            onFocus={() => pickDivision(i)}
-            onClick={onNavigate}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-              padding: "14px 16px",
-              borderRadius: "var(--r-lg)",
-              textDecoration: "none",
-              background: i === active ? "var(--teal-50)" : "transparent",
-              transition: "background 180ms",
-            }}
-          >
-            <span
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 10,
-                letterSpacing: ".14em",
-                textTransform: "uppercase",
-                color: TEAL,
-              }}
-            >
-              {d.kicker}
-            </span>
-            <span
+        {divisions.map((d, i) => {
+          const activeCard = i === active;
+          return (
+            <Link
+              key={d.key}
+              href={d.href}
+              role="menuitem"
+              onMouseEnter={() => setActive(i)}
+              onFocus={() => setActive(i)}
+              onClick={onNavigate}
+              className="mega-card"
               style={{
                 display: "flex",
-                alignItems: "center",
-                gap: 6,
-                fontFamily: "var(--font-display)",
-                fontSize: 16,
-                fontWeight: 600,
-                color: "var(--color-text-strong)",
+                flexDirection: "column",
+                gap: 4,
+                padding: "13px 14px",
+                borderRadius: "var(--r-lg)",
+                textDecoration: "none",
+                background: activeCard
+                  ? "linear-gradient(90deg, rgba(28,184,186,0.22), rgba(28,184,186,0) 85%)"
+                  : "transparent",
+                boxShadow: activeCard
+                  ? "inset 2px 0 0 var(--teal-300)"
+                  : "none",
+                transition: "background 160ms",
               }}
             >
-              {d.title}
-              <Arrow size={12} />
-            </span>
-            <span
-              style={{
-                fontSize: 12.5,
-                lineHeight: 1.5,
-                color: "var(--color-text-muted)",
-                display: "-webkit-box",
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: "vertical",
-                overflow: "hidden",
-              }}
-            >
-              {d.desc}
-            </span>
-          </Link>
-        ))}
-      </div>
-
-      {/* Right: panel for the active division */}
-      <div
-        style={{ borderLeft: "1px solid var(--color-hairline)", minWidth: 0 }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "14px 18px",
-            borderBottom: "1px solid var(--color-hairline)",
-          }}
-        >
-          {headerLeft}
-          <Link
-            href={headerHref}
-            onClick={onNavigate}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 12.5,
-              fontWeight: 600,
-              color: "var(--color-brand-deep)",
-              textDecoration: "none",
-            }}
-          >
-            {headerCta} <Arrow size={12} />
-          </Link>
-        </div>
-
-        {isSystems ? (
-          <div style={{ padding: 14 }}>
-            <ProductList
-              loading={systems === null}
-              products={systems ?? []}
-              hrefBase="/systems/product"
-              onNavigate={onNavigate}
-              empty="No systems products yet."
-            />
-          </div>
-        ) : view === "browse" ? (
-          <div style={{ padding: 14, maxHeight: 340, overflowY: "auto" }}>
-            {!nav && <Skeleton rows={6} />}
-            {nav && nav.categories.length === 0 && nav.brands.length === 0 && (
-              <div
+              <span
                 style={{
-                  padding: 12,
-                  fontSize: 13,
-                  color: "var(--color-text-muted)",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 10,
+                  letterSpacing: ".14em",
+                  textTransform: "uppercase",
+                  color: TEAL,
                 }}
               >
-                Catalog coming online soon.
-              </div>
-            )}
-            {nav && nav.categories.length > 0 && (
-              <Section label="By category">
-                {nav.categories.map((c) => (
-                  <Row
-                    key={c.id}
-                    label={c.name}
-                    onClick={() =>
-                      loadProducts(
-                        `c:${c.id}`,
-                        `categoryId=${c.id}`,
-                        c.name,
-                        `/instruments/${c.slug}`,
-                      )
-                    }
-                  />
-                ))}
-              </Section>
-            )}
-            {nav && nav.brands.length > 0 && (
-              <Section
-                label="By brand"
-                style={
-                  nav.categories.length > 0 ? { marginTop: 12 } : undefined
-                }
+                {d.kicker}
+              </span>
+              <span
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontFamily: "var(--font-display)",
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: "var(--color-text-strong)",
+                }}
               >
-                {nav.brands.map((b) => (
-                  <Row
-                    key={b.id}
-                    label={b.name}
-                    onClick={() =>
-                      loadProducts(
-                        `b:${b.id}`,
-                        `brandId=${b.id}`,
-                        b.name,
-                        `/instruments?brand=${b.id}`,
-                      )
-                    }
-                  />
-                ))}
-              </Section>
-            )}
-          </div>
+                {d.title}
+                <Arrow size={12} />
+              </span>
+              <span
+                style={{
+                  fontSize: 12,
+                  lineHeight: 1.5,
+                  color: "var(--color-text-muted)",
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                }}
+              >
+                {d.desc}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* RIGHT: the cascade. Horizontal scroll is the last-resort fallback on
+          very narrow viewports (columns keep their own vertical scroll). */}
+      <div
+        className="mega-scroll"
+        style={{
+          borderLeft: "1px solid var(--color-hairline)",
+          minWidth: 0,
+          display: "flex",
+          overflowX: "auto",
+        }}
+      >
+        {loading ? (
+          <ColumnSkeleton />
         ) : (
-          <div
-            style={{
-              padding: 16,
-              display: "flex",
-              flexDirection: "column",
-              gap: 10,
-            }}
-          >
-            <span
-              style={{
-                fontFamily: "var(--font-display)",
-                fontSize: 15,
-                fontWeight: 600,
-                color: "var(--color-text-strong)",
-              }}
-            >
-              {selLabel}
-            </span>
-            <ProductList
-              loading={loadingP}
-              products={products}
-              hrefBase="/instruments/product"
-              onNavigate={onNavigate}
-              empty="No products here yet."
-            />
-          </div>
+          <Cascade key={division?.key} roots={roots} onNavigate={onNavigate} />
         )}
       </div>
     </div>
   );
 }
 
-function Section({
-  label,
-  children,
-  style,
-}: {
-  label: string;
-  children: React.ReactNode;
-  style?: React.CSSProperties;
-}) {
-  return (
-    <div style={style}>
-      <div
-        style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: 10,
-          letterSpacing: ".14em",
-          textTransform: "uppercase",
-          color: "var(--color-text-muted)",
-          padding: "0 4px 6px",
-        }}
-      >
-        {label}
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function Row({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      className="mega-row"
-      onClick={onClick}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 8,
-        width: "100%",
-        textAlign: "left",
-        padding: "8px 12px",
-        borderRadius: "var(--r-md)",
-        border: "none",
-        background: "transparent",
-        cursor: "pointer",
-        fontFamily: "inherit",
-        fontSize: 13,
-        color: "var(--color-text)",
-      }}
-    >
-      {label}
-      <Arrow size={12} />
-      <style>{`.mega-row:hover { background: var(--color-surface-2); }`}</style>
-    </button>
-  );
-}
-
-function ProductList({
-  loading,
-  products,
-  hrefBase,
-  onNavigate,
-  empty,
-}: {
-  loading: boolean;
-  products: MiniProduct[];
-  hrefBase: string;
-  onNavigate?: () => void;
-  empty: string;
-}) {
+function ColumnSkeleton() {
   return (
     <div
       style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-        gap: 8,
-        maxHeight: 312,
-        overflowY: "auto",
-        paddingRight: 4,
+        width: 252,
+        padding: 12,
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
       }}
     >
-      {loading && <Skeleton rows={6} />}
-      {!loading && products.length === 0 && (
-        <span
-          style={{
-            gridColumn: "1 / -1",
-            padding: 12,
-            fontSize: 13,
-            color: "var(--color-text-muted)",
-          }}
-        >
-          {empty}
-        </span>
-      )}
-      {products.map((p) => (
-        <Link
-          key={p.slug}
-          href={`${hrefBase}/${p.slug}`}
-          onClick={onNavigate}
-          className="mega-prod"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: 8,
-            borderRadius: "var(--r-md)",
-            textDecoration: "none",
-            color: "var(--color-text)",
-          }}
-        >
-          <span
-            style={{
-              flexShrink: 0,
-              width: 40,
-              height: 40,
-              borderRadius: 8,
-              overflow: "hidden",
-              background: "var(--color-surface-2)",
-              border: "1px solid var(--color-hairline)",
-              display: "grid",
-              placeItems: "center",
-            }}
-          >
-            {p.image ? (
-              <Image
-                src={p.image}
-                alt=""
-                width={40}
-                height={40}
-                style={{ objectFit: "cover", width: 40, height: 40 }}
-              />
-            ) : (
-              <span style={{ color: TEAL, fontSize: 16 }}>+</span>
-            )}
-          </span>
-          <span
-            style={{
-              fontSize: 12.5,
-              lineHeight: 1.35,
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-            }}
-          >
-            {p.name}
-          </span>
-        </Link>
-      ))}
-      <style>{`.mega-prod:hover { background: var(--color-surface-2); }`}</style>
-    </div>
-  );
-}
-
-function Skeleton({ rows }: { rows: number }) {
-  return (
-    <>
-      {Array.from({ length: rows }).map((_, i) => (
+      {Array.from({ length: 6 }).map((_, i) => (
         <span
           key={i}
           aria-hidden
@@ -528,11 +260,10 @@ function Skeleton({ rows }: { rows: number }) {
             height: 34,
             borderRadius: 8,
             background:
-              "linear-gradient(90deg, var(--color-surface-2), var(--color-surface) 50%, var(--color-surface-2))",
-            opacity: 0.7,
+              "linear-gradient(90deg, rgba(255,255,255,.06), rgba(255,255,255,.12) 50%, rgba(255,255,255,.06))",
           }}
         />
       ))}
-    </>
+    </div>
   );
 }

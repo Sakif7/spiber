@@ -1,15 +1,16 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { AnimatePresence, motion } from "framer-motion";
-import { Arrow, Container, LocaleSwitcher } from "@/components/ui";
-import { Link } from "@/i18n/navigation";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { Arrow, LocaleSwitcher } from "@/components/ui";
+import { Link, usePathname } from "@/i18n/navigation";
 import { StorefrontAction } from "@/components/shop/storefront-action";
 import { UserMenu } from "@/components/layout/user-menu";
 import { ProductsMega } from "@/components/layout/products-mega";
 import { ServicesMega } from "@/components/layout/services-mega";
 import { MarketplaceMega } from "@/components/layout/marketplace-mega";
+import { MobileDrawers } from "@/components/layout/mobile-drawers";
 import { useSession } from "@/components/auth/use-session";
 import { useAuthModal } from "@/components/auth/auth-modal";
 import {
@@ -20,7 +21,30 @@ import {
   NavBody,
   NavItems,
   Navbar,
+  NAV_THEME,
+  navTriggerId,
 } from "@/components/ui/resizable-navbar";
+
+/**
+ * The mega-drawer renders OUTSIDE NavBody and so inherits NONE of the navbar's
+ * dark CSS vars — re-declare them on the panel root. `--color-brand-deep` is
+ * overridden to teal-300 (the :root teal-700 fails contrast on black) and
+ * `--color-surface-2` is dialled down for a quiet neutral hover (active rows use
+ * teal instead). Single source of truth = the exported NAV_THEME.vars.
+ */
+const PANEL_DARK_VARS: React.CSSProperties = {
+  ...NAV_THEME.vars,
+  "--color-brand-deep": "var(--teal-300)",
+  "--color-surface-2": "rgba(255,255,255,0.08)",
+} as React.CSSProperties;
+
+// Only these nav items open a drawer (gate the chevron/aria on the NAME, not
+// link==='#': Marketplace has a real href yet still opens a drawer).
+const NAV_DRAWERS = new Set([
+  "Marketplace",
+  "Products & Solutions",
+  "Services",
+]);
 
 const MotionLink = motion.create(Link);
 
@@ -108,24 +132,79 @@ const MEGA_MENUS: Record<string, MegaItem[]> = {
 export function ResizableHeader() {
   const [open, setOpen] = useState(false);
   const [megaOpen, setMegaOpen] = useState<string | null>(null);
+  const openTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const triggers = useRef<Map<string, HTMLAnchorElement>>(new Map());
+  // After Escape we restore focus to the trigger, whose onFocus would otherwise
+  // immediately reopen the drawer — briefly suppress opens to prevent that.
+  const suppressUntil = useRef(0);
+  const pathname = usePathname();
   const { user, signOut } = useSession();
   const { open: openAuth } = useAuthModal();
 
-  const scheduleClose = () => {
-    if (closeTimer.current) clearTimeout(closeTimer.current);
-    closeTimer.current = setTimeout(() => setMegaOpen(null), 140);
-  };
+  // Close the drawer (and mobile menu) on ANY route change — covers Link
+  // clicks, programmatic navs and browser back/forward, so focus is never
+  // trapped after navigating. Guarded state-adjustment during render is React's
+  // recommended alternative to a set-state-in-effect.
+  const [seenPath, setSeenPath] = useState(pathname);
+  if (seenPath !== pathname) {
+    setSeenPath(pathname);
+    if (megaOpen !== null) setMegaOpen(null);
+    if (open) setOpen(false);
+  }
+
+  // Escape closes the drawer and returns focus to its trigger.
+  useEffect(() => {
+    if (!megaOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        const name = megaOpen;
+        setMegaOpen(null);
+        suppressUntil.current = performance.now() + 250;
+        triggers.current.get(name)?.focus();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [megaOpen]);
+
   const cancelClose = () => {
     if (closeTimer.current) {
       clearTimeout(closeTimer.current);
       closeTimer.current = null;
     }
   };
-  const openMega = (name: string | null) => {
+  const cancelOpen = () => {
+    if (openTimer.current) {
+      clearTimeout(openTimer.current);
+      openTimer.current = null;
+    }
+  };
+  // Hover-intent: 100ms to open (so a fast pass-through doesn't flash the panel),
+  // 200ms to close (bridges the trigger→panel gap). Switching between two open
+  // drawers is instant (no dead frame).
+  const scheduleClose = () => {
+    cancelOpen();
     cancelClose();
-    if (name && (MEGA_MENUS[name] || name === "Marketplace")) setMegaOpen(name);
-    else setMegaOpen(null);
+    closeTimer.current = setTimeout(() => setMegaOpen(null), 200);
+  };
+  const scheduleOpen = (name: string) => {
+    if (performance.now() < suppressUntil.current) return; // just Escaped — ignore the focus-restore reopen
+    cancelClose();
+    cancelOpen();
+    if (megaOpen && megaOpen !== name) {
+      setMegaOpen(name);
+    } else if (!megaOpen) {
+      openTimer.current = setTimeout(() => setMegaOpen(name), 100);
+    }
+  };
+  const onItemHover = (name: string | null) => {
+    if (name && NAV_DRAWERS.has(name)) scheduleOpen(name);
+    else scheduleClose();
+  };
+  const setTrigger = (name: string, el: HTMLAnchorElement | null) => {
+    if (el) triggers.current.set(name, el);
+    else triggers.current.delete(name);
   };
 
   return (
@@ -134,7 +213,10 @@ export function ResizableHeader() {
         <Logo />
         <NavItems
           items={NAV_ITEMS}
-          onItemHover={(name) => (name ? openMega(name) : scheduleClose())}
+          drawerItems={NAV_DRAWERS}
+          openName={megaOpen}
+          onTriggerRef={setTrigger}
+          onItemHover={onItemHover}
           onItemClick={() => setOpen(false)}
         />
         <DesktopActions />
@@ -159,34 +241,11 @@ export function ResizableHeader() {
           <MobileLink href="/" onClick={() => setOpen(false)}>
             Home
           </MobileLink>
-          <MobileLink href="/marketplace" onClick={() => setOpen(false)}>
-            Marketplace
-          </MobileLink>
-          {Object.entries(MEGA_MENUS).map(([label, items]) => (
-            <div key={label} style={{ width: "100%" }}>
-              <div
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 11,
-                  letterSpacing: ".14em",
-                  textTransform: "uppercase",
-                  color: "var(--color-text-muted)",
-                  padding: "12px 4px 4px",
-                }}
-              >
-                {label}
-              </div>
-              {items.map((it) => (
-                <MobileLink
-                  key={it.key}
-                  href={it.href}
-                  onClick={() => setOpen(false)}
-                >
-                  {it.title}
-                </MobileLink>
-              ))}
-            </div>
-          ))}
+          <MobileDrawers
+            products={MEGA_MENUS["Products & Solutions"]}
+            services={MEGA_MENUS["Services"]}
+            onNavigate={() => setOpen(false)}
+          />
           <MobileLink href="/blog" onClick={() => setOpen(false)}>
             Blog
           </MobileLink>
@@ -305,21 +364,54 @@ function MegaMenu({
   onMouseLeave: () => void;
   onNavigate: () => void;
 }) {
+  const reduce = useReducedMotion();
+  const panelRef = useRef<HTMLDivElement>(null);
   const isProducts = open === "Products & Solutions";
   const isMarketplace = open === "Marketplace";
   const services =
     open && !isProducts && !isMarketplace ? MEGA_MENUS[open] : null;
   const show = isProducts || isMarketplace || !!services;
 
+  // Shared positioning for EVERY drawer: anchor the panel's left edge under its
+  // own trigger and extend right; if it would overflow the right edge, shift it
+  // left just enough to stay fully on-screen (never causing horizontal scroll).
+  // The trigger is found by id so no per-item wiring is needed.
+  useLayoutEffect(() => {
+    const panel = panelRef.current;
+    if (!panel || !open) return;
+    const trigger = document.getElementById(navTriggerId(open));
+    if (!trigger) return;
+    const apply = () => {
+      const margin = 16;
+      const vw = document.documentElement.clientWidth;
+      const tLeft = trigger.getBoundingClientRect().left;
+      const w = panel.getBoundingClientRect().width;
+      const left = Math.max(margin, Math.min(tLeft, vw - margin - w));
+      panel.style.marginLeft = `${left}px`;
+      // Bound growth (open sub-columns) to the space remaining on the right, so
+      // the panel never pushes past the viewport — inner columns scroll instead.
+      panel.style.maxWidth = `${vw - left - margin}px`;
+    };
+    apply();
+    window.addEventListener("resize", apply);
+    return () => window.removeEventListener("resize", apply);
+  }, [open]);
+
+  const motionProps = reduce
+    ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } }
+    : {
+        initial: { opacity: 0, y: -8, scale: 0.985 },
+        animate: { opacity: 1, y: 0, scale: 1 },
+        exit: { opacity: 0, y: -8, scale: 0.985 },
+      };
+
   return (
     <AnimatePresence>
       {show && (
         <motion.div
           key={open}
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+          {...motionProps}
+          transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
           onMouseEnter={onMouseEnter}
           onMouseLeave={onMouseLeave}
           className="hidden lg:block"
@@ -328,39 +420,49 @@ function MegaMenu({
             top: "100%",
             left: 0,
             right: 0,
-            marginTop: 14,
+            // Transparent hover bridge so there's no dead zone between the
+            // trigger and the panel (the panel onMouseEnter cancels the close).
+            paddingTop: 10,
             zIndex: 70,
           }}
         >
-          <Container style={{ display: "flex", justifyContent: "center" }}>
-            <div
-              style={{
-                width: "100%",
-                maxWidth: isProducts ? 820 : isMarketplace ? 900 : 760,
-                background: "rgba(255,255,255,0.98)",
-                backdropFilter: "saturate(180%) blur(20px)",
-                WebkitBackdropFilter: "saturate(180%) blur(20px)",
-                border: "1px solid var(--color-hairline)",
-                borderRadius: 24,
-                boxShadow:
-                  "0 1px 2px rgba(10,31,44,.05), 0 32px 80px -24px rgba(10,31,44,.22), 0 0 0 1px rgba(10,31,44,.04)",
-                overflow: "hidden",
-              }}
-            >
-              {isProducts ? (
-                <ProductsMega
-                  divisions={MEGA_MENUS["Products & Solutions"]}
-                  onNavigate={onNavigate}
-                />
-              ) : isMarketplace ? (
-                <MarketplaceMega onNavigate={onNavigate} />
-              ) : (
-                services && (
-                  <ServicesMega items={services} onNavigate={onNavigate} />
-                )
-              )}
-            </div>
-          </Container>
+          <div
+            ref={panelRef}
+            className="mega"
+            id="mega-drawer"
+            role="menu"
+            aria-label={open ?? undefined}
+            style={{
+              ...PANEL_DARK_VARS,
+              display: "flex",
+              // Size to content (no empty space); positioned via marginLeft by
+              // the layout effect above. maxWidth is set there too.
+              width: "max-content",
+              maxWidth: "calc(100vw - 32px)",
+              background: "rgba(18,19,22,0.97)",
+              backdropFilter: "saturate(180%) blur(20px)",
+              WebkitBackdropFilter: "saturate(180%) blur(20px)",
+              border: "1px solid var(--color-hairline)",
+              borderRadius: 20,
+              boxShadow:
+                "0 1px 2px rgba(0,0,0,.5), 0 30px 80px -24px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.05)",
+              overflow: "hidden",
+              color: "var(--color-text)",
+            }}
+          >
+            {isProducts ? (
+              <ProductsMega
+                divisions={MEGA_MENUS["Products & Solutions"]}
+                onNavigate={onNavigate}
+              />
+            ) : isMarketplace ? (
+              <MarketplaceMega onNavigate={onNavigate} />
+            ) : (
+              services && (
+                <ServicesMega items={services} onNavigate={onNavigate} />
+              )
+            )}
+          </div>
         </motion.div>
       )}
     </AnimatePresence>
@@ -376,13 +478,13 @@ function Logo() {
       aria-label="SPIBER MED"
     >
       <Image
-        src="/spibermed-logo.png"
+        src="/spibermed-wordmark.png"
         alt="SPIBER MED"
-        width={1007}
-        height={301}
+        width={932}
+        height={355}
         priority
         style={{
-          height: 30,
+          height: 34,
           width: "auto",
           maxWidth: "none",
           flexShrink: 0,

@@ -9,6 +9,67 @@ import {
 } from "framer-motion";
 import { cn } from "@/lib/cn";
 
+/* ───────────────────────────────────────────────────────────────────────────
+ * NAVBAR THEME — recolors the navbar band (and the mobile drop-down).
+ *
+ * Pick ONE preset: uncomment its block and comment out the other two, then save.
+ *   • Solid black → flush full-width header; SOLID at the top, glassmorphism on scroll. (active)
+ *   • Pale teal tint → barely-there on-brand tint; keeps the dark text.
+ *   • Frosted slate  → cool neutral tint; keeps the dark text.
+ *
+ * `alwaysOn: true` makes a flush full-width header (no floating pill, no white sides):
+ *   - at the top of the page it shows `topBg` SOLID (no blur);
+ *   - once scrolled it fades to `bg` (a translucent glassmorphism + backdrop blur).
+ * Without `alwaysOn`, only the scrolled floating pill is themed (uses `bg`) and the
+ * top-of-page bar is transparent.
+ * `vars` are CSS custom properties scoped to the bar, so the nav links, language
+ * switcher, cart/quote button and account menu all recolor together.
+ * ─────────────────────────────────────────────────────────────────────────── */
+type NavTheme = {
+  bg: string; // scrolled background (glassmorphism when alwaysOn; the floating pill otherwise)
+  topBg?: string; // alwaysOn only: SOLID background shown at the top, before scrolling
+  menuBg: string;
+  vars: React.CSSProperties;
+  alwaysOn?: boolean; // flush full-width header that is themed at every scroll position
+};
+
+// ── Option 1 · Solid black → glassmorphism on scroll ── ◀ ACTIVE ──────────────
+// Exported so the mega-menu drawer (which renders OUTSIDE NavBody and therefore
+// inherits NONE of these vars) can re-declare the same dark token scope on its
+// own panel root — single source of truth, no drift.
+export const NAV_THEME: NavTheme = {
+  alwaysOn: true, // flush full-width header (no floating pill / no white sides)
+  topBg: "#000000", // completely solid black at the top of the page
+  bg: "rgba(10, 13, 15, 0.62)", // dark glassmorphism once scrolled (kept opaque enough for AA text contrast over light content)
+  menuBg: "#0a0b0d", // solid near-black mobile drop-down
+  vars: {
+    "--nav-hover-pill": "rgba(255,255,255,0.12)",
+    "--color-text": "rgba(255,255,255,0.90)",
+    "--color-text-strong": "#ffffff",
+    "--color-text-muted": "rgba(255,255,255,0.72)",
+    "--color-surface": "#141518", // neutral-dark so dropdown panels stay readable
+    "--color-surface-2": "rgba(255,255,255,0.12)", // subtle hover lift
+    "--color-border": "rgba(255,255,255,0.22)",
+    "--color-hairline": "rgba(255,255,255,0.14)",
+    "--color-brand-soft": "rgba(28,184,186,0.22)", // keep a teal accent on the avatar
+    "--color-brand-deep": "var(--teal-100)",
+  } as React.CSSProperties,
+};
+
+// ── Option 2 · Pale teal tint (light, subtle on-brand) ────────────────────────
+// const NAV_THEME: NavTheme = {
+//   bg: "rgba(238, 251, 251, 0.82)", // teal-50 glass
+//   menuBg: "#ffffff",
+//   vars: { "--nav-hover-pill": "var(--teal-100)" } as React.CSSProperties,
+// };
+
+// ── Option 3 · Frosted slate (light-neutral) ──────────────────────────────────
+// const NAV_THEME: NavTheme = {
+//   bg: "rgba(238, 241, 243, 0.82)", // slate glass
+//   menuBg: "#ffffff",
+//   vars: { "--nav-hover-pill": "var(--color-surface-2)" } as React.CSSProperties,
+// };
+
 interface NavbarProps {
   children: React.ReactNode;
   className?: string;
@@ -25,6 +86,20 @@ interface NavItemsProps {
   className?: string;
   onItemClick?: (item: { name: string; link: string }) => void;
   onItemHover?: (name: string | null) => void;
+  /** Names of items that open a mega-drawer — get a chevron + aria-haspopup. */
+  drawerItems?: Set<string>;
+  /** The currently-open drawer (drives aria-expanded + chevron rotation). */
+  openName?: string | null;
+  /** Reports a drawer trigger's <a> element so the header can restore focus on Esc. */
+  onTriggerRef?: (name: string, el: HTMLAnchorElement | null) => void;
+}
+
+/** Stable slug for trigger ids (aria-controls / focus restore). */
+export function navTriggerId(name: string) {
+  return `nav-trigger-${name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")}`;
 }
 
 interface MobileNavProps {
@@ -60,8 +135,38 @@ export const Navbar = ({ children, className }: NavbarProps) => {
   return (
     <motion.div
       ref={ref}
-      className={cn("sticky inset-x-0 top-4 z-40 w-full", className)}
+      className={cn(
+        "sticky inset-x-0 z-40 w-full",
+        // alwaysOn presets are a flush full-width header; floating presets sit 1rem down.
+        NAV_THEME.alwaysOn ? "top-0" : "top-4",
+        className,
+      )}
     >
+      {/* Full-bleed themed band so the bar reaches both edges (no white sides).
+          Top of page: SOLID topBg, no blur. Scrolled: translucent `bg` + backdrop
+          blur (glassmorphism). The blur eases between 0 and full so the transition
+          is smooth (transitioning to/from `none` would snap). */}
+      {NAV_THEME.alwaysOn && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -z-10"
+          style={{
+            backgroundColor: visible
+              ? NAV_THEME.bg
+              : (NAV_THEME.topBg ?? NAV_THEME.bg),
+            backdropFilter: visible
+              ? "blur(16px) saturate(180%)"
+              : "blur(0px) saturate(100%)",
+            WebkitBackdropFilter: visible
+              ? "blur(16px) saturate(180%)"
+              : "blur(0px) saturate(100%)",
+            borderBottom: `1px solid ${visible ? "rgba(255,255,255,.12)" : "rgba(255,255,255,0)"}`,
+            boxShadow: visible ? "0 14px 34px -22px rgba(0,0,0,.6)" : "none",
+            transition:
+              "background-color .45s ease, backdrop-filter .45s ease, -webkit-backdrop-filter .45s ease, border-color .45s ease, box-shadow .45s ease",
+          }}
+        />
+      )}
       {React.Children.map(children, (child) =>
         React.isValidElement(child)
           ? React.cloneElement(
@@ -75,21 +180,27 @@ export const Navbar = ({ children, className }: NavbarProps) => {
 };
 
 export const NavBody = ({ children, className, visible }: NavBodyProps) => {
+  const pinned = !!NAV_THEME.alwaysOn;
+  const themed = visible || pinned;
   return (
     <motion.div
       animate={{
-        backdropFilter: visible ? "blur(14px) saturate(180%)" : "blur(0px)",
-        boxShadow: visible
-          ? "0 1px 2px rgba(10,31,44,.05), 0 12px 36px -8px rgba(10,31,44,.12), 0 0 0 1px rgba(10,31,44,.04)"
-          : "none",
-        width: visible ? "72%" : "100%",
-        y: visible ? 8 : 0,
+        // When pinned, the full-width band behind supplies the colour/blur/shadow.
+        backdropFilter:
+          themed && !pinned ? "blur(14px) saturate(180%)" : "blur(0px)",
+        boxShadow:
+          themed && !pinned
+            ? "0 1px 2px rgba(10,31,44,.05), 0 12px 36px -8px rgba(10,31,44,.12), 0 0 0 1px rgba(10,31,44,.04)"
+            : "none",
+        backgroundColor:
+          !pinned && themed ? NAV_THEME.bg : "rgba(255,255,255,0)",
+        width: pinned ? "100%" : visible ? "72%" : "100%",
+        y: pinned ? 0 : visible ? 8 : 0,
       }}
       transition={{ type: "spring", stiffness: 200, damping: 50 }}
-      style={{ minWidth: 820 }}
+      style={{ minWidth: 820, ...(themed ? NAV_THEME.vars : null) }}
       className={cn(
         "relative z-[60] mx-auto hidden w-full max-w-[1240px] flex-row items-center justify-between self-start rounded-full bg-transparent px-4 py-2 lg:flex",
-        visible && "bg-white/80",
         className,
       )}
     >
@@ -103,6 +214,9 @@ export const NavItems = ({
   className,
   onItemClick,
   onItemHover,
+  drawerItems,
+  openName,
+  onTriggerRef,
 }: NavItemsProps) => {
   const [hovered, setHovered] = useState<number | null>(null);
 
@@ -117,63 +231,102 @@ export const NavItems = ({
         className,
       )}
     >
-      {items.map((item, idx) => (
-        <a
-          onMouseEnter={() => {
-            setHovered(idx);
-            onItemHover?.(item.name);
-          }}
-          onFocus={() => {
-            setHovered(idx);
-            onItemHover?.(item.name);
-          }}
-          onClick={(e) => {
-            if (item.link === "#") e.preventDefault();
-            onItemClick?.(item);
-          }}
-          className="relative px-3 py-2 whitespace-nowrap"
-          style={{ color: "var(--color-text)" }}
-          key={`link-${idx}`}
-          href={item.link}
-        >
-          {hovered === idx && (
-            <motion.div
-              layoutId="nav-hover"
-              transition={{ type: "spring", stiffness: 380, damping: 32 }}
-              className="absolute inset-0 h-full w-full rounded-full"
-              style={{ background: "var(--teal-50)" }}
-            />
-          )}
-          <span
-            className="relative z-20"
+      {items.map((item, idx) => {
+        const hasDrawer = drawerItems?.has(item.name) ?? false;
+        const expanded = hasDrawer && openName === item.name;
+        return (
+          <a
+            onMouseEnter={() => {
+              setHovered(idx);
+              onItemHover?.(item.name);
+            }}
+            onFocus={(e) => {
+              setHovered(idx);
+              onItemHover?.(item.name);
+              if (hasDrawer) onTriggerRef?.(item.name, e.currentTarget);
+            }}
+            onClick={(e) => {
+              if (item.link === "#") e.preventDefault();
+              onItemClick?.(item);
+            }}
+            ref={hasDrawer ? (el) => onTriggerRef?.(item.name, el) : undefined}
+            className={cn(
+              "nav-trigger relative flex items-center gap-1 px-3 py-2 whitespace-nowrap",
+            )}
             style={{ color: "var(--color-text)" }}
+            key={`link-${idx}`}
+            href={item.link}
+            id={hasDrawer ? navTriggerId(item.name) : undefined}
+            aria-haspopup={hasDrawer ? "menu" : undefined}
+            aria-expanded={hasDrawer ? expanded : undefined}
+            aria-controls={hasDrawer ? "mega-drawer" : undefined}
           >
-            {item.name}
-          </span>
-        </a>
-      ))}
+            {hovered === idx && (
+              <motion.div
+                layoutId="nav-hover"
+                transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                className="absolute inset-0 h-full w-full rounded-full"
+                style={{ background: "var(--nav-hover-pill, var(--teal-50))" }}
+              />
+            )}
+            <span
+              className="relative z-20"
+              style={{ color: "var(--color-text)" }}
+            >
+              {item.name}
+            </span>
+            {hasDrawer && (
+              <span
+                className="nav-chevron relative z-20"
+                data-open={expanded}
+                aria-hidden
+                style={{
+                  display: "inline-flex",
+                  color: "var(--color-text-muted)",
+                }}
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M6 9l6 6 6-6"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </span>
+            )}
+          </a>
+        );
+      })}
     </motion.div>
   );
 };
 
 export const MobileNav = ({ children, className, visible }: MobileNavProps) => {
+  const pinned = !!NAV_THEME.alwaysOn;
+  const themed = visible || pinned;
   return (
     <motion.div
       animate={{
-        backdropFilter: visible ? "blur(14px) saturate(180%)" : "blur(0px)",
-        boxShadow: visible
-          ? "0 1px 2px rgba(10,31,44,.05), 0 12px 36px -8px rgba(10,31,44,.12), 0 0 0 1px rgba(10,31,44,.04)"
-          : "none",
-        width: visible ? "92%" : "100%",
-        paddingRight: visible ? 12 : 0,
-        paddingLeft: visible ? 12 : 0,
+        backdropFilter:
+          themed && !pinned ? "blur(14px) saturate(180%)" : "blur(0px)",
+        boxShadow:
+          themed && !pinned
+            ? "0 1px 2px rgba(10,31,44,.05), 0 12px 36px -8px rgba(10,31,44,.12), 0 0 0 1px rgba(10,31,44,.04)"
+            : "none",
+        backgroundColor:
+          !pinned && themed ? NAV_THEME.bg : "rgba(255,255,255,0)",
+        width: pinned ? "100%" : visible ? "92%" : "100%",
+        paddingRight: pinned ? 16 : visible ? 12 : 0,
+        paddingLeft: pinned ? 16 : visible ? 12 : 0,
         borderRadius: visible ? 16 : 24,
-        y: visible ? 8 : 0,
+        y: pinned ? 0 : visible ? 8 : 0,
       }}
       transition={{ type: "spring", stiffness: 200, damping: 50 }}
+      style={themed ? NAV_THEME.vars : undefined}
       className={cn(
         "relative z-50 mx-auto flex w-full max-w-[calc(100vw-2rem)] flex-col items-center justify-between bg-transparent px-0 py-2 lg:hidden",
-        visible && "bg-white/85",
         className,
       )}
     >
@@ -212,10 +365,12 @@ export const MobileNavMenu = ({
           exit={{ opacity: 0, y: -6 }}
           transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
           className={cn(
-            "absolute inset-x-0 top-16 z-50 flex w-full flex-col items-start justify-start gap-2 rounded-2xl bg-white px-4 py-6",
+            "absolute inset-x-0 top-16 z-50 flex w-full flex-col items-start justify-start gap-2 rounded-2xl px-4 py-6",
             className,
           )}
           style={{
+            background: NAV_THEME.menuBg,
+            ...NAV_THEME.vars,
             boxShadow:
               "0 1px 2px rgba(10,31,44,.05), 0 20px 60px -16px rgba(10,31,44,.18), 0 0 0 1px rgba(10,31,44,.04)",
           }}

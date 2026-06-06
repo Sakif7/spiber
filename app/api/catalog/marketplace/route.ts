@@ -13,10 +13,12 @@ export async function GET(req: Request) {
     const tree = await listCategoryTree("marketplace");
     return ok({
       categories: tree.map((t) => ({
+        id: String(t._id),
         slug: t.slug,
         name: localize(t.name, locale),
         icon: t.icon ?? null,
         children: (t.children ?? []).map((c) => ({
+          id: String(c._id),
           slug: c.slug,
           name: localize(c.name, locale),
         })),

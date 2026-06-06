@@ -108,12 +108,12 @@ export function Footer() {
         >
           <div>
             <Image
-              src="/spibermed-logo.png"
+              src="/spibermed-wordmark.png"
               alt={t("logoAlt")}
-              width={1007}
-              height={301}
+              width={932}
+              height={355}
               style={{
-                height: 56,
+                height: 48,
                 width: "auto",
                 marginBottom: 18,
               }}
