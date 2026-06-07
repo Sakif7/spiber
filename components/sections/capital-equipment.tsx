@@ -13,10 +13,12 @@ import {
 const TONES = ["teal", "orange", "slate"] as const;
 
 /**
- * Homepage equipment showcase, now driven by LIVE Instruments products
- * (active only). Resolves each product's top-level category for the filter
- * tabs and renders an interactive client view. Empty (e.g. all-draft) catalogs
- * degrade to a tasteful "coming online" state.
+ * Homepage equipment teaser, driven by LIVE Instruments products (active only).
+ * Resolves each product's top-level category for the filter pills and ships a
+ * pool the client view filters + caps to a small slice; the full catalog lives
+ * on the Instruments page (reached via the pills' "and more" pill and the
+ * section's "see more" button). Empty (e.g. all-draft) catalogs degrade to a
+ * tasteful "coming online" state.
  */
 export async function CapitalEquipment() {
   const locale = (await getLocale()) as Locale;
@@ -42,20 +44,23 @@ export async function CapitalEquipment() {
     tops = cats
       .filter((c) => !c.parentId)
       .map((c) => ({ slug: c.slug, name: localize(c.name, locale) }));
-    items = res.items.map((p, i) => {
-      const leaf = byId.get(String(p.categoryId));
-      const top = topOf(String(p.categoryId));
-      return {
-        name: localize(p.name, locale),
-        slug: p.slug,
-        image: p.images?.[0] ?? null,
-        sku: p.sku,
-        catLabel: leaf ? localize(leaf.name, locale) : "",
-        topSlug: top?.slug ?? "",
-        tone: TONES[i % TONES.length],
-        featured: !!p.featured,
-      };
-    });
+    items = res.items
+      .slice()
+      .sort((a, b) => Number(!!b.featured) - Number(!!a.featured))
+      .map((p, i) => {
+        const leaf = byId.get(String(p.categoryId));
+        const top = topOf(String(p.categoryId));
+        return {
+          name: localize(p.name, locale),
+          slug: p.slug,
+          image: p.images?.[0] ?? null,
+          sku: p.sku,
+          catLabel: leaf ? localize(leaf.name, locale) : "",
+          topSlug: top?.slug ?? "",
+          tone: TONES[i % TONES.length],
+          featured: !!p.featured,
+        };
+      });
   } catch (e) {
     logger.warn("home capital-equipment load failed", e);
   }

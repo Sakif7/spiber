@@ -67,6 +67,10 @@ const TEAM: Omit<TeamMember, "role" | "bio" | "socials">[] = [
     name: "Subrina Azmi Kanta",
     image: "/kanta-managing-body.jpeg",
   },
+  {
+    name: "Md Saadman Sakif",
+    image: "/sakif-managing-body.jpeg",
+  },
 ];
 
 const SOCIAL_ICONS: ReactNode[] = [LinkedInIcon, EmailIcon];
@@ -132,11 +136,11 @@ export function Management() {
 
         <Reveal>
           <div
-            className="equal-4col team-grid"
+            className="equal-5col team-grid"
             onMouseLeave={() => setHoveredIdx(null)}
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
+              gridTemplateColumns: "repeat(5, 1fr)",
               gap: 16,
               perspective: 1400,
               alignItems: "start",

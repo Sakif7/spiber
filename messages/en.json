@@ -193,9 +193,9 @@
         "Spiber Med will keep elevating itself by building on the knowledge and technology passed down to us. You can anticipate even more remarkable things from Spiber Med in the future."
       ],
       "name": "Dr. Md Jahidul Islam",
-      "role": "Managing Director & CEO",
+      "role": "Managing Director",
       "company": "Spiber Med",
-      "imageAlt": "Dr. Md Jahidul Islam, Managing Director & CEO of Spiber Med",
+      "imageAlt": "Dr. Md Jahidul Islam, Managing Director of Spiber Med",
       "signatureAlt": "Signature of Dr. Md Jahidul Islam",
       "readMore": "Read more",
       "readLess": "Read less"
@@ -550,8 +550,10 @@
     "capitalEquipment": {
       "eyebrow": "OUR CAPITAL EQUIPMENT",
       "title": "The full catalog, browseable in one place.",
-      "lede": "Filter by clinical category or department. Every listing carries a model, SKU, certification status, and lead-time estimate.",
-      "downloadCatalog": "Browse full catalog →",
+      "lede": "Every listing carries a model, SKU, certification status, and lead-time estimate. Browse the full range on our Instruments page.",
+      "downloadCatalog": "Browse full catalog",
+      "seeMore": "View all instruments",
+      "moreCategories": "and more",
       "view": "View →",
       "skuLabel": "SKU",
       "featured": "FEATURED",
@@ -739,6 +741,18 @@
         {
           "role": "Director · CMO",
           "bio": "Marketing and brand — leads SPIBER's clinical-education programs and partner outreach across the region.",
+          "socials": [
+            {
+              "label": "LinkedIn"
+            },
+            {
+              "label": "Email"
+            }
+          ]
+        },
+        {
+          "role": "Technical Advisor · CTO",
+          "bio": "Technology lead — architects SPIBER MED's digital platform, e-commerce, and data systems across its healthcare divisions.",
           "socials": [
             {
               "label": "LinkedIn"
