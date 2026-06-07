@@ -38,6 +38,7 @@ export default async function EditBlogPostPage({
     bodyEn: post.body.en ?? "",
     bodyBn: post.body.bn ?? "",
     coverImage: post.coverImage,
+    authorName: post.authorName ?? "",
     categoryId: post.categoryId ? String(post.categoryId) : "",
     tagIds: (post.tagIds ?? []).map((t) => String(t)),
     status: post.status,

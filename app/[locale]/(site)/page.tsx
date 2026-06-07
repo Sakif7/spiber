@@ -1,6 +1,5 @@
 import { setRequestLocale } from "next-intl/server";
 
-import { getLatestPosts } from "@/lib/services/landing.service";
 import { JsonLd } from "@/components/ui/json-ld";
 import { organizationJsonLd } from "@/lib/seo/jsonld";
 
@@ -25,7 +24,6 @@ export default async function Home({
   const { locale } = await params;
   setRequestLocale(locale);
 
-  const posts = await getLatestPosts(6);
   return (
     <>
       <JsonLd data={organizationJsonLd()} />
@@ -37,7 +35,7 @@ export default async function Home({
       <StatsBand />
       <Testimonials />
       <Management />
-      <LatestNews initial={posts} />
+      <LatestNews />
       <CTABand />
     </>
   );

@@ -112,10 +112,32 @@ export default async function AdminBlogPostsPage({
                   </td>
                   <td style={td}>{p.viewCount}</td>
                   <td style={{ ...td, textAlign: "right" }}>
-                    <PostDeleteButton
-                      id={String(p._id)}
-                      title={localize(p.title, "en")}
-                    />
+                    <div
+                      style={{
+                        display: "inline-flex",
+                        gap: "var(--s-2)",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Link
+                        href={`/admin/blog/posts/${String(p._id)}`}
+                        style={{
+                          border: "1px solid var(--color-border)",
+                          borderRadius: "var(--r-sm)",
+                          color: "var(--color-brand-deep)",
+                          padding: "4px 10px",
+                          fontSize: "var(--fs-small)",
+                          fontWeight: 600,
+                          textDecoration: "none",
+                        }}
+                      >
+                        Edit
+                      </Link>
+                      <PostDeleteButton
+                        id={String(p._id)}
+                        title={localize(p.title, "en")}
+                      />
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -25,6 +25,7 @@ export function PostCard({
       )
     : "";
   const meta = [
+    post.authorName?.trim() ? t("by", { name: post.authorName.trim() }) : "",
     date,
     post.readingTimeMin ? t("readingTime", { min: post.readingTimeMin }) : "",
   ]

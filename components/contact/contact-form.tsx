@@ -4,13 +4,21 @@ import { CSSProperties, useId, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { motion, useReducedMotion } from "framer-motion";
 import { Mail, Send, ShieldCheck, CheckCircle2, RotateCcw } from "lucide-react";
+import { COUNTRIES, PRIORITY_COUNTRY } from "@/lib/countries";
 
-type InquiryType = "" | "sales" | "support" | "quotation";
+type InquiryType =
+  | ""
+  | "sales"
+  | "support"
+  | "quotation"
+  | "partnership"
+  | "training";
 
 type Values = {
   name: string;
   email: string;
   phone: string;
+  country: string;
   inquiryType: InquiryType;
   message: string;
 };
@@ -21,6 +29,7 @@ const EMPTY: Values = {
   name: "",
   email: "",
   phone: "",
+  country: "",
   inquiryType: "",
   message: "",
 };
@@ -29,9 +38,18 @@ const FIELD_ORDER: (keyof Values)[] = [
   "name",
   "email",
   "phone",
+  "country",
   "inquiryType",
   "message",
 ];
+
+const INQUIRY_OPTIONS = [
+  "sales",
+  "support",
+  "quotation",
+  "partnership",
+  "training",
+] as const;
 
 const labelStyle: CSSProperties = {
   fontSize: "var(--fs-small)",
@@ -78,6 +96,7 @@ export function ContactForm() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email.trim()))
       e.email = t("errors.email");
     if (v.phone.trim().length < 3) e.phone = t("errors.phone");
+    if (!v.country) e.country = t("errors.country");
     if (!v.inquiryType) e.inquiryType = t("errors.inquiryType");
     if (!v.message.trim()) e.message = t("errors.message");
     return e;
@@ -315,25 +334,67 @@ export function ContactForm() {
           </Field>
         </div>
 
-        {/* Phone */}
-        <Field
-          id={`${uid}-phone`}
-          label={t("phone")}
-          error={errors.phone}
-          required
+        {/* Phone + Country */}
+        <div
+          className="equal-2col"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 16,
+          }}
         >
-          <input
+          <Field
             id={`${uid}-phone`}
-            className="contact-field"
-            type="tel"
-            autoComplete="tel"
-            maxLength={40}
-            placeholder={t("phonePlaceholder")}
-            value={values.phone}
-            aria-invalid={!!errors.phone}
-            onChange={(e) => update("phone", e.target.value)}
-          />
-        </Field>
+            label={t("phone")}
+            error={errors.phone}
+            required
+          >
+            <input
+              id={`${uid}-phone`}
+              className="contact-field"
+              type="tel"
+              autoComplete="tel"
+              maxLength={40}
+              placeholder={t("phonePlaceholder")}
+              value={values.phone}
+              aria-invalid={!!errors.phone}
+              onChange={(e) => update("phone", e.target.value)}
+            />
+          </Field>
+          <Field
+            id={`${uid}-country`}
+            label={t("country")}
+            error={errors.country}
+            required
+          >
+            <select
+              id={`${uid}-country`}
+              className="contact-field"
+              autoComplete="country-name"
+              value={values.country}
+              aria-invalid={!!errors.country}
+              onChange={(e) => update("country", e.target.value)}
+              style={{
+                color: values.country
+                  ? "var(--color-text)"
+                  : "var(--color-text-muted)",
+              }}
+            >
+              <option value="" disabled>
+                {t("countryPlaceholder")}
+              </option>
+              <option value={PRIORITY_COUNTRY}>{PRIORITY_COUNTRY}</option>
+              <option value="" disabled>
+                ──────────
+              </option>
+              {COUNTRIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
 
         {/* Inquiry Type */}
         <Field
@@ -359,9 +420,11 @@ export function ContactForm() {
             <option value="" disabled>
               {t("inquiryTypePlaceholder")}
             </option>
-            <option value="sales">{t("options.sales")}</option>
-            <option value="support">{t("options.support")}</option>
-            <option value="quotation">{t("options.quotation")}</option>
+            {INQUIRY_OPTIONS.map((opt) => (
+              <option key={opt} value={opt}>
+                {t(`options.${opt}`)}
+              </option>
+            ))}
           </select>
         </Field>
 

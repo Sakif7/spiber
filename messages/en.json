@@ -222,12 +222,16 @@
       "emailPlaceholder": "you@example.com",
       "phone": "Phone",
       "phonePlaceholder": "+880 1XXX-XXXXXX",
+      "country": "Country",
+      "countryPlaceholder": "Select your country",
       "inquiryType": "Inquiry Type",
       "inquiryTypePlaceholder": "Select an option",
       "options": {
         "sales": "Sales",
         "support": "Support",
-        "quotation": "Quotation"
+        "quotation": "Quotation",
+        "partnership": "Partnership",
+        "training": "Training"
       },
       "message": "Message",
       "messagePlaceholder": "How can we help you?",
@@ -245,6 +249,7 @@
         "name": "Please enter your name.",
         "email": "Please enter a valid email address.",
         "phone": "Please enter your phone number.",
+        "country": "Please select your country.",
         "inquiryType": "Please select an inquiry type.",
         "message": "Please enter a message."
       }
@@ -257,7 +262,8 @@
       "phone": "Phone",
       "email": "Email",
       "hours": "Opening Hours",
-      "more": "More locations coming soon"
+      "more": "More locations coming soon",
+      "noMapHint": "Use “Get directions” below to navigate to this office."
     },
     "quick": {
       "title": "Prefer a quicker way to reach us?",
@@ -770,7 +776,9 @@
       "lede": "Stories, analysis, and dispatches from our team and partners.",
       "visitBlog": "Visit the blog",
       "readSuffix": "read",
-      "readMore": "Read more"
+      "readMore": "Read more",
+      "kickerFallback": "Article",
+      "empty": "Articles are on the way — our first stories will appear here soon."
     },
     "cta": {
       "eyebrow": "GET IN TOUCH",

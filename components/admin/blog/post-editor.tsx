@@ -21,6 +21,7 @@ export type PostEditorInitial = {
   bodyEn?: string;
   bodyBn?: string;
   coverImage?: string;
+  authorName?: string;
   categoryId?: string;
   tagIds?: string[];
   status?: BlogStatus;
@@ -83,6 +84,7 @@ export function PostEditor({
   const [bodyEn, setBodyEn] = useState(initial?.bodyEn ?? "");
   const [bodyBn, setBodyBn] = useState(initial?.bodyBn ?? "");
   const [coverImage, setCoverImage] = useState(initial?.coverImage ?? "");
+  const [authorName, setAuthorName] = useState(initial?.authorName ?? "");
   const [categoryId, setCategoryId] = useState(initial?.categoryId ?? "");
   const [tagIds, setTagIds] = useState<string[]>(initial?.tagIds ?? []);
   const [status, setStatus] = useState<BlogStatus>(initial?.status ?? "draft");
@@ -116,6 +118,7 @@ export function PostEditor({
       excerpt: optL(excerpt),
       body: { en: bodyEn || "<p></p>", bn: bodyBn.trim() ? bodyBn : undefined },
       coverImage: coverImage || undefined,
+      authorName: authorName.trim() || undefined,
       categoryId: categoryId || undefined,
       tagIds,
       status,
@@ -176,6 +179,15 @@ export function PostEditor({
               ))}
             </select>
           </div>
+        </div>
+        <div style={field}>
+          <Label>Author (optional)</Label>
+          <Input
+            value={authorName}
+            onChange={(e) => setAuthorName(e.target.value)}
+            placeholder="Defaults to your account name"
+            maxLength={120}
+          />
         </div>
         <BilingualField
           label="Excerpt (optional)"

@@ -123,9 +123,11 @@ export function LocationPanel() {
         </span>
       </div>
 
-      {/* Map — all offices stacked; the active one fades in (no iframe reload).
-          Flexes to fill remaining height so the panel bottom aligns with the
-          form card. Coordinate-centred + marker-less (shows the area, no pin). */}
+      {/* Map slot. Only the Dhaka head office shows an embedded map (per the
+          client); regional offices render a branded address placeholder and
+          rely on the "Get directions" link in the detail card. Flexes to fill
+          remaining height so the panel bottom aligns with the form card.
+          Coordinate-centred + marker-less (shows the area, no pin). */}
       <div
         style={{
           position: "relative",
@@ -138,23 +140,66 @@ export function LocationPanel() {
           background: "var(--color-surface-2)",
         }}
       >
-        {OFFICES.map((o, i) => (
+        {office.showMap ? (
           <iframe
-            key={o.id}
+            key={office.id}
             className="contact-map-frame"
-            title={`${L(o.name, locale)} — ${t("mapLabel")}`}
-            src={mapEmbedUrl(o.lat, o.lng, o.zoom)}
+            title={`${L(office.name, locale)} — ${t("mapLabel")}`}
+            src={mapEmbedUrl(office.lat, office.lng, office.zoom)}
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"
+            style={{ position: "absolute", inset: 0, border: 0 }}
+          />
+        ) : (
+          <motion.div
+            key={office.id}
+            initial={reduced ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
             style={{
               position: "absolute",
               inset: 0,
-              opacity: i === selected ? 1 : 0,
-              transition: reduced ? undefined : "opacity 320ms ease",
-              pointerEvents: i === selected ? "auto" : "none",
+              display: "grid",
+              placeItems: "center",
+              textAlign: "center",
+              padding: 24,
+              gap: 10,
             }}
-          />
-        ))}
+          >
+            <span
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: "var(--radius-pill)",
+                display: "grid",
+                placeItems: "center",
+                background: "var(--color-brand-soft)",
+                color: "var(--color-brand-deep)",
+              }}
+            >
+              <MapPin size={24} strokeWidth={1.8} />
+            </span>
+            <span
+              style={{
+                fontFamily: "var(--font-display)",
+                fontSize: "var(--fs-body)",
+                fontWeight: 600,
+                color: "var(--color-text-strong)",
+              }}
+            >
+              {L(office.shortName, locale)}
+            </span>
+            <span
+              style={{
+                fontSize: "var(--fs-small)",
+                color: "var(--color-text-muted)",
+                maxWidth: "32ch",
+              }}
+            >
+              {t("noMapHint")}
+            </span>
+          </motion.div>
+        )}
       </div>
 
       {/* Office detail card — updates with the switcher. */}

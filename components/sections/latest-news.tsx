@@ -1,271 +1,59 @@
-"use client";
+import { getLocale, getTranslations } from "next-intl/server";
+import { listPublishedPosts } from "@/lib/repositories/blog.repo";
+import { listBlogCategories } from "@/lib/repositories/blogTaxonomy.repo";
+import { localize } from "@/lib/schemas/localized";
+import { excerptFromHtml } from "@/lib/reading-time";
+import { logger } from "@/lib/log";
+import type { Locale } from "@/i18n/routing";
+import { LatestNewsView, type NewsItem } from "./latest-news-view";
 
-import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
-import {
-  Arrow,
-  Container,
-  Placeholder,
-  Reveal,
-  Section,
-  SectionTitle,
-} from "@/components/ui";
-import type { Post } from "@/lib/content-types";
+const TONES = ["teal", "orange", "slate"] as const;
+const DISPLAY = 3;
 
-const FALLBACK: Post[] = [
-  {
-    kicker: "INDUSTRY",
-    title: "Healthcare industry management — the operator's lens",
-    excerpt:
-      "A long-form look at how Bangladesh's hospital operators are modernizing — and the structural reforms that need to follow.",
-    date: "25 NOV 2025",
-    read: "8 min",
-    tone: "teal",
-    placeholder: "industry feature photo",
-  },
-  {
-    kicker: "WORKFORCE",
-    title: "Global employability for healthcare professionals",
-    excerpt:
-      "How our overseas placement pathways are connecting Bangladeshi clinicians with hospitals in Japan, Germany, and the UK.",
-    date: "18 NOV 2025",
-    read: "6 min",
-    tone: "orange",
-    placeholder: "workforce photo",
-  },
-  {
-    kicker: "FIELD NOTES",
-    title: "Lessons from the COVID-19 response, five years on",
-    excerpt:
-      "What worked, what didn't, and what every hospital can carry forward into the next public-health emergency.",
-    date: "01 NOV 2025",
-    read: "10 min",
-    tone: "slate",
-    placeholder: "field photo",
-  },
-];
+/**
+ * Homepage "Latest News", driven by LIVE published blog posts (publish-on-read
+ * visible). Resolves each post's category for the kicker and formats date +
+ * reading time per locale. An empty blog degrades to a "coming soon" state.
+ */
+export async function LatestNews() {
+  const locale = (await getLocale()) as Locale;
+  const t = await getTranslations("blog");
 
-export function LatestNews({ initial }: { initial?: Post[] }) {
-  const t = useTranslations("home.latestNews");
-  const [posts, setPosts] = useState<Post[]>(
-    initial && initial.length ? initial : FALLBACK,
-  );
+  let items: NewsItem[] = [];
+  try {
+    const [res, cats] = await Promise.all([
+      listPublishedPosts({ pageSize: DISPLAY }),
+      listBlogCategories(),
+    ]);
+    const catName = new Map(
+      cats.map((c) => [String(c._id), localize(c.name, locale)]),
+    );
+    items = res.items.map((p, i) => {
+      const date = p.publishedAt
+        ? new Date(p.publishedAt).toLocaleDateString(
+            locale === "bn" ? "bn-BD" : "en-GB",
+            { year: "numeric", month: "short", day: "numeric" },
+          )
+        : "";
+      const excerpt = p.excerpt
+        ? localize(p.excerpt, locale)
+        : excerptFromHtml(localize(p.body, locale));
+      return {
+        slug: p.slug,
+        kicker: (p.categoryId && catName.get(String(p.categoryId))) || "",
+        title: localize(p.title, locale),
+        excerpt,
+        date,
+        readingTime: p.readingTimeMin
+          ? t("readingTime", { min: p.readingTimeMin })
+          : "",
+        image: p.coverImage ?? null,
+        tone: TONES[i % TONES.length],
+      };
+    });
+  } catch (e) {
+    logger.warn("home latest-news load failed", e);
+  }
 
-  useEffect(() => {
-    if (initial && initial.length) return;
-    let cancelled = false;
-    fetch("/api/news")
-      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
-      .then((data: { posts?: Post[] }) => {
-        if (cancelled) return;
-        if (data.posts && data.posts.length) setPosts(data.posts);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [initial]);
-
-  return (
-    <Section style={{ background: "var(--color-surface-2)" }}>
-      <Container>
-        <div
-          className="equal-2col"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 64,
-            alignItems: "end",
-            marginBottom: 48,
-          }}
-        >
-          <SectionTitle
-            eyebrow={t("eyebrow")}
-            title={t("title")}
-            lede={t("lede")}
-          />
-          <Reveal delay={200} style={{ alignSelf: "end" }}>
-            <Link
-              href="/blog"
-              style={{
-                alignSelf: "end",
-                justifySelf: "end",
-                fontSize: 14,
-                fontWeight: 500,
-                color: "var(--color-brand-deep)",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                cursor: "pointer",
-              }}
-            >
-              {t("visitBlog")} <Arrow />
-            </Link>
-          </Reveal>
-        </div>
-
-        <div
-          className="equal-3col"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: 20,
-          }}
-        >
-          {posts.map((p, i) => (
-            <Reveal key={p.title} delay={i * 100}>
-              <NewsCard {...p} />
-            </Reveal>
-          ))}
-        </div>
-      </Container>
-    </Section>
-  );
-}
-
-function NewsCard({
-  kicker,
-  title,
-  excerpt,
-  date,
-  read,
-  tone,
-  placeholder,
-}: Post) {
-  const t = useTranslations("home.latestNews");
-  const [hover, setHover] = useState(false);
-  return (
-    <Link
-      href="/blog"
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        position: "relative",
-        background: "var(--color-surface)",
-        height: "100%",
-        border: "1px solid " + (hover ? "var(--teal-300)" : "var(--teal-100)"),
-        borderRadius: "var(--r-xl)",
-        overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
-        transform: hover ? "translateY(-3px)" : "translateY(0)",
-        boxShadow: hover ? "var(--shadow-brand)" : "var(--shadow-xs)",
-        transition: "all 280ms cubic-bezier(.16,1,.3,1)",
-        cursor: "pointer",
-      }}
-    >
-      <span
-        aria-hidden
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 3,
-          zIndex: 3,
-          background:
-            "linear-gradient(90deg, var(--brand-teal), var(--aqua-400))",
-          transform: hover ? "scaleX(1)" : "scaleX(0)",
-          transformOrigin: "left",
-          transition: "transform 420ms cubic-bezier(.16,1,.3,1)",
-        }}
-      />
-      <div style={{ height: 200, overflow: "hidden", position: "relative" }}>
-        <Placeholder
-          label={placeholder}
-          tone={tone}
-          style={{
-            width: "100%",
-            height: "100%",
-            transform: hover ? "scale(1.06)" : "scale(1)",
-            transition: "transform 700ms cubic-bezier(.16,1,.3,1)",
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            top: 14,
-            left: 14,
-            fontFamily: "var(--font-mono)",
-            fontSize: 10,
-            fontWeight: 600,
-            letterSpacing: ".14em",
-            color: "var(--color-text-strong)",
-            background: "rgba(255,255,255,.92)",
-            backdropFilter: "blur(8px)",
-            padding: "5px 9px",
-            borderRadius: 4,
-          }}
-        >
-          {kicker}
-        </div>
-      </div>
-      <div
-        style={{
-          padding: 24,
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-          flex: 1,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            gap: 14,
-            fontFamily: "var(--font-mono)",
-            fontSize: 11,
-            color: "var(--color-text-muted)",
-            letterSpacing: ".06em",
-          }}
-        >
-          <span>{date}</span>
-          <span>·</span>
-          <span>
-            {read} {t("readSuffix")}
-          </span>
-        </div>
-        <h3
-          style={{
-            margin: 0,
-            fontFamily: "var(--font-display)",
-            fontWeight: 600,
-            fontSize: 20,
-            lineHeight: 1.25,
-            letterSpacing: "-.015em",
-            color: "var(--color-text-strong)",
-          }}
-        >
-          {title}
-        </h3>
-        <p
-          style={{
-            margin: 0,
-            fontSize: 14,
-            lineHeight: 1.6,
-            color: "var(--color-text-muted)",
-            flex: 1,
-          }}
-        >
-          {excerpt}
-        </p>
-        <div
-          style={{
-            marginTop: 4,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            fontSize: 13,
-            fontWeight: 500,
-            color: "var(--color-brand-deep)",
-            transform: hover ? "translateX(2px)" : "translateX(0)",
-            transition: "transform 280ms cubic-bezier(.16,1,.3,1)",
-          }}
-        >
-          {t("readMore")} <Arrow size={12} />
-        </div>
-      </div>
-    </Link>
-  );
+  return <LatestNewsView items={items} />;
 }

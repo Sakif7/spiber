@@ -16,6 +16,8 @@ export interface IBlogPost {
   body: LocalizedDoc;
   coverImage?: string;
   authorId: mongoose.Types.ObjectId | string;
+  /** Optional display byline; overrides the resolved author account name. */
+  authorName?: string;
   categoryId?: mongoose.Types.ObjectId | string | null;
   tagIds: (mongoose.Types.ObjectId | string)[];
   status: BlogStatus;
@@ -39,6 +41,7 @@ const blogPostSchema = new Schema<IBlogPost>(
     body: { ...localizedDef },
     coverImage: { type: String },
     authorId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    authorName: { type: String, trim: true },
     categoryId: {
       type: Schema.Types.ObjectId,
       ref: "BlogCategory",

@@ -31,6 +31,7 @@ export const blogPostSchema = z
     excerpt: localizedSchema.optional(),
     body: localizedSchema,
     coverImage: z.string().optional(),
+    authorName: z.string().max(120).optional(),
     categoryId: z.string().optional(),
     tagIds: z.array(z.string()).default([]),
     status: blogStatusEnum.default("draft"),

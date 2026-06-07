@@ -39,6 +39,12 @@ export type Office = {
   zoom?: number;
   /** Named place query for the "Get directions" deep-link destination. */
   mapsQuery: string;
+  /**
+   * Whether to render the embedded Google Map for this office. Per the client,
+   * only the Dhaka head office shows a map; regional offices show the address +
+   * a "Get directions" link instead.
+   */
+  showMap?: boolean;
   /** Internal note for fields still awaiting client confirmation. */
   note?: string;
 };
@@ -46,10 +52,10 @@ export type Office = {
 export const OFFICES: Office[] = [
   {
     id: "banani",
-    shortName: { en: "Banani, Dhaka", bn: "বনানী, ঢাকা" },
+    shortName: { en: "Spiber Med Office", bn: "ঢাকা কার্যালয়" },
     name: {
-      en: "Spiber Med — Head Office",
-      bn: "স্পাইবার মেড — প্রধান কার্যালয়",
+      en: "Spiber Med — Head Office (Dhaka)",
+      bn: "স্পাইবার মেড — প্রধান কার্যালয় (ঢাকা)",
     },
     address: {
       en: "Road-06, House-47, Level-01, Block-C,\nBanani, Dhaka-1213, Bangladesh",
@@ -66,13 +72,17 @@ export const OFFICES: Office[] = [
     lng: 90.406,
     zoom: 15,
     mapsQuery: "House 47, Road 6, Block C, Banani, Dhaka 1213, Bangladesh",
+    showMap: true,
   },
   {
     id: "chittagong",
-    shortName: { en: "Chittagong", bn: "চট্টগ্রাম" },
+    shortName: {
+      en: "Regional Office (South-East)",
+      bn: "আঞ্চলিক · দক্ষিণ-পূর্ব",
+    },
     name: {
-      en: "Spiber Med — Regional Office",
-      bn: "স্পাইবার মেড — আঞ্চলিক কার্যালয়",
+      en: "Spiber Med — Regional Office (South-East)",
+      bn: "স্পাইবার মেড — আঞ্চলিক কার্যালয় (দক্ষিণ-পূর্ব)",
     },
     address: {
       en: "Summer Hill, House-2226/2641,\nPanchlaish, Chittagong-4211, Bangladesh",

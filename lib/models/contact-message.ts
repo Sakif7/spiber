@@ -12,6 +12,7 @@ export interface IContactMessage {
   name: string;
   email: string;
   phone: string;
+  country?: string;
   inquiryType: ContactInquiryType;
   message: string;
   status: ContactStatus;
@@ -28,9 +29,10 @@ const contactMessageSchema = new Schema<IContactMessage>(
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, lowercase: true, trim: true },
     phone: { type: String, required: true, trim: true },
+    country: { type: String, trim: true },
     inquiryType: {
       type: String,
-      enum: ["sales", "support", "quotation"],
+      enum: ["sales", "support", "quotation", "partnership", "training"],
       required: true,
       index: true,
     },

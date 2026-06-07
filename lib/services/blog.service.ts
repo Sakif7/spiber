@@ -62,7 +62,8 @@ export async function savePost(args: {
     excerpt,
     body,
     coverImage: input.coverImage || undefined,
-    authorId: new mongoose.Types.ObjectId(args.authorId),
+    // Display byline; stored as "" when blank so editing can clear it.
+    authorName: (input.authorName ?? "").trim(),
     categoryId: input.categoryId
       ? new mongoose.Types.ObjectId(input.categoryId)
       : null,
@@ -73,6 +74,11 @@ export async function savePost(args: {
     readingTimeMin: readingTimeMin(body.en || body.bn || ""),
     seo: input.seo,
   };
+  // Set the owning account only on create — editing (incl. published posts)
+  // must NOT reassign authorship to whoever made the edit.
+  if (!existing) {
+    data.authorId = new mongoose.Types.ObjectId(args.authorId);
+  }
 
   try {
     if (args.id) {

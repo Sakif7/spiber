@@ -19,30 +19,25 @@ const TYPE_LABEL: Record<ContactInquiryType, string> = {
   sales: "Sales",
   support: "Support",
   quotation: "Quotation",
+  partnership: "Partnership",
+  training: "Training",
 };
 
 const TYPE_LABEL_BN: Record<ContactInquiryType, string> = {
   sales: "সেলস",
   support: "সহায়তা",
   quotation: "কোটেশন",
+  partnership: "অংশীদারিত্ব",
+  training: "প্রশিক্ষণ",
 };
 
 /**
- * Where each inquiry type is routed. A single `CONTACT_TEAM_EMAIL` env var
- * overrides routing entirely (handy for a shared support inbox / staging).
+ * Where contact submissions are routed. Per the client, ALL inquiry types go to
+ * the general inbox (info@spibermed.com). A single `CONTACT_TEAM_EMAIL` env var
+ * can still override the destination (handy for staging / a shared inbox).
  */
-function teamRecipient(type: ContactInquiryType): string {
-  const override = process.env.CONTACT_TEAM_EMAIL?.trim();
-  if (override) return override;
-  switch (type) {
-    case "sales":
-      return CONTACT.salesEmail;
-    case "quotation":
-      return CONTACT.inquiryEmail;
-    case "support":
-    default:
-      return CONTACT.generalEmail;
-  }
+function teamRecipient(): string {
+  return process.env.CONTACT_TEAM_EMAIL?.trim() || CONTACT.generalEmail;
 }
 
 export type ContactMeta = { ip?: string; userAgent?: string };
@@ -62,6 +57,7 @@ export async function createContactMessage(
     name: input.name,
     email: input.email,
     phone: input.phone,
+    country: input.country,
     inquiryType: input.inquiryType,
     message: input.message,
     status: "new",
@@ -90,6 +86,7 @@ async function sendTeamNotification(msg: IContactMessage) {
     { label: "Name", value: msg.name, strong: true },
     { label: "Email", value: msg.email },
     { label: "Phone", value: msg.phone },
+    ...(msg.country ? [{ label: "Country", value: msg.country }] : []),
     { label: "Inquiry type", value: label },
     { label: "Reference", value: msg.contactNumber },
   ];
@@ -105,7 +102,7 @@ async function sendTeamNotification(msg: IContactMessage) {
     details: { title: "Submission", rows },
   });
   await getMailer().send({
-    to: teamRecipient(msg.inquiryType),
+    to: teamRecipient(),
     subject: `New ${label} message — ${msg.name} [${msg.contactNumber}]`,
     html: built.html,
     text: built.text,

@@ -8,7 +8,13 @@ import { z } from "zod";
  * team (routed by `inquiryType`) with an auto-acknowledgement to the sender.
  */
 
-export const contactInquiryTypeEnum = z.enum(["sales", "support", "quotation"]);
+export const contactInquiryTypeEnum = z.enum([
+  "sales",
+  "support",
+  "quotation",
+  "partnership",
+  "training",
+]);
 export type ContactInquiryType = z.infer<typeof contactInquiryTypeEnum>;
 
 export const contactStatusEnum = z.enum([
@@ -27,6 +33,7 @@ export const contactMessageCreateSchema = z.object({
     z.email(),
   ),
   phone: z.string().min(3).max(40),
+  country: z.string().min(1).max(60),
   inquiryType: contactInquiryTypeEnum,
   message: z.string().min(1).max(5000),
   /** Optional locale tag (en/bn) so the auto-ack can be sent in context. */

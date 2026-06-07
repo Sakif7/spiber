@@ -83,7 +83,8 @@ export default async function BlogPostPage({
   ]);
 
   const title = localize(post.title, l);
-  const authorName = author?.name ?? siteConfig.brand;
+  const authorName =
+    post.authorName?.trim() || author?.name || siteConfig.brand;
   const date = post.publishedAt
     ? new Date(post.publishedAt).toLocaleDateString(
         l === "bn" ? "bn-BD" : "en-GB",
