@@ -400,9 +400,9 @@ function MegaMenu({
   const motionProps = reduce
     ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } }
     : {
-        initial: { opacity: 0, y: -8, scale: 0.985 },
+        initial: { opacity: 0, y: -18, scale: 0.95 },
         animate: { opacity: 1, y: 0, scale: 1 },
-        exit: { opacity: 0, y: -8, scale: 0.985 },
+        exit: { opacity: 0, y: -12, scale: 0.965 },
       };
 
   return (
@@ -411,7 +411,7 @@ function MegaMenu({
         <motion.div
           key={open}
           {...motionProps}
-          transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
           onMouseEnter={onMouseEnter}
           onMouseLeave={onMouseLeave}
           className="hidden lg:block"
@@ -423,6 +423,7 @@ function MegaMenu({
             // Transparent hover bridge so there's no dead zone between the
             // trigger and the panel (the panel onMouseEnter cancels the close).
             paddingTop: 10,
+            transformOrigin: "top center",
             zIndex: 70,
           }}
         >
@@ -532,7 +533,7 @@ function CtaButton({ style }: { style?: React.CSSProperties }) {
         ...style,
       }}
     >
-      Request a Quote <Arrow />
+      Contact <Arrow />
     </MotionLink>
   );
 }

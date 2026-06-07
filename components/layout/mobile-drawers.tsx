@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useLocale } from "next-intl";
-import { motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Link } from "@/i18n/navigation";
 
 type MegaItem = {
@@ -118,18 +118,21 @@ function Section({
           </svg>
         </span>
       </button>
-      {open && (
-        <motion.div
-          id={id}
-          role="region"
-          initial={reduce ? false : { opacity: 0, y: -4 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
-          style={{ paddingBottom: 8 }}
-        >
-          {children}
-        </motion.div>
-      )}
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            id={id}
+            role="region"
+            initial={reduce ? { opacity: 0 } : { height: 0, opacity: 0 }}
+            animate={reduce ? { opacity: 1 } : { height: "auto", opacity: 1 }}
+            exit={reduce ? { opacity: 0 } : { height: 0, opacity: 0 }}
+            transition={{ duration: 0.34, ease: [0.16, 1, 0.3, 1] }}
+            style={{ overflow: "hidden" }}
+          >
+            <div style={{ paddingBottom: 8 }}>{children}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

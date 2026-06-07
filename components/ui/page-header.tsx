@@ -3,6 +3,7 @@ import { Container } from "./container";
 import { Eyebrow } from "./eyebrow";
 import { Reveal } from "./reveal";
 import { HeroCarousel } from "./hero-carousel";
+import { ParticleField } from "./particle-field";
 import { Breadcrumb, type Crumb } from "./breadcrumb";
 import { heroPosition } from "@/lib/hero-images";
 
@@ -168,6 +169,14 @@ function HeroHeader({
           WebkitMaskImage:
             "radial-gradient(120% 140% at 100% 0%, #000, transparent 60%)",
         }}
+      />
+      {/* Floating dots over the teal overlay (left), fading out before the
+          photo (right). Subtle + reduced-motion aware. */}
+      <ParticleField
+        fade="left"
+        density={0.00019}
+        maxOpacity={0.5}
+        speed={0.16}
       />
       <Container style={{ position: "relative", width: "100%" }}>
         <Reveal>

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useLocale } from "next-intl";
+import { motion, useReducedMotion } from "framer-motion";
 import { Link } from "@/i18n/navigation";
 import { Arrow } from "@/components/ui";
 import { Cascade, type CascadeNode } from "@/components/layout/cascade/cascade";
@@ -41,6 +42,7 @@ export function ProductsMega({
   onNavigate?: () => void;
 }) {
   const locale = useLocale();
+  const reduce = useReducedMotion();
   const [active, setActive] = useState(0);
   const division = divisions[active] ?? divisions[0];
   const isSystems = division?.key === "systems";
@@ -162,23 +164,36 @@ export function ProductsMega({
               onClick={onNavigate}
               className="mega-card"
               style={{
+                position: "relative",
                 display: "flex",
                 flexDirection: "column",
                 gap: 4,
                 padding: "13px 14px",
                 borderRadius: "var(--r-lg)",
                 textDecoration: "none",
-                background: activeCard
-                  ? "linear-gradient(90deg, rgba(28,184,186,0.22), rgba(28,184,186,0) 85%)"
-                  : "transparent",
-                boxShadow: activeCard
-                  ? "inset 2px 0 0 var(--teal-300)"
-                  : "none",
-                transition: "background 160ms",
+                background: "transparent",
               }}
             >
+              {activeCard && (
+                <motion.span
+                  layoutId={reduce ? undefined : "products-division-hl"}
+                  aria-hidden
+                  transition={{ type: "spring", stiffness: 440, damping: 36 }}
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    borderRadius: "var(--r-lg)",
+                    background:
+                      "linear-gradient(90deg, rgba(28,184,186,0.22), rgba(28,184,186,0) 85%)",
+                    boxShadow: "inset 2px 0 0 var(--teal-300)",
+                    zIndex: 0,
+                  }}
+                />
+              )}
               <span
                 style={{
+                  position: "relative",
+                  zIndex: 1,
                   fontFamily: "var(--font-mono)",
                   fontSize: 10,
                   letterSpacing: ".14em",
@@ -190,6 +205,8 @@ export function ProductsMega({
               </span>
               <span
                 style={{
+                  position: "relative",
+                  zIndex: 1,
                   display: "flex",
                   alignItems: "center",
                   gap: 6,
@@ -204,6 +221,8 @@ export function ProductsMega({
               </span>
               <span
                 style={{
+                  position: "relative",
+                  zIndex: 1,
                   fontSize: 12,
                   lineHeight: 1.5,
                   color: "var(--color-text-muted)",

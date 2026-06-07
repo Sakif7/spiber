@@ -49,6 +49,18 @@ export const MARKETPLACE_HUB_IMAGES = [
   "/iv-infusion-pump-bedside.jpeg",
 ];
 
+/**
+ * About / "Who We Are" hero carousel — human-centred brand imagery.
+ * TODO: swap these /public placeholders for real Spiber Med photography
+ * (clinicians, facility, team) once the client supplies final assets.
+ */
+export const ABOUT_HERO_IMAGES = [
+  "/doctor-intern.png",
+  // "/doctor-and-nurse-reviewing-xray-with-patient.jpeg",
+  // "/diverse-medical-team-cheering.jpeg",
+  // "/nurse-holding-patient-hand-reassurance.jpeg",
+];
+
 /** Hero photo for an Instruments category (falls back to the hub image). */
 export function instrumentsHero(slug?: string): string {
   return (slug && INSTRUMENTS_BY_SLUG[slug]) || HERO.instrumentsHub;
@@ -96,6 +108,10 @@ const POSITIONS: Record<string, string> = {
   "/smiling-medical-team-portrait.jpeg": "center 25%",
   "/cpr-training-manikin-with-aed.jpeg": "center 35%",
   "/cherry-blossom-tree-lined-road.jpeg": "center 40%",
+  // About hero carousel
+  // "/doctor-and-nurse-reviewing-xray-with-patient.jpeg": "center 30%",
+  // "/nurse-holding-patient-hand-reassurance.jpeg": "center 35%",
+  "/doctor-intern.png": "center 20%",
 };
 
 /** CSS object-position for a hero image (see POSITIONS above). */

@@ -7,6 +7,7 @@ import {
   useScroll,
   useMotionValueEvent,
 } from "framer-motion";
+import { usePathname } from "@/i18n/navigation";
 import { cn } from "@/lib/cn";
 
 /* ───────────────────────────────────────────────────────────────────────────
@@ -219,6 +220,16 @@ export const NavItems = ({
   onTriggerRef,
 }: NavItemsProps) => {
   const [hovered, setHovered] = useState<number | null>(null);
+  const pathname = usePathname();
+  const isActive = (link: string) =>
+    link !== "#" &&
+    (link === "/"
+      ? pathname === "/"
+      : pathname === link || pathname.startsWith(link + "/"));
+  const activeIdx = items.findIndex((it) => isActive(it.link));
+  // The underline rests on the active route; on hover it slides to the hovered
+  // item (shared layout), then glides back to the active item on mouse-leave.
+  const indicatorIdx = hovered ?? (activeIdx >= 0 ? activeIdx : null);
 
   return (
     <motion.div
@@ -267,6 +278,24 @@ export const NavItems = ({
                 transition={{ type: "spring", stiffness: 380, damping: 32 }}
                 className="absolute inset-0 h-full w-full rounded-full"
                 style={{ background: "var(--nav-hover-pill, var(--teal-50))" }}
+              />
+            )}
+            {indicatorIdx === idx && (
+              <motion.span
+                layoutId="nav-underline"
+                aria-hidden
+                transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                className="absolute"
+                style={{
+                  left: 12,
+                  right: 12,
+                  bottom: 5,
+                  height: 2,
+                  borderRadius: 2,
+                  zIndex: 10,
+                  background:
+                    "linear-gradient(90deg, var(--teal-300), var(--aqua-400))",
+                }}
               />
             )}
             <span

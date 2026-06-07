@@ -1,9 +1,13 @@
-import { setRequestLocale, getTranslations } from "next-intl/server";
-import { Container } from "@/components/ui/container";
-import { PageHeader } from "@/components/ui/page-header";
-import { ContactForm } from "@/components/sections/contact-form";
+import { setRequestLocale } from "next-intl/server";
+
+import { Section, Container } from "@/components/ui";
 import { namespaceMetadata } from "@/lib/seo/metadata";
 import type { Locale } from "@/i18n/routing";
+
+import { ContactHero } from "@/components/contact/contact-hero";
+import { ContactForm } from "@/components/contact/contact-form";
+import { LocationPanel } from "@/components/contact/location-panel";
+import { QuickContact } from "@/components/contact/quick-contact";
 
 export async function generateMetadata({
   params,
@@ -21,21 +25,29 @@ export default async function ContactPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const t = await getTranslations({ locale, namespace: "pages.contact" });
-  const nav = await getTranslations({ locale, namespace: "nav" });
 
   return (
     <>
-      <PageHeader
-        title={t("title")}
-        description={t("description")}
-        breadcrumbs={[{ label: nav("home"), href: "/" }, { label: t("title") }]}
-      />
-      <section style={{ paddingBlock: "clamp(48px, 6vw, 96px)" }}>
+      <ContactHero />
+
+      <Section style={{ background: "var(--color-bg)" }}>
         <Container>
-          <ContactForm />
+          <div
+            className="equal-2col"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1.05fr 0.95fr",
+              gap: "clamp(24px, 3.5vw, 44px)",
+              alignItems: "stretch",
+            }}
+          >
+            <ContactForm />
+            <LocationPanel />
+          </div>
         </Container>
-      </section>
+      </Section>
+
+      <QuickContact />
     </>
   );
 }

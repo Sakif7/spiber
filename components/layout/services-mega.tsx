@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { Link } from "@/i18n/navigation";
 import { Arrow } from "@/components/ui";
 
@@ -28,6 +29,7 @@ export function ServicesMega({
   items: ServiceItem[];
   onNavigate: () => void;
 }) {
+  const reduce = useReducedMotion();
   const [active, setActive] = useState(0);
   const cur = items[active] ?? items[0];
   const links = cur?.links ?? [];
@@ -57,23 +59,36 @@ export function ServicesMega({
               onClick={onNavigate}
               className="mega-card"
               style={{
+                position: "relative",
                 display: "flex",
                 flexDirection: "column",
                 gap: 4,
                 padding: "13px 14px",
                 borderRadius: "var(--r-lg)",
                 textDecoration: "none",
-                background: activeCard
-                  ? "linear-gradient(90deg, rgba(236,125,63,0.22), rgba(236,125,63,0) 85%)"
-                  : "transparent",
-                boxShadow: activeCard
-                  ? "inset 2px 0 0 var(--orange-400)"
-                  : "none",
-                transition: "background 160ms",
+                background: "transparent",
               }}
             >
+              {activeCard && (
+                <motion.span
+                  layoutId={reduce ? undefined : "services-card-hl"}
+                  aria-hidden
+                  transition={{ type: "spring", stiffness: 440, damping: 36 }}
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    borderRadius: "var(--r-lg)",
+                    background:
+                      "linear-gradient(90deg, rgba(236,125,63,0.22), rgba(236,125,63,0) 85%)",
+                    boxShadow: "inset 2px 0 0 var(--orange-400)",
+                    zIndex: 0,
+                  }}
+                />
+              )}
               <span
                 style={{
+                  position: "relative",
+                  zIndex: 1,
                   fontFamily: "var(--font-mono)",
                   fontSize: 10,
                   letterSpacing: ".14em",
@@ -85,6 +100,8 @@ export function ServicesMega({
               </span>
               <span
                 style={{
+                  position: "relative",
+                  zIndex: 1,
                   display: "flex",
                   alignItems: "center",
                   gap: 6,
@@ -99,6 +116,8 @@ export function ServicesMega({
               </span>
               <span
                 style={{
+                  position: "relative",
+                  zIndex: 1,
                   fontSize: 12,
                   lineHeight: 1.5,
                   color: "var(--color-text-muted)",

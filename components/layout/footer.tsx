@@ -277,8 +277,6 @@ export function Footer() {
                 info@spibermed.com
                 <br />
                 sales@spibermed.com
-                <br />
-                inquiry@spibermed.com
               </div>
             </div>
           </div>

@@ -1,7 +1,15 @@
-import { setRequestLocale } from "next-intl/server";
-import { ProsePage } from "@/components/ui/prose-page";
+import { getTranslations, setRequestLocale } from "next-intl/server";
+
+import { PageHeader } from "@/components/ui";
+import { ABOUT_HERO_IMAGES } from "@/lib/hero-images";
 import { namespaceMetadata } from "@/lib/seo/metadata";
 import type { Locale } from "@/i18n/routing";
+
+import { AboutPassion } from "@/components/about/passion";
+import { AboutStats } from "@/components/about/stats";
+import { AboutEncounter } from "@/components/about/encounter";
+import { AboutMessage } from "@/components/about/message";
+import { AboutCta } from "@/components/about/cta";
 
 export async function generateMetadata({
   params,
@@ -19,5 +27,27 @@ export default async function AboutPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  return <ProsePage locale={locale as Locale} namespace="pages.about" />;
+
+  const t = await getTranslations({ locale, namespace: "about.hero" });
+  const nav = await getTranslations({ locale, namespace: "nav" });
+
+  return (
+    <>
+      <PageHeader
+        title={t("title")}
+        description={t("description")}
+        images={ABOUT_HERO_IMAGES}
+        imageAlt={t("title")}
+        breadcrumbs={[
+          { label: nav("home"), href: "/" },
+          { label: t("breadcrumb") },
+        ]}
+      />
+      <AboutPassion />
+      <AboutStats />
+      <AboutEncounter />
+      <AboutMessage />
+      <AboutCta />
+    </>
+  );
 }

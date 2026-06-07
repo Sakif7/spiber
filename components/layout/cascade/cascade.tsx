@@ -329,9 +329,9 @@ function ColumnView({
     <motion.div
       ref={colRef as React.Ref<HTMLDivElement>}
       className="mega-col mega-scroll"
-      initial={{ opacity: 0, x: -6 }}
+      initial={{ opacity: 0, x: -12 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
       style={style}
     >
       {inner}
@@ -360,11 +360,43 @@ function List({
   onRowClick: (node: CascadeNode) => void;
   onNavigate?: () => void;
 }) {
+  const reduce = useReducedMotion();
+  const [hov, setHov] = useState<number | null>(null);
+  // The selection highlight follows the cursor; when the pointer leaves the
+  // column it rests on the open (expanded) row.
+  const activeIdx = nodes.findIndex((n) => n.id === openId);
+  const selIdx = hov ?? (activeIdx >= 0 ? activeIdx : null);
+
+  const highlightFor = (idx: number) =>
+    selIdx === idx ? (
+      <motion.span
+        layoutId={reduce ? undefined : `mega-hl-${ci}`}
+        aria-hidden
+        transition={{ type: "spring", stiffness: 440, damping: 36 }}
+        style={{
+          position: "absolute",
+          inset: 0,
+          borderRadius: "var(--r-md)",
+          background:
+            "linear-gradient(90deg, rgba(28,184,186,0.20), rgba(28,184,186,0) 86%)",
+          boxShadow: "inset 2px 0 0 var(--teal-300)",
+          zIndex: 0,
+        }}
+      />
+    ) : null;
+
+  const labelFor = (label: string) => (
+    <span style={{ position: "relative", zIndex: 1, minWidth: 0, ...ellipsis }}>
+      {label}
+    </span>
+  );
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
       {nodes.map((node, idx) => {
         const showGroup = !!node.group && node.group !== nodes[idx - 1]?.group;
-        const active = openId === node.id;
+        const open = openId === node.id;
+        const isSel = selIdx === idx;
         const isBranch = !!node.loadChildren;
         const key = `${ci}:${idx}`;
         const tab = focusedKey === key ? 0 : -1;
@@ -374,22 +406,34 @@ function List({
             data-cascade-item
             role="menuitem"
             aria-haspopup="true"
-            aria-expanded={active}
+            aria-expanded={open}
             tabIndex={tab}
             ref={(el) => registerItem(idx, el)}
             className="mega-row"
-            onMouseEnter={() => onRowEnter(node, ci)}
-            onMouseLeave={onRowLeave}
-            onFocus={() => onRowEnter(node, ci)}
+            onMouseEnter={() => {
+              setHov(idx);
+              onRowEnter(node, ci);
+            }}
+            onMouseLeave={() => {
+              setHov(null);
+              onRowLeave();
+            }}
+            onFocus={() => {
+              setHov(idx);
+              onRowEnter(node, ci);
+            }}
             onClick={() => onRowClick(node)}
-            style={rowStyle(active)}
+            style={rowStyle(isSel)}
           >
-            <span style={{ minWidth: 0, ...ellipsis }}>{node.label}</span>
+            {highlightFor(idx)}
+            {labelFor(node.label)}
             <span
               className="mega-chevron"
               aria-hidden
               style={{
-                color: active ? "var(--teal-300)" : "var(--color-text-muted)",
+                position: "relative",
+                zIndex: 1,
+                color: open ? "var(--teal-300)" : "var(--color-text-muted)",
                 display: "inline-flex",
               }}
             >
@@ -404,10 +448,14 @@ function List({
             tabIndex={tab}
             ref={(el) => registerItem(idx, el as unknown as HTMLElement)}
             className="mega-row"
+            onMouseEnter={() => setHov(idx)}
+            onMouseLeave={() => setHov(null)}
+            onFocus={() => setHov(idx)}
             onClick={onNavigate}
-            style={{ ...rowStyle(active), textDecoration: "none" }}
+            style={{ ...rowStyle(isSel), textDecoration: "none" }}
           >
-            <span style={{ minWidth: 0, ...ellipsis }}>{node.label}</span>
+            {highlightFor(idx)}
+            {labelFor(node.label)}
           </Link>
         );
         return (
@@ -552,8 +600,9 @@ function Skeleton({ rows }: { rows: number }) {
   );
 }
 
-function rowStyle(active: boolean): React.CSSProperties {
+function rowStyle(selected: boolean): React.CSSProperties {
   return {
+    position: "relative",
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
@@ -567,14 +616,9 @@ function rowStyle(active: boolean): React.CSSProperties {
     fontFamily: "inherit",
     fontSize: 13,
     lineHeight: 1.3,
-    color: active ? "var(--color-text-strong)" : "var(--color-text)",
-    // Left-anchored highlight that fades out to the right — a crisp left marker
-    // with NO visible right edge (reads as a row highlight, not a bordered box).
-    background: active
-      ? "linear-gradient(90deg, rgba(28,184,186,0.22), rgba(28,184,186,0) 85%)"
-      : "transparent",
-    boxShadow: active ? "inset 2px 0 0 var(--teal-300)" : "none",
-    transition: "background 140ms",
+    background: "transparent", // the sliding highlight (mega-hl) provides the wash
+    color: selected ? "var(--color-text-strong)" : "var(--color-text)",
+    transition: "color 160ms",
   };
 }
 

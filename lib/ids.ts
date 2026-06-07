@@ -27,6 +27,8 @@ export const softwarePurchaseNumber = (): string => makeId("SPM-SW");
 export const licenseKey = (): string => makeId("SPM-LIC", 8);
 /** SPM-INQ-… — a lead/inquiry reference. */
 export const inquiryNumber = (): string => makeId("SPM-INQ");
+/** SPM-MSG-… — a contact-form message reference. */
+export const contactMessageNumber = (): string => makeId("SPM-MSG");
 /** SPM-TASK-… — a provisioning-task reference. */
 export const provisioningTaskRef = (): string => makeId("SPM-TASK");
 /** SPM-RFQ-… — an instruments quotation (request-for-quote) reference. */
