@@ -60,7 +60,8 @@
     "tourism": "Tourism",
     "consulting": "Consulting",
     "blog": "Blog",
-    "marketplace": "Marketplace"
+    "marketplace": "Marketplace",
+    "company": "Company"
   },
   "localeSwitcher": {
     "label": "Language",
@@ -142,6 +143,26 @@
       "title": "Refund & Shipping Policy",
       "description": "Our shipping methods, timelines, and refund process.",
       "body": "This page describes our shipping and refund processes. Detailed policies will be published here ahead of store launch."
+    },
+    "corporatePhilosophy": {
+      "title": "Corporate Philosophy",
+      "description": "The philosophy, vision, mission, motto, and core values that guide every decision at Spiber Med."
+    },
+    "vision2040": {
+      "title": "Design the Future: Long-Term Vision Toward 2040",
+      "description": "Spiber Med's long-term vision — entering a new era of data-powered, human-centred healthcare on the road to 2040."
+    },
+    "career": {
+      "title": "Career at Spiber Med",
+      "description": "Build a healthier future with us. Explore open roles across medical devices, digital health, training, and more."
+    },
+    "gallery": {
+      "title": "Gallery",
+      "description": "Moments from our projects, installations, training, and milestones across Spiber Med."
+    },
+    "events": {
+      "title": "Events",
+      "description": "Conferences, workshops, and announcements from across Spiber Med."
     }
   },
   "about": {
@@ -206,6 +227,328 @@
       "description": "Let’s work together to create smarter, safer, and more sustainable healthcare — today and tomorrow.",
       "contact": "Contact Us",
       "quote": "Request a Quote"
+    }
+  },
+  "philosophy": {
+    "hero": {
+      "breadcrumb": "Corporate Philosophy",
+      "title": "Trust, Built Into Everything We Do",
+      "description": "Earning the respect of our clients, investors, associates, and community — through excellent products, services, technology, and people."
+    },
+    "intro": {
+      "eyebrow": "Our Management Philosophy",
+      "title": "A Business Worthy of Trust",
+      "body": "Establishing trust and developing a business that is respected by its clients, investors, associates, and the community — for its excellent goods, services, technologies, personnel, and financial standing — are the core objectives of our management philosophy.",
+      "imageAlt": "A Spiber Med clinician in a modern healthcare facility"
+    },
+    "pillars": {
+      "eyebrow": "What Guides Us",
+      "title": "Vision, Mission & Motto",
+      "items": [
+        {
+          "key": "vision",
+          "label": "Vision",
+          "body": "Improved medical care for everyone through science and technology — and the professional development of healthcare providers."
+        },
+        {
+          "key": "mission",
+          "label": "Mission",
+          "body": "Providing cutting-edge medical technologies and professional development to make healthcare more safe and accessible."
+        },
+        {
+          "key": "motto",
+          "label": "Motto",
+          "body": "Our ethical commitment is to deliver cordial, dependable service to every client."
+        }
+      ]
+    },
+    "values": {
+      "eyebrow": "Core Values",
+      "title": "The Values We Live By",
+      "body": "Spiber Med has set its core values in line with its long-term vision, Design the Future 2040. These values are shared across the company and strengthen our global connections — guiding us as we put our management philosophy into practice.",
+      "items": [
+        {
+          "key": "integrity",
+          "name": "Integrity",
+          "body": "Doing what is right, even when no one is watching."
+        },
+        {
+          "key": "respect",
+          "name": "Respect",
+          "body": "Valuing every client, colleague, and community we serve."
+        },
+        {
+          "key": "diversity",
+          "name": "Diversity",
+          "body": "Drawing strength from different people and perspectives."
+        },
+        {
+          "key": "creativity",
+          "name": "Creativity",
+          "body": "Solving hard problems with fresh, practical thinking."
+        },
+        {
+          "key": "customerCentric",
+          "name": "Customer Centric",
+          "body": "Putting the needs of patients and clients first."
+        },
+        {
+          "key": "commitment",
+          "name": "Commitment",
+          "body": "Standing behind our work for the long run."
+        },
+        {
+          "key": "empowerment",
+          "name": "Empowerment",
+          "body": "Enabling people and institutions to do more, better."
+        }
+      ]
+    },
+    "cta": {
+      "title": "Partner with a company you can trust",
+      "description": "From clinical-grade equipment to training and digital health, Spiber Med is built to earn — and keep — your trust.",
+      "primary": "Get in touch",
+      "secondary": "Explore our vision"
+    }
+  },
+  "vision2040": {
+    "hero": {
+      "breadcrumb": "Design the Future 2040",
+      "title": "Design the Future: Long-Term Vision Toward 2040",
+      "description": "Entering a new era of data-powered, human-centred healthcare — shaping the way forward for people and care in a constantly changing medical environment."
+    },
+    "intro": {
+      "eyebrow": "A Significant Transition",
+      "title": "Shaping the Future of Healthcare",
+      "paragraphs": [
+        "Spiber Med is about to undergo a significant transition. We are entering a new era in the use of cutting-edge technology to combat illness and promote health. The Sustainable Development Goals (SDGs) were created to address social problems that extend beyond national boundaries.",
+        "There are numerous problems with healthcare today — including disparities in access to primary care, ageing populations and rising medical costs in developed nations, and insufficient primary care in developing nations.",
+        "With cutting-edge digital technology powered by data, and our core competency in human-machine interface technology, Spiber Med will be able to provide innovative solutions that fulfil the ideal care cycle for every patient.",
+        "There is also a significant scarcity of appropriately skilled healthcare professionals in Bangladesh. Our aim is to properly develop their skills and arrange better employment — both nationally and internationally.",
+        "Guided by the principles we have maintained since our founding, we will work to become the designer that frames the way forward for people and healthcare — in a medical environment that is always changing.",
+        "With a great deal of passion, we have developed our long-term vision: Design the Future, 2040."
+      ],
+      "pullquote": "Design the Future, 2040"
+    },
+    "compass": {
+      "eyebrow": "Value Creation Compass",
+      "title": "Our New Value Creation Model",
+      "body": "In collaboration with international partners, Spiber Med will provide cutting-edge technology and meaningful medical and surgical solutions that address problems at clinical sites. As we move closer to 2040, our new value-creation model is called the Value Creation Compass.",
+      "items": [
+        {
+          "key": "outcomes",
+          "title": "Patient Outcomes & Healthcare Costs",
+          "body": "We add value to healthcare by addressing global issues related to improving patient outcomes and the financial viability of medical care."
+        },
+        {
+          "key": "remedies",
+          "title": "Appropriate Remedies for Every Illness & Location",
+          "body": "We offer every patient the best possible care-cycle solution — including home care, diagnosis, and treatment."
+        },
+        {
+          "key": "equipment",
+          "title": "Medical Equipment & Cutting-Edge Technology",
+          "body": "We deal in cutting-edge, technology-based medical and surgical equipment, crucial for patient interaction at every stage of the clinical process."
+        },
+        {
+          "key": "data",
+          "title": "Value from Clinical-Site Information",
+          "body": "We build a platform for data integration and innovate algorithms — combining vital signs, IoT, EMR-OPD, EMR-IPD, and HIMS data, with analytics and AI driving clinical prediction models."
+        },
+        {
+          "key": "skills",
+          "title": "Skill Development & Training",
+          "body": "We are establishing a CPD provider training platform in Bangladesh — with a highly accredited LMS and international trainers — giving young professionals access to learning resources, journals, seminars, webinars, hands-on training, and certification."
+        }
+      ]
+    },
+    "transformations": {
+      "eyebrow": "Four Transformations",
+      "title": "Our Company-Wide Management Policy",
+      "body": "Over the coming years, Spiber Med has set four transformations to be implemented as a company-wide management policy.",
+      "items": [
+        {
+          "title": "Become a Multinational Business Hub with Significant Added Value",
+          "body": "Encourage international business plans that prioritise rapid expansion and profitability, create complex value propositions, foster new domestic business sectors, and use our global network to develop new business models."
+        },
+        {
+          "title": "A Solution Company That Offers Outstanding Value",
+          "body": "Develop business plans that address medical problems, and a value-creation model that leverages expertise in artificial intelligence to produce value from data and disease prediction."
+        },
+        {
+          "title": "A Multinational Company Built on Operational Excellence",
+          "body": "Create governance and an organisational structure consistent with our business plan, establish a global supply-chain-based development, production, and sales system, and build an Excellence Centre to deploy global business."
+        },
+        {
+          "title": "A 360° Advanced Centre of Excellence for Skill Development & Training",
+          "body": "Keep patients in good health and safety, ensure Training-of-Trainers (TOT) programmes, and create a centre of excellence for doctors, nurses, technicians, and administrators."
+        }
+      ]
+    },
+    "cta": {
+      "title": "Build the future of healthcare with us",
+      "description": "Whether you’re a hospital, a clinician, or a partner, there’s a place for you in our vision for 2040.",
+      "primary": "Contact us",
+      "secondary": "Explore careers"
+    }
+  },
+  "gallery": {
+    "hero": {
+      "breadcrumb": "Gallery",
+      "title": "Gallery",
+      "description": "Moments from our projects, installations, training sessions, and milestones across Spiber Med."
+    },
+    "empty": {
+      "title": "Gallery coming soon",
+      "description": "We're putting together photos from our work and events. Check back shortly."
+    },
+    "albumEmpty": {
+      "title": "No photos yet",
+      "description": "This album doesn't have any photos yet — please check back soon."
+    },
+    "photos": "{count, plural, =1 {# photo} other {# photos}}",
+    "albums": "{count, plural, =0 {No albums} =1 {# album} other {# albums}}",
+    "viewAlbum": "View album",
+    "back": "Back to gallery",
+    "searchPlaceholder": "Search albums…",
+    "search": "Search albums",
+    "close": "Close",
+    "prev": "Previous photo",
+    "next": "Next photo"
+  },
+  "events": {
+    "hero": {
+      "breadcrumb": "Events",
+      "title": "Events",
+      "description": "Conferences, workshops, training sessions, and announcements from across Spiber Med."
+    },
+    "empty": {
+      "title": "Events coming soon",
+      "description": "We're planning our next conferences and workshops. Check back shortly."
+    },
+    "upcoming": "Upcoming events",
+    "past": "Past events",
+    "noUpcoming": "No upcoming events right now — check back soon.",
+    "register": "Register",
+    "learnMore": "Learn more",
+    "back": "Back to events",
+    "when": "When",
+    "where": "Where",
+    "about": "About this event",
+    "searchPlaceholder": "Search events…",
+    "search": "Search events",
+    "upcomingBadge": "Upcoming",
+    "pastBadge": "Past"
+  },
+  "career": {
+    "hero": {
+      "breadcrumb": "Career",
+      "title": "Build a Healthier Future With Us",
+      "description": "Join a team bringing trustworthy medical technology, training, and digital health to Bangladesh and beyond."
+    },
+    "empty": {
+      "title": "No open roles right now",
+      "description": "We don't have any openings at the moment — but we're always growing. Check back soon, or reach out to introduce yourself."
+    },
+    "openRoles": "Open positions",
+    "roles": "{count, plural, =0 {No open roles} =1 {# open role} other {# open roles}}",
+    "viewRole": "View role",
+    "apply": "Apply now",
+    "back": "Back to careers",
+    "searchPlaceholder": "Search roles…",
+    "search": "Search roles",
+    "department": "Department",
+    "location": "Location",
+    "type": "Employment type",
+    "closes": "Apply by",
+    "about": "About the role",
+    "responsibilities": "Responsibilities",
+    "requirements": "Requirements",
+    "aboutRole": "About the Role",
+    "keyResponsibilities": "Key Responsibilities",
+    "requiredQualifications": "Required Qualifications",
+    "preferredSkills": "Preferred Skills",
+    "whatWeOffer": "What We Offer",
+    "aboutCompany": "About Spiber Med",
+    "companyBlurb": "Spiber Med is a leading healthcare-solutions provider in Bangladesh, delivering innovative medical technologies and exceptional service. We partner with global brands to improve patient outcomes and empower healthcare professionals.",
+    "overview": {
+      "title": "Job Overview",
+      "department": "Department",
+      "reportsTo": "Reports To",
+      "location": "Location",
+      "employmentType": "Employment Type",
+      "experience": "Experience",
+      "vacancy": "Vacancy",
+      "deadline": "Application Deadline"
+    },
+    "vacancyCount": "{count, plural, =1 {# Position} other {# Positions}}",
+    "applyCard": {
+      "title": "Apply for this Position",
+      "body": "Submit your application and become part of our mission to advance healthcare.",
+      "cta": "Apply Now"
+    },
+    "recruiterTitle": "Contact Recruiter",
+    "hiring": {
+      "title": "Hiring Process",
+      "steps": [
+        {
+          "title": "Application Review",
+          "desc": "We review your application."
+        },
+        {
+          "title": "Initial Interview",
+          "desc": "A short call with our HR team."
+        },
+        {
+          "title": "Technical Interview",
+          "desc": "Assessment with the hiring team."
+        },
+        { "title": "Final Interview", "desc": "Discussion & offer." }
+      ]
+    },
+    "related": "Related Opportunities",
+    "viewDetails": "View Details",
+    "employmentTypes": {
+      "full_time": "Full-time",
+      "part_time": "Part-time",
+      "contract": "Contract",
+      "internship": "Internship",
+      "temporary": "Temporary"
+    },
+    "form": {
+      "title": "Apply for this role",
+      "name": "Full name",
+      "namePlaceholder": "Your full name",
+      "email": "Email",
+      "emailPlaceholder": "you@example.com",
+      "phone": "Phone",
+      "phonePlaceholder": "+880 1XXX-XXXXXX",
+      "resume": "Résumé / CV",
+      "resumeHint": "PDF, DOC, or DOCX · max 8MB",
+      "uploadCta": "Upload résumé",
+      "uploading": "Uploading…",
+      "replace": "Replace file",
+      "coverLetter": "Cover letter (optional)",
+      "coverLetterPlaceholder": "Tell us why you'd be a great fit…",
+      "submit": "Submit application",
+      "submitting": "Submitting…",
+      "secure": "Your information is kept private and used only for hiring.",
+      "success": {
+        "title": "Application received",
+        "body": "Thanks for applying — our team will review your application and get back to you.",
+        "reference": "Reference",
+        "another": "Browse more roles"
+      },
+      "errors": {
+        "name": "Please enter your name.",
+        "email": "Please enter a valid email address.",
+        "phone": "Please enter your phone number.",
+        "resume": "Please upload your résumé.",
+        "tooLarge": "That file is too large (max 8MB).",
+        "badType": "Please upload a PDF or Word document.",
+        "uploadFailed": "Résumé upload failed. Please try again.",
+        "generic": "Something went wrong. Please try again."
+      }
     }
   },
   "contact": {
@@ -861,8 +1204,24 @@
         "title": "Company",
         "links": [
           {
-            "label": "About",
-            "href": "/about"
+            "label": "About us",
+            "href": "/company/about"
+          },
+          {
+            "label": "Corporate Philosophy",
+            "href": "/company/corporate-philosophy"
+          },
+          {
+            "label": "Career",
+            "href": "/company/career"
+          },
+          {
+            "label": "Gallery",
+            "href": "/company/gallery"
+          },
+          {
+            "label": "Events",
+            "href": "/company/events"
           },
           {
             "label": "Blog",

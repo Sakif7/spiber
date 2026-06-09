@@ -62,6 +62,39 @@ export function MobileDrawers({
   );
 }
 
+/**
+ * Stand-alone Company accordion — rendered after the Blog link so the mobile
+ * order matches desktop (… Blog, Company). The six company pages are static
+ * links, so no lazy fetch.
+ */
+export function MobileCompanyDrawer({
+  items,
+  onNavigate,
+}: {
+  items: MegaItem[];
+  onNavigate: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ width: "100%" }}>
+      <Section label="Company" open={open} onToggle={() => setOpen((o) => !o)}>
+        <div>
+          {items.map((it) => (
+            <MobileLink
+              key={it.key}
+              href={it.href}
+              onNavigate={onNavigate}
+              strong
+            >
+              {it.title}
+            </MobileLink>
+          ))}
+        </div>
+      </Section>
+    </div>
+  );
+}
+
 function Section({
   label,
   open,

@@ -33,5 +33,7 @@ export const contactMessageNumber = (): string => makeId("SPM-MSG");
 export const provisioningTaskRef = (): string => makeId("SPM-TASK");
 /** SPM-RFQ-… — an instruments quotation (request-for-quote) reference. */
 export const quotationNumber = (): string => makeId("SPM-RFQ");
+/** SPM-APP-… — a job-application reference. */
+export const jobApplicationNumber = (): string => makeId("SPM-APP");
 /** VAR-… — a stable product-variant id (referenced by cart/order/inventory). */
 export const variantId = (): string => makeId("VAR", 6);

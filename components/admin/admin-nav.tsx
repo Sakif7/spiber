@@ -25,6 +25,9 @@ import {
   FileText,
   Image as ImageIcon,
   Trash2,
+  CalendarDays,
+  Briefcase,
+  Mailbox,
   type LucideIcon,
 } from "lucide-react";
 import styles from "./admin.module.css";
@@ -89,6 +92,19 @@ const GROUPS: NavGroup[] = [
     items: [
       { href: "/admin/blog/posts", label: "Posts", icon: Newspaper },
       { href: "/admin/blog/taxonomy", label: "Taxonomy", icon: Tags },
+    ],
+  },
+  {
+    label: "Company",
+    items: [
+      { href: "/admin/gallery", label: "Gallery", icon: ImageIcon },
+      { href: "/admin/events", label: "Events", icon: CalendarDays },
+      { href: "/admin/career", label: "Jobs", icon: Briefcase },
+      {
+        href: "/admin/career/applications",
+        label: "Applications",
+        icon: Mailbox,
+      },
     ],
   },
   {

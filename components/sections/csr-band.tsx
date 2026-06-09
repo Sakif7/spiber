@@ -303,7 +303,7 @@ export function CSRBand() {
               {t("commitmentLabel")}
             </div>
             <MotionLink
-              href="/about"
+              href="/company/about"
               whileHover={{ x: 4 }}
               transition={{ type: "spring", stiffness: 380, damping: 26 }}
               style={{

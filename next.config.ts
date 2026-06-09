@@ -78,6 +78,17 @@ const nextConfig: NextConfig = {
         destination: "/digihealth/:path*",
         permanent: true,
       },
+      // Company section 2026: /about moved under the Company group.
+      {
+        source: "/:locale(en|bn)/about",
+        destination: "/:locale/company/about",
+        permanent: true,
+      },
+      {
+        source: "/about",
+        destination: "/company/about",
+        permanent: true,
+      },
     ];
   },
 };

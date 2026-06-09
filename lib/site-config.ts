@@ -24,7 +24,12 @@ export type DivisionKey = (typeof divisions)[number]["key"];
 /** Public, indexable top-level routes (used by nav, footer, and sitemap). */
 export const publicRoutes = [
   "/",
-  "/about",
+  "/company/about",
+  "/company/corporate-philosophy",
+  "/company/vision-2040",
+  "/company/career",
+  "/company/gallery",
+  "/company/events",
   "/contact",
   "/marketplace",
   "/medtrade",

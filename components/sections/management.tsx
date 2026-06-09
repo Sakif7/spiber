@@ -91,7 +91,7 @@ export function Management() {
     bio: members[i].bio,
     socials: members[i].socials.map((s, j) => ({
       label: s.label,
-      href: "/about",
+      href: "/company/about",
       icon: SOCIAL_ICONS[j],
     })),
   }));
@@ -116,7 +116,7 @@ export function Management() {
           />
           <Reveal delay={200} style={{ alignSelf: "end" }}>
             <Link
-              href="/about"
+              href="/company/about"
               style={{
                 alignSelf: "end",
                 justifySelf: "end",

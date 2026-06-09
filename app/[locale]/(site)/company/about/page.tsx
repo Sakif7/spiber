@@ -17,7 +17,7 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  return namespaceMetadata(locale as Locale, "pages.about", "/about");
+  return namespaceMetadata(locale as Locale, "pages.about", "/company/about");
 }
 
 export default async function AboutPage({
@@ -40,6 +40,7 @@ export default async function AboutPage({
         imageAlt={t("title")}
         breadcrumbs={[
           { label: nav("home"), href: "/" },
+          { label: nav("company") },
           { label: t("breadcrumb") },
         ]}
       />

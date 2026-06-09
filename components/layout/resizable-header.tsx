@@ -10,7 +10,11 @@ import { UserMenu } from "@/components/layout/user-menu";
 import { ProductsMega } from "@/components/layout/products-mega";
 import { ServicesMega } from "@/components/layout/services-mega";
 import { MarketplaceMega } from "@/components/layout/marketplace-mega";
-import { MobileDrawers } from "@/components/layout/mobile-drawers";
+import { CompanyMega } from "@/components/layout/company-mega";
+import {
+  MobileDrawers,
+  MobileCompanyDrawer,
+} from "@/components/layout/mobile-drawers";
 import { useSession } from "@/components/auth/use-session";
 import { useAuthModal } from "@/components/auth/auth-modal";
 import {
@@ -44,6 +48,7 @@ const NAV_DRAWERS = new Set([
   "Marketplace",
   "Products & Solutions",
   "Services",
+  "Company",
 ]);
 
 const MotionLink = motion.create(Link);
@@ -54,7 +59,7 @@ const NAV_ITEMS = [
   { name: "Products & Solutions", link: "#" },
   { name: "Services", link: "#" },
   { name: "Blog", link: "/blog" },
-  { name: "About", link: "/about" },
+  { name: "Company", link: "#" },
 ];
 
 // Two-tone division scheme: products are teal, services are orange.
@@ -125,6 +130,56 @@ const MEGA_MENUS: Record<string, MegaItem[]> = {
         { label: "Our services", href: "/consulting" },
         { label: "Book a consultation", href: "/contact" },
       ],
+    },
+  ],
+  Company: [
+    {
+      key: "about",
+      kicker: "Who we are",
+      title: "About us",
+      desc: "Our story, mission, and the leadership team behind Spiber Med.",
+      href: "/company/about",
+      tone: "teal",
+    },
+    {
+      key: "philosophy",
+      kicker: "What drives us",
+      title: "Corporate Philosophy",
+      desc: "The vision, mission, motto, and core values that guide every decision we make.",
+      href: "/company/corporate-philosophy",
+      tone: "teal",
+    },
+    {
+      key: "vision",
+      kicker: "Long-term vision",
+      title: "Design the Future 2040",
+      desc: "How we’re reshaping healthcare in Bangladesh and beyond on the road to 2040.",
+      href: "/company/vision-2040",
+      tone: "teal",
+    },
+    {
+      key: "career",
+      kicker: "Join the team",
+      title: "Career",
+      desc: "Open roles and what it’s like to build a healthier future with us.",
+      href: "/company/career",
+      tone: "teal",
+    },
+    {
+      key: "gallery",
+      kicker: "In pictures",
+      title: "Gallery",
+      desc: "Moments from our projects, installations, training, and milestones.",
+      href: "/company/gallery",
+      tone: "teal",
+    },
+    {
+      key: "events",
+      kicker: "What’s on",
+      title: "Events",
+      desc: "Conferences, workshops, and announcements from across Spiber Med.",
+      href: "/company/events",
+      tone: "teal",
     },
   ],
 };
@@ -249,9 +304,10 @@ export function ResizableHeader() {
           <MobileLink href="/blog" onClick={() => setOpen(false)}>
             Blog
           </MobileLink>
-          <MobileLink href="/about" onClick={() => setOpen(false)}>
-            About
-          </MobileLink>
+          <MobileCompanyDrawer
+            items={MEGA_MENUS.Company}
+            onNavigate={() => setOpen(false)}
+          />
           <div
             style={{ display: "flex", gap: 10, marginTop: 14, width: "100%" }}
           >
@@ -368,9 +424,12 @@ function MegaMenu({
   const panelRef = useRef<HTMLDivElement>(null);
   const isProducts = open === "Products & Solutions";
   const isMarketplace = open === "Marketplace";
+  const isCompany = open === "Company";
   const services =
-    open && !isProducts && !isMarketplace ? MEGA_MENUS[open] : null;
-  const show = isProducts || isMarketplace || !!services;
+    open && !isProducts && !isMarketplace && !isCompany
+      ? MEGA_MENUS[open]
+      : null;
+  const show = isProducts || isMarketplace || isCompany || !!services;
 
   // Shared positioning for EVERY drawer: anchor the panel's left edge under its
   // own trigger and extend right; if it would overflow the right edge, shift it
@@ -458,6 +517,8 @@ function MegaMenu({
               />
             ) : isMarketplace ? (
               <MarketplaceMega onNavigate={onNavigate} />
+            ) : isCompany ? (
+              <CompanyMega items={MEGA_MENUS.Company} onNavigate={onNavigate} />
             ) : (
               services && (
                 <ServicesMega items={services} onNavigate={onNavigate} />
