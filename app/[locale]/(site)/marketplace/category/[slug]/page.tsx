@@ -147,7 +147,6 @@ export default async function MarketplaceCategory({
           <MarketplaceProductListing
             locale={l}
             basePath={`/marketplace/category/${slug}`}
-            formAction={`/${locale}/marketplace/category/${slug}`}
             sp={spFlat}
             result={result}
             brands={brands}

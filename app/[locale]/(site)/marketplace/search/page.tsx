@@ -125,7 +125,6 @@ export default async function MarketplaceSearch({
           <MarketplaceProductListing
             locale={l}
             basePath="/marketplace/search"
-            formAction={`/${locale}/marketplace/search`}
             sp={spFlat}
             result={result}
             brands={brands}

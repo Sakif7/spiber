@@ -3,6 +3,7 @@ import { Container } from "@/components/ui/container";
 import { PageHeader } from "@/components/ui/page-header";
 import { ComingSoon } from "@/components/ui/coming-soon";
 import { CardGrid } from "@/components/ui/card-grid";
+import { LiveSearch } from "@/components/ui/live-search";
 import { Link } from "@/i18n/navigation";
 import { Filters } from "@/components/shop/filters";
 import { ProductCard } from "@/components/shop/product-card";
@@ -219,60 +220,11 @@ export default async function InstrumentsHub({
                   gap: "var(--s-5)",
                 }}
               >
-                {/* Prominent search */}
-                <form
-                  action={`/${locale}/medtrade`}
-                  method="get"
-                  role="search"
-                  style={{ display: "flex", gap: 8 }}
-                >
-                  <input
-                    type="search"
-                    name="q"
-                    defaultValue={str(sp.q) ?? ""}
-                    placeholder={t("listing.searchPlaceholder")}
-                    aria-label={t("listing.search")}
-                    style={{
-                      flex: 1,
-                      height: 46,
-                      padding: "0 16px",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: "var(--r-pill)",
-                      background: "var(--color-surface)",
-                      font: "inherit",
-                    }}
-                  />
-                  {str(sp.brand) && (
-                    <input type="hidden" name="brand" value={str(sp.brand)} />
-                  )}
-                  {str(sp.min) && (
-                    <input type="hidden" name="min" value={str(sp.min)} />
-                  )}
-                  {str(sp.max) && (
-                    <input type="hidden" name="max" value={str(sp.max)} />
-                  )}
-                  {sp.inStock === "1" && (
-                    <input type="hidden" name="inStock" value="1" />
-                  )}
-                  {str(sp.sort) && (
-                    <input type="hidden" name="sort" value={str(sp.sort)} />
-                  )}
-                  <button
-                    type="submit"
-                    style={{
-                      height: 46,
-                      padding: "0 22px",
-                      borderRadius: "var(--r-pill)",
-                      background: "var(--color-brand)",
-                      color: "#fff",
-                      border: 0,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                    }}
-                  >
-                    {t("listing.search")}
-                  </button>
-                </form>
+                {/* Prominent search — debounced live, no submit needed */}
+                <LiveSearch
+                  placeholder={t("listing.searchPlaceholder")}
+                  ariaLabel={t("listing.search")}
+                />
 
                 <div
                   style={{

@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
 import { startRouteOverlay } from "@/components/layout/route-transition-overlay";
+import { useDebouncedCallback } from "@/lib/use-debounced-callback";
 
 export function CourseFilters() {
   const t = useTranslations("academy.filters");
@@ -21,26 +22,44 @@ export function CourseFilters() {
 
   // Navigate only when the target URL actually differs from the current one. A
   // no-op push never commits, which would otherwise strand the route overlay.
-  function navIfChanged(targetSearch: string) {
+  function navIfChanged(
+    targetSearch: string,
+    opts: { overlay?: boolean; replace?: boolean } = {},
+  ) {
+    const { overlay = true, replace = false } = opts;
     const canon = (s: string) => {
       const u = new URLSearchParams(s);
       u.sort();
       return u.toString();
     };
     if (canon(targetSearch) === canon(sp.toString())) return;
-    startRouteOverlay();
-    router.push(targetSearch ? `${pathname}?${targetSearch}` : pathname);
+    if (overlay) startRouteOverlay();
+    const url = targetSearch ? `${pathname}?${targetSearch}` : pathname;
+    if (replace) router.replace(url);
+    else router.push(url);
   }
 
-  function apply() {
+  // Build the query string from the current control state.
+  function buildParams() {
     const p = new URLSearchParams();
     if (search) p.set("q", search);
     if (level) p.set("level", level);
     if (min) p.set("min", min);
     if (max) p.set("max", max);
     if (sort && sort !== "newest") p.set("sort", sort);
-    navIfChanged(p.toString());
+    return p.toString();
   }
+
+  function apply() {
+    navIfChanged(buildParams());
+  }
+
+  // Live search: apply after a pause without the full-page overlay (replace, so
+  // keystrokes don't stack up in browser history).
+  const debouncedSearch = useDebouncedCallback(
+    () => navIfChanged(buildParams(), { overlay: false, replace: true }),
+    350,
+  );
 
   const field: React.CSSProperties = {
     height: 40,
@@ -80,10 +99,21 @@ export function CourseFilters() {
         <span style={label}>{t("search")}</span>
         <input
           style={field}
+          type="search"
           value={search}
           placeholder={t("searchPlaceholder")}
-          onChange={(e) => setSearch(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && apply()}
+          aria-label={t("search")}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            debouncedSearch();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              debouncedSearch.cancel();
+              apply();
+            }
+          }}
         />
       </div>
 

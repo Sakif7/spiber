@@ -3,6 +3,7 @@ import { Container } from "@/components/ui/container";
 import { PageHeader } from "@/components/ui/page-header";
 import { ComingSoon } from "@/components/ui/coming-soon";
 import { CardGrid } from "@/components/ui/card-grid";
+import { LiveSearch } from "@/components/ui/live-search";
 import { SoftwareCard } from "@/components/systems/software-card";
 import { listSoftwareProducts } from "@/lib/repositories/software.repo";
 import { HERO } from "@/lib/hero-images";
@@ -81,44 +82,11 @@ export default async function SoftwareCatalog({
       ) : (
         <section style={{ paddingBlock: "clamp(40px, 5vw, 80px)" }}>
           <Container style={{ display: "grid", gap: "var(--s-6)" }}>
-            <form
-              action={`/${locale}/digihealth/products`}
-              method="get"
-              role="search"
-              style={{ display: "flex", gap: 8, maxWidth: 520 }}
-            >
-              <input
-                type="search"
-                name="q"
-                defaultValue={q ?? ""}
-                placeholder={t("catalog.searchPlaceholder")}
-                aria-label={t("catalog.search")}
-                style={{
-                  flex: 1,
-                  height: 46,
-                  padding: "0 16px",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--r-pill)",
-                  background: "var(--color-surface)",
-                  font: "inherit",
-                }}
-              />
-              <button
-                type="submit"
-                style={{
-                  height: 46,
-                  padding: "0 22px",
-                  borderRadius: "var(--r-pill)",
-                  background: "var(--color-brand)",
-                  color: "#fff",
-                  border: 0,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                {t("catalog.search")}
-              </button>
-            </form>
+            <LiveSearch
+              placeholder={t("catalog.searchPlaceholder")}
+              ariaLabel={t("catalog.search")}
+              style={{ maxWidth: 520 }}
+            />
 
             <p
               style={{

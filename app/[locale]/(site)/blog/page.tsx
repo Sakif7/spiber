@@ -3,6 +3,7 @@ import { Container } from "@/components/ui/container";
 import { PageHeader } from "@/components/ui/page-header";
 import { ComingSoon } from "@/components/ui/coming-soon";
 import { CardGrid } from "@/components/ui/card-grid";
+import { LiveSearch } from "@/components/ui/live-search";
 import { Link } from "@/i18n/navigation";
 import { PostCard } from "@/components/blog/post-card";
 import {
@@ -114,40 +115,12 @@ export default async function BlogIndex({
                 </Link>
               ))}
             </div>
-            <form
-              action={`/${locale}/blog`}
-              method="get"
-              style={{ display: "flex", gap: 8 }}
-            >
-              <input
-                type="search"
-                name="q"
-                defaultValue={q ?? ""}
-                placeholder={t("searchPlaceholder")}
-                style={{
-                  height: 40,
-                  padding: "0 12px",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--r-sm)",
-                  background: "var(--color-surface)",
-                  font: "inherit",
-                }}
-              />
-              <button
-                type="submit"
-                style={{
-                  height: 40,
-                  padding: "0 16px",
-                  borderRadius: "var(--r-sm)",
-                  border: "1px solid var(--color-border)",
-                  background: "var(--color-surface)",
-                  color: "var(--color-text-strong)",
-                  cursor: "pointer",
-                }}
-              >
-                {t("search")}
-              </button>
-            </form>
+            <LiveSearch
+              placeholder={t("searchPlaceholder")}
+              ariaLabel={t("search")}
+              size="sm"
+              style={{ width: "min(320px, 100%)" }}
+            />
           </div>
 
           {result.items.length === 0 ? (

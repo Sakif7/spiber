@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { CardGrid } from "@/components/ui/card-grid";
+import { LiveSearch } from "@/components/ui/live-search";
 import { Filters } from "@/components/shop/filters";
 import { ProductCard } from "@/components/shop/product-card";
 import type { Lean } from "@/lib/models/_shared";
@@ -19,7 +20,6 @@ type Result = {
 export async function MarketplaceProductListing({
   locale,
   basePath,
-  formAction,
   sp,
   result,
   brands,
@@ -32,7 +32,6 @@ export async function MarketplaceProductListing({
 }: {
   locale: Locale;
   basePath: string;
-  formAction: string;
   sp: SP;
   result: Result;
   brands: { id: string; name: string }[];
@@ -121,53 +120,11 @@ export async function MarketplaceProductListing({
       <div
         style={{ display: "flex", flexDirection: "column", gap: "var(--s-5)" }}
       >
-        {/* Search */}
-        <form
-          action={formAction}
-          method="get"
-          role="search"
-          style={{ display: "flex", gap: 8 }}
-        >
-          <input
-            type="search"
-            name="q"
-            defaultValue={sp.q ?? ""}
-            placeholder={t("searchPlaceholder")}
-            aria-label={t("search")}
-            style={{
-              flex: 1,
-              height: 46,
-              padding: "0 16px",
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--r-pill)",
-              background: "var(--color-surface)",
-              font: "inherit",
-            }}
-          />
-          {(["brand", "min", "max", "rating", "sort"] as const).map((k) =>
-            sp[k] ? (
-              <input key={k} type="hidden" name={k} value={sp[k]} />
-            ) : null,
-          )}
-          {sp.inStock === "1" && (
-            <input type="hidden" name="inStock" value="1" />
-          )}
-          <button
-            type="submit"
-            style={{
-              height: 46,
-              padding: "0 22px",
-              borderRadius: "var(--r-pill)",
-              background: "var(--color-brand)",
-              color: "#fff",
-              border: 0,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            {t("search")}
-          </button>
-        </form>
+        {/* Search — debounced live filtering, no submit needed */}
+        <LiveSearch
+          placeholder={t("searchPlaceholder")}
+          ariaLabel={t("search")}
+        />
 
         {/* Subcategory chips */}
         {subcategories.length > 0 && (

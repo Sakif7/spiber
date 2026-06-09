@@ -18,6 +18,7 @@
     "placeholder": "Search instruments, courses, software…",
     "ariaLabel": "Search the Spiber Med catalog",
     "submit": "Search",
+    "clear": "Clear search",
     "searching": "Searching…",
     "idleHint": "Start typing to search instruments, courses, software & articles.",
     "close": "Close search",

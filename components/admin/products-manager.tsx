@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { Link, useRouter } from "@/i18n/navigation";
 import { CtaButton } from "@/components/ui/cta-button";
 import { formatApiError } from "@/lib/http/form-error";
+import { useDebouncedCallback } from "@/lib/use-debounced-callback";
 
 export type ProductManagerRow = {
   id: string;
@@ -82,13 +83,17 @@ export function ProductsManager({
     null,
   );
   const [search, setSearch] = useState(q);
+  const [isSearching, startSearching] = useTransition();
 
   const allOnPage = rows.length > 0 && selected.size === rows.length;
   const selectedCount = allMatching ? total : selected.size;
 
   const pageIds = useMemo(() => rows.map((r) => r.id), [rows]);
 
-  function navigate(next: { q?: string; status?: string; page?: number }) {
+  function navigate(
+    next: { q?: string; status?: string; page?: number },
+    opts: { replace?: boolean } = {},
+  ) {
     const params = new URLSearchParams();
     const nq = next.q ?? q;
     const ns = next.status ?? status;
@@ -97,8 +102,18 @@ export function ProductsManager({
     if (ns) params.set("status", ns);
     if (np > 1) params.set("page", String(np));
     const qs = params.toString();
-    router.push(qs ? `${basePath}?${qs}` : basePath);
+    const url = qs ? `${basePath}?${qs}` : basePath;
+    if (opts.replace) router.replace(url);
+    else router.push(url);
   }
+
+  // Live search: navigate (replace, page 1) after the user pauses typing.
+  const debouncedSearch = useDebouncedCallback((value: string) => {
+    if (value.trim() === q) return;
+    startSearching(() =>
+      navigate({ q: value.trim(), page: 1 }, { replace: true }),
+    );
+  }, 350);
 
   function toggleAllOnPage(checked: boolean) {
     setAllMatching(false);
@@ -223,19 +238,33 @@ export function ProductsManager({
         }}
       >
         <form
+          role="search"
           onSubmit={(e) => {
             e.preventDefault();
-            navigate({ q: search, page: 1 });
+            debouncedSearch.cancel();
+            startSearching(() =>
+              navigate({ q: search.trim(), page: 1 }, { replace: true }),
+            );
           }}
-          style={{ display: "flex", gap: "var(--s-2)", flex: "1 1 260px" }}
+          style={{
+            position: "relative",
+            display: "flex",
+            alignItems: "center",
+            flex: "1 1 260px",
+          }}
         >
           <input
+            type="search"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              debouncedSearch(e.target.value);
+            }}
             placeholder="Search name or SKU…"
+            aria-label="Search products"
             style={{
               flex: 1,
-              padding: "8px 12px",
+              padding: "8px 34px 8px 12px",
               fontSize: "var(--fs-sm)",
               border: "1px solid var(--color-border)",
               borderRadius: "var(--r-md)",
@@ -243,19 +272,31 @@ export function ProductsManager({
               color: "var(--color-text)",
             }}
           />
-          <button
-            type="submit"
-            style={{
-              padding: "8px 14px",
-              fontSize: "var(--fs-sm)",
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--r-md)",
-              background: "var(--color-surface)",
-              cursor: "pointer",
-            }}
-          >
-            Search
-          </button>
+          {isSearching && (
+            <svg
+              className="catalog-search-spinner"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden
+              style={{ position: "absolute", right: 12 }}
+            >
+              <circle
+                cx="12"
+                cy="12"
+                r="8.5"
+                stroke="var(--color-border)"
+                strokeWidth="2.4"
+              />
+              <path
+                d="M12 3.5a8.5 8.5 0 0 1 8.5 8.5"
+                stroke="var(--brand-teal)"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+              />
+            </svg>
+          )}
         </form>
         <select
           value={status}
