@@ -3,7 +3,14 @@
 import { ReactNode, useRef, useState } from "react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import {
+  motion,
+  useAnimationFrame,
+  useMotionValue,
+  useReducedMotion,
+  useSpring,
+  useTransform,
+} from "framer-motion";
 import { Link } from "@/i18n/navigation";
 import {
   Arrow,
@@ -68,6 +75,10 @@ const TEAM: Omit<TeamMember, "role" | "bio" | "socials">[] = [
     image: "/kanta-managing-body.jpeg",
   },
   {
+    name: "Prof. Dr. Md. Moazzem Hossain",
+    image: "/moazzem-testimonial.jpg",
+  },
+  {
     name: "Md Saadman Sakif",
     image: "/sakif-managing-body.jpeg",
   },
@@ -77,7 +88,7 @@ const SOCIAL_ICONS: ReactNode[] = [LinkedInIcon, EmailIcon];
 
 export function Management() {
   const t = useTranslations("home.management");
-  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const reduced = useReducedMotion();
 
   const members = t.raw("members") as Array<{
     role: string;
@@ -135,46 +146,83 @@ export function Management() {
         </div>
 
         <Reveal>
-          <div
-            className="equal-5col team-grid"
-            onMouseLeave={() => setHoveredIdx(null)}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(5, 1fr)",
-              gap: 16,
-              perspective: 1400,
-              alignItems: "start",
-              position: "relative",
-            }}
-          >
-            {team.map((p, i) => (
-              <TeamCard
-                key={p.name}
-                member={p}
-                isHovered={hoveredIdx === i}
-                isDimmed={hoveredIdx !== null && hoveredIdx !== i}
-                onHover={(h) => setHoveredIdx(h ? i : null)}
-              />
-            ))}
-          </div>
+          <Marquee team={team} reduced={!!reduced} />
         </Reveal>
       </Container>
     </Section>
   );
 }
 
-function TeamCard({
-  member,
-  isHovered,
-  isDimmed,
-  onHover,
-}: {
-  member: TeamMember;
-  isHovered: boolean;
-  isDimmed: boolean;
-  onHover: (hovered: boolean) => void;
-}) {
+const CARD_W = 268;
+const CARD_GAP = 16;
+const SPEED = 42; // px / second
+
+const EDGE_FADE =
+  "linear-gradient(90deg, transparent 0, #000 7%, #000 93%, transparent 100%)";
+
+/**
+ * Auto-scrolling marquee of leadership cards. The track is duplicated so the
+ * loop is seamless; an rAF loop (framer's `useAnimationFrame`) advances the
+ * track and wraps at one-copy width. Pauses while hovered so cards can be read.
+ * Reduced motion → a static, manually scrollable rail.
+ */
+function Marquee({ team, reduced }: { team: TeamMember[]; reduced: boolean }) {
+  const x = useMotionValue(0);
+  const [paused, setPaused] = useState(false);
+
+  // Two copies for a seamless loop (single copy when motion is reduced).
+  const items = reduced ? team : [...team, ...team];
+
+  // Width of one copy = sum of every card's box (width + trailing gap).
+  const copyWidth = (CARD_W + CARD_GAP) * team.length;
+
+  useAnimationFrame((_, delta) => {
+    if (reduced || paused || copyWidth <= 0) return;
+    let next = x.get() - (SPEED * delta) / 1000;
+    if (next <= -copyWidth) next += copyWidth; // wrap seamlessly
+    x.set(next);
+  });
+
+  return (
+    <div
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      style={{
+        position: "relative",
+        width: "100%",
+        overflowX: reduced ? "auto" : "hidden",
+        overflowY: "hidden",
+        // breathing room so the hover lift/shadow isn't clipped
+        paddingBlock: 28,
+        WebkitMaskImage: EDGE_FADE,
+        maskImage: EDGE_FADE,
+      }}
+    >
+      <motion.div
+        style={{
+          display: "flex",
+          width: "max-content",
+          perspective: 1400,
+          x: reduced ? 0 : x,
+        }}
+      >
+        {items.map((p, i) => (
+          <div
+            key={`${p.name}-${i}`}
+            aria-hidden={!reduced && i >= team.length}
+            style={{ flex: `0 0 ${CARD_W}px`, marginRight: CARD_GAP }}
+          >
+            <TeamCard member={p} />
+          </div>
+        ))}
+      </motion.div>
+    </div>
+  );
+}
+
+function TeamCard({ member }: { member: TeamMember }) {
   const ref = useRef<HTMLDivElement>(null);
+  const [isHovered, setIsHovered] = useState(false);
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
   const springCfg = { stiffness: 260, damping: 22, mass: 0.6 };
@@ -192,7 +240,7 @@ function TeamCard({
     my.set((e.clientY - rect.top) / rect.height - 0.5);
   };
   const handleMouseLeave = () => {
-    onHover(false);
+    setIsHovered(false);
     mx.set(0);
     my.set(0);
   };
@@ -201,14 +249,8 @@ function TeamCard({
     <motion.div
       ref={ref}
       onMouseMove={handleMouseMove}
-      onMouseEnter={() => onHover(true)}
+      onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={handleMouseLeave}
-      animate={
-        isDimmed
-          ? { opacity: 0.42, scale: 0.96, filter: "saturate(0.55)" }
-          : { opacity: 1, scale: 1, filter: "saturate(1)" }
-      }
-      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
       style={{
         position: "relative",
         cursor: "pointer",

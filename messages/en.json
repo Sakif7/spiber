@@ -205,22 +205,42 @@
       ]
     },
     "message": {
-      "eyebrow": "Message from the MD",
-      "title": "Collaborating with Clients Around the World to Develop and Use Science and Technology to Address Societal Issues",
-      "paragraphs": [
-        "Spiber Med has been built, from its founding, on a single corporate philosophy: implementing science and technology to improve society and empower healthcare.",
-        "We provide analytical medical and surgical equipment used across many healthcare sectors — for health assessment, diagnosis, and treatment — contributing to patient safety and to the convenience of life through our customers’ experience.",
-        "Despite our limitations, I believe we have kept giving back to society because we have always risen to the challenge of solving the problems our clients face. The pace at which society is changing today is unprecedented, and we are dedicated to addressing these issues with fresh vigour — in the face of an unending stream of new difficulties such as the pandemic, global warming, declining birth rates, and ageing populations.",
-        "Spiber Med is a one-stop solution for healthcare, committed to strengthening the healthcare system. Beyond medical and surgical equipment, we steadily focus on the continuous professional development (CPD) of healthcare professionals. Our philosophy — implementing science and technology to improve society and empower healthcare — genuinely expresses that goal.",
-        "Spiber Med will keep elevating itself by building on the knowledge and technology passed down to us. You can anticipate even more remarkable things from Spiber Med in the future."
-      ],
-      "name": "Dr. Md Jahidul Islam",
-      "role": "Managing Director",
-      "company": "Spiber Med",
-      "imageAlt": "Dr. Md Jahidul Islam, Managing Director of Spiber Med",
-      "signatureAlt": "Signature of Dr. Md Jahidul Islam",
+      "regionLabel": "Leadership messages",
+      "prev": "Previous message",
+      "next": "Next message",
+      "slideLabel": "Show message {n}",
       "readMore": "Read more",
-      "readLess": "Read less"
+      "readLess": "Read less",
+      "slides": [
+        {
+          "eyebrow": "Message from the MD",
+          "title": "Collaborating with Clients Around the World to Develop and Use Science and Technology to Address Societal Issues",
+          "paragraphs": [
+            "Spiber Med has been built, from its founding, on a single corporate philosophy: implementing science and technology to improve society and empower healthcare.",
+            "We provide analytical medical and surgical equipment used across many healthcare sectors — for health assessment, diagnosis, and treatment — contributing to patient safety and to the convenience of life through our customers’ experience.",
+            "Despite our limitations, I believe we have kept giving back to society because we have always risen to the challenge of solving the problems our clients face. The pace at which society is changing today is unprecedented, and we are dedicated to addressing these issues with fresh vigour — in the face of an unending stream of new difficulties such as the pandemic, global warming, declining birth rates, and ageing populations.",
+            "Spiber Med is a one-stop solution for healthcare, committed to strengthening the healthcare system. Beyond medical and surgical equipment, we steadily focus on the continuous professional development (CPD) of healthcare professionals. Our philosophy — implementing science and technology to improve society and empower healthcare — genuinely expresses that goal.",
+            "Spiber Med will keep elevating itself by building on the knowledge and technology passed down to us. You can anticipate even more remarkable things from Spiber Med in the future."
+          ],
+          "name": "Dr. Md Jahidul Islam",
+          "role": "Managing Director",
+          "company": "Spiber Med",
+          "imageAlt": "Dr. Md Jahidul Islam, Managing Director of Spiber Med",
+          "signatureAlt": "Signature of Dr. Md Jahidul Islam"
+        },
+        {
+          "eyebrow": "Message from the Chief Advisor",
+          "title": "A partnership built on quality, reliability, and trust",
+          "paragraphs": [
+            "I have had the pleasure of working with SPIBER Healthcare Ltd. for all our medical equipment needs, and I can confidently say they are one of the best in the industry. Their commitment to quality, reliability, and customer satisfaction is unmatched.",
+            "From the moment we reached out, their team demonstrated exceptional professionalism, offering expert advice tailored to our specific requirements. The equipment we received was of the highest standard, delivered promptly, and supported by comprehensive training and after-sales service. In a field where precision and dependability are non-negotiable, SPIBER Healthcare Ltd. consistently goes above and beyond to ensure we have the tools we need to provide top-tier care."
+          ],
+          "name": "Prof. Dr. Md. Moazzem Hossain",
+          "role": "Chairman",
+          "company": "Aichi Healthcare Group",
+          "imageAlt": "Prof. Dr. Md. Moazzem Hossain, Chairman of Aichi Healthcare Group"
+        }
+      ]
     },
     "cta": {
       "title": "Ready to build a better healthcare solution?",
@@ -1091,6 +1111,18 @@
         {
           "role": "Director · CMO",
           "bio": "Marketing and brand — leads SPIBER's clinical-education programs and partner outreach across the region.",
+          "socials": [
+            {
+              "label": "LinkedIn"
+            },
+            {
+              "label": "Email"
+            }
+          ]
+        },
+        {
+          "role": "Chief Advisor",
+          "bio": "Chief advisor and Chairman of Aichi Healthcare Group — decades of clinical and institutional leadership guide SPIBER MED's standards of care, partnerships, and quality.",
           "socials": [
             {
               "label": "LinkedIn"
