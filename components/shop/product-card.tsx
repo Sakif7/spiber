@@ -58,7 +58,7 @@ export function ProductCard({
   const name = localize(product.name, locale);
   const isInstruments = mode === "instruments";
   const href = isInstruments
-    ? `/instruments/product/${product.slug}`
+    ? `/medtrade/product/${product.slug}`
     : `/marketplace/product/${product.slug}`;
 
   const { price, from } = effectivePrice(product);

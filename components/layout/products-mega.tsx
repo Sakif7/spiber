@@ -88,7 +88,7 @@ export function ProductsMega({
         id: p.slug,
         label: p.name,
         kind: "product",
-        href: `/systems/product/${p.slug}`,
+        href: `/digihealth/product/${p.slug}`,
         image: p.image,
       }));
     }
@@ -97,7 +97,7 @@ export function ProductsMega({
       id: `c:${c.id}`,
       label: c.name,
       kind: "category",
-      href: `/instruments/${c.slug}`,
+      href: `/medtrade/${c.slug}`,
       group: "By category",
       loadChildren: () => {
         if (c.children.length) {
@@ -106,12 +106,12 @@ export function ProductsMega({
               id: `s:${sub.id}`,
               label: sub.name,
               kind: "subcategory" as const,
-              href: `/instruments/${sub.slug}`,
+              href: `/medtrade/${sub.slug}`,
               loadChildren: () =>
                 loadCatalogProducts(
                   locale,
                   `categoryId=${sub.id}`,
-                  "/instruments/product",
+                  "/medtrade/product",
                 ),
             })),
           );
@@ -120,7 +120,7 @@ export function ProductsMega({
         return loadCatalogProducts(
           locale,
           `categoryId=${c.id}`,
-          "/instruments/product",
+          "/medtrade/product",
         );
       },
     }));
@@ -128,10 +128,10 @@ export function ProductsMega({
       id: `b:${b.id}`,
       label: b.name,
       kind: "brand",
-      href: `/instruments?brand=${b.id}`,
+      href: `/medtrade?brand=${b.id}`,
       group: "By brand",
       loadChildren: () =>
-        loadCatalogProducts(locale, `brandId=${b.id}`, "/instruments/product"),
+        loadCatalogProducts(locale, `brandId=${b.id}`, "/medtrade/product"),
     }));
     return [...catNodes, ...brandNodes];
   }, [isSystems, systems, nav, locale]);

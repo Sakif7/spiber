@@ -34,7 +34,7 @@ export async function generateMetadata({
   if (!product) return {};
   return pageMetadata({
     locale: locale as Locale,
-    path: `/systems/product/${slug}`,
+    path: `/digihealth/product/${slug}`,
     title: localize(product.name, locale as Locale),
     description: product.description
       ? localize(product.description, locale as Locale)
@@ -110,7 +110,7 @@ export default async function SoftwareDetail({
         <Breadcrumb
           items={[
             { label: nav("home"), href: "/" },
-            { label: nav("systems"), href: "/systems" },
+            { label: nav("systems"), href: "/digihealth" },
             { label: name },
           ]}
         />
@@ -371,7 +371,7 @@ export default async function SoftwareDetail({
         <RecentlyViewed
           title={t("product.recentlyViewed")}
           current={{
-            href: `/systems/product/${product.slug}`,
+            href: `/digihealth/product/${product.slug}`,
             name,
             image: product.screenshots[0],
             meta: priceLabel,

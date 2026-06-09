@@ -36,7 +36,7 @@ type NavGroup = { label?: string; items: NavItem[] };
 const GROUPS: NavGroup[] = [
   { items: [{ href: "/admin", label: "Dashboard", icon: LayoutDashboard }] },
   {
-    label: "Instruments (Quotes)",
+    label: "Medtrade (Quotes)",
     items: [
       { href: "/admin/products", label: "Products", icon: Package },
       { href: "/admin/categories", label: "Categories", icon: FolderTree },
@@ -74,7 +74,7 @@ const GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "Systems",
+    label: "Digihealth",
     items: [
       { href: "/admin/software-products", label: "Software", icon: AppWindow },
       { href: "/admin/software-purchases", label: "Purchases", icon: Receipt },

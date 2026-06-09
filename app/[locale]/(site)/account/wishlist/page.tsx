@@ -61,7 +61,7 @@ export default async function WishlistPage({
               }}
             >
               <p style={{ color: "var(--color-text-muted)" }}>{t("empty")}</p>
-              <CtaButton href="/instruments">{t("browse")}</CtaButton>
+              <CtaButton href="/medtrade">{t("browse")}</CtaButton>
             </div>
           ) : (
             <CardGrid columns={4}>

@@ -24,7 +24,7 @@ export async function generateMetadata({
   const t = await getTranslations({ locale, namespace: "systems.catalog" });
   return pageMetadata({
     locale: locale as Locale,
-    path: "/systems/products",
+    path: "/digihealth/products",
     title: t("title"),
     description: t("lede"),
   });
@@ -72,7 +72,7 @@ export default async function SoftwareCatalog({
         imageAlt={t("catalog.title")}
         breadcrumbs={[
           { label: nav("home"), href: "/" },
-          { label: t("hub.title"), href: "/systems" },
+          { label: t("hub.title"), href: "/digihealth" },
           { label: t("catalog.title") },
         ]}
       />
@@ -82,7 +82,7 @@ export default async function SoftwareCatalog({
         <section style={{ paddingBlock: "clamp(40px, 5vw, 80px)" }}>
           <Container style={{ display: "grid", gap: "var(--s-6)" }}>
             <form
-              action={`/${locale}/systems/products`}
+              action={`/${locale}/digihealth/products`}
               method="get"
               role="search"
               style={{ display: "flex", gap: 8, maxWidth: 520 }}

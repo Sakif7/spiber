@@ -25,7 +25,7 @@ export function SoftwareCard({
 
   return (
     <CatalogCard
-      href={`/systems/product/${product.slug}`}
+      href={`/digihealth/product/${product.slug}`}
       image={product.screenshots[0]}
       imageAlt={title}
       placeholderLabel={title}

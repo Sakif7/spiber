@@ -176,7 +176,7 @@ export default async function AccountQuotationDetail({
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <Link
-                    href={`/instruments/product/${it.productSnapshot.slug}`}
+                    href={`/medtrade/product/${it.productSnapshot.slug}`}
                     style={{
                       color: "var(--color-text-strong)",
                       fontWeight: 600,

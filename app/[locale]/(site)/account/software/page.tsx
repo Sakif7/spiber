@@ -52,7 +52,7 @@ export default async function MySoftwarePage({
               }}
             >
               <p style={{ color: "var(--color-text-muted)" }}>{t("empty")}</p>
-              <CtaButton href="/systems/products">{t("browse")}</CtaButton>
+              <CtaButton href="/digihealth/products">{t("browse")}</CtaButton>
             </div>
           ) : (
             <div style={{ display: "grid", gap: "var(--s-4)" }}>
@@ -102,7 +102,7 @@ export default async function MySoftwarePage({
                       </span>
                     </div>
                     <CtaButton
-                      href={`/systems/purchase/${p.purchaseNumber}`}
+                      href={`/digihealth/purchase/${p.purchaseNumber}`}
                       variant="secondary"
                     >
                       {t("view")}

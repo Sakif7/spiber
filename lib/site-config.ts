@@ -12,9 +12,9 @@ export const siteConfig = {
 
 /** The five divisions, in nav order. */
 export const divisions = [
-  { key: "instruments", href: "/instruments" },
+  { key: "instruments", href: "/medtrade" },
   { key: "academy", href: "/academy" },
-  { key: "systems", href: "/systems" },
+  { key: "systems", href: "/digihealth" },
   { key: "tourism", href: "/tourism" },
   { key: "consulting", href: "/consulting" },
 ] as const;
@@ -27,9 +27,9 @@ export const publicRoutes = [
   "/about",
   "/contact",
   "/marketplace",
-  "/instruments",
+  "/medtrade",
   "/academy",
-  "/systems",
+  "/digihealth",
   "/tourism",
   "/consulting",
   "/blog",

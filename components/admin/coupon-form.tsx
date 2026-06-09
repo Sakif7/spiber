@@ -207,9 +207,9 @@ export function CouponForm() {
           >
             <option value="all">All storefronts</option>
             <option value="marketplace">Marketplace</option>
-            <option value="instruments">Instruments</option>
+            <option value="instruments">Medtrade</option>
             <option value="academy">Academy</option>
-            <option value="systems">Systems</option>
+            <option value="systems">Digihealth</option>
           </select>
         </div>
 

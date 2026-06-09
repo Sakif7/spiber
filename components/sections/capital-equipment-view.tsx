@@ -83,7 +83,7 @@ export function CapitalEquipmentView({
               style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}
             >
               <Link
-                href="/instruments"
+                href="/medtrade"
                 style={{
                   fontSize: 14,
                   fontWeight: 500,
@@ -139,7 +139,7 @@ export function CapitalEquipmentView({
               {filtered.map((it, i) => (
                 <Reveal key={it.sku} delay={Math.min(i * 50, 400)}>
                   <CatalogCard
-                    href={`/instruments/product/${it.slug}`}
+                    href={`/medtrade/product/${it.slug}`}
                     image={it.image}
                     imageAlt={it.name}
                     placeholderLabel={it.catLabel || "Instrument"}
@@ -189,7 +189,7 @@ export function CapitalEquipmentView({
                   marginTop: 44,
                 }}
               >
-                <CtaButton href="/instruments" variant="primary">
+                <CtaButton href="/medtrade" variant="primary">
                   {t("seeMore")} <Arrow />
                 </CtaButton>
               </div>
@@ -341,7 +341,7 @@ function FilterPills({
           </button>
         ))}
         {hasMore && (
-          <Link href="/instruments" style={morePillStyle}>
+          <Link href="/medtrade" style={morePillStyle}>
             {moreLabel} <Arrow />
           </Link>
         )}

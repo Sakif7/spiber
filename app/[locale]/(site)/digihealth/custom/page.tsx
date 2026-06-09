@@ -14,7 +14,7 @@ export async function generateMetadata({
   const t = await getTranslations({ locale, namespace: "systems.custom" });
   return pageMetadata({
     locale: locale as Locale,
-    path: "/systems/custom",
+    path: "/digihealth/custom",
     title: t("title"),
     description: t("lede"),
   });
@@ -38,7 +38,7 @@ export default async function CustomSolutionPage({
         description={t("custom.lede")}
         breadcrumbs={[
           { label: nav("home"), href: "/" },
-          { label: nav("systems"), href: "/systems" },
+          { label: nav("systems"), href: "/digihealth" },
           { label: t("custom.title") },
         ]}
       />

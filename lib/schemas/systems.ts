@@ -2,7 +2,7 @@ import { z } from "zod";
 import { localizedSchema } from "./localized";
 
 /**
- * Spiber Systems (digital software). Zod is the single source of truth;
+ * Spiber Digihealth (digital software). Zod is the single source of truth;
  * Mongoose models + TS types derive from it. Money is integer poisha.
  *
  * A SoftwareProduct has a `deliveryType` discriminator (asset | license |

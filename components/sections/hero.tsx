@@ -315,7 +315,7 @@ const HERO_SOLUTIONS: Solution[] = [
     image: "/bento-lab-equipment.png",
     imageAlt: "Modern laboratory with microscope, analyzers and glassware",
     imagePosition: "center center",
-    href: "/instruments",
+    href: "/medtrade",
   },
   {
     id: "furniture",
@@ -324,7 +324,7 @@ const HERO_SOLUTIONS: Solution[] = [
     image: "/bento-furniture.png",
     imageAlt: "Modern hospital beds, exam chairs and OR tables in teal accents",
     imagePosition: "center center",
-    href: "/instruments",
+    href: "/medtrade",
   },
   {
     id: "software",
@@ -333,7 +333,7 @@ const HERO_SOLUTIONS: Solution[] = [
     image: "/bento-software.png",
     imageAlt: "Medical software dashboards on touchscreens and tablets",
     imagePosition: "center center",
-    href: "/systems",
+    href: "/digihealth",
   },
 ];
 

@@ -39,7 +39,7 @@ export async function generateMetadata({
   if (!product) return {};
   return pageMetadata({
     locale: locale as Locale,
-    path: `/instruments/product/${slug}`,
+    path: `/medtrade/product/${slug}`,
     title: localize(product.name, locale as Locale),
     description: product.description
       ? localize(product.description, locale as Locale)
@@ -120,12 +120,12 @@ export default async function ProductDetail({
         <Breadcrumb
           items={[
             { label: nav("home"), href: "/" },
-            { label: nav("instruments"), href: "/instruments" },
+            { label: nav("instruments"), href: "/medtrade" },
             ...(category
               ? [
                   {
                     label: localize(category.name, l),
-                    href: `/instruments/${category.slug}`,
+                    href: `/medtrade/${category.slug}`,
                   },
                 ]
               : []),
@@ -228,7 +228,7 @@ export default async function ProductDetail({
                 <span>
                   {t("categories")}:{" "}
                   <Link
-                    href={`/instruments/${category.slug}`}
+                    href={`/medtrade/${category.slug}`}
                     style={{ color: "var(--color-brand-deep)" }}
                   >
                     {localize(category.name, l)}
@@ -377,7 +377,7 @@ export default async function ProductDetail({
         <RecentlyViewed
           title={t("recentlyViewed")}
           current={{
-            href: `/instruments/product/${slug}`,
+            href: `/medtrade/product/${slug}`,
             name,
             image: product.images[0],
             meta: undefined,

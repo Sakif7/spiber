@@ -30,7 +30,7 @@
     "from": "{price} থেকে",
     "readingTime": "{min} মিনিট পড়া",
     "groups": {
-      "instruments": "যন্ত্রপাতি",
+      "instruments": "মেডট্রেড",
       "marketplace": "মার্কেটপ্লেস",
       "academy": "কোর্স",
       "systems": "সফটওয়্যার",
@@ -53,9 +53,9 @@
     "home": "হোম",
     "about": "আমাদের সম্পর্কে",
     "contact": "যোগাযোগ",
-    "instruments": "ইনস্ট্রুমেন্টস",
+    "instruments": "মেডট্রেড",
     "academy": "একাডেমি",
-    "systems": "সিস্টেমস",
+    "systems": "ডিজিহেলথ",
     "tourism": "ট্যুরিজম",
     "consulting": "কনসাল্টিং",
     "blog": "ব্লগ",
@@ -78,7 +78,7 @@
   "hubs": {
     "instruments": {
       "eyebrow": "মেডিকেল ডিভাইস ও স্বাস্থ্যসেবা প্রযুক্তি",
-      "title": "Spiber Instruments",
+      "title": "Spiber Medtrade",
       "description": "বাংলাদেশজুড়ে হাসপাতাল, ক্লিনিক ও ল্যাবরেটরির জন্য ক্লিনিক্যাল-গ্রেড মেডিকেল ও সার্জিক্যাল সরঞ্জাম।"
     },
     "academy": {
@@ -88,7 +88,7 @@
     },
     "systems": {
       "eyebrow": "ডিজিটাল হেলথ ও সফটওয়্যার সমাধান",
-      "title": "Spiber Systems",
+      "title": "Spiber Digihealth",
       "description": "আধুনিক স্বাস্থ্যসেবা পরিচালনার জন্য সফটওয়্যার পণ্য ও কাস্টম ডিজিটাল-হেলথ সমাধান।"
     },
     "tourism": {
@@ -334,9 +334,9 @@
     "comingSoon": "অ্যাডমিন মডিউলগুলো ধাপে ধাপে তৈরি করা হচ্ছে।",
     "groups": {
       "overview": "ওভারভিউ",
-      "instruments": "ইনস্ট্রুমেন্টস",
+      "instruments": "মেডট্রেড",
       "academy": "একাডেমি",
-      "systems": "সিস্টেমস",
+      "systems": "ডিজিহেলথ",
       "tourism": "ট্যুরিজম",
       "consulting": "কনসাল্টিং",
       "blog": "ব্লগ",
@@ -553,7 +553,7 @@
     "capitalEquipment": {
       "eyebrow": "আমাদের ক্যাপিটাল ইকুইপমেন্ট",
       "title": "সম্পূর্ণ ক্যাটালগ, এক জায়গায় ব্রাউজ করার সুবিধা।",
-      "lede": "প্রতিটি তালিকায় থাকছে মডেল, SKU, সার্টিফিকেশন স্ট্যাটাস এবং লিড-টাইম অনুমান। সম্পূর্ণ পরিসর দেখুন আমাদের ইনস্ট্রুমেন্টস পেজে।",
+      "lede": "প্রতিটি তালিকায় থাকছে মডেল, SKU, সার্টিফিকেশন স্ট্যাটাস এবং লিড-টাইম অনুমান। সম্পূর্ণ পরিসর দেখুন আমাদের মেডট্রেড পেজে।",
       "downloadCatalog": "সম্পূর্ণ ক্যাটালগ দেখুন →",
       "seeMore": "সব ইনস্ট্রুমেন্ট দেখুন",
       "moreCategories": "আরও",
@@ -804,12 +804,12 @@
             "title": "পণ্যসমূহ",
             "links": [
               {
-                "label": "Spiber Instruments",
-                "href": "/instruments"
+                "label": "Spiber Medtrade",
+                "href": "/medtrade"
               },
               {
-                "label": "Spiber Systems",
-                "href": "/systems"
+                "label": "Spiber Digihealth",
+                "href": "/digihealth"
               }
             ]
           },
@@ -879,7 +879,7 @@
   },
   "shop": {
     "hub": {
-      "title": "Spiber Instruments",
+      "title": "Spiber Medtrade",
       "lede": "বাংলাদেশজুড়ে হাসপাতাল, ক্লিনিক ও ল্যাবরেটরির জন্য ক্লিনিক্যাল-গ্রেড মেডিকেল ও সার্জিক্যাল সরঞ্জাম।",
       "shopByCategory": "বিভাগ অনুযায়ী কিনুন",
       "featured": "বাছাইকৃত সরঞ্জাম",
@@ -1115,7 +1115,7 @@
   },
   "systems": {
     "hub": {
-      "title": "Spiber Systems",
+      "title": "Spiber Digihealth",
       "lede": "আধুনিক স্বাস্থ্যসেবার জন্য সফটওয়্যার পণ্য ও কাস্টম ডিজিটাল-হেলথ সমাধান।",
       "featured": "ফিচার্ড সফটওয়্যার",
       "browseAll": "সব সফটওয়্যার দেখুন",

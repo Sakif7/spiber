@@ -30,7 +30,7 @@ const DIVISIONS: Division[] = [
   {
     key: "instruments",
     tone: "teal",
-    href: "/instruments",
+    href: "/medtrade",
     image: "/modern-operating-room-equipment.jpeg",
     imageAlt: "Operating theatre fitted with clinical-grade equipment",
     tag: "FLAGSHIP",
@@ -39,7 +39,7 @@ const DIVISIONS: Division[] = [
   {
     key: "systems",
     tone: "teal",
-    href: "/systems",
+    href: "/digihealth",
     image: "/bento-software.png",
     imageAlt: "Hospital information and telemedicine dashboards on screen",
   },

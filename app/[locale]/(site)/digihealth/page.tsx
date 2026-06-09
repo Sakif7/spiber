@@ -19,7 +19,7 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  return namespaceMetadata(locale as Locale, "hubs.systems", "/systems");
+  return namespaceMetadata(locale as Locale, "hubs.systems", "/digihealth");
 }
 
 export default async function SystemsHub({
@@ -83,7 +83,7 @@ export default async function SystemsHub({
               >
                 {t("hub.featured")}
               </h2>
-              <CtaButton href="/systems/products" variant="ghost">
+              <CtaButton href="/digihealth/products" variant="ghost">
                 {t("hub.browseAll")}
               </CtaButton>
             </div>
@@ -129,7 +129,7 @@ export default async function SystemsHub({
           >
             {t("hub.customLede")}
           </p>
-          <CtaButton href="/systems/custom">
+          <CtaButton href="/digihealth/custom">
             {t("hub.requestSolution")}
           </CtaButton>
         </Container>

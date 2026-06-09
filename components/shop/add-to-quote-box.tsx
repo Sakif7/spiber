@@ -47,7 +47,7 @@ export function AddToQuoteBox({ productId }: { productId: string }) {
           onClick={() =>
             add.mutate(
               { productId, qty },
-              { onSuccess: () => router.push("/instruments/quote") },
+              { onSuccess: () => router.push("/medtrade/quote") },
             )
           }
         >
@@ -67,7 +67,7 @@ export function AddToQuoteBox({ productId }: { productId: string }) {
             ✓ {t("addedToQuote")}
           </span>
           <Link
-            href="/instruments/quote"
+            href="/medtrade/quote"
             style={{
               color: "var(--color-brand-deep)",
               textDecoration: "underline",

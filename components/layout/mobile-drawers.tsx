@@ -240,7 +240,7 @@ function ProductsPanel({
           {cats?.map((c) => (
             <MobileLink
               key={c.id}
-              href={`/instruments/${c.slug}`}
+              href={`/medtrade/${c.slug}`}
               onNavigate={onNavigate}
               indent
             >
@@ -258,7 +258,7 @@ function ProductsPanel({
           {systems?.map((p) => (
             <MobileLink
               key={p.slug}
-              href={`/systems/product/${p.slug}`}
+              href={`/digihealth/product/${p.slug}`}
               onNavigate={onNavigate}
               indent
             >

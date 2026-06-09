@@ -35,7 +35,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       listCategories("marketplace"),
     ]);
     for (const p of instruments.items) {
-      const route = `/instruments/product/${p.slug}`;
+      const route = `/medtrade/product/${p.slug}`;
       entries.push({
         url: urlFor(route, routing.defaultLocale),
         alternates: { languages: languagesFor(route) },
@@ -80,7 +80,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       pageSize: 60,
     });
     for (const s of items) {
-      const route = `/systems/product/${s.slug}`;
+      const route = `/digihealth/product/${s.slug}`;
       entries.push({
         url: urlFor(route, routing.defaultLocale),
         alternates: { languages: languagesFor(route) },

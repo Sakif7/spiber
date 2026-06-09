@@ -101,7 +101,7 @@ export function QuoteForm({
           <CtaButton href="/account/quotations" variant="secondary">
             {t("viewMyQuotations")}
           </CtaButton>
-          <CtaButton href="/instruments">{t("continueBrowsing")}</CtaButton>
+          <CtaButton href="/medtrade">{t("continueBrowsing")}</CtaButton>
         </div>
       </div>
     );
@@ -121,7 +121,7 @@ export function QuoteForm({
         <p style={{ color: "var(--color-text-muted)", maxWidth: "48ch" }}>
           {t("emptyNote")}
         </p>
-        <CtaButton href="/instruments">{t("browseCatalog")}</CtaButton>
+        <CtaButton href="/medtrade">{t("browseCatalog")}</CtaButton>
       </div>
     );
   }
@@ -173,7 +173,7 @@ export function QuoteForm({
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <Link
-                href={`/instruments/product/${it.slug}`}
+                href={`/medtrade/product/${it.slug}`}
                 style={{
                   color: "var(--color-text-strong)",
                   textDecoration: "none",

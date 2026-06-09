@@ -21,7 +21,7 @@ export function QuoteButton() {
 
   return (
     <MotionLink
-      href="/instruments/quote"
+      href="/medtrade/quote"
       aria-label={label}
       whileHover={{ y: -2 }}
       whileTap={{ scale: 0.96 }}

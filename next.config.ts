@@ -51,6 +51,35 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
+  // Rebrand 2026: Spiber Instruments → Spiber Medtrade (/instruments → /medtrade),
+  // Spiber Systems → Spiber Digihealth (/systems → /digihealth). Permanent (308)
+  // redirects preserve every old deep link, both locale-prefixed (/en, /bn) and
+  // bare. `:path*` covers the hub itself and all sub-routes. API paths
+  // (/api/...) never match these sources, so internal endpoints are untouched.
+  async redirects() {
+    return [
+      {
+        source: "/:locale(en|bn)/instruments/:path*",
+        destination: "/:locale/medtrade/:path*",
+        permanent: true,
+      },
+      {
+        source: "/:locale(en|bn)/systems/:path*",
+        destination: "/:locale/digihealth/:path*",
+        permanent: true,
+      },
+      {
+        source: "/instruments/:path*",
+        destination: "/medtrade/:path*",
+        permanent: true,
+      },
+      {
+        source: "/systems/:path*",
+        destination: "/digihealth/:path*",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default withNextIntl(nextConfig);

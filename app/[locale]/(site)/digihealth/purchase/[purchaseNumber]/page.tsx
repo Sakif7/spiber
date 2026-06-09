@@ -24,7 +24,7 @@ export default async function PurchasePage({
   const user = await getSessionUser();
   if (!user) {
     redirect(
-      `/${locale}?auth=login&next=/${locale}/systems/purchase/${purchaseNumber}`,
+      `/${locale}?auth=login&next=/${locale}/digihealth/purchase/${purchaseNumber}`,
     );
   }
 

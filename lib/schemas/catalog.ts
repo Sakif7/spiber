@@ -2,7 +2,7 @@ import { z } from "zod";
 import { localizedSchema } from "./localized";
 
 /**
- * Catalog entities: Brand, Category, Product — shared by Spiber Instruments
+ * Catalog entities: Brand, Category, Product — shared by Spiber Medtrade
  * (quote-only) and Spiber Marketplace (full commerce). Zod is the single source
  * of truth; Mongoose models + TS types derive from it. Money is integer poisha.
  * Localized fields are { en, bn }.

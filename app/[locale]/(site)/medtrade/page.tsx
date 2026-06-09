@@ -35,7 +35,7 @@ export async function generateMetadata({
   const t = await getTranslations({ locale, namespace: "shop.hub" });
   return pageMetadata({
     locale: locale as Locale,
-    path: "/instruments",
+    path: "/medtrade",
     title: t("title"),
     description: t("lede"),
   });
@@ -105,7 +105,7 @@ export default async function InstrumentsHub({
     ? new Set(await listWishlistProductIds(sessionUser.sub).catch(() => []))
     : new Set<string>();
 
-  const base = "/instruments";
+  const base = "/medtrade";
   const hrefWithout = (...omit: string[]) => {
     const p = new URLSearchParams();
     const keep = (k: string, v?: string) => {
@@ -209,7 +209,7 @@ export default async function InstrumentsHub({
                     slug: c.slug,
                     name: localize(c.name, l),
                   }))}
-                categoryBasePath="/instruments"
+                categoryBasePath="/medtrade"
               />
 
               <div
@@ -221,7 +221,7 @@ export default async function InstrumentsHub({
               >
                 {/* Prominent search */}
                 <form
-                  action={`/${locale}/instruments`}
+                  action={`/${locale}/medtrade`}
                   method="get"
                   role="search"
                   style={{ display: "flex", gap: 8 }}

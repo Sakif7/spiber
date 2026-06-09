@@ -27,13 +27,13 @@ function viewAllHref(group: SearchGroupKey, q: string): string {
   const e = encodeURIComponent(q);
   switch (group) {
     case "instruments":
-      return "/instruments";
+      return "/medtrade";
     case "marketplace":
       return `/marketplace/search?q=${e}`;
     case "academy":
       return `/academy/courses?q=${e}`;
     case "systems":
-      return "/systems/products";
+      return "/digihealth/products";
     case "blog":
       return `/blog?q=${e}`;
   }

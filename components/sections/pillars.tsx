@@ -44,7 +44,7 @@ const ITEMS: PillarStatic[] = [
   {
     n: "02",
     metricValue: "60+",
-    ctaHref: "/instruments",
+    ctaHref: "/medtrade",
     image: "/modern-operating-room-equipment.jpeg",
     imagePosition: "center center",
   },

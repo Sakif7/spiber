@@ -30,7 +30,7 @@
     "from": "From {price}",
     "readingTime": "{min} min read",
     "groups": {
-      "instruments": "Instruments",
+      "instruments": "Medtrade",
       "marketplace": "Marketplace",
       "academy": "Courses",
       "systems": "Software",
@@ -53,9 +53,9 @@
     "home": "Home",
     "about": "About",
     "contact": "Contact",
-    "instruments": "Instruments",
+    "instruments": "Medtrade",
     "academy": "Academy",
-    "systems": "Systems",
+    "systems": "Digihealth",
     "tourism": "Tourism",
     "consulting": "Consulting",
     "blog": "Blog",
@@ -78,7 +78,7 @@
   "hubs": {
     "instruments": {
       "eyebrow": "Medical Devices & Healthcare Technologies",
-      "title": "Spiber Instruments",
+      "title": "Spiber Medtrade",
       "description": "Clinical-grade medical and surgical equipment for hospitals, clinics, and laboratories across Bangladesh."
     },
     "academy": {
@@ -88,7 +88,7 @@
     },
     "systems": {
       "eyebrow": "Digital Health & Software Solutions",
-      "title": "Spiber Systems",
+      "title": "Spiber Digihealth",
       "description": "Software products and custom digital-health solutions for modern care delivery."
     },
     "tourism": {
@@ -337,9 +337,9 @@
     "comingSoon": "Admin modules are being built out phase by phase.",
     "groups": {
       "overview": "Overview",
-      "instruments": "Instruments",
+      "instruments": "Medtrade",
       "academy": "Academy",
-      "systems": "Systems",
+      "systems": "Digihealth",
       "tourism": "Tourism",
       "consulting": "Consulting",
       "blog": "Blog",
@@ -556,7 +556,7 @@
     "capitalEquipment": {
       "eyebrow": "OUR CAPITAL EQUIPMENT",
       "title": "The full catalog, browseable in one place.",
-      "lede": "Every listing carries a model, SKU, certification status, and lead-time estimate. Browse the full range on our Instruments page.",
+      "lede": "Every listing carries a model, SKU, certification status, and lead-time estimate. Browse the full range on our Medtrade page.",
       "downloadCatalog": "Browse full catalog",
       "seeMore": "View all instruments",
       "moreCategories": "and more",
@@ -807,12 +807,12 @@
             "title": "Products",
             "links": [
               {
-                "label": "Spiber Instruments",
-                "href": "/instruments"
+                "label": "Spiber Medtrade",
+                "href": "/medtrade"
               },
               {
-                "label": "Spiber Systems",
-                "href": "/systems"
+                "label": "Spiber Digihealth",
+                "href": "/digihealth"
               }
             ]
           },
@@ -882,7 +882,7 @@
   },
   "shop": {
     "hub": {
-      "title": "Spiber Instruments",
+      "title": "Spiber Medtrade",
       "lede": "Clinical-grade medical and surgical equipment for hospitals, clinics, and laboratories across Bangladesh.",
       "shopByCategory": "Shop by category",
       "featured": "Featured equipment",
@@ -1118,7 +1118,7 @@
   },
   "systems": {
     "hub": {
-      "title": "Spiber Systems",
+      "title": "Spiber Digihealth",
       "lede": "Software products and custom digital-health solutions for modern care delivery.",
       "featured": "Featured software",
       "browseAll": "Browse all software",

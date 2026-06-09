@@ -183,7 +183,7 @@ export function AboutCta() {
               <Link href="/contact" style={outlineBtn}>
                 {t("contact")}
               </Link>
-              <Link href="/instruments" style={orangeBtn}>
+              <Link href="/medtrade" style={orangeBtn}>
                 {t("quote")} <Arrow size={16} />
               </Link>
             </div>

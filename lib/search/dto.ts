@@ -24,7 +24,7 @@ export type SearchHit = {
   title: string;
   /** Already formatted (price / reading time / "On request"). */
   subtitle?: string;
-  /** Locale-relative detail path, e.g. `/instruments/product/slug`. */
+  /** Locale-relative detail path, e.g. `/medtrade/product/slug`. */
   href: string;
   /** Cover/first image URL, if any. */
   image?: string | null;

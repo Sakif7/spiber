@@ -19,7 +19,7 @@ export async function generateMetadata({
   const t = await getTranslations({ locale, namespace: "quotation" });
   return pageMetadata({
     locale: locale as Locale,
-    path: "/instruments/quote",
+    path: "/medtrade/quote",
     title: t("pageTitle"),
     description: t("pageLede"),
     noindex: true,
@@ -55,7 +55,7 @@ export default async function QuotePage({
         description={t("pageLede")}
         breadcrumbs={[
           { label: nav("home"), href: "/" },
-          { label: nav("instruments"), href: "/instruments" },
+          { label: nav("instruments"), href: "/medtrade" },
           { label: t("pageTitle") },
         ]}
       />

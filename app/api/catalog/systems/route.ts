@@ -5,7 +5,7 @@ import type { Locale } from "@/i18n/routing";
 
 export const dynamic = "force-dynamic";
 
-/** Active Spiber Systems (software) products for the header mega-menu. */
+/** Active Spiber Digihealth (software) products for the header mega-menu. */
 export async function GET(req: Request) {
   const sp = new URL(req.url).searchParams;
   const locale: Locale = sp.get("locale") === "bn" ? "bn" : "en";

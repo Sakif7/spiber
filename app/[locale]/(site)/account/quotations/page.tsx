@@ -78,7 +78,7 @@ export default async function AccountQuotationsPage({
               >
                 {t("emptyNote")}
               </p>
-              <CtaButton href="/instruments" variant="primary">
+              <CtaButton href="/medtrade" variant="primary">
                 {t("browseCatalog")}
               </CtaButton>
             </div>

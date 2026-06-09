@@ -39,7 +39,7 @@ export async function generateMetadata({
   const title = cat ? localize(cat.name, locale as Locale) : category;
   return pageMetadata({
     locale: locale as Locale,
-    path: `/instruments/${category}`,
+    path: `/medtrade/${category}`,
     title,
   });
 }
@@ -120,7 +120,7 @@ export default async function CategoryListing({
     : new Set<string>();
 
   // ---- Active-filter chips (server-rendered, removable; reset to page 1) ----
-  const base = `/instruments/${category}`;
+  const base = `/medtrade/${category}`;
   const hrefWithout = (...omit: string[]) => {
     const p = new URLSearchParams();
     const keep = (k: string, v?: string) => {
@@ -189,7 +189,7 @@ export default async function CategoryListing({
         imageAlt={localize(cat.name, l)}
         breadcrumbs={[
           { label: nav("home"), href: "/" },
-          { label: nav("instruments"), href: "/instruments" },
+          { label: nav("instruments"), href: "/medtrade" },
           { label: localize(cat.name, l) },
         ]}
       />
@@ -207,7 +207,7 @@ export default async function CategoryListing({
             brands={brands}
             categories={categoryNav}
             currentSlug={category}
-            categoryBasePath="/instruments"
+            categoryBasePath="/medtrade"
           />
 
           <div
@@ -219,7 +219,7 @@ export default async function CategoryListing({
           >
             {/* Prominent search */}
             <form
-              action={`/${locale}/instruments/${category}`}
+              action={`/${locale}/medtrade/${category}`}
               method="get"
               role="search"
               style={{ display: "flex", gap: 8 }}

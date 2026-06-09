@@ -34,7 +34,7 @@ export function SoftwareBuyButton({
   if (!isLoading && !user) {
     return (
       <CtaButton
-        onClick={() => open("login", { next: `/systems/product/${slug}` })}
+        onClick={() => open("login", { next: `/digihealth/product/${slug}` })}
       >
         {t("signInToBuy")}
       </CtaButton>
@@ -55,7 +55,7 @@ export function SoftwareBuyButton({
     const json = await res.json().catch(() => null);
     setBusy(false);
     if (res.ok && json?.ok) {
-      router.push(`/systems/purchase/${json.data.purchaseNumber}`);
+      router.push(`/digihealth/purchase/${json.data.purchaseNumber}`);
       router.refresh();
     } else {
       setError(

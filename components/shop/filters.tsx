@@ -14,7 +14,7 @@ export function Filters({
   showRating = false,
   categories,
   currentSlug,
-  categoryBasePath = "/instruments",
+  categoryBasePath = "/medtrade",
   categoryLinkPrefix,
 }: {
   brands: BrandOption[];

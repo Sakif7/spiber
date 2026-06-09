@@ -6,7 +6,7 @@ import { QuoteButton } from "./quote-button";
 
 /**
  * Header action that adapts to the current storefront:
- *  - /instruments/* → "Request for Quotation" list (QuoteButton)
+ *  - /medtrade/* → "Request for Quotation" list (QuoteButton)
  *  - /marketplace/* → shopping cart (CartButton)
  *  - everywhere else → nothing (no shopping affordance on corporate pages)
  *
@@ -16,7 +16,7 @@ import { QuoteButton } from "./quote-button";
  */
 export function StorefrontAction() {
   const pathname = usePathname();
-  if (pathname.startsWith("/instruments")) return <QuoteButton />;
+  if (pathname.startsWith("/medtrade")) return <QuoteButton />;
   if (pathname.startsWith("/marketplace")) return <CartButton />;
   return null;
 }

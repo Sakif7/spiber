@@ -214,7 +214,7 @@ function SegmentCard({
         </p>
 
         <Link
-          href="/instruments"
+          href="/medtrade"
           style={{
             marginTop: big ? 22 : 14,
             display: "inline-flex",
