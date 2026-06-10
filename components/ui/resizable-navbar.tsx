@@ -227,9 +227,13 @@ export const NavItems = ({
       ? pathname === "/"
       : pathname === link || pathname.startsWith(link + "/"));
   const activeIdx = items.findIndex((it) => isActive(it.link));
+  const openIdx = openName ? items.findIndex((it) => it.name === openName) : -1;
   // The underline rests on the active route; on hover it slides to the hovered
-  // item (shared layout), then glides back to the active item on mouse-leave.
-  const indicatorIdx = hovered ?? (activeIdx >= 0 ? activeIdx : null);
+  // item (shared layout). While a drawer is open it stays under that item — so
+  // moving the cursor off the trigger into the drawer doesn't snap it back to
+  // the active route. Precedence: hovered → open drawer → active route.
+  const indicatorIdx =
+    hovered ?? (openIdx >= 0 ? openIdx : activeIdx >= 0 ? activeIdx : null);
 
   return (
     <motion.div
