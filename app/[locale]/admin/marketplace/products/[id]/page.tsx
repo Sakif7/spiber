@@ -12,6 +12,7 @@ import {
 export const dynamic = "force-dynamic";
 
 type Option = { id: string; name: string };
+type CatOption = { id: string; name: string; parentId: string | null };
 
 export default async function EditMarketplaceProductPage({
   params,
@@ -25,7 +26,7 @@ export default async function EditMarketplaceProductPage({
   if (!doc) notFound();
   const p = doc.toObject();
 
-  let categories: Option[] = [];
+  let categories: CatOption[] = [];
   let brands: Option[] = [];
   try {
     const [cats, brs] = await Promise.all([
@@ -35,6 +36,7 @@ export default async function EditMarketplaceProductPage({
     categories = cats.map((c) => ({
       id: String(c._id),
       name: localize(c.name, "en"),
+      parentId: c.parentId ? String(c.parentId) : null,
     }));
     brands = brs.map((b) => ({
       id: String(b._id),

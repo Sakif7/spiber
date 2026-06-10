@@ -7,6 +7,7 @@ import { localize } from "@/lib/schemas/localized";
 export const dynamic = "force-dynamic";
 
 type Option = { id: string; name: string };
+type CatOption = { id: string; name: string; parentId: string | null };
 
 export default async function NewProductPage({
   params,
@@ -16,12 +17,13 @@ export default async function NewProductPage({
   const { locale } = await params;
   setRequestLocale(locale);
 
-  let categories: Option[] = [];
+  let categories: CatOption[] = [];
   try {
     const rows = await listCategories("instruments");
     categories = rows.map((c) => ({
       id: String(c._id),
       name: localize(c.name, "en"),
+      parentId: c.parentId ? String(c.parentId) : null,
     }));
   } catch {
     categories = [];

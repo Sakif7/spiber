@@ -6,6 +6,7 @@ import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { CardGrid } from "@/components/ui/card-grid";
 import { JsonLd } from "@/components/ui/json-ld";
 import { Placeholder } from "@/components/ui/placeholder";
+import { ZoomImage } from "@/components/ui/zoom-image";
 import { CtaButton } from "@/components/ui/cta-button";
 import { RecentlyViewed } from "@/components/ui/recently-viewed";
 import { SoftwareBuyButton } from "@/components/systems/software-buy-button";
@@ -142,12 +143,10 @@ export default async function SoftwareDetail({
               }}
             >
               {product.screenshots[0] ? (
-                <Image
+                <ZoomImage
                   src={product.screenshots[0]}
                   alt={name}
-                  fill
                   sizes="(max-width: 980px) 100vw, 60vw"
-                  style={{ objectFit: "cover" }}
                   priority
                 />
               ) : (

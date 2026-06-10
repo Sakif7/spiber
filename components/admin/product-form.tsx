@@ -9,6 +9,7 @@ import { fromMinor, toMinor } from "@/lib/money";
 import { formatApiError } from "@/lib/http/form-error";
 import { ImageUploader } from "./image-uploader";
 import { SpecsEditor, type SpecRow } from "./specs-editor";
+import { CategorySelect, type CategoryOption } from "./category-select";
 
 export type ProductFormInitial = {
   id?: string;
@@ -33,7 +34,7 @@ export function ProductForm({
   brands,
 }: {
   initial?: ProductFormInitial;
-  categories: Option[];
+  categories: CategoryOption[];
   brands: Option[];
 }) {
   const router = useRouter();
@@ -46,7 +47,10 @@ export function ProductForm({
   const [descEn, setDescEn] = useState(initial?.description?.en ?? "");
   const [descBn, setDescBn] = useState(initial?.description?.bn ?? "");
   const [categoryId, setCategoryId] = useState(
-    initial?.categoryId ?? categories[0]?.id ?? "",
+    initial?.categoryId ??
+      categories.find((c) => !c.parentId)?.id ??
+      categories[0]?.id ??
+      "",
   );
   const [brandId, setBrandId] = useState(initial?.brandId ?? "");
   const [price, setPrice] = useState(
@@ -166,20 +170,11 @@ export function ProductForm({
       <div style={row}>
         <div style={field}>
           <Label>Category</Label>
-          <select
-            style={sel}
+          <CategorySelect
+            categories={categories}
             value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
-          >
-            {categories.length === 0 && (
-              <option value="">— create a category first —</option>
-            )}
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+            onChange={setCategoryId}
+          />
         </div>
         <div style={field}>
           <Label>Brand</Label>

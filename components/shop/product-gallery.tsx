@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { Placeholder } from "@/components/ui/placeholder";
+import { ZoomImage } from "@/components/ui/zoom-image";
 
 export function ProductGallery({
   images,
@@ -29,12 +30,10 @@ export function ProductGallery({
         }}
       >
         {main ? (
-          <Image
+          <ZoomImage
             src={main}
             alt={name}
-            fill
             sizes="(max-width: 980px) 100vw, 50vw"
-            style={{ objectFit: "cover" }}
             priority
           />
         ) : (
