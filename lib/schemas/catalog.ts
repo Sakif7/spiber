@@ -28,6 +28,20 @@ export const brandSchema = z.object({
 });
 export type BrandInput = z.infer<typeof brandSchema>;
 
+/** Manual up/down reorder payload for the admin brand list. */
+export const brandReorderSchema = z.object({
+  updates: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        position: z.number().int().nonnegative(),
+      }),
+    )
+    .min(1)
+    .max(2000),
+});
+export type BrandReorderInput = z.infer<typeof brandReorderSchema>;
+
 // ---- Category ----
 // `slug` is optional on input; the route derives it from `name.en` when blank.
 // Categories form a per-storefront tree via `parentId`; `position` orders

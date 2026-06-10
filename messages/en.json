@@ -61,7 +61,8 @@
     "consulting": "Consulting",
     "blog": "Blog",
     "marketplace": "Marketplace",
-    "company": "Company"
+    "company": "Company",
+    "viewAllIn": "View all in {name}"
   },
   "localeSwitcher": {
     "label": "Language",
@@ -724,6 +725,7 @@
       "headlineSuffix": "Built for Bangladesh.",
       "ctaQuote": "Request a Quote",
       "ctaExplore": "Explore Solutions",
+      "ctaMarketplace": "Explore Marketplace",
       "trustIso": "ISO 13485",
       "trustBiomed": "24×7 biomed",
       "taglines": [

@@ -11,7 +11,8 @@ type MegaItem = {
   href: string;
   links?: { label: string; href: string }[];
 };
-type NavCat = { id: string; slug: string; name: string };
+type NavSub = { id: string; slug: string; name: string };
+type NavCat = { id: string; slug: string; name: string; children?: NavSub[] };
 type Mini = { slug: string; name: string };
 type MpCat = { slug: string; name: string };
 
@@ -176,22 +177,26 @@ function MobileLink({
   children,
   strong,
   indent,
+  deep,
 }: {
   href: string;
   onNavigate: () => void;
   children: React.ReactNode;
   strong?: boolean;
   indent?: boolean;
+  /** Second-level (subcategory) indent. */
+  deep?: boolean;
 }) {
+  const padLeft = deep ? 28 : indent ? 16 : 8;
   return (
     <Link
       href={href}
       onClick={onNavigate}
       style={{
         display: "block",
-        minHeight: 44,
-        padding: indent ? "11px 8px 11px 16px" : "11px 8px",
-        fontSize: strong ? 14.5 : 14,
+        minHeight: deep ? 40 : 44,
+        padding: `${deep ? 9 : 11}px 8px ${deep ? 9 : 11}px ${padLeft}px`,
+        fontSize: strong ? 14.5 : deep ? 13.5 : 14,
         fontWeight: strong ? 600 : 400,
         color: strong ? "var(--color-text-strong)" : "var(--color-text-muted)",
         textDecoration: "none",
@@ -271,14 +276,25 @@ function ProductsPanel({
           </MobileLink>
           {cats === null && <Loading />}
           {cats?.map((c) => (
-            <MobileLink
-              key={c.id}
-              href={`/medtrade/${c.slug}`}
-              onNavigate={onNavigate}
-              indent
-            >
-              {c.name}
-            </MobileLink>
+            <div key={c.id}>
+              <MobileLink
+                href={`/medtrade/${c.slug}`}
+                onNavigate={onNavigate}
+                indent
+              >
+                {c.name}
+              </MobileLink>
+              {c.children?.map((sub) => (
+                <MobileLink
+                  key={sub.id}
+                  href={`/medtrade/${sub.slug}`}
+                  onNavigate={onNavigate}
+                  deep
+                >
+                  {sub.name}
+                </MobileLink>
+              ))}
+            </div>
           ))}
         </>
       )}

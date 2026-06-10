@@ -12,6 +12,7 @@ export type CascadeKind =
   | "subcategory"
   | "brand"
   | "product"
+  | "viewall"
   | "link";
 
 export type CascadeNode = {
@@ -28,7 +29,12 @@ export type CascadeNode = {
 
 const TIMINGS = { open: 100, keyboardSuppress: 400 } as const;
 
-type Column = { nodes: CascadeNode[] | null; parentId: string | null };
+type Column = {
+  nodes: CascadeNode[] | null;
+  parentId: string | null;
+  /** The branch node that opened this column (null for the root column). */
+  parent: CascadeNode | null;
+};
 
 /**
  * Headless 3-level cascade engine for the dark mega-menu. Owns the open PATH
@@ -42,9 +48,13 @@ type Column = { nodes: CascadeNode[] | null; parentId: string | null };
 export function Cascade({
   roots,
   onNavigate,
+  viewAllLabel = (name) => `View all in ${name}`,
 }: {
   roots: CascadeNode[];
   onNavigate?: () => void;
+  /** Localized label for the "view all in {parent}" row prepended to each
+   * drilled-in column — makes every branch category/subcategory navigable. */
+  viewAllLabel?: (name: string) => string;
 }) {
   const [openPath, setOpenPath] = useState<string[]>([]);
   const [childrenById, setChildrenById] = useState<
@@ -64,12 +74,31 @@ export function Cascade({
   const reduce = useReducedMotion();
 
   const columns = useMemo<Column[]>(() => {
-    const cols: Column[] = [{ nodes: roots, parentId: null }];
+    const cols: Column[] = [{ nodes: roots, parentId: null, parent: null }];
+    let prev: CascadeNode[] = roots;
     for (const pid of openPath) {
-      cols.push({ nodes: childrenById[pid] ?? null, parentId: pid });
+      const parent = prev.find((n) => n.id === pid) ?? null;
+      const loaded = childrenById[pid] ?? null;
+      // Prepend a synthetic "view all in {parent}" leaf so a branch node (which
+      // only opens on click) still has a navigable destination — its own
+      // listing page. It joins the roving index naturally (it's a real node).
+      let nodes = loaded;
+      if (loaded && parent) {
+        nodes = [
+          {
+            id: `va:${pid}`,
+            label: viewAllLabel(parent.label),
+            kind: "viewall",
+            href: parent.href,
+          },
+          ...loaded,
+        ];
+      }
+      cols.push({ nodes, parentId: pid, parent });
+      prev = loaded ?? [];
     }
     return cols;
-  }, [roots, openPath, childrenById]);
+  }, [roots, openPath, childrenById, viewAllLabel]);
 
   // Point the safe-triangle at the DEEPEST open sub-column (re-read each render).
   useEffect(() => {
@@ -276,8 +305,14 @@ function ColumnView({
   onNavigate?: () => void;
 }) {
   const nodes = col.nodes;
+  // The synthetic "view all" row (if any) is always the first node; the rest is
+  // the real list/grid body, rendered with its indices offset by 1 so keyboard
+  // roving still lines up with the column's node array.
+  const viewAll = nodes && nodes[0]?.kind === "viewall" ? nodes[0] : null;
+  const body = viewAll && nodes ? nodes.slice(1) : nodes;
+  const off = viewAll ? 1 : 0;
   const isGrid =
-    !!nodes && nodes.length > 0 && nodes.every((n) => !n.loadChildren);
+    !!body && body.length > 0 && body.every((n) => !n.loadChildren);
 
   const base: React.CSSProperties = {
     flexShrink: 0,
@@ -287,34 +322,49 @@ function ColumnView({
     borderLeft: ci > 0 ? "1px solid var(--color-hairline)" : undefined,
   };
   const sizing: React.CSSProperties = isGrid
-    ? { width: 440, maxWidth: "min(46vw, 460px)" }
+    ? { minWidth: 268, maxWidth: 340 }
     : { minWidth: 236, maxWidth: 300 };
 
   const inner =
     nodes === null ? (
       <Skeleton rows={6} />
-    ) : nodes.length === 0 ? (
-      <Empty />
-    ) : isGrid ? (
-      <Grid
-        nodes={nodes}
-        ci={ci}
-        focusedKey={focusedKey}
-        registerItem={registerItem}
-        onNavigate={onNavigate}
-      />
     ) : (
-      <List
-        nodes={nodes}
-        ci={ci}
-        openId={openId}
-        focusedKey={focusedKey}
-        registerItem={registerItem}
-        onRowEnter={onRowEnter}
-        onRowLeave={onRowLeave}
-        onRowClick={onRowClick}
-        onNavigate={onNavigate}
-      />
+      <>
+        {viewAll && (
+          <ViewAllRow
+            node={viewAll}
+            ci={ci}
+            focusedKey={focusedKey}
+            registerItem={registerItem}
+            onNavigate={onNavigate}
+          />
+        )}
+        {!body || body.length === 0 ? (
+          <Empty />
+        ) : isGrid ? (
+          <Grid
+            nodes={body}
+            ci={ci}
+            indexOffset={off}
+            focusedKey={focusedKey}
+            registerItem={registerItem}
+            onNavigate={onNavigate}
+          />
+        ) : (
+          <List
+            nodes={body}
+            ci={ci}
+            indexOffset={off}
+            openId={openId}
+            focusedKey={focusedKey}
+            registerItem={registerItem}
+            onRowEnter={onRowEnter}
+            onRowLeave={onRowLeave}
+            onRowClick={onRowClick}
+            onNavigate={onNavigate}
+          />
+        )}
+      </>
     );
 
   const style = { ...base, ...sizing };
@@ -342,6 +392,7 @@ function ColumnView({
 function List({
   nodes,
   ci,
+  indexOffset = 0,
   openId,
   focusedKey,
   registerItem,
@@ -352,6 +403,7 @@ function List({
 }: {
   nodes: CascadeNode[];
   ci: number;
+  indexOffset?: number;
   openId: string | null;
   focusedKey: string | null;
   registerItem: (idx: number, el: HTMLElement | null) => void;
@@ -379,7 +431,6 @@ function List({
           borderRadius: "var(--r-md)",
           background:
             "linear-gradient(90deg, rgba(28,184,186,0.20), rgba(28,184,186,0) 86%)",
-          boxShadow: "inset 2px 0 0 var(--teal-300)",
           zIndex: 0,
         }}
       />
@@ -398,7 +449,8 @@ function List({
         const open = openId === node.id;
         const isSel = selIdx === idx;
         const isBranch = !!node.loadChildren;
-        const key = `${ci}:${idx}`;
+        const gIdx = idx + indexOffset;
+        const key = `${ci}:${gIdx}`;
         const tab = focusedKey === key ? 0 : -1;
         const row = isBranch ? (
           <button
@@ -408,7 +460,7 @@ function List({
             aria-haspopup="true"
             aria-expanded={open}
             tabIndex={tab}
-            ref={(el) => registerItem(idx, el)}
+            ref={(el) => registerItem(gIdx, el)}
             className="mega-row"
             onMouseEnter={() => {
               setHov(idx);
@@ -446,7 +498,7 @@ function List({
             data-cascade-item
             role="menuitem"
             tabIndex={tab}
-            ref={(el) => registerItem(idx, el as unknown as HTMLElement)}
+            ref={(el) => registerItem(gIdx, el as unknown as HTMLElement)}
             className="mega-row"
             onMouseEnter={() => setHov(idx)}
             onMouseLeave={() => setHov(null)}
@@ -472,12 +524,14 @@ function List({
 function Grid({
   nodes,
   ci,
+  indexOffset = 0,
   focusedKey,
   registerItem,
   onNavigate,
 }: {
   nodes: CascadeNode[];
   ci: number;
+  indexOffset?: number;
   focusedKey: string | null;
   registerItem: (idx: number, el: HTMLElement | null) => void;
   onNavigate?: () => void;
@@ -486,11 +540,12 @@ function Grid({
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-        gap: 6,
+        gridTemplateColumns: "minmax(0, 1fr)",
+        gap: 2,
       }}
     >
-      {nodes.map((p, idx) => {
+      {nodes.map((p, i) => {
+        const idx = i + indexOffset;
         const key = `${ci}:${idx}`;
         return (
           <Link
@@ -545,6 +600,65 @@ function Grid({
           </Link>
         );
       })}
+    </div>
+  );
+}
+
+/**
+ * The "View all in {parent}" row pinned to the top of a drilled-in column. It is
+ * a real, keyboard-roving menuitem at index 0, giving an otherwise click-to-open
+ * branch node a navigable destination (its own listing page).
+ */
+function ViewAllRow({
+  node,
+  ci,
+  focusedKey,
+  registerItem,
+  onNavigate,
+}: {
+  node: CascadeNode;
+  ci: number;
+  focusedKey: string | null;
+  registerItem: (idx: number, el: HTMLElement | null) => void;
+  onNavigate?: () => void;
+}) {
+  const tab = focusedKey === `${ci}:0` ? 0 : -1;
+  return (
+    <div
+      style={{
+        marginBottom: 6,
+        paddingBottom: 6,
+        borderBottom: "1px solid var(--color-hairline)",
+      }}
+    >
+      <Link
+        href={node.href}
+        data-cascade-item
+        role="menuitem"
+        tabIndex={tab}
+        ref={(el) => registerItem(0, el as unknown as HTMLElement)}
+        className="mega-row"
+        onClick={onNavigate}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+          width: "100%",
+          padding: "8px 12px",
+          borderRadius: "var(--r-md)",
+          textDecoration: "none",
+          color: "var(--teal-300)",
+          fontSize: 12,
+          fontWeight: 600,
+          lineHeight: 1.3,
+        }}
+      >
+        <span style={{ ...ellipsis, minWidth: 0 }}>{node.label}</span>
+        <span style={{ display: "inline-flex", flexShrink: 0 }}>
+          <Arrow size={12} />
+        </span>
+      </Link>
     </div>
   );
 }

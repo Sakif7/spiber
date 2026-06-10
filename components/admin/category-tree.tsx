@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ChevronUp, ChevronDown } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
 import { formatApiError } from "@/lib/http/form-error";
 
@@ -14,7 +15,13 @@ export type TreeNode = {
   children: TreeNode[];
 };
 
-export function CategoryTree({ nodes }: { nodes: TreeNode[] }) {
+export function CategoryTree({
+  nodes,
+  storefront = "marketplace",
+}: {
+  nodes: TreeNode[];
+  storefront?: "instruments" | "marketplace";
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -27,7 +34,7 @@ export function CategoryTree({ nodes }: { nodes: TreeNode[] }) {
         body: JSON.stringify({
           name: { en: node.nameEn, bn: node.nameBn || undefined },
           slug: node.slug,
-          storefront: "marketplace",
+          storefront,
           parentId: node.parentId ?? undefined,
           position: node.position,
           ...body,
@@ -52,18 +59,21 @@ export function CategoryTree({ nodes }: { nodes: TreeNode[] }) {
   async function move(siblings: TreeNode[], index: number, dir: -1 | 1) {
     const j = index + dir;
     if (j < 0 || j >= siblings.length) return;
-    const a = siblings[index];
-    const b = siblings[j];
-    setBusy(a.id);
+    // Reorder the sibling list, then re-number the WHOLE group 0..n-1 so the new
+    // order sticks even when positions were all tied at 0 (a plain swap can't).
+    const order = siblings.map((s) => s.id);
+    [order[index], order[j]] = [order[j], order[index]];
+    setBusy(siblings[index].id);
     try {
       const res = await fetch(`/api/admin/categories/reorder`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          updates: [
-            { id: a.id, parentId: a.parentId, position: b.position },
-            { id: b.id, parentId: b.parentId, position: a.position },
-          ],
+          updates: order.map((id, position) => ({
+            id,
+            parentId: siblings[index].parentId,
+            position,
+          })),
         }),
       });
       const json = await res.json().catch(() => null);
@@ -131,19 +141,21 @@ export function CategoryTree({ nodes }: { nodes: TreeNode[] }) {
             type="button"
             onClick={() => move(siblings, index, -1)}
             disabled={index === 0}
-            style={iconBtn}
-            aria-label="Move up"
+            style={iconBtn(index === 0)}
+            aria-label={`Move ${node.nameEn} up`}
+            title="Move up"
           >
-            ↑
+            <ChevronUp size={15} aria-hidden />
           </button>
           <button
             type="button"
             onClick={() => move(siblings, index, 1)}
             disabled={index === siblings.length - 1}
-            style={iconBtn}
-            aria-label="Move down"
+            style={iconBtn(index === siblings.length - 1)}
+            aria-label={`Move ${node.nameEn} down`}
+            title="Move down"
           >
-            ↓
+            <ChevronDown size={15} aria-hidden />
           </button>
           <button type="button" onClick={() => rename(node)} style={textBtn}>
             Rename
@@ -178,15 +190,18 @@ export function CategoryTree({ nodes }: { nodes: TreeNode[] }) {
   return <div>{renderLevel(nodes, 0)}</div>;
 }
 
-const iconBtn: React.CSSProperties = {
+const iconBtn = (disabled: boolean): React.CSSProperties => ({
+  display: "inline-grid",
+  placeItems: "center",
   width: 28,
   height: 28,
   border: "1px solid var(--color-border)",
   borderRadius: "var(--r-sm)",
   background: "transparent",
-  cursor: "pointer",
-  color: "var(--color-text)",
-};
+  cursor: disabled ? "default" : "pointer",
+  color: disabled ? "var(--color-text-subtle)" : "var(--color-text)",
+  opacity: disabled ? 0.45 : 1,
+});
 const textBtn: React.CSSProperties = {
   border: "none",
   background: "none",

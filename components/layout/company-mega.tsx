@@ -73,8 +73,7 @@ export function CompanyMega({
                   inset: 0,
                   borderRadius: "var(--r-md)",
                   background:
-                    "linear-gradient(90deg, rgba(28,184,186,0.20), rgba(28,184,186,0) 86%)",
-                  boxShadow: "inset 2px 0 0 var(--teal-300)",
+                    "linear-gradient(90deg, rgba(236,125,63,0.20), rgba(236,125,63,0) 86%)",
                   zIndex: 0,
                 }}
               />

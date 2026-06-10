@@ -731,10 +731,15 @@ select.contact-field {
   );
   color: var(--color-text-strong);
 }
-/* Product tiles sit in a 2-col grid — a flat tint reads better than a fade. */
+/* Product rows — a flat tint reads better than a fade. */
 .mega .mega-prod:hover {
   background: var(--color-surface-2);
   color: var(--color-text-strong);
+}
+/* Keep wheel scrolling inside a scrollable column — never chain to the page. */
+.mega .mega-col,
+.mega .mega-scroll {
+  overscroll-behavior: contain;
 }
 /* Visible teal focus ring on the dark panel + the nav triggers. */
 .mega [data-cascade-item]:focus-visible,

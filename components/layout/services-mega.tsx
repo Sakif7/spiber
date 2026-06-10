@@ -80,7 +80,6 @@ export function ServicesMega({
                     borderRadius: "var(--r-lg)",
                     background:
                       "linear-gradient(90deg, rgba(236,125,63,0.22), rgba(236,125,63,0) 85%)",
-                    boxShadow: "inset 2px 0 0 var(--orange-400)",
                     zIndex: 0,
                   }}
                 />

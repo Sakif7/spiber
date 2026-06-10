@@ -10,7 +10,7 @@ export type CategoryNode = Lean<ICategory> & { children: CategoryNode[] };
 export async function listBrands() {
   await connectToDatabase();
   return Brand.find({ deletedAt: null })
-    .sort({ "name.en": 1 })
+    .sort({ position: 1, "name.en": 1 })
     .lean<Lean<IBrand>[]>()
     .exec();
 }
@@ -26,7 +26,28 @@ export async function getBrandById(id: string) {
 }
 export async function createBrand(data: Partial<IBrand>) {
   await connectToDatabase();
+  // Append to the end of the manual order unless a position was supplied.
+  if (data.position == null) {
+    const last = await Brand.findOne({ deletedAt: null })
+      .sort({ position: -1 })
+      .select("position")
+      .lean<{ position?: number }>()
+      .exec();
+    data = { ...data, position: (last?.position ?? -1) + 1 };
+  }
   return Brand.create(data);
+}
+
+/** Manual up/down reorder for the admin brand list. */
+export async function reorderBrands(
+  updates: { id: string; position: number }[],
+) {
+  await connectToDatabase();
+  await Promise.all(
+    updates.map((u) =>
+      Brand.updateOne({ _id: u.id }, { $set: { position: u.position } }).exec(),
+    ),
+  );
 }
 export async function updateBrand(id: string, data: Partial<IBrand>) {
   await connectToDatabase();
@@ -113,6 +134,20 @@ export async function getCategoryById(id: string) {
 }
 export async function createCategory(data: Partial<ICategory>) {
   await connectToDatabase();
+  // Append to the end of its sibling group unless a position was supplied, so a
+  // new (sub)category sorts last rather than tying at 0 with its siblings.
+  if (data.position == null) {
+    const last = await Category.findOne({
+      deletedAt: null,
+      storefront: data.storefront,
+      parentId: data.parentId ?? null,
+    })
+      .sort({ position: -1 })
+      .select("position")
+      .lean<{ position?: number }>()
+      .exec();
+    data = { ...data, position: (last?.position ?? -1) + 1 };
+  }
   return Category.create(data);
 }
 export async function updateCategory(id: string, data: Partial<ICategory>) {

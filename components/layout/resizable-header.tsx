@@ -456,6 +456,28 @@ function MegaMenu({
     return () => window.removeEventListener("resize", apply);
   }, [open]);
 
+  // Absorb the wheel while the drawer is open: a hovered column scrolls itself,
+  // but the page behind never scrolls (fixes "the page scrolls instead of the
+  // drawer"). Native non-passive listener so preventDefault actually applies.
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel || !open) return;
+    const onWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return; // leave horizontal alone
+      const col = (e.target as HTMLElement).closest<HTMLElement>(".mega-col");
+      if (col && col.scrollHeight > col.clientHeight) {
+        const atTop = col.scrollTop <= 0;
+        const atBottom =
+          col.scrollTop + col.clientHeight >= col.scrollHeight - 1;
+        // The column can still scroll in this direction — let it.
+        if (!((e.deltaY < 0 && atTop) || (e.deltaY > 0 && atBottom))) return;
+      }
+      e.preventDefault();
+    };
+    panel.addEventListener("wheel", onWheel, { passive: false });
+    return () => panel.removeEventListener("wheel", onWheel);
+  }, [open]);
+
   const motionProps = reduce
     ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } }
     : {

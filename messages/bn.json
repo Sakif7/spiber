@@ -61,7 +61,8 @@
     "consulting": "কনসাল্টিং",
     "blog": "ব্লগ",
     "marketplace": "মার্কেটপ্লেস",
-    "company": "কোম্পানি"
+    "company": "কোম্পানি",
+    "viewAllIn": "{name} এর সব দেখুন"
   },
   "localeSwitcher": {
     "label": "ভাষা",
@@ -720,6 +721,7 @@
       "headlineSuffix": "বাংলাদেশের জন্য তৈরি।",
       "ctaQuote": "কোটেশন চান",
       "ctaExplore": "সমাধান দেখুন",
+      "ctaMarketplace": "মার্কেটপ্লেস দেখুন",
       "trustIso": "ISO 13485",
       "trustBiomed": "২৪×৭ বায়োমেড",
       "taglines": [

@@ -693,30 +693,13 @@ export function Hero() {
           <Reveal>
             <div
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "5px 12px 5px 10px",
-                borderRadius: 999,
-                background: "var(--color-surface-2)",
-                border: "1px solid var(--color-border)",
-                fontSize: 11.5,
-                fontWeight: 500,
-                color: "var(--color-text-strong)",
-                marginBottom: 22,
+                width: "100%",
+                maxWidth: 460,
+                minHeight: 52,
+                marginBottom: 26,
               }}
             >
-              <span
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: 99,
-                  background: "var(--brand-teal)",
-                  boxShadow:
-                    "0 0 0 4px color-mix(in oklab, var(--brand-teal) 22%, transparent)",
-                }}
-              />
-              {t("badge")}
+              <CatalogSearch mode="overlay" />
             </div>
 
             <TaglineRotator items={HERO_TAGLINES} />
@@ -737,19 +720,31 @@ export function Hero() {
                   flexWrap: "wrap",
                 }}
               >
-                <div
+                <Link
+                  href="/marketplace"
                   style={{
-                    flex: "1 1 300px",
-                    minWidth: 240,
-                    maxWidth: 460,
-                    minHeight: 54,
+                    background: "var(--color-surface)",
+                    color: "var(--color-text-strong)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: 999,
+                    padding: "0 18px",
+                    height: 44,
+                    fontSize: 14,
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 10,
+                    flexShrink: 0,
+                    textDecoration: "none",
+                    transition: "all .25s cubic-bezier(.2,.7,.2,1)",
                   }}
                 >
-                  <CatalogSearch mode="overlay" />
-                </div>
+                  {t("ctaMarketplace")} <Arrow size={14} />
+                </Link>
                 <Link
                   ref={ctaMag}
-                  href="/contact"
+                  href="/medtrade"
                   style={{
                     background: "var(--color-brand)",
                     color: "white",
@@ -766,6 +761,7 @@ export function Hero() {
                     alignItems: "center",
                     gap: 10,
                     flexShrink: 0,
+                    textDecoration: "none",
                     transition: "all .25s cubic-bezier(.2,.7,.2,1)",
                   }}
                 >
