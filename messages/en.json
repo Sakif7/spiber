@@ -1,4 +1,412 @@
 {
+  "tourism": {
+    "hub": {
+      "lede": "Plan world-class treatment abroad with a dedicated case manager — from finding the right doctor and hospital to visas, flights, and aftercare.",
+      "findDoctor": "Find a doctor",
+      "findHospital": "Find a hospital",
+      "exploreDestinations": "Explore destinations",
+      "browsePackages": "Surgery & health packages",
+      "featuredDestinations": "Featured destinations",
+      "popularPackages": "Popular packages",
+      "explore": "Explore",
+      "whyTitle": "Care without borders",
+      "whyLede": "A single team coordinates everything, so you can focus on getting better.",
+      "startCase": "Request a consultation",
+      "trackCase": "Track your case",
+      "searchDoctors": "Search doctors by name or specialty",
+      "searchHospitals": "Search hospitals by name or country"
+    },
+    "why": {
+      "1": {
+        "title": "Accredited partners",
+        "body": "Vetted hospitals and specialists across leading medical-tourism destinations."
+      },
+      "2": {
+        "title": "One case manager",
+        "body": "A single point of contact handles your quotation, appointment, visa, flights, and stay."
+      },
+      "3": {
+        "title": "Transparent costs",
+        "body": "Clear estimates in BDT with labeled foreign-currency ranges — no surprises."
+      },
+      "4": {
+        "title": "Secure & private",
+        "body": "Your medical reports are encrypted in transit and seen only by your care team."
+      }
+    },
+    "sections": {
+      "doctors": {
+        "title": "Find a doctor",
+        "lede": "Filter accredited specialists by specialty, hospital, and online availability — then request a consultation."
+      },
+      "hospitals": {
+        "title": "Hospitals network",
+        "lede": "Browse partner hospitals by country, city, specialty, and accreditation."
+      },
+      "destinations": {
+        "title": "Destinations",
+        "lede": "Popular treatment destinations with partner hospitals and estimated costs."
+      },
+      "packages": {
+        "title": "Surgery & health packages",
+        "lede": "Curated cardiac, orthopaedic, oncology, IVF, cosmetic, and health-check packages."
+      },
+      "medicalTourism": {
+        "title": "Medical tourism",
+        "lede": "Treatment in Bangladesh and abroad — partner hospitals, popular treatments, and estimated costs."
+      }
+    },
+    "filters": {
+      "specialty": "Specialty",
+      "country": "Country",
+      "category": "Category",
+      "online": "Online consultation",
+      "all": "All",
+      "noResults": "No results match your filters.",
+      "clear": "Clear filters"
+    },
+    "doctor": {
+      "online": "Online consultation",
+      "specialty": "Specialty",
+      "hospital": "Hospital",
+      "book": "Request a consultation",
+      "view": "View profile",
+      "about": "About"
+    },
+    "hospital": {
+      "view": "View hospital",
+      "request": "Request an appointment",
+      "accreditations": "Accreditations",
+      "specialties": "Specialties",
+      "doctors": "Doctors at this hospital"
+    },
+    "destination": {
+      "view": "View destination",
+      "popularTreatments": "Popular treatments",
+      "estimatedCost": "Estimated cost",
+      "partnerHospitals": "Partner hospitals",
+      "request": "Request a consultation",
+      "triad": "Hospitals · Treatments · Cost",
+      "explore": "Explore care options"
+    },
+    "package": {
+      "view": "View package",
+      "inclusions": "What's included",
+      "estimatedCost": "Estimated cost",
+      "hospitals": "Available at",
+      "inquire": "Get treatment cost"
+    },
+    "cost": {
+      "onRequest": "Price on request",
+      "estimate": "Estimated, in BDT. Final cost confirmed by the hospital."
+    },
+    "case": {
+      "title": "Request a consultation",
+      "lede": "Tell us about your condition and share any reports. A case manager will review and prepare a hospital quotation.",
+      "section": "Your details",
+      "name": "Full name",
+      "country": "Country",
+      "email": "Email",
+      "phone": "Phone",
+      "diagnosis": "Diagnosis / medical history",
+      "diagnosisHint": "Briefly describe the condition, symptoms, or prior treatment.",
+      "requestedService": "What are you looking for?",
+      "requestedServiceHint": "e.g. cardiac surgery, second opinion, health check-up.",
+      "documents": "Medical reports",
+      "documentsHint": "PDF or image (lab reports, scans, prescriptions). Max 25 MB each.",
+      "addDocument": "Add file",
+      "uploading": "Uploading…",
+      "consent": "I consent to Spiber Med securely storing and sharing my medical reports with the assigned care team for this request.",
+      "privacyNotice": "Your reports are stored privately and viewed only by your assigned case manager and authorised staff.",
+      "submit": "Submit request",
+      "submitting": "Submitting…",
+      "successTitle": "Request received",
+      "successBody": "Thanks — your case manager will be in touch. Keep your reference to track progress.",
+      "reference": "Your reference",
+      "forDoctor": "Consultation with",
+      "forHospital": "Treatment at",
+      "forPackage": "Package"
+    },
+    "appointment": {
+      "title": "Request a teleconsultation",
+      "lede": "Request an online or in-person consultation. We'll confirm a time and (for online) send a secure meeting link.",
+      "type": "Consultation type",
+      "inPerson": "In person",
+      "teleconsultation": "Teleconsultation (online)",
+      "preferredTimes": "Preferred times",
+      "preferredHint": "One per line, e.g. 'Tue 10am', 'Wed afternoon'.",
+      "notes": "Notes (optional)",
+      "submit": "Request appointment",
+      "successTitle": "Appointment requested",
+      "successBody": "We'll confirm a time and get back to you shortly.",
+      "requestNotice": "This is a request — we'll confirm availability manually."
+    },
+    "travel": {
+      "requestNotice": "This is a request, not a live booking. Our team prepares a quote and confirms manually.",
+      "submit": "Send request",
+      "successTitle": "Request received",
+      "successBody": "Our team will prepare a quote and get back to you.",
+      "air": {
+        "title": "Air ticket request",
+        "lede": "Tell us your route and dates — we'll quote the best fares.",
+        "from": "From",
+        "to": "To",
+        "departDate": "Departure date",
+        "returnDate": "Return date (optional)",
+        "passengers": "Passengers"
+      },
+      "hotel": {
+        "title": "Hotel request",
+        "lede": "Tell us your city and dates near the treating hospital.",
+        "city": "City",
+        "checkIn": "Check-in",
+        "checkOut": "Check-out",
+        "guests": "Guests"
+      },
+      "visa": {
+        "title": "Visa assistance",
+        "lede": "Tell us the destination and travel dates — we'll guide the medical-visa process.",
+        "country": "Destination country",
+        "travelDate": "Intended travel date",
+        "notes": "Notes"
+      },
+      "transfer": {
+        "title": "Airport transfer",
+        "lede": "Request an airport pick-up or drop-off.",
+        "city": "City",
+        "date": "Date",
+        "notes": "Notes"
+      }
+    },
+    "partner": {
+      "title": "Partner with us",
+      "lede": "Hospitals, doctors, agencies, diagnostics, and insurers — apply to join the Spiber Tourism network.",
+      "org": "Organisation name",
+      "website": "Website (optional)",
+      "country": "Country",
+      "description": "About your organisation",
+      "type": "Partner type",
+      "types": {
+        "hospital": "Hospital",
+        "doctor": "Doctor / clinic",
+        "agency": "Agency",
+        "diagnostic": "Diagnostic centre",
+        "insurance": "Insurer"
+      },
+      "contactName": "Contact name",
+      "documents": "Documents (optional)",
+      "submit": "Submit application",
+      "successTitle": "Application received",
+      "successBody": "Thanks — our team will review and get back to you."
+    },
+    "lookup": {
+      "title": "Track your case",
+      "lede": "Enter your case reference and email to see the latest status.",
+      "caseNumber": "Case reference",
+      "email": "Email",
+      "submit": "Look up case",
+      "notFound": "No case found for that reference and email.",
+      "statusLabel": "Status",
+      "checklist": "Arrangements",
+      "quotation": "Quotation"
+    },
+    "account": {
+      "title": "My cases",
+      "empty": "You don't have any cases yet.",
+      "reference": "Reference",
+      "submitted": "Submitted",
+      "viewQuotation": "View quotation"
+    },
+    "status": {
+      "case": {
+        "new": "Submitted",
+        "reviewing": "Under review",
+        "quoted": "Quotation ready",
+        "confirmed": "Confirmed",
+        "arranging": "Arranging travel",
+        "in_treatment": "In treatment",
+        "follow_up": "Follow-up",
+        "closed": "Closed",
+        "lost": "Closed"
+      }
+    },
+    "checklist": {
+      "appointment": "Appointment",
+      "visa": "Visa",
+      "airTicket": "Air ticket",
+      "accommodation": "Accommodation",
+      "airportTransfer": "Airport transfer",
+      "done": "Done",
+      "pending": "Pending"
+    },
+    "heroSubtitle": "Connecting patients with quality healthcare worldwide",
+    "getCost": "Get treatment cost",
+    "destinationsLede": "Top countries for world-class treatment and care",
+    "heroStats": {
+      "countries": "Destination countries",
+      "hospitals": "Hospital partners",
+      "visa": "Visa & travel support",
+      "followup": "Post-treatment follow-up"
+    },
+    "services": {
+      "eyebrow": "What we do",
+      "heading": "Complete medical travel, handled end to end",
+      "lede": "From the first inquiry to post-treatment follow-up, every part of your care journey is coordinated by one dedicated team.",
+      "learnMore": "Learn more",
+      "bangladesh": {
+        "title": "Bangladesh Treatment",
+        "lede": "Reach the right specialist, hospital and diagnostics inside Bangladesh. We arrange appointments, surgery packages, second opinions and health check-ups, all coordinated by a single point of contact.",
+        "items": [
+          "Specialist doctor appointments",
+          "Hospital booking",
+          "Diagnostic test booking",
+          "Surgery packages",
+          "Second opinion",
+          "Teleconsultation",
+          "Health check-up packages"
+        ]
+      },
+      "international": {
+        "title": "International Treatment",
+        "lede": "When care is best sought abroad, we assess your case, match the hospital and surgeon, estimate the cost, and handle the visa, appointments and travel from start to finish.",
+        "items": [
+          "Medical case assessment",
+          "Hospital selection",
+          "Doctor matching",
+          "Cost estimation",
+          "Visa assistance",
+          "Appointment confirmation",
+          "Travel & accommodation",
+          "Translator support",
+          "Post-treatment follow-up"
+        ]
+      },
+      "travelDesk": {
+        "title": "Spiber Travel Desk",
+        "lede": "Our in-house travel desk books flights and hotels, arranges airport pickup and insurance, and manages corporate travel, so the journey around your treatment is as smooth as the care itself.",
+        "items": [
+          "Air ticket booking",
+          "Hotel booking",
+          "Airport pickup",
+          "Tour packages",
+          "Travel insurance",
+          "Corporate travel management"
+        ]
+      },
+      "telemedicine": {
+        "title": "Telemedicine & Digital Health",
+        "lede": "Consult specialists online before you travel and stay connected afterwards, from e-prescriptions and follow-up reviews to securely stored medical records.",
+        "items": [
+          "Online doctor consultation",
+          "International specialist consultation",
+          "E-prescription management",
+          "Follow-up consultation",
+          "Medical record storage",
+          "AI-assisted health screening"
+        ]
+      }
+    },
+    "treatments": {
+      "heading": "Popular treatments & surgery packages",
+      "lede": "Comprehensive care for complex conditions, delivered by leading specialists.",
+      "viewPackage": "View package",
+      "cardiac": {
+        "title": "Cardiac Surgery",
+        "desc": "Advanced cardiac care & surgery"
+      },
+      "ortho": {
+        "title": "Orthopedic Surgery",
+        "desc": "Joint replacement & spine care"
+      },
+      "neuro": {
+        "title": "Neurosurgery",
+        "desc": "Brain & spine specialist care"
+      },
+      "oncology": {
+        "title": "Oncology Treatment",
+        "desc": "Comprehensive cancer care"
+      },
+      "ivf": {
+        "title": "IVF Treatment",
+        "desc": "Fertility & assisted reproduction"
+      },
+      "cosmetic": {
+        "title": "Cosmetic Surgery",
+        "desc": "Aesthetic & reconstructive procedures"
+      }
+    },
+    "steps": {
+      "heading": "How it works",
+      "lede": "Your journey to better health, simplified.",
+      "1": {
+        "title": "Submit inquiry / medical reports",
+        "desc": "Upload your reports and share your medical history securely."
+      },
+      "2": {
+        "title": "Case manager review",
+        "desc": "Our experts review your case and understand your needs."
+      },
+      "3": {
+        "title": "Hospital quotation & doctor matching",
+        "desc": "We match you with the right hospital and specialist, and share a cost estimate."
+      },
+      "4": {
+        "title": "Visa, air ticket, accommodation",
+        "desc": "We arrange visa, flights, hotel and airport transfer seamlessly."
+      },
+      "5": {
+        "title": "Treatment & post-treatment follow-up",
+        "desc": "Receive treatment and continue care with post-treatment follow-up."
+      }
+    },
+    "support": {
+      "heading": "Travel & hospitality support",
+      "lede": "End-to-end travel assistance for a smooth experience.",
+      "air": "Air ticket booking",
+      "hotel": "Hotel & accommodation",
+      "visa": "Medical visa assistance",
+      "airport": "Airport pickup",
+      "translator": "Translator support",
+      "insurance": "Travel insurance",
+      "corporate": "Corporate travel"
+    },
+    "whyChoose": {
+      "heading": "Why choose Spiber Tourism",
+      "lede": "We combine healthcare expertise with travel excellence.",
+      "p1": "Accredited partner facilities worldwide",
+      "p2": "End-to-end case management",
+      "p3": "Transparent cost estimation",
+      "p4": "Multi-country treatment options",
+      "p5": "Telemedicine continuity",
+      "p6": "Patient-centred support",
+      "ctaTitle": "Ready to start your treatment journey?",
+      "ctaBody": "Get a personalised plan and cost estimate from our care experts.",
+      "ctaTagline": "Your health, our priority."
+    },
+    "careManager": {
+      "eyebrow": "Your care, our commitment",
+      "name": "Dr. Md Jahidul Islam",
+      "role": "Senior Patient Care Manager",
+      "online": "Online",
+      "quote": "I will personally assist you throughout your treatment journey and ensure the best care experience.",
+      "responseNote": "We typically respond within 30 minutes during business hours.",
+      "whatsapp": "WhatsApp",
+      "call": "Call",
+      "email": "Email",
+      "statCountries": "Countries",
+      "statHospitals": "Hospital partners",
+      "statSatisfaction": "Patient satisfaction"
+    },
+    "consult": {
+      "heading": "Request a consultation",
+      "lede": "Tell us about your condition and share any reports. A case manager will review and prepare a hospital quotation."
+    },
+    "stories": {
+      "heading": "What our patients say",
+      "lede": "Real journeys, coordinated from first inquiry to follow-up.",
+      "empty": "Patient stories will appear here soon."
+    }
+  },
   "meta": {
     "brand": "Spiber Med",
     "title": "Spiber Med — Empowering Healthcare",

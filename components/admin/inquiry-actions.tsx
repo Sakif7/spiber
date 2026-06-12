@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
-import { CtaButton } from "@/components/ui/cta-button";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 /** Mirrors INQUIRY_TRANSITIONS — local so this client comp pulls no server code. */
 const TRANSITIONS: Record<string, string[]> = {
@@ -11,26 +12,6 @@ const TRANSITIONS: Record<string, string[]> = {
   proposal: ["won", "lost"],
   won: [],
   lost: ["qualifying"],
-};
-
-const cardStyle: CSSProperties = {
-  border: "1px solid var(--color-border)",
-  background: "var(--color-surface)",
-  borderRadius: "var(--r-lg)",
-  padding: "var(--s-5)",
-  display: "flex",
-  flexDirection: "column",
-  gap: "var(--s-4)",
-};
-
-const taStyle: CSSProperties = {
-  font: "inherit",
-  padding: "8px 10px",
-  border: "1px solid var(--color-border)",
-  borderRadius: "var(--r-sm)",
-  background: "var(--color-surface)",
-  width: "100%",
-  resize: "vertical",
 };
 
 export function InquiryActions({
@@ -80,33 +61,17 @@ export function InquiryActions({
   }
 
   return (
-    <section style={cardStyle}>
-      <h2
-        style={{
-          margin: 0,
-          fontFamily: "var(--font-display)",
-          fontSize: "var(--fs-lg)",
-          color: "var(--color-text-strong)",
-        }}
-      >
+    <section className="bg-card flex flex-col gap-4 rounded-lg p-5 shadow-[var(--shadow-sm)]">
+      <h2 className="text-foreground font-[family-name:var(--font-display)] text-lg">
         Actions
       </h2>
-      {error && (
-        <p
-          style={{
-            margin: 0,
-            color: "var(--color-error)",
-            fontSize: "var(--fs-sm)",
-          }}
-        >
-          {error}
-        </p>
-      )}
+      {error && <p className="text-destructive text-sm">{error}</p>}
 
       {/* Assignment */}
-      <div style={{ display: "flex", gap: "var(--s-3)", flexWrap: "wrap" }}>
-        <CtaButton
-          variant="secondary"
+      <div className="flex flex-wrap gap-3">
+        <Button
+          variant="outline"
+          disabled={busy === "assign"}
           onClick={() =>
             call(
               "assign",
@@ -120,21 +85,21 @@ export function InquiryActions({
             : assignedToMe
               ? "Unassign me"
               : "Assign to me"}
-        </CtaButton>
+        </Button>
       </div>
 
       {/* Note */}
-      <div style={{ display: "grid", gap: 6 }}>
-        <textarea
+      <div className="grid gap-1.5">
+        <Textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="Add an internal note"
           rows={3}
-          style={taStyle}
         />
         <div>
-          <CtaButton
-            variant="secondary"
+          <Button
+            variant="outline"
+            disabled={busy === "note"}
             onClick={async () => {
               if (!note.trim()) return;
               const ok = await call("note", { body: note.trim() }, "note");
@@ -142,27 +107,22 @@ export function InquiryActions({
             }}
           >
             {busy === "note" ? "Saving…" : "Add note"}
-          </CtaButton>
+          </Button>
         </div>
       </div>
 
       {/* Transitions */}
       {allowed.length === 0 ? (
-        <p
-          style={{
-            margin: 0,
-            color: "var(--color-text-muted)",
-            fontSize: "var(--fs-sm)",
-          }}
-        >
+        <p className="text-muted-foreground text-sm">
           No further transitions from <strong>{status}</strong>.
         </p>
       ) : (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--s-3)" }}>
+        <div className="flex flex-wrap gap-3">
           {allowed.map((to) => (
-            <CtaButton
+            <Button
               key={to}
-              variant={to === "won" ? "primary" : "secondary"}
+              variant={to === "won" ? "default" : "outline"}
+              disabled={busy === to}
               onClick={() =>
                 call(
                   "transition",
@@ -172,7 +132,7 @@ export function InquiryActions({
               }
             >
               {busy === to ? "Working…" : `Move to ${to}`}
-            </CtaButton>
+            </Button>
           ))}
         </div>
       )}

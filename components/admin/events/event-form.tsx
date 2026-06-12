@@ -1,10 +1,18 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CtaButton } from "@/components/ui/cta-button";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SingleImageField } from "@/components/admin/upload-fields";
 import { formatApiError } from "@/lib/http/form-error";
 import type { EventStatus } from "@/lib/schemas/events";
@@ -26,37 +34,6 @@ export type EventFormInitial = {
 };
 
 const emptyL = (): L => ({ en: "", bn: "" });
-const field: CSSProperties = { display: "grid", gap: 6 };
-const row: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "1fr 1fr",
-  gap: "var(--s-4)",
-};
-const card: CSSProperties = {
-  border: "1px solid var(--color-border)",
-  background: "var(--color-surface)",
-  borderRadius: "var(--r-lg)",
-  padding: "var(--s-5)",
-  display: "grid",
-  gap: "var(--s-4)",
-};
-const selStyle: CSSProperties = {
-  height: 40,
-  padding: "0 10px",
-  border: "1px solid var(--color-border)",
-  borderRadius: "var(--r-sm)",
-  font: "inherit",
-  background: "var(--color-surface)",
-};
-const taStyle: CSSProperties = {
-  font: "inherit",
-  padding: "8px 10px",
-  border: "1px solid var(--color-border)",
-  borderRadius: "var(--r-sm)",
-  background: "var(--color-surface)",
-  width: "100%",
-  resize: "vertical",
-};
 
 export function EventForm({ initial }: { initial?: EventFormInitial }) {
   const router = useRouter();
@@ -130,11 +107,11 @@ export function EventForm({ initial }: { initial?: EventFormInitial }) {
   }
 
   return (
-    <div style={{ display: "grid", gap: "var(--s-5)", maxWidth: 860 }}>
-      <section style={card}>
+    <div className="grid max-w-[860px] gap-5">
+      <section className="bg-card grid gap-4 rounded-lg p-5 shadow-[var(--shadow-sm)]">
         <BilingualField label="Title" value={title} onChange={setTitle} />
-        <div style={row}>
-          <div style={field}>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-1.5">
             <Label>Slug (optional)</Label>
             <Input
               value={slug}
@@ -142,7 +119,7 @@ export function EventForm({ initial }: { initial?: EventFormInitial }) {
               placeholder="auto from title"
             />
           </div>
-          <div style={field}>
+          <div className="grid gap-1.5">
             <Label>Registration link (optional)</Label>
             <Input
               value={registrationUrl}
@@ -162,15 +139,15 @@ export function EventForm({ initial }: { initial?: EventFormInitial }) {
           value={location}
           onChange={setLocation}
         />
-        <div style={field}>
+        <div className="grid gap-1.5">
           <Label>Cover image (optional)</Label>
           <SingleImageField value={coverImage} onChange={setCoverImage} />
         </div>
       </section>
 
-      <section style={card}>
-        <div style={row}>
-          <div style={field}>
+      <section className="bg-card grid gap-4 rounded-lg p-5 shadow-[var(--shadow-sm)]">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-1.5">
             <Label>Start date &amp; time</Label>
             <Input
               type="datetime-local"
@@ -178,7 +155,7 @@ export function EventForm({ initial }: { initial?: EventFormInitial }) {
               onChange={(e) => setStartDate(e.target.value)}
             />
           </div>
-          <div style={field}>
+          <div className="grid gap-1.5">
             <Label>End date &amp; time (optional)</Label>
             <Input
               type="datetime-local"
@@ -189,7 +166,7 @@ export function EventForm({ initial }: { initial?: EventFormInitial }) {
         </div>
       </section>
 
-      <section style={card}>
+      <section className="bg-card grid gap-4 rounded-lg p-5 shadow-[var(--shadow-sm)]">
         <BilingualField
           label="Description"
           value={description}
@@ -199,25 +176,29 @@ export function EventForm({ initial }: { initial?: EventFormInitial }) {
         />
       </section>
 
-      <section style={card}>
-        <div style={field}>
+      <section className="bg-card grid gap-4 rounded-lg p-5 shadow-[var(--shadow-sm)]">
+        <div className="grid gap-1.5">
           <Label>Status</Label>
-          <select
+          <Select
             value={status}
-            onChange={(e) => setStatus(e.target.value as EventStatus)}
-            style={selStyle}
+            onValueChange={(v) => setStatus(v as EventStatus)}
           >
-            <option value="draft">Draft</option>
-            <option value="published">Published</option>
-          </select>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="published">Published</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </section>
 
-      {error && <p style={{ color: "var(--color-error)" }}>{error}</p>}
+      {error && <p className="text-destructive text-sm">{error}</p>}
       <div>
-        <CtaButton onClick={submit}>
+        <Button type="button" onClick={submit} disabled={saving}>
           {saving ? "Saving…" : isEdit ? "Save event" : "Create event"}
-        </CtaButton>
+        </Button>
       </div>
     </div>
   );
@@ -237,24 +218,22 @@ function BilingualField({
   rows?: number;
 }) {
   return (
-    <div style={field}>
+    <div className="grid gap-1.5">
       <Label>{label}</Label>
-      <div style={row}>
+      <div className="grid grid-cols-2 gap-4">
         {textarea ? (
           <>
-            <textarea
+            <Textarea
               placeholder="EN"
               value={value.en}
               onChange={(e) => onChange({ ...value, en: e.target.value })}
               rows={rows}
-              style={taStyle}
             />
-            <textarea
+            <Textarea
               placeholder="বাংলা"
               value={value.bn}
               onChange={(e) => onChange({ ...value, bn: e.target.value })}
               rows={rows}
-              style={taStyle}
             />
           </>
         ) : (

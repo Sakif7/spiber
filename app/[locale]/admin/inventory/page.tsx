@@ -2,6 +2,8 @@ import { setRequestLocale } from "next-intl/server";
 import { listProducts } from "@/lib/repositories/products.repo";
 import { localize } from "@/lib/schemas/localized";
 import { StockAdjuster } from "@/components/admin/stock-adjuster";
+import { AdminPageHeader } from "@/components/admin/ui/page-header";
+import { DataTable, type Column } from "@/components/admin/ui/data-table";
 
 export const dynamic = "force-dynamic";
 
@@ -12,23 +14,6 @@ type ProductRow = {
   stockQty: number;
   lowStockThreshold: number;
   low: boolean;
-};
-
-const thStyle: React.CSSProperties = {
-  textAlign: "left",
-  padding: "10px 14px",
-  fontSize: "var(--fs-small)",
-  fontWeight: 600,
-  color: "var(--color-text-muted)",
-  borderBottom: "1px solid var(--color-border)",
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: "12px 14px",
-  fontSize: "var(--fs-body)",
-  color: "var(--color-text)",
-  borderBottom: "1px solid var(--color-border)",
-  verticalAlign: "middle",
 };
 
 export default async function InventoryPage({
@@ -60,103 +45,59 @@ export default async function InventoryPage({
 
   const lowCount = rows.filter((r) => r.low).length;
 
-  return (
-    <div style={{ display: "grid", gap: "var(--s-5)" }}>
-      <header style={{ display: "grid", gap: "var(--s-2)" }}>
-        <h1
-          style={{
-            fontSize: "var(--fs-h2)",
-            fontFamily: "var(--font-display)",
-            color: "var(--color-text-strong)",
-            margin: 0,
-          }}
+  const columns: Column<ProductRow>[] = [
+    {
+      key: "name",
+      header: "Name",
+      cell: (r) => <span className="font-medium">{r.name}</span>,
+    },
+    {
+      key: "sku",
+      header: "SKU",
+      cell: (r) => <span className="font-mono text-xs">{r.sku}</span>,
+    },
+    {
+      key: "stock",
+      header: "Stock",
+      cell: (r) => (
+        <span
+          className={
+            r.low
+              ? "text-destructive font-mono font-semibold"
+              : "font-mono font-semibold"
+          }
         >
-          Inventory
-        </h1>
-        <p
-          style={{
-            margin: 0,
-            fontSize: "var(--fs-small)",
-            color:
-              lowCount > 0 ? "var(--color-error)" : "var(--color-text-muted)",
-          }}
-        >
-          {lowCount > 0
-            ? `Low stock — ${lowCount} product${lowCount === 1 ? "" : "s"} at or below threshold.`
-            : "Low stock — all products above their thresholds."}
-        </p>
-      </header>
+          {r.stockQty}
+          {r.low ? (
+            <span className="ml-1.5 text-sm font-medium">(low)</span>
+          ) : null}
+        </span>
+      ),
+    },
+    {
+      key: "adjust",
+      header: "Adjust",
+      cell: (r) => <StockAdjuster productId={r.id} />,
+    },
+  ];
 
-      <div
-        style={{
-          border: "1px solid var(--color-border)",
-          background: "var(--color-surface)",
-          borderRadius: "var(--r-lg)",
-          overflow: "hidden",
-        }}
-      >
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              <th style={thStyle}>Name</th>
-              <th style={thStyle}>SKU</th>
-              <th style={thStyle}>Stock</th>
-              <th style={thStyle}>Adjust</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <tr>
-                <td
-                  style={{
-                    ...tdStyle,
-                    borderBottom: "none",
-                    color: "var(--color-text-muted)",
-                  }}
-                  colSpan={4}
-                >
-                  No products yet.
-                </td>
-              </tr>
-            ) : (
-              rows.map((r) => (
-                <tr key={r.id}>
-                  <td style={{ ...tdStyle, color: "var(--color-text-strong)" }}>
-                    {r.name}
-                  </td>
-                  <td style={{ ...tdStyle, fontFamily: "var(--font-mono)" }}>
-                    {r.sku}
-                  </td>
-                  <td
-                    style={{
-                      ...tdStyle,
-                      fontFamily: "var(--font-mono)",
-                      fontWeight: 600,
-                      color: r.low ? "var(--color-error)" : "var(--color-text)",
-                    }}
-                  >
-                    {r.stockQty}
-                    {r.low ? (
-                      <span
-                        style={{
-                          marginLeft: 6,
-                          fontSize: "var(--fs-small)",
-                          fontWeight: 500,
-                        }}
-                      >
-                        (low)
-                      </span>
-                    ) : null}
-                  </td>
-                  <td style={tdStyle}>
-                    <StockAdjuster productId={r.id} />
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+  return (
+    <div className="space-y-6">
+      <AdminPageHeader
+        title="Inventory"
+        description={
+          lowCount > 0
+            ? `Low stock — ${lowCount} product${lowCount === 1 ? "" : "s"} at or below threshold.`
+            : "Low stock — all products above their thresholds."
+        }
+      />
+      <DataTable
+        columns={columns}
+        rows={rows}
+        getRowKey={(r) => r.id}
+        empty="No products yet."
+        minWidth={720}
+      />
     </div>
   );
 }

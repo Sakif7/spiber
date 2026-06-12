@@ -2,6 +2,7 @@ import { setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { ReviewModeration } from "@/components/admin/review-moderation";
 import { RatingStars } from "@/components/marketplace/rating-stars";
+import { AdminPageHeader } from "@/components/admin/ui/page-header";
 import { listReviewsForModeration } from "@/lib/repositories/reviews.repo";
 import { getProductById } from "@/lib/repositories/products.repo";
 import { localize } from "@/lib/schemas/localized";
@@ -42,17 +43,11 @@ export default async function AdminReviewsPage({
   );
 
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
-      <h1
-        style={{
-          margin: 0,
-          fontFamily: "var(--font-display)",
-          fontSize: "var(--fs-2xl)",
-          color: "var(--color-text-strong)",
-        }}
-      >
-        Reviews
-      </h1>
+    <div className="space-y-6">
+      <AdminPageHeader
+        title="Reviews"
+        description="Moderate marketplace product reviews."
+      />
 
       <div style={{ display: "flex", gap: 8 }}>
         {STATUSES.map((s) => (
@@ -84,7 +79,7 @@ export default async function AdminReviewsPage({
             <div
               key={String(r._id)}
               style={{
-                border: "1px solid var(--color-border)",
+                boxShadow: "var(--shadow-sm)",
                 borderRadius: "var(--r-lg)",
                 background: "var(--color-surface)",
                 padding: "var(--s-4)",

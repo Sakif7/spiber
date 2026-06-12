@@ -9,9 +9,17 @@ import {
   JetBrains_Mono,
   Hind_Siliguri,
 } from "next/font/google";
+import Script from "next/script";
 import { routing } from "@/i18n/routing";
 import { Providers } from "@/app/providers";
 import "../globals.css";
+
+// Pre-paint, no-flash theme script for the ADMIN area only. Runs before
+// hydration on a hard load; path-guarded so it never touches the public site
+// (which always stays light). Client-side navigations into /admin are handled
+// by AdminThemeProvider's effect. Injected via next/script (beforeInteractive)
+// so React never reconciles a raw <script> element.
+const ADMIN_THEME_SCRIPT = `(function(){try{if(!/^\\/(en|bn)\\/admin(\\/|$)/.test(location.pathname))return;var p=localStorage.getItem('spiber-admin-theme');var d=p==='dark'||((p===null||p==='system')&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');}catch(e){}})();`;
 
 const inter = Inter({
   variable: "--font-inter",
@@ -84,7 +92,17 @@ export default async function LocaleLayout({
   setRequestLocale(locale);
 
   return (
-    <html lang={locale} data-locale={locale} className={fontVars}>
+    <html
+      lang={locale}
+      data-locale={locale}
+      className={fontVars}
+      suppressHydrationWarning
+    >
+      <head>
+        <Script id="admin-theme-no-flash" strategy="beforeInteractive">
+          {ADMIN_THEME_SCRIPT}
+        </Script>
+      </head>
       <body>
         <NextIntlClientProvider>
           <Providers>{children}</Providers>

@@ -25,8 +25,11 @@ const TESTIMONIALS: AnimatedTestimonial[] = [
   },
 ];
 
-export function Testimonials() {
+export function Testimonials({ items }: { items?: AnimatedTestimonial[] }) {
   const t = useTranslations("home.testimonials");
+  // Admin-managed (DB) testimonials take over when present; otherwise fall back
+  // to the built-in set so the homepage never empties.
+  const data = items && items.length > 0 ? items : TESTIMONIALS;
 
   return (
     <Section style={{ background: "var(--color-surface-2)" }}>
@@ -76,7 +79,7 @@ export function Testimonials() {
         </div>
 
         <Reveal delay={120}>
-          <AnimatedTestimonials testimonials={TESTIMONIALS} autoplay />
+          <AnimatedTestimonials testimonials={data} autoplay />
         </Reveal>
       </Container>
     </Section>

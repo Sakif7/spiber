@@ -1,8 +1,15 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import type { ApplicationStatus } from "@/lib/schemas/career";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const OPTIONS: { value: ApplicationStatus; label: string }[] = [
   { value: "new", label: "New" },
@@ -12,16 +19,6 @@ const OPTIONS: { value: ApplicationStatus; label: string }[] = [
   { value: "rejected", label: "Rejected" },
   { value: "hired", label: "Hired" },
 ];
-
-const selStyle: CSSProperties = {
-  height: 34,
-  padding: "0 8px",
-  border: "1px solid var(--color-border)",
-  borderRadius: "var(--r-sm)",
-  font: "inherit",
-  fontSize: "var(--fs-small)",
-  background: "var(--color-surface)",
-};
 
 /** Inline status dropdown that PATCHes the application on change. */
 export function ApplicationStatusSelect({
@@ -49,18 +46,21 @@ export function ApplicationStatusSelect({
   }
 
   return (
-    <select
+    <Select
       value={value}
       disabled={busy}
-      onChange={(e) => change(e.target.value as ApplicationStatus)}
-      style={{ ...selStyle, opacity: busy ? 0.6 : 1 }}
-      aria-label="Application status"
+      onValueChange={(v) => change(v as ApplicationStatus)}
     >
-      {OPTIONS.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
+      <SelectTrigger size="sm" aria-label="Application status">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {OPTIONS.map((o) => (
+          <SelectItem key={o.value} value={o.value}>
+            {o.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

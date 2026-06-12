@@ -9,6 +9,10 @@ import { listVisiblePostsForFeed } from "@/lib/repositories/blog.repo";
 import { listVisibleAlbumsForFeed } from "@/lib/repositories/gallery.repo";
 import { listVisibleEventsForFeed } from "@/lib/repositories/events.repo";
 import { listVisibleJobsForFeed } from "@/lib/repositories/career.repo";
+import { listActiveDestinationsForFeed } from "@/lib/repositories/destinations.repo";
+import { listActiveHospitalsForFeed } from "@/lib/repositories/hospitals.repo";
+import { listActiveDoctorsForFeed } from "@/lib/repositories/doctors.repo";
+import { listActivePackagesForFeed } from "@/lib/repositories/packages.repo";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = siteConfig.url.replace(/\/$/, "");
@@ -128,6 +132,31 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     pushAll(jobs, "/company/career");
   } catch {
     // DB unavailable — skip company entries.
+  }
+
+  // Spiber Tourism catalog: active destinations, hospitals, doctors, packages.
+  try {
+    const [destinations, hospitals, doctors, packages] = await Promise.all([
+      listActiveDestinationsForFeed(100),
+      listActiveHospitalsForFeed(100),
+      listActiveDoctorsForFeed(100),
+      listActivePackagesForFeed(100),
+    ]);
+    const pushAll = (items: { slug: string }[], base: string) => {
+      for (const it of items) {
+        const route = `${base}/${it.slug}`;
+        entries.push({
+          url: urlFor(route, routing.defaultLocale),
+          alternates: { languages: languagesFor(route) },
+        });
+      }
+    };
+    pushAll(destinations, "/tourism/destination");
+    pushAll(hospitals, "/tourism/hospital");
+    pushAll(doctors, "/tourism/doctor");
+    pushAll(packages, "/tourism/package");
+  } catch {
+    // DB unavailable — skip tourism entries.
   }
 
   return entries;

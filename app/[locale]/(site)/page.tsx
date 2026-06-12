@@ -13,6 +13,7 @@ import { Testimonials } from "@/components/sections/testimonials";
 import { Management } from "@/components/sections/management";
 import { LatestNews } from "@/components/sections/latest-news";
 import { CTABand } from "@/components/sections/cta-band";
+import { getTestimonials } from "@/lib/services/landing.service";
 
 export const revalidate = 60;
 
@@ -24,6 +25,17 @@ export default async function Home({
   const { locale } = await params;
   setRequestLocale(locale);
 
+  // Admin-managed homepage testimonials (only those with a portrait photo are
+  // carousel-ready); falls back to the built-in set when none are configured.
+  const dbTestimonials = (await getTestimonials("general"))
+    .filter((x) => x.imageSrc)
+    .map((x) => ({
+      quote: x.quote,
+      name: x.name,
+      designation: x.role,
+      src: x.imageSrc as string,
+    }));
+
   return (
     <>
       <JsonLd data={organizationJsonLd()} />
@@ -33,7 +45,9 @@ export default async function Home({
       <CapitalEquipment />
       <CSRBand />
       <StatsBand />
-      <Testimonials />
+      <Testimonials
+        items={dbTestimonials.length ? dbTestimonials : undefined}
+      />
       <Management />
       <LatestNews />
       <CTABand />

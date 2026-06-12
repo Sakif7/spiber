@@ -1,18 +1,12 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CtaButton } from "@/components/ui/cta-button";
 import { formatApiError } from "@/lib/http/form-error";
-
-const field: CSSProperties = { display: "grid", gap: 6 };
-const row: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "1fr 1fr",
-  gap: "var(--s-4)",
-};
 
 function TaxonomyForm({
   endpoint,
@@ -48,15 +42,17 @@ function TaxonomyForm({
       setNameBn("");
       router.refresh();
     } else {
-      setError(formatApiError(json));
+      const msg = formatApiError(json);
+      setError(msg);
+      toast.error(msg);
     }
   }
 
   return (
-    <div style={{ display: "grid", gap: "var(--s-4)", maxWidth: 520 }}>
-      <div style={field}>
+    <div className="grid max-w-[520px] gap-4">
+      <div className="grid gap-1.5">
         <Label>Name</Label>
-        <div style={row}>
+        <div className="grid grid-cols-2 gap-4">
           <Input
             placeholder="EN"
             value={nameEn}
@@ -69,10 +65,12 @@ function TaxonomyForm({
           />
         </div>
       </div>
-      {error && <p style={{ color: "var(--color-error)" }}>{error}</p>}
-      <CtaButton onClick={submit}>
-        {saving ? "Saving…" : `Add ${label}`}
-      </CtaButton>
+      {error && <p className="text-destructive text-sm">{error}</p>}
+      <div>
+        <Button type="button" onClick={submit} disabled={saving}>
+          {saving ? "Saving…" : `Add ${label}`}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -109,22 +107,15 @@ export function TaxonomyDeleteButton({
     else window.alert("delete_failed");
   }
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
+      size="sm"
       onClick={remove}
       disabled={busy}
-      style={{
-        background: "transparent",
-        border: "1px solid var(--color-border)",
-        borderRadius: "var(--r-sm)",
-        color: "var(--color-error)",
-        padding: "4px 10px",
-        fontSize: "var(--fs-small)",
-        cursor: busy ? "default" : "pointer",
-        opacity: busy ? 0.6 : 1,
-      }}
+      className="text-destructive hover:text-destructive"
     >
       {busy ? "…" : "Delete"}
-    </button>
+    </Button>
   );
 }

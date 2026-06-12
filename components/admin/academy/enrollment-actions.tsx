@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
-import { CtaButton } from "@/components/ui/cta-button";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -18,16 +18,6 @@ const LABEL: Record<string, string> = {
   active: "Mark paid & activate",
   cancelled: "Cancel enrollment",
   refunded: "Refund enrollment",
-};
-
-const cardStyle: CSSProperties = {
-  border: "1px solid var(--color-border)",
-  background: "var(--color-surface)",
-  borderRadius: "var(--r-lg)",
-  padding: "var(--s-5)",
-  display: "flex",
-  flexDirection: "column",
-  gap: "var(--s-4)",
 };
 
 export function EnrollmentActions({
@@ -75,42 +65,22 @@ export function EnrollmentActions({
   }
 
   return (
-    <section style={cardStyle}>
-      <h2
-        style={{
-          margin: 0,
-          fontFamily: "var(--font-display)",
-          fontSize: "var(--fs-lg)",
-          color: "var(--color-text-strong)",
-        }}
-      >
+    <section className="bg-card flex flex-col gap-4 rounded-lg p-5 shadow-[var(--shadow-sm)]">
+      <h2 className="text-foreground m-0 font-[family-name:var(--font-display)] text-lg">
         Actions
       </h2>
       {error && (
-        <p
-          role="alert"
-          style={{
-            margin: 0,
-            color: "var(--color-error)",
-            fontSize: "var(--fs-sm)",
-          }}
-        >
+        <p role="alert" className="text-destructive m-0 text-sm">
           {error}
         </p>
       )}
       {allowed.length === 0 ? (
-        <p
-          style={{
-            margin: 0,
-            color: "var(--color-text-muted)",
-            fontSize: "var(--fs-sm)",
-          }}
-        >
+        <p className="text-muted-foreground m-0 text-sm">
           No further transitions available from <strong>{status}</strong>.
         </p>
       ) : (
         <>
-          <div>
+          <div className="space-y-1.5">
             <Label htmlFor="enr-note">Note (optional)</Label>
             <Input
               id="enr-note"
@@ -119,19 +89,19 @@ export function EnrollmentActions({
               placeholder="Internal note"
             />
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--s-3)" }}>
+          <div className="flex flex-wrap gap-3">
             {allowed.map((to) => (
-              <CtaButton
+              <Button
                 key={to}
                 variant={
                   to === "cancelled" || to === "refunded"
-                    ? "secondary"
-                    : "primary"
+                    ? "outline"
+                    : "default"
                 }
                 onClick={() => transition(to)}
               >
                 {busy === to ? "Working…" : (LABEL[to] ?? to)}
-              </CtaButton>
+              </Button>
             ))}
           </div>
         </>

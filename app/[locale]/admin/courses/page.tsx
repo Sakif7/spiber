@@ -1,9 +1,13 @@
 import { setRequestLocale } from "next-intl/server";
+import { Plus } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { CtaButton } from "@/components/ui/cta-button";
+import { Button } from "@/components/ui/button";
 import { listCourses } from "@/lib/repositories/courses.repo";
 import { formatBDT } from "@/lib/money";
 import { localize } from "@/lib/schemas/localized";
+import { AdminPageHeader } from "@/components/admin/ui/page-header";
+import { StatusBadge } from "@/components/admin/ui/status-badge";
+import { DataTable, type Column } from "@/components/admin/ui/data-table";
 
 export const dynamic = "force-dynamic";
 
@@ -39,131 +43,66 @@ export default async function AdminCoursesPage({
     rows = [];
   }
 
-  const th: React.CSSProperties = {
-    textAlign: "left",
-    padding: "var(--s-3) var(--s-4)",
-    fontSize: "var(--fs-sm)",
-    fontWeight: 600,
-    color: "var(--color-text-muted)",
-    borderBottom: "1px solid var(--color-border)",
-    whiteSpace: "nowrap",
-  };
-  const td: React.CSSProperties = {
-    padding: "var(--s-3) var(--s-4)",
-    fontSize: "var(--fs-sm)",
-    color: "var(--color-text)",
-    borderBottom: "1px solid var(--color-border)",
-    verticalAlign: "middle",
-  };
+  const columns: Column<Row>[] = [
+    {
+      key: "title",
+      header: "Title",
+      cell: (c) => (
+        <Link
+          href={`/admin/courses/${c.id}`}
+          className="text-primary font-medium hover:underline"
+        >
+          {c.title || "(untitled)"}
+        </Link>
+      ),
+    },
+    {
+      key: "level",
+      header: "Level",
+      cell: (c) => (
+        <span className="text-muted-foreground capitalize">{c.level}</span>
+      ),
+    },
+    {
+      key: "price",
+      header: "Price",
+      align: "right",
+      cell: (c) => (c.priceMinor > 0 ? formatBDT(c.priceMinor, "en") : "Free"),
+    },
+    {
+      key: "lessons",
+      header: "Lessons",
+      align: "right",
+      cell: (c) => c.lessons,
+    },
+    {
+      key: "status",
+      header: "Status",
+      cell: (c) => <StatusBadge>{c.status}</StatusBadge>,
+    },
+  ];
 
   return (
-    <div
-      style={{ display: "flex", flexDirection: "column", gap: "var(--s-6)" }}
-    >
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "var(--s-4)",
-          flexWrap: "wrap",
-        }}
-      >
-        <h1
-          style={{
-            fontFamily: "var(--font-display)",
-            fontSize: "var(--fs-2xl)",
-            fontWeight: 700,
-            color: "var(--color-text-strong)",
-            margin: 0,
-          }}
-        >
-          Courses
-        </h1>
-        <CtaButton href="/admin/courses/new" variant="primary">
-          New course
-        </CtaButton>
-      </header>
-
-      {rows.length === 0 ? (
-        <div
-          style={{
-            border: "1px solid var(--color-border)",
-            background: "var(--color-surface)",
-            borderRadius: "var(--r-lg)",
-            padding: "var(--s-8)",
-            textAlign: "center",
-            color: "var(--color-text-muted)",
-          }}
-        >
-          No courses yet.
-        </div>
-      ) : (
-        <div
-          style={{
-            border: "1px solid var(--color-border)",
-            background: "var(--color-surface)",
-            borderRadius: "var(--r-lg)",
-            overflow: "hidden",
-          }}
-        >
-          <div style={{ overflowX: "auto" }}>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                minWidth: "640px",
-              }}
-            >
-              <thead>
-                <tr>
-                  <th style={th}>Title</th>
-                  <th style={th}>Level</th>
-                  <th style={{ ...th, textAlign: "right" }}>Price</th>
-                  <th style={{ ...th, textAlign: "right" }}>Lessons</th>
-                  <th style={th}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((c) => (
-                  <tr key={c.id}>
-                    <td style={td}>
-                      <Link
-                        href={`/admin/courses/${c.id}`}
-                        style={{
-                          color: "var(--color-brand-deep)",
-                          fontWeight: 600,
-                          textDecoration: "none",
-                        }}
-                      >
-                        {c.title || "(untitled)"}
-                      </Link>
-                    </td>
-                    <td
-                      style={{
-                        ...td,
-                        textTransform: "capitalize",
-                        color: "var(--color-text-muted)",
-                      }}
-                    >
-                      {c.level}
-                    </td>
-                    <td style={{ ...td, textAlign: "right" }}>
-                      {c.priceMinor > 0
-                        ? formatBDT(c.priceMinor, "en")
-                        : "Free"}
-                    </td>
-                    <td style={{ ...td, textAlign: "right" }}>{c.lessons}</td>
-                    <td style={{ ...td, textTransform: "capitalize" }}>
-                      {c.status}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+    <div className="space-y-6">
+      <AdminPageHeader
+        title="Courses"
+        description="Academy courses — content, pricing, and publish status."
+        action={
+          <Button asChild>
+            <Link href="/admin/courses/new">
+              <Plus className="size-4" />
+              New course
+            </Link>
+          </Button>
+        }
+      />
+      <DataTable
+        columns={columns}
+        rows={rows}
+        getRowKey={(c) => c.id}
+        empty="No courses yet."
+        minWidth={640}
+      />
     </div>
   );
 }

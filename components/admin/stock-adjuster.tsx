@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { Input } from "@/components/ui/input";
-import { CtaButton } from "@/components/ui/cta-button";
+import { Button } from "@/components/ui/button";
 
 export function StockAdjuster({ productId }: { productId: string }) {
   const router = useRouter();
@@ -48,22 +48,15 @@ export function StockAdjuster({ productId }: { productId: string }) {
   }
 
   return (
-    <div style={{ display: "grid", gap: 4 }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          flexWrap: "wrap",
-        }}
-      >
+    <div className="grid gap-1">
+      <div className="flex flex-wrap items-center gap-2">
         <Input
           type="number"
           value={qtyDelta}
           onChange={(e) => setQtyDelta(e.target.value)}
           placeholder="+/-"
           aria-label="Quantity change"
-          style={{ width: 80 }}
+          className="w-20"
         />
         <Input
           type="text"
@@ -71,19 +64,13 @@ export function StockAdjuster({ productId }: { productId: string }) {
           onChange={(e) => setReason(e.target.value)}
           placeholder="Reason (optional)"
           aria-label="Reason"
-          style={{ width: 180 }}
+          className="w-[180px]"
         />
-        <CtaButton variant="secondary" type="button" onClick={apply}>
+        <Button variant="outline" type="button" disabled={busy} onClick={apply}>
           {busy ? "Applying…" : "Apply"}
-        </CtaButton>
+        </Button>
       </div>
-      {error ? (
-        <span
-          style={{ color: "var(--color-error)", fontSize: "var(--fs-small)" }}
-        >
-          {error}
-        </span>
-      ) : null}
+      {error ? <span className="text-destructive text-xs">{error}</span> : null}
     </div>
   );
 }

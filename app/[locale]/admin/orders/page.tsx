@@ -3,19 +3,23 @@ import { Link } from "@/i18n/navigation";
 import { listOrders } from "@/lib/repositories/orders.repo";
 import { formatBDT } from "@/lib/money";
 import type { OrderStatus } from "@/lib/schemas/order";
+import { AdminPageHeader } from "@/components/admin/ui/page-header";
+import { StatusFilterPills } from "@/components/admin/ui/status-filter";
+import { StatusBadge } from "@/components/admin/ui/status-badge";
+import { DataTable, type Column } from "@/components/admin/ui/data-table";
 
 export const dynamic = "force-dynamic";
 
-const STATUS_FILTERS: Array<{ key: "all" | OrderStatus; label: string }> = [
-  { key: "all", label: "All" },
-  { key: "pending", label: "Pending" },
-  { key: "paid", label: "Paid" },
-  { key: "processing", label: "Processing" },
-  { key: "shipped", label: "Shipped" },
-  { key: "delivered", label: "Delivered" },
-  { key: "cancelled", label: "Cancelled" },
-  { key: "refunded", label: "Refunded" },
-];
+const STATUSES = [
+  "all",
+  "pending",
+  "paid",
+  "processing",
+  "shipped",
+  "delivered",
+  "cancelled",
+  "refunded",
+] as const;
 
 const VALID_STATUSES = new Set<OrderStatus>([
   "pending",
@@ -27,33 +31,7 @@ const VALID_STATUSES = new Set<OrderStatus>([
   "refunded",
 ]);
 
-const STATUS_COLOR: Record<string, string> = {
-  pending: "var(--color-text-muted)",
-  paid: "var(--color-success)",
-  processing: "var(--color-brand)",
-  shipped: "var(--color-brand-deep)",
-  delivered: "var(--color-success)",
-  cancelled: "var(--color-error)",
-  refunded: "var(--color-error)",
-};
-
-const thStyle: React.CSSProperties = {
-  textAlign: "left",
-  padding: "var(--s-3) var(--s-4)",
-  fontSize: "var(--fs-sm)",
-  fontWeight: 600,
-  color: "var(--color-text-muted)",
-  borderBottom: "1px solid var(--color-border)",
-  whiteSpace: "nowrap",
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: "var(--s-3) var(--s-4)",
-  fontSize: "var(--fs-sm)",
-  color: "var(--color-text)",
-  borderBottom: "1px solid var(--color-border)",
-  verticalAlign: "middle",
-};
+type Row = Awaited<ReturnType<typeof listOrders>>["items"][number];
 
 export default async function AdminOrdersPage({
   params,
@@ -71,193 +49,86 @@ export default async function AdminOrdersPage({
       ? (rawStatus as OrderStatus)
       : undefined;
 
-  let items: Awaited<ReturnType<typeof listOrders>>["items"] = [];
+  let rows: Row[] = [];
   try {
-    const result = await listOrders({ status: activeStatus, pageSize: 50 });
-    items = result.items;
+    rows = (await listOrders({ status: activeStatus, pageSize: 50 })).items;
   } catch {
-    items = [];
+    rows = [];
   }
 
+  const columns: Column<Row>[] = [
+    {
+      key: "orderNumber",
+      header: "Order #",
+      cell: (order) => (
+        <Link
+          href={`/admin/orders/${String(order._id)}`}
+          className="text-primary font-mono text-xs font-medium hover:underline"
+        >
+          {order.orderNumber}
+        </Link>
+      ),
+    },
+    {
+      key: "date",
+      header: "Date",
+      cell: (order) => (
+        <span className="text-muted-foreground whitespace-nowrap">
+          {new Date(order.createdAt).toLocaleDateString()}
+        </span>
+      ),
+    },
+    { key: "email", header: "Email", cell: (order) => order.email },
+    {
+      key: "status",
+      header: "Status",
+      cell: (order) => <StatusBadge>{order.status}</StatusBadge>,
+    },
+    {
+      key: "payment",
+      header: "Payment",
+      cell: (order) => (
+        <span className="text-muted-foreground capitalize">
+          {order.payment?.status ?? "—"}
+        </span>
+      ),
+    },
+    {
+      key: "total",
+      header: "Total",
+      align: "right",
+      className: "font-mono font-medium whitespace-nowrap",
+      cell: (order) => formatBDT(order.totalMinor, "en"),
+    },
+  ];
+
   return (
-    <div
-      style={{ display: "flex", flexDirection: "column", gap: "var(--s-5)" }}
-    >
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "var(--s-4)",
-          flexWrap: "wrap",
-        }}
-      >
-        <h1
-          style={{
-            fontFamily: "var(--font-display)",
-            fontSize: "var(--fs-2xl)",
-            fontWeight: 700,
-            color: "var(--color-text-strong)",
-            margin: 0,
-          }}
-        >
-          Orders
-        </h1>
-        <a
-          href="/api/admin/orders/export"
-          download
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "var(--s-2)",
-            padding: "var(--s-2) var(--s-4)",
-            fontSize: "var(--fs-sm)",
-            fontWeight: 600,
-            color: "var(--color-brand-deep)",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--r-sm)",
-            background: "var(--color-surface)",
-            textDecoration: "none",
-          }}
-        >
-          Export CSV
-        </a>
-      </header>
-
-      <nav
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: "var(--s-2)",
-        }}
-      >
-        {STATUS_FILTERS.map(({ key, label }) => {
-          const isActive =
-            key === "all" ? activeStatus === undefined : activeStatus === key;
-          return (
-            <Link
-              key={key}
-              href={
-                key === "all" ? "/admin/orders" : `/admin/orders?status=${key}`
-              }
-              style={{
-                padding: "var(--s-1) var(--s-3)",
-                fontSize: "var(--fs-sm)",
-                fontWeight: 600,
-                borderRadius: "var(--r-sm)",
-                textDecoration: "none",
-                border: "1px solid var(--color-border)",
-                background: isActive
-                  ? "var(--color-brand)"
-                  : "var(--color-surface)",
-                color: isActive ? "#fff" : "var(--color-text-muted)",
-              }}
-            >
-              {label}
-            </Link>
-          );
-        })}
-      </nav>
-
-      <div
-        style={{
-          border: "1px solid var(--color-border)",
-          borderRadius: "var(--r-lg)",
-          background: "var(--color-surface)",
-          overflow: "hidden",
-        }}
-      >
-        {items.length === 0 ? (
-          <div
-            style={{
-              padding: "var(--s-8) var(--s-4)",
-              textAlign: "center",
-              color: "var(--color-text-muted)",
-              fontSize: "var(--fs-sm)",
-            }}
+    <div className="space-y-6">
+      <AdminPageHeader
+        title="Orders"
+        description="Marketplace orders — payment, fulfillment, and shipping."
+        action={
+          <a
+            href="/api/admin/orders/export"
+            download
+            className="text-primary font-medium hover:underline"
           >
-            No orders found.
-          </div>
-        ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                minWidth: "720px",
-              }}
-            >
-              <thead>
-                <tr>
-                  <th style={thStyle}>Order #</th>
-                  <th style={thStyle}>Date</th>
-                  <th style={thStyle}>Email</th>
-                  <th style={thStyle}>Status</th>
-                  <th style={thStyle}>Payment</th>
-                  <th style={{ ...thStyle, textAlign: "right" }}>Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((order) => {
-                  const id = String(order._id);
-                  return (
-                    <tr key={id}>
-                      <td style={tdStyle}>
-                        <Link
-                          href={`/admin/orders/${id}`}
-                          style={{
-                            fontFamily: "var(--font-mono)",
-                            fontWeight: 600,
-                            color: "var(--color-brand-deep)",
-                            textDecoration: "none",
-                          }}
-                        >
-                          {order.orderNumber}
-                        </Link>
-                      </td>
-                      <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>
-                        {new Date(order.createdAt).toLocaleDateString()}
-                      </td>
-                      <td style={tdStyle}>{order.email}</td>
-                      <td style={tdStyle}>
-                        <span
-                          style={{
-                            fontWeight: 600,
-                            color:
-                              STATUS_COLOR[order.status] ?? "var(--color-text)",
-                          }}
-                        >
-                          {order.status}
-                        </span>
-                      </td>
-                      <td
-                        style={{
-                          ...tdStyle,
-                          color: "var(--color-text-muted)",
-                        }}
-                      >
-                        {order.payment?.status ?? "—"}
-                      </td>
-                      <td
-                        style={{
-                          ...tdStyle,
-                          textAlign: "right",
-                          fontFamily: "var(--font-mono)",
-                          fontWeight: 600,
-                          color: "var(--color-text-strong)",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {formatBDT(order.totalMinor, "en")}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+            Export CSV
+          </a>
+        }
+      />
+      <StatusFilterPills
+        statuses={STATUSES}
+        active={activeStatus ?? "all"}
+        basePath="/admin/orders"
+      />
+      <DataTable
+        columns={columns}
+        rows={rows}
+        getRowKey={(order) => String(order._id)}
+        empty="No orders found."
+        minWidth={720}
+      />
     </div>
   );
 }

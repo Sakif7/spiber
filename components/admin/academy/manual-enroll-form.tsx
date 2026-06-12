@@ -2,9 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
-import { CtaButton } from "@/components/ui/cta-button";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export function ManualEnrollForm({
   courses,
@@ -36,45 +43,24 @@ export function ManualEnrollForm({
     }
   }
 
-  const field: React.CSSProperties = {
-    height: 40,
-    padding: "0 10px",
-    border: "1px solid var(--color-border)",
-    borderRadius: "var(--r-sm)",
-    font: "inherit",
-    background: "var(--color-surface)",
-    minWidth: 200,
-  };
-
   return (
-    <section
-      style={{
-        border: "1px solid var(--color-border)",
-        background: "var(--color-surface)",
-        borderRadius: "var(--r-lg)",
-        padding: "var(--s-5)",
-        display: "flex",
-        gap: "var(--s-3)",
-        alignItems: "flex-end",
-        flexWrap: "wrap",
-      }}
-    >
-      <div style={{ display: "grid", gap: 6 }}>
+    <section className="bg-card flex flex-wrap items-end gap-3 rounded-lg p-5 shadow-[var(--shadow-sm)]">
+      <div className="grid gap-1.5">
         <Label htmlFor="manual-course">Course</Label>
-        <select
-          id="manual-course"
-          style={field}
-          value={courseId}
-          onChange={(e) => setCourseId(e.target.value)}
-        >
-          {courses.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.title || "(untitled)"}
-            </option>
-          ))}
-        </select>
+        <Select value={courseId} onValueChange={setCourseId}>
+          <SelectTrigger id="manual-course" className="min-w-[200px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {courses.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.title || "(untitled)"}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
-      <div style={{ display: "grid", gap: 6 }}>
+      <div className="grid gap-1.5">
         <Label htmlFor="manual-email">Student email</Label>
         <Input
           id="manual-email"
@@ -84,19 +70,14 @@ export function ManualEnrollForm({
           placeholder="student@example.com"
         />
       </div>
-      <CtaButton
+      <Button
+        type="button"
         onClick={submit}
-        style={{ opacity: busy || !email || !courseId ? 0.6 : 1 }}
+        disabled={busy || !email || !courseId}
       >
         {busy ? "Enrolling…" : "Manual enroll"}
-      </CtaButton>
-      {msg && (
-        <span
-          style={{ fontSize: "var(--fs-sm)", color: "var(--color-text-muted)" }}
-        >
-          {msg}
-        </span>
-      )}
+      </Button>
+      {msg && <span className="text-muted-foreground text-sm">{msg}</span>}
     </section>
   );
 }

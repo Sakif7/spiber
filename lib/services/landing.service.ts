@@ -2,6 +2,7 @@ import {
   findTestimonials,
   findLatestPosts,
 } from "@/lib/repositories/landing.repo";
+import type { TestimonialCategory } from "@/lib/models/testimonial";
 import { logger } from "@/lib/log";
 import type { Testimonial, Post } from "@/lib/content-types";
 
@@ -10,9 +11,11 @@ import type { Testimonial, Post } from "@/lib/content-types";
  * marketing page still renders (empty list → baked-in / "Coming soon" UI).
  */
 
-export async function getTestimonials(): Promise<Testimonial[]> {
+export async function getTestimonials(
+  category?: TestimonialCategory,
+): Promise<Testimonial[]> {
   try {
-    return await findTestimonials();
+    return await findTestimonials({ category });
   } catch (err) {
     logger.warn("landing.getTestimonials failed; returning empty", err);
     return [];

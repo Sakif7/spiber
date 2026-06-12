@@ -1,8 +1,13 @@
 import { setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { listInquiries } from "@/lib/repositories/inquiries.repo";
+import { AdminPageHeader } from "@/components/admin/ui/page-header";
+import { StatusBadge } from "@/components/admin/ui/status-badge";
+import { DataTable, type Column } from "@/components/admin/ui/data-table";
 
 export const dynamic = "force-dynamic";
+
+type Row = Awaited<ReturnType<typeof listInquiries>>["items"][number];
 
 export default async function AdminInquiriesPage({
   params,
@@ -12,96 +17,68 @@ export default async function AdminInquiriesPage({
   const { locale } = await params;
   setRequestLocale(locale);
 
-  let rows: Awaited<ReturnType<typeof listInquiries>>["items"] = [];
+  let rows: Row[] = [];
   try {
     rows = (await listInquiries({ pageSize: 100 })).items;
   } catch {
     rows = [];
   }
 
-  const th: React.CSSProperties = {
-    textAlign: "left",
-    padding: "var(--s-3) var(--s-4)",
-    fontFamily: "var(--font-mono)",
-    fontSize: "var(--fs-caption)",
-    color: "var(--color-text-muted)",
-    fontWeight: 500,
-    borderBottom: "1px solid var(--color-border)",
-  };
-  const td: React.CSSProperties = {
-    padding: "var(--s-3) var(--s-4)",
-    fontSize: "var(--fs-small)",
-    color: "var(--color-text)",
-    borderBottom: "1px solid var(--color-border)",
-  };
+  const columns: Column<Row>[] = [
+    {
+      key: "ref",
+      header: "Reference",
+      cell: (q) => (
+        <Link
+          href={`/admin/inquiries/${String(q._id)}`}
+          className="text-primary font-mono text-xs font-medium hover:underline"
+        >
+          {q.inquiryNumber}
+        </Link>
+      ),
+    },
+    {
+      key: "division",
+      header: "Division",
+      cell: (q) => (
+        <span className="text-muted-foreground capitalize">{q.division}</span>
+      ),
+    },
+    { key: "name", header: "Name", cell: (q) => q.name },
+    {
+      key: "subject",
+      header: "Subject",
+      cell: (q) => (
+        <span className="text-muted-foreground">{q.subject ?? "—"}</span>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      cell: (q) => <StatusBadge>{q.status}</StatusBadge>,
+    },
+    {
+      key: "date",
+      header: "Date",
+      align: "right",
+      cell: (q) => (
+        <span className="text-muted-foreground">
+          {new Date(q.createdAt).toLocaleDateString()}
+        </span>
+      ),
+    },
+  ];
 
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
-      <h1
-        style={{
-          margin: 0,
-          fontFamily: "var(--font-display)",
-          fontSize: "var(--fs-2xl)",
-          color: "var(--color-text-strong)",
-        }}
-      >
-        Inquiries
-      </h1>
-      <section
-        style={{
-          border: "1px solid var(--color-border)",
-          borderRadius: "var(--r-lg)",
-          background: "var(--color-surface)",
-          overflow: "hidden",
-        }}
-      >
-        {rows.length === 0 ? (
-          <p
-            style={{
-              margin: 0,
-              padding: "var(--s-6)",
-              textAlign: "center",
-              color: "var(--color-text-muted)",
-            }}
-          >
-            No inquiries yet.
-          </p>
-        ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr>
-                <th style={th}>Reference</th>
-                <th style={th}>Division</th>
-                <th style={th}>Name</th>
-                <th style={th}>Subject</th>
-                <th style={th}>Status</th>
-                <th style={th}>Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((q) => (
-                <tr key={String(q._id)}>
-                  <td style={{ ...td, fontFamily: "var(--font-mono)" }}>
-                    <Link
-                      href={`/admin/inquiries/${String(q._id)}`}
-                      style={{ color: "var(--color-brand-deep)" }}
-                    >
-                      {q.inquiryNumber}
-                    </Link>
-                  </td>
-                  <td style={td}>{q.division}</td>
-                  <td style={td}>{q.name}</td>
-                  <td style={td}>{q.subject ?? "—"}</td>
-                  <td style={td}>{q.status}</td>
-                  <td style={td}>
-                    {new Date(q.createdAt).toLocaleDateString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
+    <div className="space-y-6">
+      <AdminPageHeader title="Inquiries" />
+      <DataTable
+        columns={columns}
+        rows={rows}
+        getRowKey={(q) => String(q._id)}
+        empty="No inquiries yet."
+        minWidth={760}
+      />
     </div>
   );
 }

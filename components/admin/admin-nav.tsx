@@ -28,6 +28,14 @@ import {
   CalendarDays,
   Briefcase,
   Mailbox,
+  ClipboardList,
+  CalendarClock,
+  Plane,
+  Handshake,
+  MapPin,
+  Building2,
+  Stethoscope,
+  PackageOpen,
   type LucideIcon,
 } from "lucide-react";
 import styles from "./admin.module.css";
@@ -85,6 +93,39 @@ const GROUPS: NavGroup[] = [
       { href: "/admin/provisioning", label: "Provisioning", icon: ServerCog },
       { href: "/admin/commissions", label: "Commissions", icon: Percent },
       { href: "/admin/inquiries", label: "Inquiries", icon: Inbox },
+    ],
+  },
+  {
+    label: "Tourism",
+    items: [
+      { href: "/admin/tourism/cases", label: "Cases", icon: ClipboardList },
+      {
+        href: "/admin/tourism/appointments",
+        label: "Appointments",
+        icon: CalendarClock,
+      },
+      { href: "/admin/tourism/travel", label: "Travel Requests", icon: Plane },
+      {
+        href: "/admin/tourism/partners",
+        label: "Partner Applications",
+        icon: Handshake,
+      },
+      {
+        href: "/admin/tourism/destinations",
+        label: "Destinations",
+        icon: MapPin,
+      },
+      {
+        href: "/admin/tourism/hospitals",
+        label: "Hospitals",
+        icon: Building2,
+      },
+      { href: "/admin/tourism/doctors", label: "Doctors", icon: Stethoscope },
+      {
+        href: "/admin/tourism/packages",
+        label: "Packages",
+        icon: PackageOpen,
+      },
     ],
   },
   {

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
-import { CtaButton } from "@/components/ui/cta-button";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -17,16 +17,6 @@ const STATUS_LABEL: Record<string, string> = {
   paid: "Mark paid (run fulfillment)",
   cancelled: "Cancel",
   refunded: "Refund",
-};
-
-const cardStyle: CSSProperties = {
-  border: "1px solid var(--color-border)",
-  background: "var(--color-surface)",
-  borderRadius: "var(--r-lg)",
-  padding: "var(--s-5)",
-  display: "flex",
-  flexDirection: "column",
-  gap: "var(--s-4)",
 };
 
 export function PurchaseActions({
@@ -87,42 +77,19 @@ export function PurchaseActions({
   }
 
   return (
-    <section style={cardStyle}>
-      <h2
-        style={{
-          margin: 0,
-          fontFamily: "var(--font-display)",
-          fontSize: "var(--fs-lg)",
-          color: "var(--color-text-strong)",
-        }}
-      >
+    <section className="bg-card flex flex-col gap-4 rounded-lg p-5 shadow-[var(--shadow-sm)]">
+      <h2 className="text-foreground font-[family-name:var(--font-display)] text-lg">
         Actions
       </h2>
-      {error && (
-        <p
-          style={{
-            margin: 0,
-            color: "var(--color-error)",
-            fontSize: "var(--fs-sm)",
-          }}
-        >
-          {error}
-        </p>
-      )}
+      {error && <p className="text-destructive text-sm">{error}</p>}
       {allowed.length === 0 && !canRetry ? (
-        <p
-          style={{
-            margin: 0,
-            color: "var(--color-text-muted)",
-            fontSize: "var(--fs-sm)",
-          }}
-        >
+        <p className="text-muted-foreground text-sm">
           No further actions from <strong>{status}</strong>.
         </p>
       ) : (
         <>
           {allowed.length > 0 && (
-            <div style={{ display: "grid", gap: 6 }}>
+            <div className="grid gap-1.5">
               <Label htmlFor="purchase-note">Note (optional)</Label>
               <Input
                 id="purchase-note"
@@ -132,20 +99,31 @@ export function PurchaseActions({
               />
             </div>
           )}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--s-3)" }}>
+          <div className="flex flex-wrap gap-3">
             {allowed.map((to) => (
-              <CtaButton
+              <Button
                 key={to}
-                variant={to === "paid" ? "primary" : "secondary"}
+                variant={
+                  to === "paid"
+                    ? "default"
+                    : to === "refunded" || to === "cancelled"
+                      ? "destructive"
+                      : "outline"
+                }
+                disabled={busy === to}
                 onClick={() => transition(to)}
               >
                 {busy === to ? "Working…" : (STATUS_LABEL[to] ?? to)}
-              </CtaButton>
+              </Button>
             ))}
             {canRetry && (
-              <CtaButton variant="secondary" onClick={retry}>
+              <Button
+                variant="outline"
+                disabled={busy === "retry"}
+                onClick={retry}
+              >
                 {busy === "retry" ? "Working…" : "Retry fulfillment"}
-              </CtaButton>
+              </Button>
             )}
           </div>
         </>

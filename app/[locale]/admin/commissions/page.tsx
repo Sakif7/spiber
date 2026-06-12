@@ -4,8 +4,13 @@ import {
   commissionTotals,
 } from "@/lib/repositories/commissions.repo";
 import { formatBDT } from "@/lib/money";
+import { AdminPageHeader } from "@/components/admin/ui/page-header";
+import { StatusBadge } from "@/components/admin/ui/status-badge";
+import { DataTable, type Column } from "@/components/admin/ui/data-table";
 
 export const dynamic = "force-dynamic";
+
+type Row = Awaited<ReturnType<typeof listCommissions>>[number];
 
 export default async function AdminCommissionsPage({
   params,
@@ -15,7 +20,7 @@ export default async function AdminCommissionsPage({
   const { locale } = await params;
   setRequestLocale(locale);
 
-  let rows: Awaited<ReturnType<typeof listCommissions>> = [];
+  let rows: Row[] = [];
   let totals = { accruedMinor: 0, paidMinor: 0, voidMinor: 0 };
   try {
     [rows, totals] = await Promise.all([listCommissions(), commissionTotals()]);
@@ -23,130 +28,89 @@ export default async function AdminCommissionsPage({
     rows = [];
   }
 
-  const th: React.CSSProperties = {
-    textAlign: "left",
-    padding: "var(--s-3) var(--s-4)",
-    fontFamily: "var(--font-mono)",
-    fontSize: "var(--fs-caption)",
-    color: "var(--color-text-muted)",
-    fontWeight: 500,
-    borderBottom: "1px solid var(--color-border)",
-  };
-  const td: React.CSSProperties = {
-    padding: "var(--s-3) var(--s-4)",
-    fontSize: "var(--fs-small)",
-    color: "var(--color-text)",
-    borderBottom: "1px solid var(--color-border)",
-  };
+  const summary = [
+    { label: "Accrued", value: totals.accruedMinor },
+    { label: "Paid", value: totals.paidMinor },
+    { label: "Void", value: totals.voidMinor },
+  ];
+
+  const columns: Column<Row>[] = [
+    { key: "app", header: "App", cell: (c) => c.externalApp },
+    {
+      key: "base",
+      header: "Base",
+      align: "right",
+      cell: (c) => (
+        <span className="text-muted-foreground">
+          {formatBDT(c.basePriceMinor, "en")}
+        </span>
+      ),
+    },
+    {
+      key: "rate",
+      header: "Rate",
+      align: "right",
+      cell: (c) => (
+        <span className="text-muted-foreground">
+          {(c.rateBp / 100).toFixed(2)}%
+        </span>
+      ),
+    },
+    {
+      key: "commission",
+      header: "Commission",
+      align: "right",
+      cell: (c) => (
+        <span className="font-medium">{formatBDT(c.amountMinor, "en")}</span>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      cell: (c) => <StatusBadge>{c.status}</StatusBadge>,
+    },
+    {
+      key: "date",
+      header: "Date",
+      align: "right",
+      cell: (c) => (
+        <span className="text-muted-foreground">
+          {new Date(c.accruedAt).toLocaleDateString()}
+        </span>
+      ),
+    },
+  ];
 
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
-      <h1
-        style={{
-          margin: 0,
-          fontFamily: "var(--font-display)",
-          fontSize: "var(--fs-2xl)",
-          color: "var(--color-text-strong)",
-        }}
-      >
-        Affiliate commissions
-      </h1>
+    <div className="space-y-6">
+      <AdminPageHeader
+        title="Affiliate commissions"
+        description="Owner commission ledger for external-app provisioning — accrued, paid, and voided."
+      />
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-          gap: "var(--s-4)",
-        }}
-      >
-        {[
-          { label: "Accrued", value: totals.accruedMinor },
-          { label: "Paid", value: totals.paidMinor },
-          { label: "Void", value: totals.voidMinor },
-        ].map((s) => (
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-4">
+        {summary.map((s) => (
           <div
             key={s.label}
-            style={{
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--r-lg)",
-              background: "var(--color-surface)",
-              padding: "var(--s-5)",
-              display: "grid",
-              gap: 4,
-            }}
+            className="bg-card grid gap-1 rounded-lg p-5 shadow-[var(--shadow-sm)]"
           >
-            <span
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: "var(--fs-caption)",
-                textTransform: "uppercase",
-                color: "var(--color-text-muted)",
-              }}
-            >
+            <span className="text-muted-foreground font-mono text-xs uppercase">
               {s.label}
             </span>
-            <strong
-              style={{
-                fontSize: "var(--fs-h3)",
-                color: "var(--color-text-strong)",
-              }}
-            >
+            <strong className="text-foreground text-2xl font-semibold">
               {formatBDT(s.value, "en")}
             </strong>
           </div>
         ))}
       </div>
 
-      <section
-        style={{
-          border: "1px solid var(--color-border)",
-          borderRadius: "var(--r-lg)",
-          background: "var(--color-surface)",
-          overflow: "hidden",
-        }}
-      >
-        {rows.length === 0 ? (
-          <p
-            style={{
-              margin: 0,
-              padding: "var(--s-6)",
-              textAlign: "center",
-              color: "var(--color-text-muted)",
-            }}
-          >
-            No commissions recorded yet.
-          </p>
-        ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr>
-                <th style={th}>App</th>
-                <th style={th}>Base</th>
-                <th style={th}>Rate</th>
-                <th style={th}>Commission</th>
-                <th style={th}>Status</th>
-                <th style={th}>Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((c) => (
-                <tr key={String(c._id)}>
-                  <td style={td}>{c.externalApp}</td>
-                  <td style={td}>{formatBDT(c.basePriceMinor, "en")}</td>
-                  <td style={td}>{(c.rateBp / 100).toFixed(2)}%</td>
-                  <td style={{ ...td, color: "var(--color-text-strong)" }}>
-                    {formatBDT(c.amountMinor, "en")}
-                  </td>
-                  <td style={td}>{c.status}</td>
-                  <td style={td}>
-                    {new Date(c.accruedAt).toLocaleDateString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
+      <DataTable
+        columns={columns}
+        rows={rows}
+        getRowKey={(c) => String(c._id)}
+        empty="No commissions recorded yet."
+        minWidth={760}
+      />
     </div>
   );
 }

@@ -2,10 +2,20 @@
 
 import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CtaButton } from "@/components/ui/cta-button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatApiError } from "@/lib/http/form-error";
+
+const TOP_LEVEL = "__top__";
 
 export function CategoryForm({
   storefront = "instruments",
@@ -51,6 +61,7 @@ export function CategoryForm({
         setNameBn("");
         setSlug("");
         setParentId("");
+        toast.success("Category created");
         router.refresh();
         setSaving(false);
         return;
@@ -59,21 +70,16 @@ export function CategoryForm({
       /* fall through to error */
     }
     setSaving(false);
-    setError(formatApiError(json));
+    const msg = formatApiError(json);
+    setError(msg);
+    toast.error(msg);
   }
 
-  const field = { display: "grid", gap: 6 } as const;
-  const row = {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "var(--s-4)",
-  } as const;
-
   return (
-    <div style={{ display: "grid", gap: "var(--s-5)" }}>
-      <div style={field}>
+    <div className="grid gap-5">
+      <div className="grid gap-1.5">
         <Label>Name</Label>
-        <div style={row}>
+        <div className="grid grid-cols-2 gap-4">
           <Input
             placeholder="EN"
             value={nameEn}
@@ -86,7 +92,7 @@ export function CategoryForm({
           />
         </div>
       </div>
-      <div style={field}>
+      <div className="grid gap-1.5">
         <Label>Slug</Label>
         <Input
           value={slug}
@@ -96,38 +102,33 @@ export function CategoryForm({
       </div>
 
       {parents && (
-        <div style={field}>
+        <div className="grid gap-1.5">
           <Label>Parent category</Label>
-          <select
-            value={parentId}
-            onChange={(e) => setParentId(e.target.value)}
-            style={{
-              height: 40,
-              padding: "0 10px",
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--r-sm)",
-              font: "inherit",
-              background: "var(--color-surface)",
-            }}
+          <Select
+            value={parentId === "" ? TOP_LEVEL : parentId}
+            onValueChange={(v) => setParentId(v === TOP_LEVEL ? "" : v)}
           >
-            <option value="">— top level —</option>
-            {parents.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={TOP_LEVEL}>— top level —</SelectItem>
+              {parents.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       )}
 
-      {error && (
-        <p style={{ margin: 0, color: "var(--color-error)" }}>{error}</p>
-      )}
+      {error && <p className="text-destructive m-0 text-sm">{error}</p>}
 
       <div>
-        <CtaButton onClick={submit}>
+        <Button onClick={submit} disabled={saving}>
           {saving ? "Saving…" : "Create category"}
-        </CtaButton>
+        </Button>
       </div>
     </div>
   );
@@ -165,23 +166,14 @@ export function DeleteCategoryButton({
   }
 
   return (
-    <button
+    <Button
       type="button"
+      variant="destructive"
+      size="sm"
       onClick={remove}
       disabled={busy}
-      style={{
-        background: "transparent",
-        border: "1px solid var(--color-border)",
-        borderRadius: "var(--r-sm)",
-        color: "var(--color-error)",
-        padding: "4px 12px",
-        fontSize: "var(--fs-small)",
-        fontFamily: "inherit",
-        cursor: busy ? "default" : "pointer",
-        opacity: busy ? 0.6 : 1,
-      }}
     >
       {busy ? "Deleting…" : "Delete"}
-    </button>
+    </Button>
   );
 }

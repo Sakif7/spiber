@@ -2,9 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CtaButton } from "@/components/ui/cta-button";
+import { Switch } from "@/components/ui/switch";
 import { fromMinor, toMinor } from "@/lib/money";
 import { formatApiError } from "@/lib/http/form-error";
 
@@ -53,25 +56,18 @@ export function ShippingForm({
 
     if (res.ok && json?.ok) {
       setSaved(true);
+      toast.success("Settings saved.");
       router.refresh();
     } else {
-      setError(formatApiError(json));
+      const msg = formatApiError(json);
+      setError(msg);
+      toast.error(msg);
     }
   }
 
-  const card: React.CSSProperties = {
-    display: "grid",
-    gap: "var(--s-5)",
-    padding: "var(--s-6)",
-    border: "1px solid var(--color-border)",
-    background: "var(--color-surface)",
-    borderRadius: "var(--r-lg)",
-  };
-  const field = { display: "grid", gap: 6 } as const;
-
   return (
-    <div style={card}>
-      <div style={field}>
+    <Card className="grid gap-5 p-6">
+      <div className="grid gap-1.5">
         <Label>Flat shipping fee (BDT)</Label>
         <Input
           type="number"
@@ -85,21 +81,11 @@ export function ShippingForm({
         />
       </div>
 
-      <label
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "var(--s-2)",
-          cursor: "pointer",
-          fontSize: "var(--fs-body-sm)",
-          color: "var(--color-text)",
-        }}
-      >
-        <input
-          type="checkbox"
+      <label className="text-foreground flex cursor-pointer items-center gap-2 text-sm">
+        <Switch
           checked={freeEnabled}
-          onChange={(e) => {
-            setFreeEnabled(e.target.checked);
+          onCheckedChange={(v) => {
+            setFreeEnabled(v);
             setSaved(false);
           }}
         />
@@ -107,7 +93,7 @@ export function ShippingForm({
       </label>
 
       {freeEnabled && (
-        <div style={field}>
+        <div className="grid gap-1.5">
           <Label>Free shipping over (BDT)</Label>
           <Input
             type="number"
@@ -120,32 +106,25 @@ export function ShippingForm({
               setSaved(false);
             }}
           />
-          <span
-            style={{
-              fontSize: "var(--fs-small)",
-              color: "var(--color-text-muted)",
-            }}
-          >
+          <span className="text-muted-foreground text-xs">
             Orders at or above this subtotal ship free. Leave the box unchecked
             to always charge the flat fee.
           </span>
         </div>
       )}
 
-      {error && (
-        <p style={{ color: "var(--color-error)", margin: 0 }}>{error}</p>
-      )}
+      {error && <p className="text-destructive m-0 text-sm">{error}</p>}
       {saved && !error && (
-        <p style={{ color: "var(--color-success)", margin: 0 }}>
+        <p className="m-0 text-sm text-[color:var(--color-success)]">
           Settings saved.
         </p>
       )}
 
       <div>
-        <CtaButton type="button" onClick={submit}>
+        <Button type="button" onClick={submit} disabled={saving}>
           {saving ? "Saving…" : "Save settings"}
-        </CtaButton>
+        </Button>
       </div>
-    </div>
+    </Card>
   );
 }

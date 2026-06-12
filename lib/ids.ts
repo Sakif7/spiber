@@ -35,5 +35,13 @@ export const provisioningTaskRef = (): string => makeId("SPM-TASK");
 export const quotationNumber = (): string => makeId("SPM-RFQ");
 /** SPM-APP-… — a job-application reference. */
 export const jobApplicationNumber = (): string => makeId("SPM-APP");
+/** SPM-CASE-… — a medical tourism case reference. */
+export const medicalCaseNumber = (): string => makeId("SPM-CASE");
+/** SPM-APT-… — a doctor/teleconsultation appointment reference. */
+export const appointmentNumber = (): string => makeId("SPM-APT");
+/** SPM-TRV-… — a travel (air/hotel/visa/transfer) request reference. */
+export const travelRequestNumber = (): string => makeId("SPM-TRV");
+/** SPM-PTR-… — a "Partner With Us" application reference. */
+export const partnerApplicationNumber = (): string => makeId("SPM-PTR");
 /** VAR-… — a stable product-variant id (referenced by cart/order/inventory). */
 export const variantId = (): string => makeId("VAR", 6);

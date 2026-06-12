@@ -1,11 +1,19 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "@/i18n/navigation";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CtaButton } from "@/components/ui/cta-button";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SingleImageField } from "@/components/admin/upload-fields";
 import { formatApiError } from "@/lib/http/form-error";
 import type { GalleryStatus } from "@/lib/schemas/gallery";
@@ -25,37 +33,6 @@ export type AlbumFormInitial = {
 };
 
 const emptyL = (): L => ({ en: "", bn: "" });
-const field: CSSProperties = { display: "grid", gap: 6 };
-const row: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "1fr 1fr",
-  gap: "var(--s-4)",
-};
-const card: CSSProperties = {
-  border: "1px solid var(--color-border)",
-  background: "var(--color-surface)",
-  borderRadius: "var(--r-lg)",
-  padding: "var(--s-5)",
-  display: "grid",
-  gap: "var(--s-4)",
-};
-const selStyle: CSSProperties = {
-  height: 40,
-  padding: "0 10px",
-  border: "1px solid var(--color-border)",
-  borderRadius: "var(--r-sm)",
-  font: "inherit",
-  background: "var(--color-surface)",
-};
-const taStyle: CSSProperties = {
-  font: "inherit",
-  padding: "8px 10px",
-  border: "1px solid var(--color-border)",
-  borderRadius: "var(--r-sm)",
-  background: "var(--color-surface)",
-  width: "100%",
-  resize: "vertical",
-};
 
 export function AlbumForm({ initial }: { initial?: AlbumFormInitial }) {
   const router = useRouter();
@@ -158,11 +135,11 @@ export function AlbumForm({ initial }: { initial?: AlbumFormInitial }) {
   }
 
   return (
-    <div style={{ display: "grid", gap: "var(--s-5)", maxWidth: 860 }}>
-      <section style={card}>
+    <div className="grid max-w-[860px] gap-5">
+      <section className="bg-card grid gap-4 rounded-lg p-5 shadow-[var(--shadow-sm)]">
         <BilingualField label="Title" value={title} onChange={setTitle} />
-        <div style={row}>
-          <div style={field}>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-1.5">
             <Label>Slug (optional)</Label>
             <Input
               value={slug}
@@ -170,7 +147,7 @@ export function AlbumForm({ initial }: { initial?: AlbumFormInitial }) {
               placeholder="auto from title"
             />
           </div>
-          <div style={field}>
+          <div className="grid gap-1.5">
             <Label>Date (optional)</Label>
             <Input
               type="date"
@@ -185,35 +162,18 @@ export function AlbumForm({ initial }: { initial?: AlbumFormInitial }) {
           onChange={setDescription}
           textarea
         />
-        <div style={field}>
+        <div className="grid gap-1.5">
           <Label>Cover image (optional — defaults to the first photo)</Label>
           <SingleImageField value={coverImage} onChange={setCoverImage} />
         </div>
       </section>
 
-      <section style={card}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
+      <section className="bg-card grid gap-4 rounded-lg p-5 shadow-[var(--shadow-sm)]">
+        <div className="flex items-center justify-between">
           <Label>Photos ({images.length})</Label>
           <label
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "8px 14px",
-              borderRadius: "var(--r-sm)",
-              border: "1px solid var(--color-border)",
-              background: "var(--color-surface)",
-              color: "var(--color-brand-deep)",
-              fontWeight: 600,
-              fontSize: "var(--fs-sm)",
-              cursor: uploading ? "default" : "pointer",
-            }}
+            className="border-border bg-card text-primary inline-flex items-center gap-1.5 rounded-md border px-3.5 py-2 text-sm font-semibold"
+            style={{ cursor: uploading ? "default" : "pointer" }}
           >
             {uploading ? "Uploading…" : "+ Add photos"}
             <input
@@ -231,40 +191,17 @@ export function AlbumForm({ initial }: { initial?: AlbumFormInitial }) {
         </div>
 
         {images.length === 0 ? (
-          <p
-            style={{
-              margin: 0,
-              color: "var(--color-text-muted)",
-              fontSize: "var(--fs-sm)",
-            }}
-          >
+          <p className="text-muted-foreground m-0 text-sm">
             No photos yet — add some above.
           </p>
         ) : (
-          <div style={{ display: "grid", gap: "var(--s-3)" }}>
+          <div className="grid gap-3">
             {images.map((im, i) => (
               <div
                 key={im.url}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "96px 1fr auto",
-                  gap: "var(--s-3)",
-                  alignItems: "center",
-                  padding: "var(--s-2)",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--r-md)",
-                }}
+                className="border-border grid grid-cols-[96px_1fr_auto] items-center gap-3 rounded-md border p-2"
               >
-                <div
-                  style={{
-                    position: "relative",
-                    width: 96,
-                    height: 64,
-                    borderRadius: "var(--r-sm)",
-                    overflow: "hidden",
-                    background: "var(--color-surface-2)",
-                  }}
-                >
+                <div className="bg-muted relative h-16 w-24 overflow-hidden rounded-md">
                   <Image
                     src={im.url}
                     alt=""
@@ -273,7 +210,7 @@ export function AlbumForm({ initial }: { initial?: AlbumFormInitial }) {
                     style={{ objectFit: "cover" }}
                   />
                 </div>
-                <div style={{ display: "grid", gap: 6 }}>
+                <div className="grid gap-1.5">
                   <Input
                     placeholder="Caption (EN, optional)"
                     value={im.caption.en}
@@ -289,7 +226,7 @@ export function AlbumForm({ initial }: { initial?: AlbumFormInitial }) {
                     }
                   />
                 </div>
-                <div style={{ display: "grid", gap: 4 }}>
+                <div className="grid gap-1">
                   <MiniBtn
                     label="▲"
                     onClick={() => move(i, -1)}
@@ -314,25 +251,29 @@ export function AlbumForm({ initial }: { initial?: AlbumFormInitial }) {
         )}
       </section>
 
-      <section style={card}>
-        <div style={field}>
+      <section className="bg-card grid gap-4 rounded-lg p-5 shadow-[var(--shadow-sm)]">
+        <div className="grid gap-1.5">
           <Label>Status</Label>
-          <select
+          <Select
             value={status}
-            onChange={(e) => setStatus(e.target.value as GalleryStatus)}
-            style={selStyle}
+            onValueChange={(v) => setStatus(v as GalleryStatus)}
           >
-            <option value="draft">Draft</option>
-            <option value="published">Published</option>
-          </select>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="published">Published</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </section>
 
-      {error && <p style={{ color: "var(--color-error)" }}>{error}</p>}
+      {error && <p className="text-destructive text-sm">{error}</p>}
       <div>
-        <CtaButton onClick={submit}>
+        <Button type="button" onClick={submit} disabled={saving}>
           {saving ? "Saving…" : isEdit ? "Save album" : "Create album"}
-        </CtaButton>
+        </Button>
       </div>
     </div>
   );
@@ -350,26 +291,21 @@ function MiniBtn({
   danger?: boolean;
 }) {
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
+      size="icon-sm"
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
-      style={{
-        width: 30,
-        height: 24,
-        border: "1px solid var(--color-border)",
-        borderRadius: "var(--r-sm)",
-        background: "var(--color-surface)",
-        color: danger ? "var(--color-error)" : "var(--color-text-muted)",
-        cursor: disabled ? "default" : "pointer",
-        opacity: disabled ? 0.4 : 1,
-        fontSize: 12,
-        lineHeight: 1,
-      }}
+      className={
+        danger
+          ? "text-destructive hover:text-destructive h-6 w-[30px]"
+          : "text-muted-foreground h-6 w-[30px]"
+      }
     >
       {label}
-    </button>
+    </Button>
   );
 }
 
@@ -385,24 +321,22 @@ function BilingualField({
   textarea?: boolean;
 }) {
   return (
-    <div style={field}>
+    <div className="grid gap-1.5">
       <Label>{label}</Label>
-      <div style={row}>
+      <div className="grid grid-cols-2 gap-4">
         {textarea ? (
           <>
-            <textarea
+            <Textarea
               placeholder="EN"
               value={value.en}
               onChange={(e) => onChange({ ...value, en: e.target.value })}
               rows={2}
-              style={taStyle}
             />
-            <textarea
+            <Textarea
               placeholder="বাংলা"
               value={value.bn}
               onChange={(e) => onChange({ ...value, bn: e.target.value })}
               rows={2}
-              style={taStyle}
             />
           </>
         ) : (

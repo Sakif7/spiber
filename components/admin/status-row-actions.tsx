@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
+import { Button } from "@/components/ui/button";
 
 /**
  * Generic admin row action: PATCH an entity to a new status. Used by the
@@ -30,26 +31,18 @@ export function StatusRowActions({
   }
 
   return (
-    <div style={{ display: "inline-flex", gap: 6, flexWrap: "wrap" }}>
+    <div className="inline-flex flex-wrap gap-1.5">
       {actions.map((a) => (
-        <button
+        <Button
           key={a.to}
           type="button"
+          size="sm"
+          variant={a.danger ? "destructive" : "outline"}
           disabled={busy === a.to}
           onClick={() => set(a.to)}
-          style={{
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--r-sm)",
-            background: "var(--color-surface)",
-            color: a.danger ? "var(--color-error)" : "var(--color-brand-deep)",
-            padding: "4px 10px",
-            fontSize: "var(--fs-small)",
-            cursor: busy === a.to ? "default" : "pointer",
-            opacity: busy === a.to ? 0.6 : 1,
-          }}
         >
           {busy === a.to ? "…" : a.label}
-        </button>
+        </Button>
       ))}
     </div>
   );

@@ -3,8 +3,13 @@ import { Link } from "@/i18n/navigation";
 import { listPurchases } from "@/lib/repositories/purchases.repo";
 import { localize } from "@/lib/schemas/localized";
 import { formatBDT } from "@/lib/money";
+import { AdminPageHeader } from "@/components/admin/ui/page-header";
+import { StatusBadge } from "@/components/admin/ui/status-badge";
+import { DataTable, type Column } from "@/components/admin/ui/data-table";
 
 export const dynamic = "force-dynamic";
+
+type Row = Awaited<ReturnType<typeof listPurchases>>["items"][number];
 
 export default async function AdminPurchasesPage({
   params,
@@ -14,92 +19,62 @@ export default async function AdminPurchasesPage({
   const { locale } = await params;
   setRequestLocale(locale);
 
-  let rows: Awaited<ReturnType<typeof listPurchases>>["items"] = [];
+  let rows: Row[] = [];
   try {
     rows = (await listPurchases({ pageSize: 100 })).items;
   } catch {
     rows = [];
   }
 
-  const th: React.CSSProperties = {
-    textAlign: "left",
-    padding: "var(--s-3) var(--s-4)",
-    fontFamily: "var(--font-mono)",
-    fontSize: "var(--fs-caption)",
-    color: "var(--color-text-muted)",
-    fontWeight: 500,
-    borderBottom: "1px solid var(--color-border)",
-  };
-  const td: React.CSSProperties = {
-    padding: "var(--s-3) var(--s-4)",
-    fontSize: "var(--fs-small)",
-    color: "var(--color-text)",
-    borderBottom: "1px solid var(--color-border)",
-  };
+  const columns: Column<Row>[] = [
+    {
+      key: "ref",
+      header: "Reference",
+      cell: (p) => (
+        <Link
+          href={`/admin/software-purchases/${String(p._id)}`}
+          className="text-primary font-mono text-xs font-medium hover:underline"
+        >
+          {p.purchaseNumber}
+        </Link>
+      ),
+    },
+    {
+      key: "product",
+      header: "Product",
+      cell: (p) => localize(p.productSnapshot.name, "en"),
+    },
+    {
+      key: "email",
+      header: "Email",
+      cell: (p) => <span className="text-muted-foreground">{p.email}</span>,
+    },
+    {
+      key: "total",
+      header: "Total",
+      align: "right",
+      cell: (p) => formatBDT(p.totalMinor, "en"),
+    },
+    {
+      key: "status",
+      header: "Status",
+      cell: (p) => <StatusBadge>{p.status}</StatusBadge>,
+    },
+  ];
 
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
-      <h1
-        style={{
-          margin: 0,
-          fontFamily: "var(--font-display)",
-          fontSize: "var(--fs-2xl)",
-          color: "var(--color-text-strong)",
-        }}
-      >
-        Software purchases
-      </h1>
-      <section
-        style={{
-          border: "1px solid var(--color-border)",
-          borderRadius: "var(--r-lg)",
-          background: "var(--color-surface)",
-          overflow: "hidden",
-        }}
-      >
-        {rows.length === 0 ? (
-          <p
-            style={{
-              margin: 0,
-              padding: "var(--s-6)",
-              textAlign: "center",
-              color: "var(--color-text-muted)",
-            }}
-          >
-            No purchases yet.
-          </p>
-        ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr>
-                <th style={th}>Reference</th>
-                <th style={th}>Product</th>
-                <th style={th}>Email</th>
-                <th style={th}>Total</th>
-                <th style={th}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((p) => (
-                <tr key={String(p._id)}>
-                  <td style={{ ...td, fontFamily: "var(--font-mono)" }}>
-                    <Link
-                      href={`/admin/software-purchases/${String(p._id)}`}
-                      style={{ color: "var(--color-brand-deep)" }}
-                    >
-                      {p.purchaseNumber}
-                    </Link>
-                  </td>
-                  <td style={td}>{localize(p.productSnapshot.name, "en")}</td>
-                  <td style={td}>{p.email}</td>
-                  <td style={td}>{formatBDT(p.totalMinor, "en")}</td>
-                  <td style={td}>{p.status}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
+    <div className="space-y-6">
+      <AdminPageHeader
+        title="Software purchases"
+        description="Digital product purchases — fulfilment, licensing, and delivery."
+      />
+      <DataTable
+        columns={columns}
+        rows={rows}
+        getRowKey={(p) => String(p._id)}
+        empty="No purchases yet."
+        minWidth={720}
+      />
     </div>
   );
 }

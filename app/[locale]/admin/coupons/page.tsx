@@ -2,6 +2,9 @@ import { setRequestLocale } from "next-intl/server";
 import { listCoupons } from "@/lib/repositories/coupons.repo";
 import { formatBDT } from "@/lib/money";
 import { CouponForm } from "@/components/admin/coupon-form";
+import { AdminPageHeader } from "@/components/admin/ui/page-header";
+import { StatusBadge } from "@/components/admin/ui/status-badge";
+import { DataTable, type Column } from "@/components/admin/ui/data-table";
 
 export const dynamic = "force-dynamic";
 
@@ -39,38 +42,8 @@ async function loadCoupons(): Promise<CouponRow[]> {
   }
 }
 
-const th: React.CSSProperties = {
-  textAlign: "left",
-  padding: "var(--s-2) var(--s-3)",
-  fontSize: "var(--fs-sm)",
-  fontWeight: 600,
-  color: "var(--color-text-muted)",
-  borderBottom: "1px solid var(--color-border)",
-  whiteSpace: "nowrap",
-};
-
-const td: React.CSSProperties = {
-  padding: "var(--s-2) var(--s-3)",
-  fontSize: "var(--fs-sm)",
-  color: "var(--color-text)",
-  borderBottom: "1px solid var(--color-border)",
-  verticalAlign: "middle",
-};
-
 function valueLabel(c: CouponRow): string {
   return c.type === "percent" ? `${c.value}%` : formatBDT(c.value);
-}
-
-function badge(active: boolean): React.CSSProperties {
-  return {
-    display: "inline-block",
-    padding: "2px 10px",
-    borderRadius: "var(--r-sm)",
-    fontSize: "var(--fs-xs)",
-    fontWeight: 600,
-    color: active ? "var(--color-success)" : "var(--color-text-muted)",
-    border: `1px solid ${active ? "var(--color-success)" : "var(--color-border)"}`,
-  };
 }
 
 export default async function CouponsPage({ params }: PageProps) {
@@ -79,116 +52,78 @@ export default async function CouponsPage({ params }: PageProps) {
 
   const coupons = await loadCoupons();
 
-  return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
-      <header style={{ display: "grid", gap: "var(--s-2)" }}>
-        <h1
-          style={{
-            fontFamily: "var(--font-display)",
-            fontSize: "var(--fs-2xl)",
-            color: "var(--color-text-strong)",
-            margin: 0,
-          }}
-        >
-          Coupons
-        </h1>
-        <p
-          style={{
-            fontSize: "var(--fs-sm)",
-            color: "var(--color-text-muted)",
-            margin: 0,
-          }}
-        >
-          Manage discount codes applied at checkout.
-        </p>
-      </header>
-
-      <section
-        style={{
-          background: "var(--color-surface)",
-          border: "1px solid var(--color-border)",
-          borderRadius: "var(--r-lg)",
-          overflow: "hidden",
-        }}
-      >
-        {coupons.length === 0 ? (
-          <div
-            style={{
-              padding: "var(--s-8)",
-              textAlign: "center",
-              color: "var(--color-text-muted)",
-              fontSize: "var(--fs-sm)",
-            }}
-          >
-            No coupons yet. Create one below.
-          </div>
+  const columns: Column<CouponRow>[] = [
+    {
+      key: "code",
+      header: "Code",
+      cell: (c) => (
+        <span className="text-primary font-mono text-xs font-medium">
+          {c.code}
+        </span>
+      ),
+    },
+    {
+      key: "type",
+      header: "Type",
+      cell: (c) => <span className="capitalize">{c.type}</span>,
+    },
+    { key: "value", header: "Value", cell: (c) => valueLabel(c) },
+    {
+      key: "minSubtotal",
+      header: "Min subtotal",
+      cell: (c) =>
+        c.minSubtotalMinor === null ? (
+          <span className="text-muted-foreground">—</span>
         ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontFamily: "var(--font-mono)",
-              }}
-            >
-              <thead>
-                <tr>
-                  <th style={th}>Code</th>
-                  <th style={th}>Type</th>
-                  <th style={th}>Value</th>
-                  <th style={th}>Min subtotal</th>
-                  <th style={th}>Used / Limit</th>
-                  <th style={th}>Expires</th>
-                  <th style={th}>Active</th>
-                </tr>
-              </thead>
-              <tbody>
-                {coupons.map((c) => (
-                  <tr key={c.id}>
-                    <td
-                      style={{
-                        ...td,
-                        fontWeight: 600,
-                        color: "var(--color-text-strong)",
-                      }}
-                    >
-                      {c.code}
-                    </td>
-                    <td style={td}>{c.type}</td>
-                    <td style={td}>{valueLabel(c)}</td>
-                    <td style={td}>
-                      {c.minSubtotalMinor === null
-                        ? "—"
-                        : formatBDT(c.minSubtotalMinor)}
-                    </td>
-                    <td style={td}>
-                      {c.usedCount} /{" "}
-                      {c.usageLimit === null ? "∞" : c.usageLimit}
-                    </td>
-                    <td style={td}>
-                      {c.expiresAt
-                        ? new Date(c.expiresAt).toLocaleDateString("en-US")
-                        : "—"}
-                    </td>
-                    <td style={td}>
-                      <span style={badge(c.active)}>
-                        {c.active ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+          formatBDT(c.minSubtotalMinor)
+        ),
+    },
+    {
+      key: "usage",
+      header: "Used / Limit",
+      cell: (c) =>
+        `${c.usedCount} / ${c.usageLimit === null ? "∞" : c.usageLimit}`,
+    },
+    {
+      key: "expires",
+      header: "Expires",
+      cell: (c) =>
+        c.expiresAt ? (
+          new Date(c.expiresAt).toLocaleDateString("en-US")
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
+    },
+    {
+      key: "active",
+      header: "Active",
+      cell: (c) => (
+        <StatusBadge>{c.active ? "Active" : "Inactive"}</StatusBadge>
+      ),
+    },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <AdminPageHeader
+        title="Coupons"
+        description="Manage discount codes applied at checkout."
+      />
+
+      <DataTable
+        columns={columns}
+        rows={coupons}
+        getRowKey={(c) => c.id}
+        empty="No coupons yet. Create one below."
+        minWidth={720}
+      />
 
       <section
         style={{
           background: "var(--color-surface)",
-          border: "1px solid var(--color-border)",
           borderRadius: "var(--r-lg)",
           padding: "var(--s-6)",
+          boxShadow: "var(--shadow-sm)",
         }}
       >
         <h2

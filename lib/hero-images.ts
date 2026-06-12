@@ -49,6 +49,27 @@ export const MARKETPLACE_HUB_IMAGES = [
   "/iv-infusion-pump-bedside.jpeg",
 ];
 
+/** Rotating hero photos for the Spiber Tourism hub. */
+export const TOURISM_HUB_IMAGES = [
+  "/cherry-blossom-tree-lined-road.jpeg",
+  "/smiling-medical-team-portrait.jpeg",
+  "/doctor-by-ct-scanner-with-patient.jpeg",
+  "/diverse-medical-team-cheering.jpeg",
+];
+
+const TOURISM_BY_SECTION: Record<string, string> = {
+  doctors: "/smiling-medical-team-portrait.jpeg",
+  hospitals: "/modern-operating-room-equipment.jpeg",
+  destinations: "/cherry-blossom-tree-lined-road.jpeg",
+  packages: "/surgeons-operating-closeup-with-instruments.jpeg",
+  "medical-tourism": "/doctor-by-ct-scanner-with-patient.jpeg",
+};
+
+/** Hero photo for a Tourism section (falls back to the hub image). */
+export function tourismHero(section?: string): string {
+  return (section && TOURISM_BY_SECTION[section]) || HERO.tourismHub;
+}
+
 /**
  * About / "Who We Are" hero carousel — human-centred brand imagery.
  * TODO: swap these /public placeholders for real Spiber Med photography

@@ -6,17 +6,23 @@ import {
 } from "@/lib/repositories/quotations.repo";
 import { formatBDT } from "@/lib/money";
 import type { QuotationStatus } from "@/lib/schemas/quotation";
+import { AdminPageHeader } from "@/components/admin/ui/page-header";
+import { StatusFilterPills } from "@/components/admin/ui/status-filter";
+import { StatusBadge } from "@/components/admin/ui/status-badge";
+import { DataTable, type Column } from "@/components/admin/ui/data-table";
 
 export const dynamic = "force-dynamic";
 
-const STATUSES: (QuotationStatus | "all")[] = [
+const STATUSES = [
   "all",
   "new",
   "quoted",
   "negotiating",
   "won",
   "lost",
-];
+] as const;
+
+type Row = Awaited<ReturnType<typeof listQuotations>>["items"][number];
 
 export default async function AdminQuotationsPage({
   params,
@@ -32,156 +38,95 @@ export default async function AdminQuotationsPage({
   const filter: QuotationListParams = { pageSize: 100 };
   if (status && status !== "all") filter.status = status as QuotationStatus;
 
-  let rows: Awaited<ReturnType<typeof listQuotations>>["items"] = [];
+  let rows: Row[] = [];
   try {
     rows = (await listQuotations(filter)).items;
   } catch {
     rows = [];
   }
 
-  const th: React.CSSProperties = {
-    textAlign: "left",
-    padding: "var(--s-3) var(--s-4)",
-    fontFamily: "var(--font-mono)",
-    fontSize: "var(--fs-caption)",
-    color: "var(--color-text-muted)",
-    fontWeight: 500,
-    borderBottom: "1px solid var(--color-border)",
-  };
-  const td: React.CSSProperties = {
-    padding: "var(--s-3) var(--s-4)",
-    fontSize: "var(--fs-small)",
-    color: "var(--color-text)",
-    borderBottom: "1px solid var(--color-border)",
-  };
+  const columns: Column<Row>[] = [
+    {
+      key: "ref",
+      header: "Reference",
+      cell: (q) => (
+        <Link
+          href={`/admin/quotations/${String(q._id)}`}
+          className="text-primary font-mono text-xs font-medium hover:underline"
+        >
+          {q.quotationNumber}
+        </Link>
+      ),
+    },
+    { key: "requester", header: "Requester", cell: (q) => q.contact.name },
+    {
+      key: "organization",
+      header: "Organization",
+      cell: (q) => (
+        <span className="text-muted-foreground">
+          {q.contact.organization ?? "—"}
+        </span>
+      ),
+    },
+    {
+      key: "items",
+      header: "Items",
+      align: "right",
+      cell: (q) => q.items.length,
+    },
+    {
+      key: "status",
+      header: "Status",
+      cell: (q) => <StatusBadge>{q.status}</StatusBadge>,
+    },
+    {
+      key: "quoted",
+      header: "Quoted",
+      align: "right",
+      cell: (q) =>
+        q.quote?.amountMinor != null
+          ? formatBDT(q.quote.amountMinor, "en")
+          : "—",
+    },
+    {
+      key: "date",
+      header: "Date",
+      align: "right",
+      cell: (q) => (
+        <span className="text-muted-foreground">
+          {new Date(q.createdAt).toLocaleDateString()}
+        </span>
+      ),
+    },
+  ];
 
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: "var(--s-4)",
-        }}
-      >
-        <h1
-          style={{
-            margin: 0,
-            fontFamily: "var(--font-display)",
-            fontSize: "var(--fs-2xl)",
-            color: "var(--color-text-strong)",
-          }}
-        >
-          Quotations
-        </h1>
-        <a
-          href={`/api/admin/quotations/export`}
-          style={{
-            color: "var(--color-brand-deep)",
-            fontSize: "var(--fs-body-sm)",
-            fontWeight: 600,
-          }}
-        >
-          Export CSV
-        </a>
-      </div>
-
-      {/* Status filter */}
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {STATUSES.map((s) => {
-          const active = (status ?? "all") === s;
-          return (
-            <Link
-              key={s}
-              href={
-                s === "all"
-                  ? "/admin/quotations"
-                  : `/admin/quotations?status=${s}`
-              }
-              style={{
-                padding: "6px 14px",
-                borderRadius: "var(--r-pill)",
-                border: "1px solid var(--color-border)",
-                background: active
-                  ? "var(--color-brand)"
-                  : "var(--color-surface)",
-                color: active ? "#fff" : "var(--color-text)",
-                fontSize: "var(--fs-caption)",
-                textTransform: "capitalize",
-                fontWeight: 600,
-              }}
-            >
-              {s}
-            </Link>
-          );
-        })}
-      </div>
-
-      <section
-        style={{
-          border: "1px solid var(--color-border)",
-          borderRadius: "var(--r-lg)",
-          background: "var(--color-surface)",
-          overflow: "hidden",
-        }}
-      >
-        {rows.length === 0 ? (
-          <p
-            style={{
-              margin: 0,
-              padding: "var(--s-6)",
-              textAlign: "center",
-              color: "var(--color-text-muted)",
-            }}
+    <div className="space-y-6">
+      <AdminPageHeader
+        title="Quotations"
+        description="Instruments quotation (RFQ) pipeline — review, quote, and close."
+        action={
+          // eslint-disable-next-line @next/next/no-html-link-for-pages -- API CSV download, not a page route
+          <a
+            href="/api/admin/quotations/export"
+            className="text-primary font-medium hover:underline"
           >
-            No quotation requests yet.
-          </p>
-        ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr>
-                <th style={th}>Reference</th>
-                <th style={th}>Requester</th>
-                <th style={th}>Organization</th>
-                <th style={th}>Items</th>
-                <th style={th}>Status</th>
-                <th style={th}>Quoted</th>
-                <th style={th}>Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((q) => (
-                <tr key={String(q._id)}>
-                  <td style={{ ...td, fontFamily: "var(--font-mono)" }}>
-                    <Link
-                      href={`/admin/quotations/${String(q._id)}`}
-                      style={{ color: "var(--color-brand-deep)" }}
-                    >
-                      {q.quotationNumber}
-                    </Link>
-                  </td>
-                  <td style={td}>{q.contact.name}</td>
-                  <td style={td}>{q.contact.organization ?? "—"}</td>
-                  <td style={td}>{q.items.length}</td>
-                  <td style={{ ...td, textTransform: "capitalize" }}>
-                    {q.status}
-                  </td>
-                  <td style={td}>
-                    {q.quote?.amountMinor != null
-                      ? formatBDT(q.quote.amountMinor)
-                      : "—"}
-                  </td>
-                  <td style={td}>
-                    {new Date(q.createdAt).toLocaleDateString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
+            Export CSV
+          </a>
+        }
+      />
+      <StatusFilterPills
+        statuses={STATUSES}
+        active={status ?? "all"}
+        basePath="/admin/quotations"
+      />
+      <DataTable
+        columns={columns}
+        rows={rows}
+        getRowKey={(q) => String(q._id)}
+        empty="No quotation requests yet."
+        minWidth={760}
+      />
     </div>
   );
 }

@@ -2,9 +2,18 @@
 
 import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CtaButton } from "@/components/ui/cta-button";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ImageUploader } from "./image-uploader";
 import { formatApiError } from "@/lib/http/form-error";
 
@@ -63,45 +72,34 @@ export function BannerForm({ initial }: { initial?: BannerInitial }) {
     const json = await res.json().catch(() => null);
     setSaving(false);
     if (res.ok && json?.ok) {
+      toast.success(isEdit ? "Banner saved" : "Banner created");
       router.push("/admin/marketplace/banners");
       router.refresh();
     } else {
-      setError(formatApiError(json));
+      const msg = formatApiError(json);
+      setError(msg);
+      toast.error(msg);
     }
   }
 
-  const field = { display: "grid", gap: 6 } as const;
-  const row = {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "var(--s-4)",
-  } as const;
-  const sel: React.CSSProperties = {
-    height: 40,
-    padding: "0 10px",
-    border: "1px solid var(--color-border)",
-    borderRadius: "var(--r-sm)",
-    font: "inherit",
-    background: "var(--color-surface)",
-  };
-
   return (
-    <div style={{ display: "grid", gap: "var(--s-5)", maxWidth: 720 }}>
-      <div style={field}>
+    <div className="grid max-w-[720px] gap-5">
+      <div className="grid gap-1.5">
         <Label>Slot</Label>
-        <select
-          style={sel}
-          value={slot}
-          onChange={(e) => setSlot(e.target.value as typeof slot)}
-        >
-          <option value="hero">Hero (carousel)</option>
-          <option value="deal">Deal card</option>
-          <option value="strip">Trust strip</option>
-        </select>
+        <Select value={slot} onValueChange={(v) => setSlot(v as typeof slot)}>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="hero">Hero (carousel)</SelectItem>
+            <SelectItem value="deal">Deal card</SelectItem>
+            <SelectItem value="strip">Trust strip</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
-      <div style={field}>
+      <div className="grid gap-1.5">
         <Label>Title</Label>
-        <div style={row}>
+        <div className="grid grid-cols-2 gap-4">
           <Input
             placeholder="EN"
             value={titleEn}
@@ -114,9 +112,9 @@ export function BannerForm({ initial }: { initial?: BannerInitial }) {
           />
         </div>
       </div>
-      <div style={field}>
+      <div className="grid gap-1.5">
         <Label>Subtitle</Label>
-        <div style={row}>
+        <div className="grid grid-cols-2 gap-4">
           <Input
             placeholder="EN"
             value={subEn}
@@ -129,12 +127,12 @@ export function BannerForm({ initial }: { initial?: BannerInitial }) {
           />
         </div>
       </div>
-      <div style={field}>
+      <div className="grid gap-1.5">
         <Label>Image</Label>
         <ImageUploader value={images} onChange={setImages} />
       </div>
-      <div style={row}>
-        <div style={field}>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-1.5">
           <Label>Link (href)</Label>
           <Input
             value={href}
@@ -142,9 +140,9 @@ export function BannerForm({ initial }: { initial?: BannerInitial }) {
             onChange={(e) => setHref(e.target.value)}
           />
         </div>
-        <div style={field}>
+        <div className="grid gap-1.5">
           <Label>CTA label</Label>
-          <div style={row}>
+          <div className="grid grid-cols-2 gap-4">
             <Input
               placeholder="EN"
               value={ctaEn}
@@ -158,8 +156,8 @@ export function BannerForm({ initial }: { initial?: BannerInitial }) {
           </div>
         </div>
       </div>
-      <div style={row}>
-        <div style={field}>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-1.5">
           <Label>Position</Label>
           <Input
             type="number"
@@ -167,26 +165,17 @@ export function BannerForm({ initial }: { initial?: BannerInitial }) {
             onChange={(e) => setPosition(e.target.value)}
           />
         </div>
-        <label
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            marginTop: 26,
-          }}
-        >
-          <input
-            type="checkbox"
-            checked={active}
-            onChange={(e) => setActive(e.target.checked)}
-          />
-          Active
-        </label>
+        <div className="flex items-center gap-2 self-end pb-2">
+          <Switch checked={active} onCheckedChange={setActive} />
+          <Label>Active</Label>
+        </div>
       </div>
-      {error && <p style={{ color: "var(--color-error)" }}>{error}</p>}
-      <CtaButton onClick={submit}>
-        {saving ? "Saving…" : isEdit ? "Save changes" : "Create banner"}
-      </CtaButton>
+      {error && <p className="text-destructive text-sm">{error}</p>}
+      <div>
+        <Button onClick={submit} disabled={saving}>
+          {saving ? "Saving…" : isEdit ? "Save changes" : "Create banner"}
+        </Button>
+      </div>
     </div>
   );
 }

@@ -12,6 +12,8 @@ export type Testimonial = {
   name: string;
   role: string;
   tone: Tone;
+  /** Optional portrait photo (public URL/path) for the carousel. */
+  imageSrc?: string;
 };
 
 export type Post = {

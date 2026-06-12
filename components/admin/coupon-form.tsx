@@ -1,33 +1,23 @@
 "use client";
 
-import { useState, type CSSProperties, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useRouter } from "@/i18n/navigation";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CtaButton } from "@/components/ui/cta-button";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toMinor } from "@/lib/money";
 import { formatApiError } from "@/lib/http/form-error";
 
 type CouponType = "percent" | "fixed";
-
-const fieldWrap: CSSProperties = { display: "grid", gap: "var(--s-2)" };
-
-const hint: CSSProperties = {
-  fontSize: "var(--fs-xs)",
-  color: "var(--color-text-muted)",
-};
-
-const selectStyle: CSSProperties = {
-  height: 36,
-  width: "100%",
-  borderRadius: "var(--r-sm)",
-  border: "1px solid var(--color-border)",
-  background: "var(--color-surface)",
-  color: "var(--color-text)",
-  padding: "0 var(--s-3)",
-  fontSize: "var(--fs-sm)",
-  fontFamily: "var(--font-body)",
-};
 
 export function CouponForm() {
   const router = useRouter();
@@ -113,14 +103,18 @@ export function CouponForm() {
       const json = await res.json().catch(() => null);
 
       if (!res.ok || !json?.ok) {
-        setError(formatApiError(json, "Failed to create coupon."));
+        const msg = formatApiError(json, "Failed to create coupon.");
+        setError(msg);
+        toast.error(msg);
         return;
       }
 
+      toast.success("Coupon created");
       reset();
       router.refresh();
     } catch {
       setError("Network error. Please try again.");
+      toast.error("Network error");
     } finally {
       setSubmitting(false);
     }
@@ -132,18 +126,9 @@ export function CouponForm() {
       : "Amount off in BDT (Taka).";
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      style={{ display: "grid", gap: "var(--s-4)" }}
-    >
-      <div
-        style={{
-          display: "grid",
-          gap: "var(--s-4)",
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-        }}
-      >
-        <div style={fieldWrap}>
+    <form onSubmit={handleSubmit} className="grid gap-4">
+      <div className="grid [grid-template-columns:repeat(auto-fit,minmax(200px,1fr))] gap-4">
+        <div className="grid gap-1.5">
           <Label htmlFor="coupon-code">Code</Label>
           <Input
             id="coupon-code"
@@ -154,20 +139,20 @@ export function CouponForm() {
           />
         </div>
 
-        <div style={fieldWrap}>
+        <div className="grid gap-1.5">
           <Label htmlFor="coupon-type">Type</Label>
-          <select
-            id="coupon-type"
-            value={type}
-            onChange={(e) => setType(e.target.value as CouponType)}
-            style={selectStyle}
-          >
-            <option value="percent">Percent (%)</option>
-            <option value="fixed">Fixed (BDT)</option>
-          </select>
+          <Select value={type} onValueChange={(v) => setType(v as CouponType)}>
+            <SelectTrigger id="coupon-type" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="percent">Percent (%)</SelectItem>
+              <SelectItem value="fixed">Fixed (BDT)</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
-        <div style={fieldWrap}>
+        <div className="grid gap-1.5">
           <Label htmlFor="coupon-value">Value</Label>
           <Input
             id="coupon-value"
@@ -179,10 +164,10 @@ export function CouponForm() {
             onChange={(e) => setValue(e.target.value)}
             placeholder={type === "percent" ? "10" : "500"}
           />
-          <span style={hint}>{valueHint}</span>
+          <span className="text-muted-foreground text-xs">{valueHint}</span>
         </div>
 
-        <div style={fieldWrap}>
+        <div className="grid gap-1.5">
           <Label htmlFor="coupon-min">Minimum subtotal (BDT)</Label>
           <Input
             id="coupon-min"
@@ -194,26 +179,28 @@ export function CouponForm() {
             onChange={(e) => setMinSubtotal(e.target.value)}
             placeholder="Optional"
           />
-          <span style={hint}>Leave blank for no minimum.</span>
+          <span className="text-muted-foreground text-xs">
+            Leave blank for no minimum.
+          </span>
         </div>
 
-        <div style={fieldWrap}>
+        <div className="grid gap-1.5">
           <Label htmlFor="coupon-scope">Applies to</Label>
-          <select
-            id="coupon-scope"
-            value={appliesTo}
-            onChange={(e) => setAppliesTo(e.target.value)}
-            style={selectStyle}
-          >
-            <option value="all">All storefronts</option>
-            <option value="marketplace">Marketplace</option>
-            <option value="instruments">Medtrade</option>
-            <option value="academy">Academy</option>
-            <option value="systems">Digihealth</option>
-          </select>
+          <Select value={appliesTo} onValueChange={setAppliesTo}>
+            <SelectTrigger id="coupon-scope" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All storefronts</SelectItem>
+              <SelectItem value="marketplace">Marketplace</SelectItem>
+              <SelectItem value="instruments">Medtrade</SelectItem>
+              <SelectItem value="academy">Academy</SelectItem>
+              <SelectItem value="systems">Digihealth</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
-        <div style={fieldWrap}>
+        <div className="grid gap-1.5">
           <Label htmlFor="coupon-limit">Usage limit</Label>
           <Input
             id="coupon-limit"
@@ -225,47 +212,31 @@ export function CouponForm() {
             onChange={(e) => setUsageLimit(e.target.value)}
             placeholder="Optional"
           />
-          <span style={hint}>Leave blank for unlimited.</span>
+          <span className="text-muted-foreground text-xs">
+            Leave blank for unlimited.
+          </span>
         </div>
 
-        <div style={{ ...fieldWrap, alignContent: "end" }}>
-          <Label
-            htmlFor="coupon-active"
-            style={{ display: "flex", alignItems: "center", gap: "var(--s-2)" }}
-          >
-            <input
-              id="coupon-active"
-              type="checkbox"
-              checked={active}
-              onChange={(e) => setActive(e.target.checked)}
-              style={{
-                width: 16,
-                height: 16,
-                accentColor: "var(--color-brand)",
-              }}
-            />
-            Active
-          </Label>
+        <div className="flex items-center gap-2 self-end pb-2">
+          <Switch
+            id="coupon-active"
+            checked={active}
+            onCheckedChange={setActive}
+          />
+          <Label htmlFor="coupon-active">Active</Label>
         </div>
       </div>
 
       {error && (
-        <p
-          role="alert"
-          style={{
-            margin: 0,
-            fontSize: "var(--fs-sm)",
-            color: "var(--color-error)",
-          }}
-        >
+        <p role="alert" className="text-destructive m-0 text-sm">
           {error}
         </p>
       )}
 
       <div>
-        <CtaButton type="submit" variant="primary">
+        <Button type="submit" disabled={submitting}>
           {submitting ? "Saving…" : "Create coupon"}
-        </CtaButton>
+        </Button>
       </div>
     </form>
   );

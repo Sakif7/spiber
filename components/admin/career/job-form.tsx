@@ -1,10 +1,18 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CtaButton } from "@/components/ui/cta-button";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatApiError } from "@/lib/http/form-error";
 import type { EmploymentType, JobStatus } from "@/lib/schemas/career";
 
@@ -36,37 +44,6 @@ export type JobFormInitial = {
 };
 
 const emptyL = (): L => ({ en: "", bn: "" });
-const field: CSSProperties = { display: "grid", gap: 6 };
-const row: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "1fr 1fr",
-  gap: "var(--s-4)",
-};
-const card: CSSProperties = {
-  border: "1px solid var(--color-border)",
-  background: "var(--color-surface)",
-  borderRadius: "var(--r-lg)",
-  padding: "var(--s-5)",
-  display: "grid",
-  gap: "var(--s-4)",
-};
-const selStyle: CSSProperties = {
-  height: 40,
-  padding: "0 10px",
-  border: "1px solid var(--color-border)",
-  borderRadius: "var(--r-sm)",
-  font: "inherit",
-  background: "var(--color-surface)",
-};
-const taStyle: CSSProperties = {
-  font: "inherit",
-  padding: "8px 10px",
-  border: "1px solid var(--color-border)",
-  borderRadius: "var(--r-sm)",
-  background: "var(--color-surface)",
-  width: "100%",
-  resize: "vertical",
-};
 
 const EMPLOYMENT_TYPES: { value: EmploymentType; label: string }[] = [
   { value: "full_time", label: "Full-time" },
@@ -75,12 +52,6 @@ const EMPLOYMENT_TYPES: { value: EmploymentType; label: string }[] = [
   { value: "internship", label: "Internship" },
   { value: "temporary", label: "Temporary" },
 ];
-
-const cardTitle: CSSProperties = {
-  fontFamily: "var(--font-display)",
-  fontWeight: 600,
-  color: "var(--color-text-strong)",
-};
 
 export function JobForm({ initial }: { initial?: JobFormInitial }) {
   const router = useRouter();
@@ -190,11 +161,11 @@ export function JobForm({ initial }: { initial?: JobFormInitial }) {
   }
 
   return (
-    <div style={{ display: "grid", gap: "var(--s-5)", maxWidth: 860 }}>
-      <section style={card}>
+    <div className="grid max-w-[860px] gap-5">
+      <section className="bg-card grid gap-4 rounded-lg p-5 shadow-[var(--shadow-sm)]">
         <BilingualField label="Title" value={title} onChange={setTitle} />
-        <div style={row}>
-          <div style={field}>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-1.5">
             <Label>Slug (optional)</Label>
             <Input
               value={slug}
@@ -202,24 +173,26 @@ export function JobForm({ initial }: { initial?: JobFormInitial }) {
               placeholder="auto from title"
             />
           </div>
-          <div style={field}>
+          <div className="grid gap-1.5">
             <Label>Employment type</Label>
-            <select
+            <Select
               value={employmentType}
-              onChange={(e) =>
-                setEmploymentType(e.target.value as EmploymentType)
-              }
-              style={selStyle}
+              onValueChange={(v) => setEmploymentType(v as EmploymentType)}
             >
-              {EMPLOYMENT_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {EMPLOYMENT_TYPES.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>
+                    {t.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
-        <div style={row}>
+        <div className="grid grid-cols-2 gap-4">
           <BilingualField
             label="Department (optional)"
             value={department}
@@ -231,7 +204,7 @@ export function JobForm({ initial }: { initial?: JobFormInitial }) {
             onChange={setReportsTo}
           />
         </div>
-        <div style={row}>
+        <div className="grid grid-cols-2 gap-4">
           <BilingualField
             label="Location (optional)"
             value={location}
@@ -243,8 +216,8 @@ export function JobForm({ initial }: { initial?: JobFormInitial }) {
             onChange={setExperience}
           />
         </div>
-        <div style={row}>
-          <div style={field}>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-1.5">
             <Label>Vacancies (optional)</Label>
             <Input
               type="number"
@@ -254,7 +227,7 @@ export function JobForm({ initial }: { initial?: JobFormInitial }) {
               placeholder="e.g. 1"
             />
           </div>
-          <div style={field}>
+          <div className="grid gap-1.5">
             <Label>Apply by (optional)</Label>
             <Input
               type="date"
@@ -271,7 +244,7 @@ export function JobForm({ initial }: { initial?: JobFormInitial }) {
         />
       </section>
 
-      <section style={card}>
+      <section className="bg-card grid gap-4 rounded-lg p-5 shadow-[var(--shadow-sm)]">
         <BilingualField
           label="About the role (description)"
           value={description}
@@ -309,10 +282,12 @@ export function JobForm({ initial }: { initial?: JobFormInitial }) {
         />
       </section>
 
-      <section style={card}>
-        <strong style={cardTitle}>Recruiter (optional)</strong>
-        <div style={row}>
-          <div style={field}>
+      <section className="bg-card grid gap-4 rounded-lg p-5 shadow-[var(--shadow-sm)]">
+        <strong className="text-foreground font-[family-name:var(--font-display)] font-semibold">
+          Recruiter (optional)
+        </strong>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-1.5">
             <Label>Recruiter name</Label>
             <Input
               value={recruiterName}
@@ -327,8 +302,8 @@ export function JobForm({ initial }: { initial?: JobFormInitial }) {
             onChange={setRecruiterTitle}
           />
         </div>
-        <div style={row}>
-          <div style={field}>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-1.5">
             <Label>Recruiter email</Label>
             <Input
               value={recruiterEmail}
@@ -336,7 +311,7 @@ export function JobForm({ initial }: { initial?: JobFormInitial }) {
               placeholder="careers@spibermed.com"
             />
           </div>
-          <div style={field}>
+          <div className="grid gap-1.5">
             <Label>Recruiter phone</Label>
             <Input
               value={recruiterPhone}
@@ -345,7 +320,7 @@ export function JobForm({ initial }: { initial?: JobFormInitial }) {
             />
           </div>
         </div>
-        <div style={field}>
+        <div className="grid gap-1.5">
           <Label>Apply email (optional — where applications are sent)</Label>
           <Input
             value={applyEmail}
@@ -355,26 +330,30 @@ export function JobForm({ initial }: { initial?: JobFormInitial }) {
         </div>
       </section>
 
-      <section style={card}>
-        <div style={field}>
+      <section className="bg-card grid gap-4 rounded-lg p-5 shadow-[var(--shadow-sm)]">
+        <div className="grid gap-1.5">
           <Label>Status</Label>
-          <select
+          <Select
             value={status}
-            onChange={(e) => setStatus(e.target.value as JobStatus)}
-            style={selStyle}
+            onValueChange={(v) => setStatus(v as JobStatus)}
           >
-            <option value="draft">Draft</option>
-            <option value="open">Open</option>
-            <option value="closed">Closed</option>
-          </select>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="open">Open</SelectItem>
+              <SelectItem value="closed">Closed</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </section>
 
-      {error && <p style={{ color: "var(--color-error)" }}>{error}</p>}
+      {error && <p className="text-destructive text-sm">{error}</p>}
       <div>
-        <CtaButton onClick={submit}>
+        <Button type="button" onClick={submit} disabled={saving}>
           {saving ? "Saving…" : isEdit ? "Save job" : "Create job"}
-        </CtaButton>
+        </Button>
       </div>
     </div>
   );
@@ -394,24 +373,22 @@ function BilingualField({
   rows?: number;
 }) {
   return (
-    <div style={field}>
+    <div className="grid gap-1.5">
       <Label>{label}</Label>
-      <div style={row}>
+      <div className="grid grid-cols-2 gap-4">
         {textarea ? (
           <>
-            <textarea
+            <Textarea
               placeholder="EN"
               value={value.en}
               onChange={(e) => onChange({ ...value, en: e.target.value })}
               rows={rows}
-              style={taStyle}
             />
-            <textarea
+            <Textarea
               placeholder="বাংলা"
               value={value.bn}
               onChange={(e) => onChange({ ...value, bn: e.target.value })}
               rows={rows}
-              style={taStyle}
             />
           </>
         ) : (

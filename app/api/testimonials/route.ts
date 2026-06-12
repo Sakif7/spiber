@@ -4,6 +4,6 @@ import { getTestimonials } from "@/lib/services/landing.service";
 export const revalidate = 60;
 
 export async function GET() {
-  const testimonials = await getTestimonials();
+  const testimonials = await getTestimonials("general");
   return NextResponse.json({ testimonials });
 }

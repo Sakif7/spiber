@@ -115,8 +115,14 @@ const MEGA_MENUS: Record<string, MegaItem[]> = {
       href: "/tourism",
       tone: "orange",
       links: [
-        { label: "Explore packages", href: "/tourism" },
-        { label: "Plan a medical trip", href: "/contact" },
+        { label: "Medical tourism", href: "/tourism/medical-tourism" },
+        { label: "Find a doctor", href: "/tourism/doctors" },
+        { label: "Hospitals network", href: "/tourism/hospitals" },
+        { label: "Surgery & health packages", href: "/tourism/packages" },
+        { label: "Teleconsultation", href: "/tourism/telemedicine" },
+        { label: "Air tickets", href: "/tourism/air-tickets" },
+        { label: "Visa assistance", href: "/tourism/visa" },
+        { label: "Partner with us", href: "/tourism/partner" },
       ],
     },
     {

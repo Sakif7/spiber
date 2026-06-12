@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CtaButton } from "@/components/ui/cta-button";
 import { formatApiError } from "@/lib/http/form-error";
 
 export function BrandForm() {
@@ -38,24 +39,20 @@ export function BrandForm() {
       setNameEn("");
       setNameBn("");
       setSlug("");
+      toast.success("Brand added");
       router.refresh();
     } else {
-      setError(formatApiError(json));
+      const msg = formatApiError(json);
+      setError(msg);
+      toast.error(msg);
     }
   }
 
-  const field = { display: "grid", gap: 6 } as const;
-  const row = {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "var(--s-4)",
-  } as const;
-
   return (
-    <div style={{ display: "grid", gap: "var(--s-4)", maxWidth: 520 }}>
-      <div style={field}>
+    <div className="grid max-w-[520px] gap-4">
+      <div className="grid gap-1.5">
         <Label>Name</Label>
-        <div style={row}>
+        <div className="grid grid-cols-2 gap-4">
           <Input
             placeholder="EN"
             value={nameEn}
@@ -68,7 +65,7 @@ export function BrandForm() {
           />
         </div>
       </div>
-      <div style={field}>
+      <div className="grid gap-1.5">
         <Label>Slug</Label>
         <Input
           value={slug}
@@ -77,9 +74,13 @@ export function BrandForm() {
         />
       </div>
 
-      {error && <p style={{ color: "var(--color-error)" }}>{error}</p>}
+      {error && <p className="text-destructive text-sm">{error}</p>}
 
-      <CtaButton onClick={submit}>{saving ? "Saving…" : "Add brand"}</CtaButton>
+      <div>
+        <Button onClick={submit} disabled={saving}>
+          {saving ? "Saving…" : "Add brand"}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -104,22 +105,14 @@ export function BrandDeleteButton({ id, name }: { id: string; name: string }) {
   }
 
   return (
-    <button
+    <Button
       type="button"
+      variant="destructive"
+      size="sm"
       onClick={remove}
       disabled={busy}
-      style={{
-        background: "transparent",
-        border: "1px solid var(--color-border)",
-        borderRadius: "var(--r-sm)",
-        color: "var(--color-error)",
-        padding: "4px 10px",
-        fontSize: "var(--fs-small)",
-        cursor: busy ? "default" : "pointer",
-        opacity: busy ? 0.6 : 1,
-      }}
     >
       {busy ? "…" : "Delete"}
-    </button>
+    </Button>
   );
 }

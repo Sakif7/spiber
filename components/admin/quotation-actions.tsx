@@ -1,8 +1,11 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
-import { CtaButton } from "@/components/ui/cta-button";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 /** Mirrors QUOTATION_TRANSITIONS — local so this client comp pulls no server code. */
 const TRANSITIONS: Record<string, string[]> = {
@@ -11,25 +14,6 @@ const TRANSITIONS: Record<string, string[]> = {
   negotiating: ["won", "lost"],
   won: [],
   lost: ["negotiating"],
-};
-
-const cardStyle: CSSProperties = {
-  border: "1px solid var(--color-border)",
-  background: "var(--color-surface)",
-  borderRadius: "var(--r-lg)",
-  padding: "var(--s-5)",
-  display: "flex",
-  flexDirection: "column",
-  gap: "var(--s-4)",
-};
-
-const inputStyle: CSSProperties = {
-  font: "inherit",
-  padding: "8px 10px",
-  border: "1px solid var(--color-border)",
-  borderRadius: "var(--r-sm)",
-  background: "var(--color-surface)",
-  width: "100%",
 };
 
 export function QuotationActions({
@@ -125,33 +109,17 @@ export function QuotationActions({
   }
 
   return (
-    <section style={cardStyle}>
-      <h2
-        style={{
-          margin: 0,
-          fontFamily: "var(--font-display)",
-          fontSize: "var(--fs-lg)",
-          color: "var(--color-text-strong)",
-        }}
-      >
+    <section className="bg-card flex flex-col gap-4 rounded-lg p-5 shadow-[var(--shadow-sm)]">
+      <h2 className="text-foreground font-[family-name:var(--font-display)] text-lg">
         Actions
       </h2>
-      {error && (
-        <p
-          style={{
-            margin: 0,
-            color: "var(--color-error)",
-            fontSize: "var(--fs-sm)",
-          }}
-        >
-          {error}
-        </p>
-      )}
+      {error && <p className="text-destructive text-sm">{error}</p>}
 
       {/* Assignment */}
-      <div style={{ display: "flex", gap: "var(--s-3)", flexWrap: "wrap" }}>
-        <CtaButton
-          variant="secondary"
+      <div className="flex flex-wrap gap-3">
+        <Button
+          variant="outline"
+          disabled={busy === "assign"}
           onClick={() =>
             call(
               "assign",
@@ -165,94 +133,74 @@ export function QuotationActions({
             : assignedToMe
               ? "Unassign me"
               : "Assign to me"}
-        </CtaButton>
+        </Button>
       </div>
 
       {/* Quote panel */}
-      <div
-        style={{
-          display: "grid",
-          gap: 8,
-          paddingTop: "var(--s-3)",
-          borderTop: "1px solid var(--color-border)",
-        }}
-      >
-        <strong style={{ color: "var(--color-text-strong)" }}>
-          Prepare quote
-        </strong>
-        <label style={lbl}>Quoted total (BDT)</label>
-        <input
+      <div className="border-border grid gap-2 border-t pt-3">
+        <strong className="text-foreground">Prepare quote</strong>
+        <Label className="text-muted-foreground text-xs">
+          Quoted total (BDT)
+        </Label>
+        <Input
           type="number"
           min={0}
           step="0.01"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           placeholder="e.g. 125000"
-          style={inputStyle}
         />
-        <label style={lbl}>Valid until</label>
-        <input
+        <Label className="text-muted-foreground text-xs">Valid until</Label>
+        <Input
           type="date"
           value={validUntil}
           onChange={(e) => setValidUntil(e.target.value)}
-          style={inputStyle}
         />
-        <label style={lbl}>Quote PDF (optional)</label>
-        <input
+        <Label className="text-muted-foreground text-xs">
+          Quote PDF (optional)
+        </Label>
+        <Input
           type="file"
           accept="application/pdf"
           onChange={(e) => {
             const f = e.target.files?.[0];
             if (f) uploadPdf(f);
           }}
-          style={{ ...inputStyle, padding: 6 }}
+          className="py-1.5"
         />
         {uploading && (
-          <span style={{ fontSize: "var(--fs-caption)" }}>Uploading…</span>
+          <span className="text-muted-foreground text-xs">Uploading…</span>
         )}
         {fileKey && (
-          <span
-            style={{
-              fontSize: "var(--fs-caption)",
-              color: "var(--color-success)",
-            }}
-          >
+          <span className="text-xs text-[var(--color-success)]">
             ✓ PDF attached
           </span>
         )}
-        <textarea
+        <Textarea
           value={quoteNote}
           onChange={(e) => setQuoteNote(e.target.value)}
           placeholder="Note to the requester (optional)"
           rows={2}
-          style={inputStyle}
         />
         <div>
-          <CtaButton onClick={sendQuote}>
+          <Button disabled={busy === "quote"} onClick={sendQuote}>
             {busy === "quote" ? "Sending…" : "Send quote"}
-          </CtaButton>
+          </Button>
         </div>
       </div>
 
       {/* Internal note */}
-      <div
-        style={{
-          display: "grid",
-          gap: 6,
-          paddingTop: "var(--s-3)",
-          borderTop: "1px solid var(--color-border)",
-        }}
-      >
-        <textarea
+      <div className="border-border grid gap-1.5 border-t pt-3">
+        <Textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="Add an internal note"
           rows={3}
-          style={inputStyle}
         />
         <div>
-          <CtaButton
-            variant="secondary"
+          <Button
+            variant="outline"
+            disabled={busy === "note"}
             onClick={async () => {
               if (!note.trim()) return;
               const ok = await call("note", { body: note.trim() }, "note");
@@ -260,27 +208,22 @@ export function QuotationActions({
             }}
           >
             {busy === "note" ? "Saving…" : "Add note"}
-          </CtaButton>
+          </Button>
         </div>
       </div>
 
       {/* Transitions */}
       {allowed.length === 0 ? (
-        <p
-          style={{
-            margin: 0,
-            color: "var(--color-text-muted)",
-            fontSize: "var(--fs-sm)",
-          }}
-        >
+        <p className="text-muted-foreground text-sm">
           No further transitions from <strong>{status}</strong>.
         </p>
       ) : (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--s-3)" }}>
+        <div className="flex flex-wrap gap-3">
           {allowed.map((to) => (
-            <CtaButton
+            <Button
               key={to}
-              variant={to === "won" ? "primary" : "secondary"}
+              variant={to === "won" ? "default" : "outline"}
+              disabled={busy === to}
               onClick={() =>
                 call(
                   "transition",
@@ -290,15 +233,10 @@ export function QuotationActions({
               }
             >
               {busy === to ? "Working…" : `Move to ${to}`}
-            </CtaButton>
+            </Button>
           ))}
         </div>
       )}
     </section>
   );
 }
-
-const lbl: CSSProperties = {
-  fontSize: "var(--fs-caption)",
-  color: "var(--color-text-muted)",
-};
