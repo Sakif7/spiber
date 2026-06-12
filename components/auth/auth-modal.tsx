@@ -224,6 +224,12 @@ function AuthModalView({
               position: "relative",
               width: "100%",
               maxWidth: 412,
+              /* Bound to the viewport (dvh tracks the mobile browser chrome) and
+                 let the body scroll, so a tall form / short or landscape phone
+                 never strands the submit button off-screen. */
+              maxHeight: "calc(100dvh - (2 * var(--s-5)))",
+              display: "flex",
+              flexDirection: "column",
               background: "var(--color-surface)",
               borderRadius: "var(--r-xl)",
               overflow: "hidden",
@@ -238,6 +244,7 @@ function AuthModalView({
               style={{
                 position: "relative",
                 overflow: "hidden",
+                flexShrink: 0,
                 padding: "18px 20px 20px",
                 background:
                   "linear-gradient(135deg, var(--teal-600), var(--teal-800))",
@@ -311,8 +318,15 @@ function AuthModalView({
               </div>
             </div>
 
-            {/* Body */}
-            <div style={{ padding: "var(--s-6)" }}>
+            {/* Body — scrolls within the dvh-bounded card on short viewports. */}
+            <div
+              style={{
+                padding: "var(--s-6)",
+                flex: "1 1 auto",
+                minHeight: 0,
+                overflowY: "auto",
+              }}
+            >
               <div
                 role="tablist"
                 aria-label="Authentication"

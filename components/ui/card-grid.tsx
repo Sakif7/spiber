@@ -17,7 +17,7 @@ export function CardGrid({
 }) {
   return (
     <div
-      className={`equal-${columns}col`}
+      className={`card-grid equal-${columns}col`}
       style={{
         display: "grid",
         gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,

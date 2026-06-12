@@ -6,7 +6,7 @@ export function Section({
   mesh,
   id,
   style,
-  py = "clamp(72px, 8vw, 128px)",
+  py = "clamp(48px, 7.5vw, 128px)",
 }: {
   children: ReactNode;
   dark?: boolean;
@@ -18,6 +18,7 @@ export function Section({
   return (
     <section
       id={id}
+      className="app-section"
       style={{
         position: "relative",
         paddingBlock: py,
@@ -30,7 +31,11 @@ export function Section({
       {mesh && (
         <div
           className="mesh"
-          style={{ position: "absolute", inset: 0, opacity: dark ? 0.35 : 0.18 }}
+          style={{
+            position: "absolute",
+            inset: 0,
+            opacity: dark ? 0.35 : 0.18,
+          }}
         />
       )}
       <div style={{ position: "relative" }}>{children}</div>

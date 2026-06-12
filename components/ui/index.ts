@@ -23,3 +23,4 @@ export { Placeholder, type Tone } from "./placeholder";
 export { Reveal } from "./reveal";
 export { Section } from "./section";
 export { SectionTitle } from "./section-title";
+export { SwipeRail } from "./swipe-rail";

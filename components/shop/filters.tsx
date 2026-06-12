@@ -33,6 +33,10 @@ export function Filters({
   const pathname = usePathname();
   const sp = useSearchParams();
 
+  // On mobile the sidebar stacks above the grid; collapse it behind a toggle
+  // (default closed) so products are visible immediately. Desktop ignores this.
+  const [open, setOpen] = useState(false);
+
   const [search, setSearch] = useState(sp.get("q") ?? "");
   const [brand, setBrand] = useState(sp.get("brand") ?? "");
   const [min, setMin] = useState(sp.get("min") ?? "");
@@ -112,6 +116,7 @@ export function Filters({
 
   return (
     <aside
+      className="filters-aside"
       style={{
         display: "flex",
         flexDirection: "column",
@@ -123,176 +128,212 @@ export function Filters({
         height: "fit-content",
       }}
     >
-      {categories && categories.length > 0 && (
-        <nav
-          aria-label="Categories"
-          style={{
-            display: "grid",
-            gap: 2,
-            paddingBottom: "var(--s-4)",
-            borderBottom: "1px solid var(--color-hairline)",
-          }}
-        >
-          <span style={{ ...label, marginBottom: 6 }}>{t("categories")}</span>
-          <Link
-            href={categoryBasePath}
-            onClick={() => startRouteOverlay()}
-            style={catLinkStyle(!currentSlug)}
-          >
-            {t("allCategories")}
-          </Link>
-          {categories.map((c) => (
-            <Link
-              key={c.slug}
-              href={`${categoryLinkPrefix ?? categoryBasePath}/${c.slug}`}
-              onClick={() => startRouteOverlay()}
-              style={catLinkStyle(currentSlug === c.slug)}
-            >
-              {c.name}
-            </Link>
-          ))}
-        </nav>
-      )}
-
-      <strong style={{ fontFamily: "var(--font-display)" }}>
+      {/* Mobile-only collapse toggle (hidden ≥980 via CSS) */}
+      <button
+        type="button"
+        className="filters-toggle"
+        aria-expanded={open}
+        aria-controls="filters-body"
+        onClick={() => setOpen((o) => !o)}
+      >
         {t("filters")}
-      </strong>
+        <span className="nav-chevron" data-open={open} aria-hidden>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M6 9l6 6 6-6"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
+      </button>
 
-      <div style={{ display: "grid", gap: 6 }}>
-        <span style={label}>{t("search")}</span>
-        <input
-          style={field}
-          type="search"
-          value={search}
-          placeholder={t("searchPlaceholder")}
-          aria-label={t("search")}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            debouncedSearch();
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              debouncedSearch.cancel();
-              apply();
-            }
-          }}
-        />
-      </div>
-
-      <div style={{ display: "grid", gap: 6 }}>
-        <span style={label}>{t("brand")}</span>
-        <select
-          style={field}
-          value={brand}
-          onChange={(e) => setBrand(e.target.value)}
-        >
-          <option value="">{t("allBrands")}</option>
-          {brands.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div style={{ display: "grid", gap: 6 }}>
-        <span style={label}>{t("price")}</span>
-        <div style={{ display: "flex", gap: 8 }}>
-          <input
-            style={field}
-            type="number"
-            placeholder={t("min")}
-            value={min}
-            onChange={(e) => setMin(e.target.value)}
-          />
-          <input
-            style={field}
-            type="number"
-            placeholder={t("max")}
-            value={max}
-            onChange={(e) => setMax(e.target.value)}
-          />
-        </div>
-      </div>
-
-      <label
+      <div
+        id="filters-body"
+        className="filters-body"
+        data-open={open ? "true" : "false"}
         style={{
           display: "flex",
-          alignItems: "center",
-          gap: 8,
-          fontSize: "var(--fs-body-sm)",
+          flexDirection: "column",
+          gap: "var(--s-5)",
         }}
       >
-        <input
-          type="checkbox"
-          checked={inStock}
-          onChange={(e) => setInStock(e.target.checked)}
-        />
-        {t("inStockOnly")}
-      </label>
+        {categories && categories.length > 0 && (
+          <nav
+            aria-label="Categories"
+            style={{
+              display: "grid",
+              gap: 2,
+              paddingBottom: "var(--s-4)",
+              borderBottom: "1px solid var(--color-hairline)",
+            }}
+          >
+            <span style={{ ...label, marginBottom: 6 }}>{t("categories")}</span>
+            <Link
+              href={categoryBasePath}
+              onClick={() => startRouteOverlay()}
+              style={catLinkStyle(!currentSlug)}
+            >
+              {t("allCategories")}
+            </Link>
+            {categories.map((c) => (
+              <Link
+                key={c.slug}
+                href={`${categoryLinkPrefix ?? categoryBasePath}/${c.slug}`}
+                onClick={() => startRouteOverlay()}
+                style={catLinkStyle(currentSlug === c.slug)}
+              >
+                {c.name}
+              </Link>
+            ))}
+          </nav>
+        )}
 
-      {showRating && (
+        <strong
+          className="filters-heading"
+          style={{ fontFamily: "var(--font-display)" }}
+        >
+          {t("filters")}
+        </strong>
+
         <div style={{ display: "grid", gap: 6 }}>
-          <span style={label}>{t("rating")}</span>
+          <span style={label}>{t("search")}</span>
+          <input
+            style={field}
+            type="search"
+            value={search}
+            placeholder={t("searchPlaceholder")}
+            aria-label={t("search")}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              debouncedSearch();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                debouncedSearch.cancel();
+                apply();
+              }
+            }}
+          />
+        </div>
+
+        <div style={{ display: "grid", gap: 6 }}>
+          <span style={label}>{t("brand")}</span>
           <select
             style={field}
-            value={rating}
-            onChange={(e) => setRating(e.target.value)}
+            value={brand}
+            onChange={(e) => setBrand(e.target.value)}
           >
-            <option value="">{t("anyRating")}</option>
-            <option value="4">{t("starsAndUp", { n: 4 })}</option>
-            <option value="3">{t("starsAndUp", { n: 3 })}</option>
-            <option value="2">{t("starsAndUp", { n: 2 })}</option>
+            <option value="">{t("allBrands")}</option>
+            {brands.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
           </select>
         </div>
-      )}
 
-      <div style={{ display: "grid", gap: 6 }}>
-        <span style={label}>{t("sortBy")}</span>
-        <select
-          style={field}
-          value={sort}
-          onChange={(e) => setSort(e.target.value)}
-        >
-          <option value="newest">{t("sortNewest")}</option>
-          <option value="price_asc">{t("sortPriceAsc")}</option>
-          <option value="price_desc">{t("sortPriceDesc")}</option>
-        </select>
-      </div>
+        <div style={{ display: "grid", gap: 6 }}>
+          <span style={label}>{t("price")}</span>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              style={field}
+              type="number"
+              placeholder={t("min")}
+              value={min}
+              onChange={(e) => setMin(e.target.value)}
+            />
+            <input
+              style={field}
+              type="number"
+              placeholder={t("max")}
+              value={max}
+              onChange={(e) => setMax(e.target.value)}
+            />
+          </div>
+        </div>
 
-      <div style={{ display: "flex", gap: 8 }}>
-        <button
-          type="button"
-          onClick={apply}
+        <label
           style={{
-            flex: 1,
-            height: 40,
-            borderRadius: "var(--r-pill)",
-            background: "var(--color-brand)",
-            color: "#fff",
-            border: 0,
-            cursor: "pointer",
-            fontWeight: 500,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: "var(--fs-body-sm)",
           }}
         >
-          {t("apply")}
-        </button>
-        <button
-          type="button"
-          onClick={() => navIfChanged("")}
-          style={{
-            height: 40,
-            padding: "0 14px",
-            borderRadius: "var(--r-pill)",
-            background: "transparent",
-            color: "var(--color-text-muted)",
-            border: "1px solid var(--color-border)",
-            cursor: "pointer",
-          }}
-        >
-          {t("clear")}
-        </button>
+          <input
+            type="checkbox"
+            checked={inStock}
+            onChange={(e) => setInStock(e.target.checked)}
+          />
+          {t("inStockOnly")}
+        </label>
+
+        {showRating && (
+          <div style={{ display: "grid", gap: 6 }}>
+            <span style={label}>{t("rating")}</span>
+            <select
+              style={field}
+              value={rating}
+              onChange={(e) => setRating(e.target.value)}
+            >
+              <option value="">{t("anyRating")}</option>
+              <option value="4">{t("starsAndUp", { n: 4 })}</option>
+              <option value="3">{t("starsAndUp", { n: 3 })}</option>
+              <option value="2">{t("starsAndUp", { n: 2 })}</option>
+            </select>
+          </div>
+        )}
+
+        <div style={{ display: "grid", gap: 6 }}>
+          <span style={label}>{t("sortBy")}</span>
+          <select
+            style={field}
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+          >
+            <option value="newest">{t("sortNewest")}</option>
+            <option value="price_asc">{t("sortPriceAsc")}</option>
+            <option value="price_desc">{t("sortPriceDesc")}</option>
+          </select>
+        </div>
+
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            type="button"
+            onClick={apply}
+            style={{
+              flex: 1,
+              height: 40,
+              borderRadius: "var(--r-pill)",
+              background: "var(--color-brand)",
+              color: "#fff",
+              border: 0,
+              cursor: "pointer",
+              fontWeight: 500,
+            }}
+          >
+            {t("apply")}
+          </button>
+          <button
+            type="button"
+            onClick={() => navIfChanged("")}
+            style={{
+              height: 40,
+              padding: "0 14px",
+              borderRadius: "var(--r-pill)",
+              background: "transparent",
+              color: "var(--color-text-muted)",
+              border: "1px solid var(--color-border)",
+              cursor: "pointer",
+            }}
+          >
+            {t("clear")}
+          </button>
+        </div>
       </div>
     </aside>
   );

@@ -88,7 +88,10 @@ export function CatalogCard({
           transition: "transform 420ms cubic-bezier(.16,1,.3,1)",
         }}
       />
-      <div style={{ position: "relative", height: 160, overflow: "hidden" }}>
+      <div
+        className="cc-media"
+        style={{ position: "relative", height: 160, overflow: "hidden" }}
+      >
         {image ? (
           <Image
             src={image}
@@ -125,6 +128,7 @@ export function CatalogCard({
         )}
       </div>
       <div
+        className="cc-body"
         style={{
           padding: 18,
           display: "flex",
@@ -148,6 +152,7 @@ export function CatalogCard({
         )}
         {subLabel != null && subLabel !== "" && subLabel}
         <div
+          className="cc-title"
           style={{
             fontFamily: "var(--font-display)",
             fontSize: 16,
@@ -160,11 +165,15 @@ export function CatalogCard({
         </div>
         {belowTitle}
         <div
+          className="cc-foot"
           style={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
             gap: 10,
+            // Wrap on very narrow cards (2-up phones) so the price and CTA
+            // never collide — the CTA drops to its own line instead.
+            flexWrap: "wrap",
             marginTop: 8,
             paddingTop: 12,
             borderTop: "1px solid var(--teal-100)",
@@ -172,6 +181,7 @@ export function CatalogCard({
         >
           <span style={{ minWidth: 0 }}>{footerLeft}</span>
           <span
+            className="cc-action"
             style={{
               flexShrink: 0,
               whiteSpace: "nowrap",

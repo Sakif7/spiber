@@ -125,6 +125,7 @@ function TaglineRotator({ items }: { items: typeof HERO_TAGLINES }) {
                 letterSpacing: ".14em",
                 textTransform: "uppercase",
                 color: "var(--color-text-muted)",
+                whiteSpace: "nowrap",
                 transform: `translateY(${(i - idx) * 100}%)`,
                 transition: "transform .7s cubic-bezier(.4,0,0,1)",
               }}
@@ -138,9 +139,9 @@ function TaglineRotator({ items }: { items: typeof HERO_TAGLINES }) {
       <h1
         style={{
           fontFamily: "var(--font-display)",
-          fontSize: "clamp(40px, 6.4vw, 92px)",
+          fontSize: "clamp(32px, 6.4vw, 92px)",
           fontWeight: 500,
-          lineHeight: 0.98,
+          lineHeight: 1,
           letterSpacing: "-0.035em",
           margin: "0 0 8px",
           textWrap: "balance" as CSSProperties["textWrap"],

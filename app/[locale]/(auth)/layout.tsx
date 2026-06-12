@@ -22,7 +22,7 @@ export default async function AuthLayout({
     <div
       className="auth-grid"
       style={{
-        minHeight: "100vh",
+        minHeight: "100dvh",
         display: "grid",
         gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
         background: "var(--color-surface)",

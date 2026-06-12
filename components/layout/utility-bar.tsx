@@ -74,6 +74,7 @@ export function UtilityBar() {
             +8801346092798
           </a>
           <span
+            className="util-hide-sm"
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -93,7 +94,10 @@ export function UtilityBar() {
             {t("location")}
           </span>
         </div>
-        <div style={{ display: "flex", gap: 18, alignItems: "center" }}>
+        <div
+          className="util-hide-sm"
+          style={{ display: "flex", gap: 18, alignItems: "center" }}
+        >
           <span style={{ opacity: 0.7 }}>{t("hours")}</span>
           <span style={{ display: "flex", gap: 8 }}>
             {SOCIALS.map((s) => (

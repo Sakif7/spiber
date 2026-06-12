@@ -398,12 +398,13 @@ export const MobileNavMenu = ({
           exit={{ opacity: 0, y: -6 }}
           transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
           className={cn(
-            "absolute inset-x-0 top-16 z-50 flex w-full flex-col items-start justify-start gap-2 rounded-2xl px-4 py-6",
+            "absolute inset-x-0 top-16 z-50 flex max-h-[calc(100dvh-6rem)] w-full flex-col items-start justify-start gap-2 overflow-y-auto overscroll-contain rounded-2xl px-4 py-6",
             className,
           )}
           style={{
             background: NAV_THEME.menuBg,
             ...NAV_THEME.vars,
+            paddingBottom: "calc(var(--s-6) + env(safe-area-inset-bottom))",
             boxShadow:
               "0 1px 2px rgba(10,31,44,.05), 0 20px 60px -16px rgba(10,31,44,.18), 0 0 0 1px rgba(10,31,44,.04)",
           }}
@@ -427,6 +428,10 @@ export const MobileNavToggle = ({
       onClick={onClick}
       aria-label={isOpen ? "Close menu" : "Open menu"}
       style={{
+        display: "grid",
+        placeItems: "center",
+        minWidth: 44,
+        minHeight: 44,
         background: "transparent",
         border: "none",
         cursor: "pointer",

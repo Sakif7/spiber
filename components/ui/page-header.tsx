@@ -52,6 +52,7 @@ export function PageHeader({
 
   return (
     <header
+      className="page-header-simple"
       style={{
         paddingTop: "calc(var(--s-24) + 40px)",
         paddingBottom: "var(--s-12)",
@@ -115,6 +116,7 @@ function HeroHeader({
   const carousel = images && images.length > 1;
   return (
     <header
+      className="hero-header"
       style={{
         position: "relative",
         isolation: "isolate",
@@ -181,6 +183,7 @@ function HeroHeader({
       <Container style={{ position: "relative", width: "100%" }}>
         <Reveal>
           <div
+            className="hero-inner"
             style={{
               display: "flex",
               flexDirection: "column",

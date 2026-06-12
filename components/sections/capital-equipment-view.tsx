@@ -130,9 +130,10 @@ export function CapitalEquipmentView({
         ) : (
           <>
             <div
+              className="card-grid equal-4col"
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+                gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
                 gap: 18,
               }}
             >

@@ -434,6 +434,12 @@ html {
   scroll-behavior: smooth;
   scrollbar-color: var(--slate-300) transparent;
   scrollbar-width: thin;
+  /* Backstop: no element may cause a horizontal page scroll. `clip` (not
+     `hidden`) does NOT create a scroll container, so it never breaks the
+     sticky header / sticky buy-boxes / sticky filter rails inside the page.
+     Genuine horizontal scrollers (wide admin tables, swipe rails) carry their
+     own inner overflow-x:auto and are unaffected. */
+  overflow-x: clip;
 }
 body {
   margin: 0;
@@ -529,6 +535,50 @@ html[data-locale="bn"] h6 {
   width: 100%;
 }
 
+/* Utility bar — drop the secondary contact cluster (location / hours / socials)
+   on phones so the top strip stays a single tidy row of email + phone rather
+   than wrapping into three mono lines. */
+@media (max-width: 640px) {
+  .util-hide-sm {
+    display: none !important;
+  }
+}
+
+/* Catalog filter sidebar — collapses behind a tap-to-expand "Filters" toggle on
+   mobile (≤980, where the listing grid stacks the sidebar above the products)
+   so the product grid is visible immediately. Desktop keeps the open sidebar. */
+.filters-toggle {
+  display: none;
+}
+@media (max-width: 980px) {
+  /* Compact bar when collapsed — no need for the full sidebar padding around a
+     single toggle. */
+  .filters-aside {
+    padding: var(--s-3) var(--s-4) !important;
+  }
+  .filters-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-height: 40px;
+    padding: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: var(--fs-body);
+    color: var(--color-text-strong);
+  }
+  .filters-body[data-open="false"] {
+    display: none !important;
+  }
+  .filters-heading {
+    display: none;
+  }
+}
+
 /* hero blob keyframes */
 @keyframes heroFloat {
   0%,
@@ -586,14 +636,35 @@ html[data-locale="bn"] h6 {
   animation: heroFloat 22s ease-in-out infinite;
 }
 
+/* Tablet (≤1024): 3-up content steps to 2-up so it doesn't jump straight to a
+   single column and strand the width. 4/5-up handled at 980 below. */
+@media (max-width: 1024px) {
+  .equal-3col {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+/* Grid/flex items default to `min-width: auto`, so a long headline word or the
+   rotating-word min-width can force the 1fr track WIDER than the viewport and
+   clip the hero. Letting hero-grid items shrink below their intrinsic
+   min-content keeps the column at the container width and wraps the content. */
+.hero-grid > * {
+  min-width: 0;
+  max-width: 100%;
+}
+/* Home hero: trim the inner grid's fixed 40px block padding + 56px gap on
+   phones so the headline + search + bento don't float in dead space. */
+@media (max-width: 640px) {
+  .hero-grid {
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+    gap: 26px !important;
+  }
+}
 @media (max-width: 980px) {
   .hero-grid {
     grid-template-columns: 1fr !important;
   }
   .equal-2col {
-    grid-template-columns: 1fr !important;
-  }
-  .equal-3col {
     grid-template-columns: 1fr !important;
   }
   .equal-4col {
@@ -608,9 +679,152 @@ html[data-locale="bn"] h6 {
   }
 }
 @media (max-width: 640px) {
+  .equal-3col,
   .equal-4col,
   .equal-5col {
     grid-template-columns: 1fr !important;
+  }
+}
+/* Card grids (compact CatalogCards via <CardGrid>) keep TWO-up further down the
+   phone range — two small cards read far better than one giant card (and the
+   brief calls out "cards showing one at a time when two fit" as a bug). They
+   collapse to a single column only on the very narrowest devices. The
+   `.card-grid` compound selector outranks the plain `.equal-Ncol` rules above. */
+@media (max-width: 640px) {
+  .card-grid.equal-3col,
+  .card-grid.equal-4col,
+  .card-grid.equal-5col {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+@media (max-width: 339px) {
+  .card-grid.equal-3col,
+  .card-grid.equal-4col,
+  .card-grid.equal-5col {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Density: cap every <Section>'s vertical padding on phones. Desktop sections
+   reserve 40–160px top+bottom (great with wide multi-column content, far too
+   airy stacked on a phone). One cap tightens the whole marketing site's mobile
+   rhythm without touching desktop. No Section relies on py:0, so a hard cap is
+   safe. */
+@media (max-width: 640px) {
+  .app-section {
+    padding-block: clamp(32px, 7vw, 60px) !important;
+  }
+  /* Simple (image-less) interior header reserves ~136px up top to clear the
+     fixed nav — far too much on a phone. */
+  .page-header-simple {
+    padding-top: calc(var(--s-16) + 8px) !important;
+    padding-bottom: var(--s-8) !important;
+  }
+}
+
+/* Compact catalog cards on phones — the desktop card (160px image, 18px pad,
+   "View details" CTA) is far too tall at a ~158px 2-up width, so it reads as a
+   squished column. Shorter proportional image, tighter padding, no redundant
+   CTA (the whole card is tappable) → clean Amazon-style 2-up tiles, more
+   products per screen. Desktop (≥641) is untouched. */
+@media (max-width: 640px) {
+  .cc-media {
+    height: 132px !important;
+  }
+  .cc-body {
+    padding: 11px 12px 12px !important;
+    gap: 3px !important;
+  }
+  .cc-title {
+    font-size: 14px !important;
+    line-height: 1.25 !important;
+  }
+  .cc-foot {
+    margin-top: 5px !important;
+    padding-top: 9px !important;
+  }
+  .cc-action {
+    display: none !important;
+  }
+}
+
+/* Compact the photo hero on phones. The desktop hero reserves ~120px of top
+   padding + a 300px floor — over half a screen before any content. On mobile,
+   trim the padding/min-height and the headline so the listing/products sit
+   near the top, matching the low-scroll feel of the desktop sidebar layout. */
+@media (max-width: 640px) {
+  .hero-header {
+    min-height: 200px !important;
+    padding-top: 48px !important;
+    padding-bottom: 22px !important;
+  }
+  .hero-header h1 {
+    font-size: clamp(1.5rem, 6.4vw, 1.9rem) !important;
+  }
+  .hero-header .hero-inner {
+    gap: 9px !important;
+  }
+  /* lede is secondary on mobile — smaller so it doesn't dominate the hero */
+  .hero-header .hero-inner > p {
+    font-size: var(--fs-body-sm) !important;
+    margin-top: 2px !important;
+  }
+  /* tighter stat block */
+  .hero-header .hero-inner > div:last-child {
+    gap: var(--s-4) !important;
+    margin-top: 4px !important;
+  }
+}
+
+/* =========================================================
+   SwipeRail — grid on desktop/tablet, horizontal snap rail on phones
+   (see components/ui/swipe-rail.tsx). Showcase rails become swipeable
+   instead of collapsing into a tall single-column stack.
+   ========================================================= */
+.swipe-rail {
+  display: grid;
+  grid-template-columns: repeat(var(--rail-cols, 4), minmax(0, 1fr));
+  gap: var(--rail-gap, 20px);
+}
+.swipe-rail-2 {
+  --rail-cols: 2;
+}
+.swipe-rail-3 {
+  --rail-cols: 3;
+}
+.swipe-rail-4 {
+  --rail-cols: 4;
+}
+.swipe-rail-5 {
+  --rail-cols: 5;
+}
+.swipe-rail__item {
+  min-width: 0;
+}
+@media (max-width: 1024px) {
+  .swipe-rail-4,
+  .swipe-rail-5 {
+    --rail-cols: 3;
+  }
+}
+@media (max-width: 768px) {
+  .swipe-rail {
+    display: flex;
+    grid-template-columns: none;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    /* trailing room so the last card can snap fully into view */
+    padding-bottom: 2px;
+  }
+  .swipe-rail::-webkit-scrollbar {
+    display: none;
+  }
+  .swipe-rail__item {
+    flex: 0 0 auto;
+    width: min(82%, var(--rail-item, 250px));
+    scroll-snap-align: start;
   }
 }
 
@@ -668,6 +882,14 @@ html[data-locale="bn"] h6 {
 textarea.contact-field {
   resize: vertical;
   min-height: 122px;
+}
+/* iOS auto-zooms a focused field whose font-size is < 16px. The body-sm size
+   (15px) trips it, yanking the viewport on every tap; pin inputs to 16px on
+   phones so focus stays put. */
+@media (max-width: 640px) {
+  .contact-field {
+    font-size: 16px;
+  }
 }
 /* native <select> → custom chevron, no OS chrome */
 select.contact-field {

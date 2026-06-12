@@ -108,7 +108,7 @@ export function AdminShell({
   return (
     <MotionConfig reducedMotion="user">
       <TooltipProvider delayDuration={120}>
-        <div className="bg-background text-foreground flex min-h-screen">
+        <div className="bg-background text-foreground flex min-h-[100dvh]">
           {/* Desktop sidebar */}
           <motion.aside
             initial={false}
@@ -171,13 +171,13 @@ export function AdminShell({
                 </SheetTrigger>
                 <SheetContent
                   side="left"
-                  className="border-sidebar-border bg-sidebar w-72 gap-0 p-0"
+                  className="border-sidebar-border bg-sidebar w-[min(20rem,86vw)] gap-0 p-0"
                 >
                   <SheetTitle className="sr-only">Admin navigation</SheetTitle>
                   <div className="border-sidebar-border flex h-16 items-center justify-center border-b px-4">
                     <Brand collapsed={false} />
                   </div>
-                  <div className="min-h-0 flex-1 overflow-y-auto">
+                  <div className="min-h-0 flex-1 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
                     <SidebarNav onNavigate={() => setMobileOpen(false)} />
                   </div>
                 </SheetContent>
