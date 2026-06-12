@@ -11,6 +11,7 @@ import {
   useReducedMotion,
 } from "framer-motion";
 import { Link } from "@/i18n/navigation";
+import { cn } from "@/lib/cn";
 import {
   Section,
   Container,
@@ -104,7 +105,7 @@ export function ServiceOverview() {
             return (
               <div
                 key={s.key}
-                className={`tourism-narrative-row${reverse ? "reverse" : ""}`}
+                className={cn("tourism-narrative-row", reverse && "reverse")}
               >
                 <Reveal
                   y={28}
