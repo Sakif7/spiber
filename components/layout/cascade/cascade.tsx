@@ -12,7 +12,6 @@ export type CascadeKind =
   | "subcategory"
   | "brand"
   | "product"
-  | "viewall"
   | "link";
 
 export type CascadeNode = {
@@ -41,20 +40,17 @@ type Column = {
  * (one node per level — opening a sibling truncates deeper columns), a lazy
  * children cache, hover-intent (100ms) gated by the safe-triangle so diagonal
  * travel toward an open sub-panel never flickers it shut, and full keyboard
- * roving. Columns are flush flex siblings. Branches are buttons (open on
- * hover/click/ArrowRight); leaves are links (navigate). Consumers pass `roots`
- * + per-node `loadChildren`; the engine renders the rest.
+ * roving. Columns are flush flex siblings. Every category/brand/subcategory is
+ * a LINK that navigates to its own listing page on click, while still revealing
+ * its children on hover (or ArrowRight); leaves are plain links. Consumers pass
+ * `roots` + per-node `loadChildren`; the engine renders the rest.
  */
 export function Cascade({
   roots,
   onNavigate,
-  viewAllLabel = (name) => `View all in ${name}`,
 }: {
   roots: CascadeNode[];
   onNavigate?: () => void;
-  /** Localized label for the "view all in {parent}" row prepended to each
-   * drilled-in column — makes every branch category/subcategory navigable. */
-  viewAllLabel?: (name: string) => string;
 }) {
   const [openPath, setOpenPath] = useState<string[]>([]);
   const [childrenById, setChildrenById] = useState<
@@ -79,26 +75,11 @@ export function Cascade({
     for (const pid of openPath) {
       const parent = prev.find((n) => n.id === pid) ?? null;
       const loaded = childrenById[pid] ?? null;
-      // Prepend a synthetic "view all in {parent}" leaf so a branch node (which
-      // only opens on click) still has a navigable destination — its own
-      // listing page. It joins the roving index naturally (it's a real node).
-      let nodes = loaded;
-      if (loaded && parent) {
-        nodes = [
-          {
-            id: `va:${pid}`,
-            label: viewAllLabel(parent.label),
-            kind: "viewall",
-            href: parent.href,
-          },
-          ...loaded,
-        ];
-      }
-      cols.push({ nodes, parentId: pid, parent });
+      cols.push({ nodes: loaded, parentId: pid, parent });
       prev = loaded ?? [];
     }
     return cols;
-  }, [roots, openPath, childrenById, viewAllLabel]);
+  }, [roots, openPath, childrenById]);
 
   // Point the safe-triangle at the DEEPEST open sub-column (re-read each render).
   useEffect(() => {
@@ -231,6 +212,8 @@ export function Cascade({
         setFocus({ col: f.col - 1, index: Math.max(0, pIdx) });
       }
     } else if (k === "Enter" || k === " ") {
+      // Branch rows are links — Enter/Space follows them to the listing page
+      // (use ArrowRight to drill into children instead).
       e.preventDefault();
       itemEls.current.get(`${f.col}:${f.index}`)?.click();
     }
@@ -269,9 +252,6 @@ export function Cascade({
           }}
           onRowEnter={onRowEnter}
           onRowLeave={onRowLeave}
-          onRowClick={(node) => {
-            if (node.loadChildren) openNode(node, ci);
-          }}
           onNavigate={onNavigate}
         />
       ))}
@@ -289,7 +269,6 @@ function ColumnView({
   registerItem,
   onRowEnter,
   onRowLeave,
-  onRowClick,
   onNavigate,
 }: {
   ci: number;
@@ -301,18 +280,11 @@ function ColumnView({
   registerItem: (idx: number, el: HTMLElement | null) => void;
   onRowEnter: (node: CascadeNode, col: number) => void;
   onRowLeave: () => void;
-  onRowClick: (node: CascadeNode) => void;
   onNavigate?: () => void;
 }) {
   const nodes = col.nodes;
-  // The synthetic "view all" row (if any) is always the first node; the rest is
-  // the real list/grid body, rendered with its indices offset by 1 so keyboard
-  // roving still lines up with the column's node array.
-  const viewAll = nodes && nodes[0]?.kind === "viewall" ? nodes[0] : null;
-  const body = viewAll && nodes ? nodes.slice(1) : nodes;
-  const off = viewAll ? 1 : 0;
   const isGrid =
-    !!body && body.length > 0 && body.every((n) => !n.loadChildren);
+    !!nodes && nodes.length > 0 && nodes.every((n) => !n.loadChildren);
 
   const base: React.CSSProperties = {
     flexShrink: 0,
@@ -328,43 +300,27 @@ function ColumnView({
   const inner =
     nodes === null ? (
       <Skeleton rows={6} />
+    ) : nodes.length === 0 ? (
+      <Empty />
+    ) : isGrid ? (
+      <Grid
+        nodes={nodes}
+        ci={ci}
+        focusedKey={focusedKey}
+        registerItem={registerItem}
+        onNavigate={onNavigate}
+      />
     ) : (
-      <>
-        {viewAll && (
-          <ViewAllRow
-            node={viewAll}
-            ci={ci}
-            focusedKey={focusedKey}
-            registerItem={registerItem}
-            onNavigate={onNavigate}
-          />
-        )}
-        {!body || body.length === 0 ? (
-          <Empty />
-        ) : isGrid ? (
-          <Grid
-            nodes={body}
-            ci={ci}
-            indexOffset={off}
-            focusedKey={focusedKey}
-            registerItem={registerItem}
-            onNavigate={onNavigate}
-          />
-        ) : (
-          <List
-            nodes={body}
-            ci={ci}
-            indexOffset={off}
-            openId={openId}
-            focusedKey={focusedKey}
-            registerItem={registerItem}
-            onRowEnter={onRowEnter}
-            onRowLeave={onRowLeave}
-            onRowClick={onRowClick}
-            onNavigate={onNavigate}
-          />
-        )}
-      </>
+      <List
+        nodes={nodes}
+        ci={ci}
+        openId={openId}
+        focusedKey={focusedKey}
+        registerItem={registerItem}
+        onRowEnter={onRowEnter}
+        onRowLeave={onRowLeave}
+        onNavigate={onNavigate}
+      />
     );
 
   const style = { ...base, ...sizing };
@@ -392,24 +348,20 @@ function ColumnView({
 function List({
   nodes,
   ci,
-  indexOffset = 0,
   openId,
   focusedKey,
   registerItem,
   onRowEnter,
   onRowLeave,
-  onRowClick,
   onNavigate,
 }: {
   nodes: CascadeNode[];
   ci: number;
-  indexOffset?: number;
   openId: string | null;
   focusedKey: string | null;
   registerItem: (idx: number, el: HTMLElement | null) => void;
   onRowEnter: (node: CascadeNode, col: number) => void;
   onRowLeave: () => void;
-  onRowClick: (node: CascadeNode) => void;
   onNavigate?: () => void;
 }) {
   const reduce = useReducedMotion();
@@ -449,65 +401,52 @@ function List({
         const open = openId === node.id;
         const isSel = selIdx === idx;
         const isBranch = !!node.loadChildren;
-        const gIdx = idx + indexOffset;
-        const key = `${ci}:${gIdx}`;
+        const key = `${ci}:${idx}`;
         const tab = focusedKey === key ? 0 : -1;
-        const row = isBranch ? (
-          <button
-            type="button"
-            data-cascade-item
-            role="menuitem"
-            aria-haspopup="true"
-            aria-expanded={open}
-            tabIndex={tab}
-            ref={(el) => registerItem(gIdx, el)}
-            className="mega-row"
-            onMouseEnter={() => {
-              setHov(idx);
-              onRowEnter(node, ci);
-            }}
-            onMouseLeave={() => {
-              setHov(null);
-              onRowLeave();
-            }}
-            onFocus={() => {
-              setHov(idx);
-              onRowEnter(node, ci);
-            }}
-            onClick={() => onRowClick(node)}
-            style={rowStyle(isSel)}
-          >
-            {highlightFor(idx)}
-            {labelFor(node.label)}
-            <span
-              className="mega-chevron"
-              aria-hidden
-              style={{
-                position: "relative",
-                zIndex: 1,
-                color: open ? "var(--teal-300)" : "var(--color-text-muted)",
-                display: "inline-flex",
-              }}
-            >
-              <Arrow size={12} />
-            </span>
-          </button>
-        ) : (
+        // Both branches and leaves are LINKS now (click navigates to the
+        // listing page). Branches additionally reveal their children on hover /
+        // ArrowRight and show a chevron.
+        const row = (
           <Link
             href={node.href}
             data-cascade-item
             role="menuitem"
+            aria-haspopup={isBranch ? "true" : undefined}
+            aria-expanded={isBranch ? open : undefined}
             tabIndex={tab}
-            ref={(el) => registerItem(gIdx, el as unknown as HTMLElement)}
+            ref={(el) => registerItem(idx, el as unknown as HTMLElement)}
             className="mega-row"
-            onMouseEnter={() => setHov(idx)}
-            onMouseLeave={() => setHov(null)}
-            onFocus={() => setHov(idx)}
+            onMouseEnter={() => {
+              setHov(idx);
+              if (isBranch) onRowEnter(node, ci);
+            }}
+            onMouseLeave={() => {
+              setHov(null);
+              if (isBranch) onRowLeave();
+            }}
+            onFocus={() => {
+              setHov(idx);
+              if (isBranch) onRowEnter(node, ci);
+            }}
             onClick={onNavigate}
             style={{ ...rowStyle(isSel), textDecoration: "none" }}
           >
             {highlightFor(idx)}
             {labelFor(node.label)}
+            {isBranch && (
+              <span
+                className="mega-chevron"
+                aria-hidden
+                style={{
+                  position: "relative",
+                  zIndex: 1,
+                  color: open ? "var(--teal-300)" : "var(--color-text-muted)",
+                  display: "inline-flex",
+                }}
+              >
+                <Arrow size={12} />
+              </span>
+            )}
           </Link>
         );
         return (
@@ -524,14 +463,12 @@ function List({
 function Grid({
   nodes,
   ci,
-  indexOffset = 0,
   focusedKey,
   registerItem,
   onNavigate,
 }: {
   nodes: CascadeNode[];
   ci: number;
-  indexOffset?: number;
   focusedKey: string | null;
   registerItem: (idx: number, el: HTMLElement | null) => void;
   onNavigate?: () => void;
@@ -544,8 +481,7 @@ function Grid({
         gap: 2,
       }}
     >
-      {nodes.map((p, i) => {
-        const idx = i + indexOffset;
+      {nodes.map((p, idx) => {
         const key = `${ci}:${idx}`;
         return (
           <Link
@@ -600,65 +536,6 @@ function Grid({
           </Link>
         );
       })}
-    </div>
-  );
-}
-
-/**
- * The "View all in {parent}" row pinned to the top of a drilled-in column. It is
- * a real, keyboard-roving menuitem at index 0, giving an otherwise click-to-open
- * branch node a navigable destination (its own listing page).
- */
-function ViewAllRow({
-  node,
-  ci,
-  focusedKey,
-  registerItem,
-  onNavigate,
-}: {
-  node: CascadeNode;
-  ci: number;
-  focusedKey: string | null;
-  registerItem: (idx: number, el: HTMLElement | null) => void;
-  onNavigate?: () => void;
-}) {
-  const tab = focusedKey === `${ci}:0` ? 0 : -1;
-  return (
-    <div
-      style={{
-        marginBottom: 6,
-        paddingBottom: 6,
-        borderBottom: "1px solid var(--color-hairline)",
-      }}
-    >
-      <Link
-        href={node.href}
-        data-cascade-item
-        role="menuitem"
-        tabIndex={tab}
-        ref={(el) => registerItem(0, el as unknown as HTMLElement)}
-        className="mega-row"
-        onClick={onNavigate}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 8,
-          width: "100%",
-          padding: "8px 12px",
-          borderRadius: "var(--r-md)",
-          textDecoration: "none",
-          color: "var(--teal-300)",
-          fontSize: 12,
-          fontWeight: 600,
-          lineHeight: 1.3,
-        }}
-      >
-        <span style={{ ...ellipsis, minWidth: 0 }}>{node.label}</span>
-        <span style={{ display: "inline-flex", flexShrink: 0 }}>
-          <Arrow size={12} />
-        </span>
-      </Link>
     </div>
   );
 }

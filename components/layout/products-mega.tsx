@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useLocale, useTranslations } from "next-intl";
+import { useLocale } from "next-intl";
 import { motion, useReducedMotion } from "framer-motion";
 import { Link } from "@/i18n/navigation";
 import { Arrow } from "@/components/ui";
@@ -42,7 +42,6 @@ export function ProductsMega({
   onNavigate?: () => void;
 }) {
   const locale = useLocale();
-  const t = useTranslations("nav");
   const reduce = useReducedMotion();
   const [active, setActive] = useState(0);
   const division = divisions[active] ?? divisions[0];
@@ -253,12 +252,7 @@ export function ProductsMega({
         {loading ? (
           <ColumnSkeleton />
         ) : (
-          <Cascade
-            key={division?.key}
-            roots={roots}
-            onNavigate={onNavigate}
-            viewAllLabel={(name) => t("viewAllIn", { name })}
-          />
+          <Cascade key={division?.key} roots={roots} onNavigate={onNavigate} />
         )}
       </div>
     </div>

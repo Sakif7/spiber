@@ -17,6 +17,7 @@
     "sync-indexes": "node scripts/sync-indexes.mjs",
     "reset-seed": "node scripts/reset-and-seed.mjs",
     "seed-medtrade-subs": "node scripts/seed-medtrade-subcategories.mjs",
+    "seed-medtrade-cats": "node scripts/seed-medtrade-categories.mjs",
     "seed-tourism-blog-cats": "node scripts/seed-tourism-blog-categories.mjs",
     "import-catalog": "node scripts/import-catalog-xlsx.mjs",
     "prepare": "husky"
