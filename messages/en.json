@@ -636,18 +636,6 @@
           "company": "Spiber Med",
           "imageAlt": "Dr. Md Jahidul Islam, Managing Director of Spiber Med",
           "signatureAlt": "Signature of Dr. Md Jahidul Islam"
-        },
-        {
-          "eyebrow": "Message from the Chief Advisor",
-          "title": "A partnership built on quality, reliability, and trust",
-          "paragraphs": [
-            "I have had the pleasure of working with SPIBER Healthcare Ltd. for all our medical equipment needs, and I can confidently say they are one of the best in the industry. Their commitment to quality, reliability, and customer satisfaction is unmatched.",
-            "From the moment we reached out, their team demonstrated exceptional professionalism, offering expert advice tailored to our specific requirements. The equipment we received was of the highest standard, delivered promptly, and supported by comprehensive training and after-sales service. In a field where precision and dependability are non-negotiable, SPIBER Healthcare Ltd. consistently goes above and beyond to ensure we have the tools we need to provide top-tier care."
-          ],
-          "name": "Prof. Dr. Md. Moazzem Hossain",
-          "role": "Chairman",
-          "company": "Aichi Healthcare Group",
-          "imageAlt": "Prof. Dr. Md. Moazzem Hossain, Chairman of Aichi Healthcare Group"
         }
       ]
     },
@@ -1521,18 +1509,6 @@
         {
           "role": "Director · CMO",
           "bio": "Marketing and brand — leads SPIBER's clinical-education programs and partner outreach across the region.",
-          "socials": [
-            {
-              "label": "LinkedIn"
-            },
-            {
-              "label": "Email"
-            }
-          ]
-        },
-        {
-          "role": "Chief Advisor",
-          "bio": "Chief advisor and Chairman of Aichi Healthcare Group — decades of clinical and institutional leadership guide SPIBER MED's standards of care, partnerships, and quality.",
           "socials": [
             {
               "label": "LinkedIn"

@@ -48,8 +48,11 @@ const ASSETS: {
     signature: "/signature.png",
     objectPosition: "center 18%",
   },
+  // Chief Advisor message hidden per request. To re-enable, uncomment this
+  // entry AND restore the matching slide (index 1) in `about.message.slides`
+  // of messages/en.json and messages/bn.json so the parallel arrays realign.
   // TODO: replace with a higher-res portrait of the Chief Advisor if supplied.
-  { image: "/moazzem-testimonial.jpg", objectPosition: "center top" },
+  // { image: "/moazzem-testimonial.jpg", objectPosition: "center top" },
 ];
 
 /**

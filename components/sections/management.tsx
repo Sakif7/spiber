@@ -74,10 +74,13 @@ const TEAM: Omit<TeamMember, "role" | "bio" | "socials">[] = [
     name: "Subrina Azmi Kanta",
     image: "/kanta-managing-body.jpeg",
   },
-  {
-    name: "Prof. Dr. Md. Moazzem Hossain",
-    image: "/moazzem-testimonial.jpg",
-  },
+  // Hidden per request. To re-enable, uncomment this entry AND restore the
+  // matching object (index 4, "Chief Advisor") in `home.management.members`
+  // of messages/en.json and messages/bn.json so the parallel arrays realign.
+  // {
+  //   name: "Prof. Dr. Md. Moazzem Hossain",
+  //   image: "/moazzem-testimonial.jpg",
+  // },
   {
     name: "Md Saadman Sakif",
     image: "/sakif-managing-body.jpeg",
