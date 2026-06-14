@@ -3,14 +3,7 @@
 import { ReactNode, useRef, useState } from "react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-import {
-  motion,
-  useAnimationFrame,
-  useMotionValue,
-  useReducedMotion,
-  useSpring,
-  useTransform,
-} from "framer-motion";
+import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { Link } from "@/i18n/navigation";
 import {
   Arrow,
@@ -91,7 +84,6 @@ const SOCIAL_ICONS: ReactNode[] = [LinkedInIcon, EmailIcon];
 
 export function Management() {
   const t = useTranslations("home.management");
-  const reduced = useReducedMotion();
 
   const members = t.raw("members") as Array<{
     role: string;
@@ -148,78 +140,23 @@ export function Management() {
           </Reveal>
         </div>
 
-        <Reveal>
-          <Marquee team={team} reduced={!!reduced} />
-        </Reveal>
+        <div
+          className="card-grid equal-5col"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(5, 1fr)",
+            gap: 16,
+            perspective: 1400,
+          }}
+        >
+          {team.map((member, i) => (
+            <Reveal key={member.name} delay={i * 80}>
+              <TeamCard member={member} />
+            </Reveal>
+          ))}
+        </div>
       </Container>
     </Section>
-  );
-}
-
-const CARD_W = 268;
-const CARD_GAP = 16;
-const SPEED = 42; // px / second
-
-const EDGE_FADE =
-  "linear-gradient(90deg, transparent 0, #000 7%, #000 93%, transparent 100%)";
-
-/**
- * Auto-scrolling marquee of leadership cards. The track is duplicated so the
- * loop is seamless; an rAF loop (framer's `useAnimationFrame`) advances the
- * track and wraps at one-copy width. Pauses while hovered so cards can be read.
- * Reduced motion → a static, manually scrollable rail.
- */
-function Marquee({ team, reduced }: { team: TeamMember[]; reduced: boolean }) {
-  const x = useMotionValue(0);
-  const [paused, setPaused] = useState(false);
-
-  // Two copies for a seamless loop (single copy when motion is reduced).
-  const items = reduced ? team : [...team, ...team];
-
-  // Width of one copy = sum of every card's box (width + trailing gap).
-  const copyWidth = (CARD_W + CARD_GAP) * team.length;
-
-  useAnimationFrame((_, delta) => {
-    if (reduced || paused || copyWidth <= 0) return;
-    let next = x.get() - (SPEED * delta) / 1000;
-    if (next <= -copyWidth) next += copyWidth; // wrap seamlessly
-    x.set(next);
-  });
-
-  return (
-    <div
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-      style={{
-        position: "relative",
-        width: "100%",
-        overflowX: reduced ? "auto" : "hidden",
-        overflowY: "hidden",
-        // breathing room so the hover lift/shadow isn't clipped
-        paddingBlock: 28,
-        WebkitMaskImage: EDGE_FADE,
-        maskImage: EDGE_FADE,
-      }}
-    >
-      <motion.div
-        style={{
-          display: "flex",
-          width: "max-content",
-          perspective: 1400,
-          x: reduced ? 0 : x,
-        }}
-      >
-        {items.map((p, i) => (
-          <div
-            key={`${p.name}-${i}`}
-            aria-hidden={!reduced && i >= team.length}
-            style={{ flex: `0 0 ${CARD_W}px`, marginRight: CARD_GAP }}
-          >
-            <TeamCard member={p} />
-          </div>
-        ))}
-      </motion.div>
-    </div>
   );
 }
 
