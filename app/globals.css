@@ -106,6 +106,7 @@
     var(--font-instrument-serif), "Instrument Serif", Georgia, serif;
   --font-bn:
     var(--font-hind), "Hind Siliguri", "Noto Sans Bengali", "Inter", sans-serif;
+  --font-ja: var(--font-jp), "Noto Sans JP", "Inter", sans-serif;
   --font-mono: var(--font-jetbrains), "JetBrains Mono", ui-monospace, monospace;
 
   --fs-display: clamp(3.25rem, 2rem + 4.5vw, 5.5rem);
@@ -251,6 +252,7 @@
   --font-mono: var(--font-mono);
   --font-serif: var(--font-serif);
   --font-bn: var(--font-bn);
+  --font-ja: var(--font-ja);
 
   --radius-xs: 4px;
   --radius-sm: 8px;
@@ -493,6 +495,18 @@ html[data-locale="bn"] h4,
 html[data-locale="bn"] h5,
 html[data-locale="bn"] h6 {
   font-family: var(--font-bn);
+}
+
+/* Japanese locale: route all type through the Japanese-capable family
+   (Space Grotesk / Inter / Instrument Serif lack full CJK glyphs). */
+html[data-locale="ja"] body,
+html[data-locale="ja"] h1,
+html[data-locale="ja"] h2,
+html[data-locale="ja"] h3,
+html[data-locale="ja"] h4,
+html[data-locale="ja"] h5,
+html[data-locale="ja"] h6 {
+  font-family: var(--font-ja);
 }
 
 /* =========================================================

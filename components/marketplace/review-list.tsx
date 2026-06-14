@@ -1,5 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { RatingStars } from "./rating-stars";
+import { bcp47 } from "@/lib/i18n/intl-locale";
 import type { Locale } from "@/i18n/routing";
 
 export type ReviewView = {
@@ -23,7 +24,7 @@ export async function ReviewList({
   if (reviews.length === 0) {
     return <p style={{ color: "var(--color-text-muted)" }}>{t("none")}</p>;
   }
-  const fmt = new Intl.DateTimeFormat(locale === "bn" ? "bn-BD" : "en-US", {
+  const fmt = new Intl.DateTimeFormat(bcp47(locale), {
     year: "numeric",
     month: "short",
     day: "numeric",

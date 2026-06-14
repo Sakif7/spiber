@@ -13,9 +13,10 @@ import {
 } from "@/lib/services/cart.service";
 import { resolveCartOwner } from "@/lib/shop/cart-owner";
 import type { Locale } from "@/i18n/routing";
+import { asLocale } from "@/lib/i18n/intl-locale";
 
 function readLocale(req: Request): Locale {
-  return new URL(req.url).searchParams.get("locale") === "bn" ? "bn" : "en";
+  return asLocale(new URL(req.url).searchParams.get("locale"));
 }
 
 export async function GET(req: Request) {

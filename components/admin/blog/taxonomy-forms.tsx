@@ -18,6 +18,7 @@ function TaxonomyForm({
   const router = useRouter();
   const [nameEn, setNameEn] = useState("");
   const [nameBn, setNameBn] = useState("");
+  const [nameJa, setNameJa] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -32,7 +33,11 @@ function TaxonomyForm({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name: { en: nameEn.trim(), bn: nameBn.trim() || undefined },
+        name: {
+          en: nameEn.trim(),
+          bn: nameBn.trim() || undefined,
+          ja: nameJa.trim() || undefined,
+        },
       }),
     });
     const json = await res.json().catch(() => null);
@@ -40,6 +45,7 @@ function TaxonomyForm({
     if (res.ok && json?.ok) {
       setNameEn("");
       setNameBn("");
+      setNameJa("");
       router.refresh();
     } else {
       const msg = formatApiError(json);
@@ -52,7 +58,7 @@ function TaxonomyForm({
     <div className="grid max-w-[520px] gap-4">
       <div className="grid gap-1.5">
         <Label>Name</Label>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <Input
             placeholder="EN"
             value={nameEn}
@@ -62,6 +68,11 @@ function TaxonomyForm({
             placeholder="বাংলা"
             value={nameBn}
             onChange={(e) => setNameBn(e.target.value)}
+          />
+          <Input
+            placeholder="日本語"
+            value={nameJa}
+            onChange={(e) => setNameJa(e.target.value)}
           />
         </div>
       </div>

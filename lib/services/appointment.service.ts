@@ -150,23 +150,31 @@ async function sendAppointmentTeamNotification(a: IAppointment) {
 }
 
 async function sendAppointmentAck(a: IAppointment, locale?: string) {
-  const bn = locale === "bn";
   const brand = siteConfig.brand;
-  const t = bn
-    ? {
-        subject: `আপনার অ্যাপয়েন্টমেন্ট অনুরোধ পেয়েছি — ${brand}`,
-        eyebrow: "অনুরোধ গৃহীত",
-        heading: "আপনার অনুরোধের জন্য ধন্যবাদ",
-        paragraph: `প্রিয় ${a.patient.name}, আমরা আপনার অ্যাপয়েন্টমেন্ট অনুরোধ পেয়েছি। আমরা সময় নিশ্চিত করে শীঘ্রই আপনাকে জানাবো।`,
-        refLabel: "রেফারেন্স",
-      }
-    : {
-        subject: `We received your appointment request — ${brand}`,
-        eyebrow: "Request received",
-        heading: "Thanks for your request",
-        paragraph: `Hi ${a.patient.name}, we've received your appointment request. We'll confirm a time and get back to you shortly.`,
-        refLabel: "Reference",
-      };
+  const t =
+    locale === "ja"
+      ? {
+          subject: `予約リクエストを受け付けました — ${brand}`,
+          eyebrow: "リクエストを受け付けました",
+          heading: "ご依頼ありがとうございます",
+          paragraph: `${a.patient.name}様、予約リクエストを受け付けました。日時を確定のうえ、まもなくご連絡いたします。`,
+          refLabel: "参照番号",
+        }
+      : locale === "bn"
+        ? {
+            subject: `আপনার অ্যাপয়েন্টমেন্ট অনুরোধ পেয়েছি — ${brand}`,
+            eyebrow: "অনুরোধ গৃহীত",
+            heading: "আপনার অনুরোধের জন্য ধন্যবাদ",
+            paragraph: `প্রিয় ${a.patient.name}, আমরা আপনার অ্যাপয়েন্টমেন্ট অনুরোধ পেয়েছি। আমরা সময় নিশ্চিত করে শীঘ্রই আপনাকে জানাবো।`,
+            refLabel: "রেফারেন্স",
+          }
+        : {
+            subject: `We received your appointment request — ${brand}`,
+            eyebrow: "Request received",
+            heading: "Thanks for your request",
+            paragraph: `Hi ${a.patient.name}, we've received your appointment request. We'll confirm a time and get back to you shortly.`,
+            refLabel: "Reference",
+          };
   const built = renderEmail({
     accent: "orange",
     eyebrow: t.eyebrow,

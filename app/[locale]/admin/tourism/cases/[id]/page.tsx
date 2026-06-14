@@ -11,6 +11,7 @@ import { getPackageByIdLean } from "@/lib/repositories/packages.repo";
 import { getSessionUser } from "@/lib/auth/current-user";
 import { localize } from "@/lib/schemas/localized";
 import { formatBDT } from "@/lib/money";
+import { asLocale } from "@/lib/i18n/intl-locale";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +35,7 @@ export default async function AdminCaseDetailPage({
 }) {
   const { locale, id } = await params;
   setRequestLocale(locale);
-  const l = locale === "bn" ? "bn" : "en";
+  const l = asLocale(locale);
 
   const c = await getMedicalCaseByIdLean(id).catch(() => null);
   if (!c) notFound();

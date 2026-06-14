@@ -1,14 +1,14 @@
 import { ok } from "@/lib/http/respond";
 import { listSoftwareProducts } from "@/lib/repositories/software.repo";
 import { localize } from "@/lib/schemas/localized";
-import type { Locale } from "@/i18n/routing";
+import { asLocale } from "@/lib/i18n/intl-locale";
 
 export const dynamic = "force-dynamic";
 
 /** Active Spiber Digihealth (software) products for the header mega-menu. */
 export async function GET(req: Request) {
   const sp = new URL(req.url).searchParams;
-  const locale: Locale = sp.get("locale") === "bn" ? "bn" : "en";
+  const locale = asLocale(sp.get("locale"));
   try {
     const { items, total } = await listSoftwareProducts({
       status: "active",

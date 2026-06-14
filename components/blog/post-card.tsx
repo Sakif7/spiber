@@ -2,6 +2,7 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { localize } from "@/lib/schemas/localized";
+import { bcp47 } from "@/lib/i18n/intl-locale";
 import { Placeholder } from "@/components/ui/placeholder";
 import { CardBody, CardContainer, CardItem } from "@/components/ui/3d-card";
 import type { Locale } from "@/i18n/routing";
@@ -19,10 +20,11 @@ export function PostCard({
   const tc = useTranslations("common");
   const title = localize(post.title, locale);
   const date = post.publishedAt
-    ? new Date(post.publishedAt).toLocaleDateString(
-        locale === "bn" ? "bn-BD" : "en-GB",
-        { year: "numeric", month: "short", day: "numeric" },
-      )
+    ? new Date(post.publishedAt).toLocaleDateString(bcp47(locale), {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      })
     : "";
   const meta = [
     post.authorName?.trim() ? t("by", { name: post.authorName.trim() }) : "",

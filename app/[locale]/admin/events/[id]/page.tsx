@@ -8,9 +8,10 @@ import { getEventByIdLean } from "@/lib/repositories/events.repo";
 
 export const dynamic = "force-dynamic";
 
-const L = (v?: { en?: string; bn?: string }) => ({
+const L = (v?: { en?: string; bn?: string; ja?: string }) => ({
   en: v?.en ?? "",
   bn: v?.bn ?? "",
+  ja: v?.ja ?? "",
 });
 const dtLocal = (d?: Date | null) =>
   d ? new Date(d).toISOString().slice(0, 16) : "";

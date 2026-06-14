@@ -7,7 +7,7 @@ export interface IUser {
   passwordHash: string;
   roles: Role[];
   emailVerified: boolean;
-  locale: "en" | "bn";
+  locale: "en" | "bn" | "ja";
   // Bumped on password reset / forced logout; embedded in refresh + reset tokens
   // and checked on use, so outstanding tokens can be revoked ("log out everywhere"
   // and single-use reset links).
@@ -31,7 +31,7 @@ const userSchema = new Schema<IUser>(
     passwordHash: { type: String, required: true },
     roles: { type: [String], enum: ROLES, default: ["customer"] },
     emailVerified: { type: Boolean, default: false },
-    locale: { type: String, enum: ["en", "bn"], default: "en" },
+    locale: { type: String, enum: ["en", "bn", "ja"], default: "en" },
     tokenVersion: { type: Number, default: 0 },
     disabled: { type: Boolean, default: false },
   },

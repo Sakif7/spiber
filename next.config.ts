@@ -59,12 +59,12 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       {
-        source: "/:locale(en|bn)/instruments/:path*",
+        source: "/:locale(en|bn|ja)/instruments/:path*",
         destination: "/:locale/medtrade/:path*",
         permanent: true,
       },
       {
-        source: "/:locale(en|bn)/systems/:path*",
+        source: "/:locale(en|bn|ja)/systems/:path*",
         destination: "/:locale/digihealth/:path*",
         permanent: true,
       },
@@ -80,7 +80,7 @@ const nextConfig: NextConfig = {
       },
       // Company section 2026: /about moved under the Company group.
       {
-        source: "/:locale(en|bn)/about",
+        source: "/:locale(en|bn|ja)/about",
         destination: "/:locale/company/about",
         permanent: true,
       },

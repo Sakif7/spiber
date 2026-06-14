@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { verifyEmail } from "@/lib/services/auth.service";
+import { asLocale } from "@/lib/i18n/intl-locale";
 
 // Email links are GET requests; verify the token, then redirect to login.
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const token = url.searchParams.get("token") ?? "";
-  const locale = url.searchParams.get("locale") === "bn" ? "bn" : "en";
+  const locale = asLocale(url.searchParams.get("locale"));
 
   const result = await verifyEmail(token);
 

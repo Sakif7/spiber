@@ -15,6 +15,7 @@ import { routing } from "@/i18n/routing";
 const META: Record<string, { code: string; label: string }> = {
   en: { code: "EN", label: "English" },
   bn: { code: "BN", label: "বাংলা" },
+  ja: { code: "JA", label: "日本語" },
 };
 
 /**
@@ -172,7 +173,9 @@ export function LocaleSwitcher({ style }: { style?: CSSProperties }) {
 }
 
 function Flag({ locale }: { locale: string }) {
-  return locale === "bn" ? <BdFlag /> : <UkFlag />;
+  if (locale === "bn") return <BdFlag />;
+  if (locale === "ja") return <JpFlag />;
+  return <UkFlag />;
 }
 
 /** Union Jack (EN). */
@@ -220,6 +223,22 @@ function BdFlag() {
     >
       <rect width="60" height="36" fill="#006a4e" />
       <circle cx="27" cy="18" r="11" fill="#f42a41" />
+    </svg>
+  );
+}
+
+/** Japan (JA). */
+function JpFlag() {
+  return (
+    <svg
+      width="22"
+      height="13"
+      viewBox="0 0 60 36"
+      aria-hidden
+      style={{ borderRadius: 2, display: "block", flexShrink: 0 }}
+    >
+      <rect width="60" height="36" fill="#fff" stroke="#eee" strokeWidth="1" />
+      <circle cx="30" cy="18" r="10.8" fill="#bc002d" />
     </svg>
   );
 }

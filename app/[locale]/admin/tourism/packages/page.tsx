@@ -6,7 +6,7 @@ import { AdminPageHeader } from "@/components/admin/ui/page-header";
 import { CatalogTable } from "@/components/admin/tourism/catalog-list";
 import { listPackages } from "@/lib/repositories/packages.repo";
 import { localize } from "@/lib/schemas/localized";
-import type { Locale } from "@/i18n/routing";
+import { asLocale } from "@/lib/i18n/intl-locale";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +17,7 @@ export default async function AdminPackagesPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const l = (locale === "bn" ? "bn" : "en") as Locale;
+  const l = asLocale(locale);
 
   let rows: Awaited<ReturnType<typeof listPackages>>["items"] = [];
   try {

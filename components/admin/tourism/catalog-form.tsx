@@ -22,12 +22,12 @@ import { ImageUploader } from "@/components/admin/image-uploader";
 import { cn } from "@/lib/cn";
 
 /* ------------------------------------------------------------------ helpers */
-type Loc = { en: string; bn?: string };
+type Loc = { en: string; bn?: string; ja?: string };
 type Init = Record<string, unknown>;
 
 function locValue(v: unknown): Loc {
   const o = (v ?? {}) as Loc;
-  return { en: o.en ?? "", bn: o.bn ?? "" };
+  return { en: o.en ?? "", bn: o.bn ?? "", ja: o.ja ?? "" };
 }
 function locArrayToText(v: unknown): string {
   if (!Array.isArray(v)) return "";
@@ -145,6 +145,13 @@ function LocalizedField({
         <C
           value={value.bn ?? ""}
           onChange={(e) => onChange({ ...value, bn: e.target.value })}
+          rows={textarea ? 3 : undefined}
+        />
+      </Field>
+      <Field label={`${label} (JA)`}>
+        <C
+          value={value.ja ?? ""}
+          onChange={(e) => onChange({ ...value, ja: e.target.value })}
           rows={textarea ? 3 : undefined}
         />
       </Field>

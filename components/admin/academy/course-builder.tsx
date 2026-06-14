@@ -38,7 +38,7 @@ import type {
 } from "@/lib/schemas/academy";
 
 // ---- Builder-local shapes (every field present, edited freely) ----
-type L = { en: string; bn: string };
+type L = { en: string; bn: string; ja: string };
 type BOption = { id: string; text: L };
 type BQuestion = {
   id: string;
@@ -81,7 +81,7 @@ const cid = () =>
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2);
 
-const emptyL = (): L => ({ en: "", bn: "" });
+const emptyL = (): L => ({ en: "", bn: "", ja: "" });
 const newOption = (): BOption => ({ id: cid(), text: emptyL() });
 const newQuestion = (): BQuestion => {
   const o1 = newOption();
@@ -148,7 +148,7 @@ function BilingualField({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 1fr",
+          gridTemplateColumns: "1fr 1fr 1fr",
           gap: "var(--s-3)",
         }}
       >
@@ -168,6 +168,13 @@ function BilingualField({
               rows={3}
               style={taStyle}
             />
+            <textarea
+              placeholder="日本語"
+              value={value.ja}
+              onChange={(e) => onChange({ ...value, ja: e.target.value })}
+              rows={3}
+              style={taStyle}
+            />
           </>
         ) : (
           <>
@@ -180,6 +187,11 @@ function BilingualField({
               placeholder="বাংলা"
               value={value.bn}
               onChange={(e) => onChange({ ...value, bn: e.target.value })}
+            />
+            <Input
+              placeholder="日本語"
+              value={value.ja}
+              onChange={(e) => onChange({ ...value, ja: e.target.value })}
             />
           </>
         )}
@@ -291,8 +303,13 @@ export function CourseBuilder({ initial }: { initial?: CourseBuilderInitial }) {
   }
 
   function buildPayload() {
-    const clean = (l: L) => ({ en: l.en.trim(), bn: l.bn.trim() || undefined });
-    const optL = (l: L) => (l.en.trim() || l.bn.trim() ? clean(l) : undefined);
+    const clean = (l: L) => ({
+      en: l.en.trim(),
+      bn: l.bn.trim() || undefined,
+      ja: l.ja.trim() || undefined,
+    });
+    const optL = (l: L) =>
+      l.en.trim() || l.bn.trim() || l.ja.trim() ? clean(l) : undefined;
     return {
       title: clean(title),
       slug: slug.trim() || undefined,
@@ -1082,6 +1099,19 @@ function QuizEditor({
                       options: q.options.map((x) =>
                         x.id === o.id
                           ? { ...x, text: { ...x.text, bn: e.target.value } }
+                          : x,
+                      ),
+                    })
+                  }
+                />
+                <Input
+                  placeholder="日本語"
+                  value={o.text.ja}
+                  onChange={(e) =>
+                    patchQ(q.id, {
+                      options: q.options.map((x) =>
+                        x.id === o.id
+                          ? { ...x, text: { ...x.text, ja: e.target.value } }
                           : x,
                       ),
                     })

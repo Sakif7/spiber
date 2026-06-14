@@ -7,8 +7,14 @@ import { AdminShell } from "@/components/admin/shell/admin-shell";
 import { SessionKeepAlive } from "@/components/admin/session-keep-alive";
 
 // Admin depends on the auth cookie; never statically prerender it.
-// (Theme no-flash handled by next/script in the root layout.)
 export const dynamic = "force-dynamic";
+
+// Pre-paint, no-flash dark mode for the admin area. Rendered ONLY here (in the
+// admin server layout, dynamic) — not in the public locale layout — so a public
+// client-side locale switch never re-reconciles a <script> (which would trip
+// React 19's "script tag while rendering" warning). It applies the stored
+// preference (or system) before the shell paints; the public site stays light.
+const ADMIN_THEME_SCRIPT = `(function(){try{var p=localStorage.getItem('spiber-admin-theme');var d=p==='dark'||((p===null||p==='system')&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');}catch(e){}})();`;
 
 export default async function AdminLayout({
   children,
@@ -29,11 +35,14 @@ export default async function AdminLayout({
   const role = user!.roles.includes("super_admin") ? "super_admin" : "admin";
 
   return (
-    <AdminThemeProvider>
-      <SessionKeepAlive />
-      <AdminShell email={user!.email} role={role}>
-        {children}
-      </AdminShell>
-    </AdminThemeProvider>
+    <>
+      <script dangerouslySetInnerHTML={{ __html: ADMIN_THEME_SCRIPT }} />
+      <AdminThemeProvider>
+        <SessionKeepAlive />
+        <AdminShell email={user!.email} role={role}>
+          {children}
+        </AdminShell>
+      </AdminThemeProvider>
+    </>
   );
 }

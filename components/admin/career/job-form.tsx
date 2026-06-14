@@ -16,34 +16,39 @@ import {
 import { formatApiError } from "@/lib/http/form-error";
 import type { EmploymentType, JobStatus } from "@/lib/schemas/career";
 
-type L = { en: string; bn: string };
+type L = { en: string; bn: string; ja: string };
+type LInit = { en?: string; bn?: string; ja?: string };
 
 export type JobFormInitial = {
   id?: string;
-  title?: L;
+  title?: LInit;
   slug?: string;
-  department?: L;
-  reportsTo?: L;
-  location?: L;
+  department?: LInit;
+  reportsTo?: LInit;
+  location?: LInit;
   employmentType?: EmploymentType;
-  experience?: L;
+  experience?: LInit;
   vacancies?: string;
-  summary?: L;
-  description?: L;
-  responsibilities?: L;
-  requirements?: L;
-  preferredSkills?: L;
-  benefits?: L;
+  summary?: LInit;
+  description?: LInit;
+  responsibilities?: LInit;
+  requirements?: LInit;
+  preferredSkills?: LInit;
+  benefits?: LInit;
   applyEmail?: string;
   recruiterName?: string;
-  recruiterTitle?: L;
+  recruiterTitle?: LInit;
   recruiterEmail?: string;
   recruiterPhone?: string;
   closesAt?: string; // YYYY-MM-DD
   status?: JobStatus;
 };
 
-const emptyL = (): L => ({ en: "", bn: "" });
+const toL = (l?: LInit): L => ({
+  en: l?.en ?? "",
+  bn: l?.bn ?? "",
+  ja: l?.ja ?? "",
+});
 
 const EMPLOYMENT_TYPES: { value: EmploymentType; label: string }[] = [
   { value: "full_time", label: "Full-time" },
@@ -57,40 +62,34 @@ export function JobForm({ initial }: { initial?: JobFormInitial }) {
   const router = useRouter();
   const isEdit = Boolean(initial?.id);
 
-  const [title, setTitle] = useState<L>(initial?.title ?? emptyL());
+  const [title, setTitle] = useState<L>(toL(initial?.title));
   const [slug, setSlug] = useState(initial?.slug ?? "");
-  const [department, setDepartment] = useState<L>(
-    initial?.department ?? emptyL(),
-  );
-  const [reportsTo, setReportsTo] = useState<L>(initial?.reportsTo ?? emptyL());
-  const [location, setLocation] = useState<L>(initial?.location ?? emptyL());
+  const [department, setDepartment] = useState<L>(toL(initial?.department));
+  const [reportsTo, setReportsTo] = useState<L>(toL(initial?.reportsTo));
+  const [location, setLocation] = useState<L>(toL(initial?.location));
   const [employmentType, setEmploymentType] = useState<EmploymentType>(
     initial?.employmentType ?? "full_time",
   );
-  const [experience, setExperience] = useState<L>(
-    initial?.experience ?? emptyL(),
-  );
+  const [experience, setExperience] = useState<L>(toL(initial?.experience));
   const [vacancies, setVacancies] = useState(initial?.vacancies ?? "");
-  const [summary, setSummary] = useState<L>(initial?.summary ?? emptyL());
-  const [description, setDescription] = useState<L>(
-    initial?.description ?? emptyL(),
-  );
+  const [summary, setSummary] = useState<L>(toL(initial?.summary));
+  const [description, setDescription] = useState<L>(toL(initial?.description));
   const [responsibilities, setResponsibilities] = useState<L>(
-    initial?.responsibilities ?? emptyL(),
+    toL(initial?.responsibilities),
   );
   const [requirements, setRequirements] = useState<L>(
-    initial?.requirements ?? emptyL(),
+    toL(initial?.requirements),
   );
   const [preferredSkills, setPreferredSkills] = useState<L>(
-    initial?.preferredSkills ?? emptyL(),
+    toL(initial?.preferredSkills),
   );
-  const [benefits, setBenefits] = useState<L>(initial?.benefits ?? emptyL());
+  const [benefits, setBenefits] = useState<L>(toL(initial?.benefits));
   const [applyEmail, setApplyEmail] = useState(initial?.applyEmail ?? "");
   const [recruiterName, setRecruiterName] = useState(
     initial?.recruiterName ?? "",
   );
   const [recruiterTitle, setRecruiterTitle] = useState<L>(
-    initial?.recruiterTitle ?? emptyL(),
+    toL(initial?.recruiterTitle),
   );
   const [recruiterEmail, setRecruiterEmail] = useState(
     initial?.recruiterEmail ?? "",
@@ -104,8 +103,13 @@ export function JobForm({ initial }: { initial?: JobFormInitial }) {
   const [saving, setSaving] = useState(false);
 
   function buildPayload() {
-    const clean = (l: L) => ({ en: l.en.trim(), bn: l.bn.trim() || undefined });
-    const optL = (l: L) => (l.en.trim() || l.bn.trim() ? clean(l) : undefined);
+    const clean = (l: L) => ({
+      en: l.en.trim(),
+      bn: l.bn.trim() || undefined,
+      ja: l.ja.trim() || undefined,
+    });
+    const optL = (l: L) =>
+      l.en.trim() || l.bn.trim() || l.ja.trim() ? clean(l) : undefined;
     return {
       title: clean(title),
       slug: slug.trim() || undefined,
@@ -375,7 +379,7 @@ function BilingualField({
   return (
     <div className="grid gap-1.5">
       <Label>{label}</Label>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         {textarea ? (
           <>
             <Textarea
@@ -390,6 +394,12 @@ function BilingualField({
               onChange={(e) => onChange({ ...value, bn: e.target.value })}
               rows={rows}
             />
+            <Textarea
+              placeholder="日本語"
+              value={value.ja}
+              onChange={(e) => onChange({ ...value, ja: e.target.value })}
+              rows={rows}
+            />
           </>
         ) : (
           <>
@@ -402,6 +412,11 @@ function BilingualField({
               placeholder="বাংলা"
               value={value.bn}
               onChange={(e) => onChange({ ...value, bn: e.target.value })}
+            />
+            <Input
+              placeholder="日本語"
+              value={value.ja}
+              onChange={(e) => onChange({ ...value, ja: e.target.value })}
             />
           </>
         )}

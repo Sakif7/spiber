@@ -5,11 +5,13 @@ import type { Types } from "mongoose";
 export const localizedDef = {
   en: { type: String, required: true },
   bn: { type: String },
+  ja: { type: String },
 } as const;
 
 export interface LocalizedDoc {
   en: string;
   bn?: string;
+  ja?: string;
 }
 
 /** A `.lean()` result of a model interface — adds the `_id` the schema omits. */

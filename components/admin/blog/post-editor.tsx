@@ -10,16 +10,19 @@ import { RichTextEditor } from "./rich-text-editor";
 import { formatApiError } from "@/lib/http/form-error";
 import type { BlogStatus } from "@/lib/schemas/blog";
 
-type L = { en: string; bn: string };
+type L = { en: string; bn: string; ja: string };
 type Opt = { id: string; name: string };
+
+type LInit = { en?: string; bn?: string; ja?: string };
 
 export type PostEditorInitial = {
   id?: string;
-  title?: L;
+  title?: LInit;
   slug?: string;
-  excerpt?: L;
+  excerpt?: LInit;
   bodyEn?: string;
   bodyBn?: string;
+  bodyJa?: string;
   coverImage?: string;
   authorName?: string;
   categoryId?: string;
@@ -27,17 +30,26 @@ export type PostEditorInitial = {
   status?: BlogStatus;
   scheduledFor?: string; // datetime-local value
   seo?: {
-    metaTitle?: L;
-    metaDescription?: L;
+    metaTitle?: LInit;
+    metaDescription?: LInit;
     ogImage?: string;
   };
 };
 
-const emptyL = (): L => ({ en: "", bn: "" });
+const fillL = (l?: LInit): L => ({
+  en: l?.en ?? "",
+  bn: l?.bn ?? "",
+  ja: l?.ja ?? "",
+});
 const field: CSSProperties = { display: "grid", gap: 6 };
 const row: CSSProperties = {
   display: "grid",
   gridTemplateColumns: "1fr 1fr",
+  gap: "var(--s-4)",
+};
+const triRow: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr 1fr",
   gap: "var(--s-4)",
 };
 const card: CSSProperties = {
@@ -78,30 +90,34 @@ export function PostEditor({
   const router = useRouter();
   const isEdit = Boolean(initial?.id);
 
-  const [title, setTitle] = useState<L>(initial?.title ?? emptyL());
+  const [title, setTitle] = useState<L>(fillL(initial?.title));
   const [slug, setSlug] = useState(initial?.slug ?? "");
-  const [excerpt, setExcerpt] = useState<L>(initial?.excerpt ?? emptyL());
+  const [excerpt, setExcerpt] = useState<L>(fillL(initial?.excerpt));
   const [bodyEn, setBodyEn] = useState(initial?.bodyEn ?? "");
   const [bodyBn, setBodyBn] = useState(initial?.bodyBn ?? "");
+  const [bodyJa, setBodyJa] = useState(initial?.bodyJa ?? "");
   const [coverImage, setCoverImage] = useState(initial?.coverImage ?? "");
   const [authorName, setAuthorName] = useState(initial?.authorName ?? "");
   const [categoryId, setCategoryId] = useState(initial?.categoryId ?? "");
   const [tagIds, setTagIds] = useState<string[]>(initial?.tagIds ?? []);
   const [status, setStatus] = useState<BlogStatus>(initial?.status ?? "draft");
   const [scheduledFor, setScheduledFor] = useState(initial?.scheduledFor ?? "");
-  const [metaTitle, setMetaTitle] = useState<L>(
-    initial?.seo?.metaTitle ?? emptyL(),
-  );
+  const [metaTitle, setMetaTitle] = useState<L>(fillL(initial?.seo?.metaTitle));
   const [metaDescription, setMetaDescription] = useState<L>(
-    initial?.seo?.metaDescription ?? emptyL(),
+    fillL(initial?.seo?.metaDescription),
   );
   const [ogImage, setOgImage] = useState(initial?.seo?.ogImage ?? "");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   function buildPayload() {
-    const clean = (l: L) => ({ en: l.en.trim(), bn: l.bn.trim() || undefined });
-    const optL = (l: L) => (l.en.trim() || l.bn.trim() ? clean(l) : undefined);
+    const clean = (l: L) => ({
+      en: l.en.trim(),
+      bn: l.bn.trim() || undefined,
+      ja: l.ja.trim() || undefined,
+    });
+    const optL = (l: L) =>
+      l.en.trim() || l.bn.trim() || l.ja.trim() ? clean(l) : undefined;
     const seoMt = optL(metaTitle);
     const seoMd = optL(metaDescription);
     const seo =
@@ -116,7 +132,11 @@ export function PostEditor({
       title: clean(title),
       slug: slug.trim() || undefined,
       excerpt: optL(excerpt),
-      body: { en: bodyEn || "<p></p>", bn: bodyBn.trim() ? bodyBn : undefined },
+      body: {
+        en: bodyEn || "<p></p>",
+        bn: bodyBn.trim() ? bodyBn : undefined,
+        ja: bodyJa.trim() ? bodyJa : undefined,
+      },
       coverImage: coverImage || undefined,
       authorName: authorName.trim() || undefined,
       categoryId: categoryId || undefined,
@@ -209,6 +229,10 @@ export function PostEditor({
         <div style={field}>
           <Label>Body (বাংলা) — optional</Label>
           <RichTextEditor value={bodyBn} onChange={setBodyBn} />
+        </div>
+        <div style={field}>
+          <Label>Body (日本語) — optional</Label>
+          <RichTextEditor value={bodyJa} onChange={setBodyJa} />
         </div>
       </section>
 
@@ -332,7 +356,7 @@ function BilingualField({
   return (
     <div style={field}>
       <Label>{label}</Label>
-      <div style={row}>
+      <div style={triRow}>
         {textarea ? (
           <>
             <textarea
@@ -349,6 +373,13 @@ function BilingualField({
               rows={2}
               style={taStyle}
             />
+            <textarea
+              placeholder="日本語"
+              value={value.ja}
+              onChange={(e) => onChange({ ...value, ja: e.target.value })}
+              rows={2}
+              style={taStyle}
+            />
           </>
         ) : (
           <>
@@ -361,6 +392,11 @@ function BilingualField({
               placeholder="বাংলা"
               value={value.bn}
               onChange={(e) => onChange({ ...value, bn: e.target.value })}
+            />
+            <Input
+              placeholder="日本語"
+              value={value.ja}
+              onChange={(e) => onChange({ ...value, ja: e.target.value })}
             />
           </>
         )}

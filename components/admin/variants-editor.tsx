@@ -5,9 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { fromMinor, toMinor } from "@/lib/money";
 
-export type VariantOptionValue = { en: string; bn?: string };
+export type VariantOptionValue = { en: string; bn?: string; ja?: string };
 export type VariantOptionInput = {
-  name: { en: string; bn?: string };
+  name: { en: string; bn?: string; ja?: string };
   values: VariantOptionValue[];
 };
 export type VariantInput = {
@@ -18,7 +18,12 @@ export type VariantInput = {
   stockQty: number;
 };
 
-type EditorOption = { nameEn: string; nameBn: string; valuesCsv: string };
+type EditorOption = {
+  nameEn: string;
+  nameBn: string;
+  nameJa: string;
+  valuesCsv: string;
+};
 type EditorVariant = {
   id?: string;
   options: { name: string; value: string }[];
@@ -53,6 +58,7 @@ export function VariantsEditor({
     (initial?.variantOptions ?? []).map((o) => ({
       nameEn: o.name.en,
       nameBn: o.name.bn ?? "",
+      nameJa: o.name.ja ?? "",
       valuesCsv: o.values.map((v) => v.en).join(", "),
     })),
   );
@@ -74,7 +80,11 @@ export function VariantsEditor({
     const variantOptions: VariantOptionInput[] = options
       .filter((o) => o.nameEn.trim())
       .map((o) => ({
-        name: { en: o.nameEn.trim(), bn: o.nameBn.trim() || undefined },
+        name: {
+          en: o.nameEn.trim(),
+          bn: o.nameBn.trim() || undefined,
+          ja: o.nameJa.trim() || undefined,
+        },
         values: o.valuesCsv
           .split(",")
           .map((s) => s.trim())
@@ -135,7 +145,7 @@ export function VariantsEditor({
             key={i}
             style={{
               display: "grid",
-              gridTemplateColumns: "1fr 1fr 1.4fr auto",
+              gridTemplateColumns: "1fr 1fr 1fr 1.4fr auto",
               gap: 8,
               alignItems: "end",
             }}
@@ -162,6 +172,20 @@ export function VariantsEditor({
                   setOptions((s) =>
                     s.map((x, j) =>
                       j === i ? { ...x, nameBn: e.target.value } : x,
+                    ),
+                  )
+                }
+              />
+            </div>
+            <div style={{ display: "grid", gap: 4 }}>
+              <Label>Option (日本語)</Label>
+              <Input
+                value={o.nameJa}
+                placeholder="日本語"
+                onChange={(e) =>
+                  setOptions((s) =>
+                    s.map((x, j) =>
+                      j === i ? { ...x, nameJa: e.target.value } : x,
                     ),
                   )
                 }
@@ -204,7 +228,7 @@ export function VariantsEditor({
             onClick={() =>
               setOptions((s) => [
                 ...s,
-                { nameEn: "", nameBn: "", valuesCsv: "" },
+                { nameEn: "", nameBn: "", nameJa: "", valuesCsv: "" },
               ])
             }
             style={btn("secondary")}

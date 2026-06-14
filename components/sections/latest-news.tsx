@@ -3,6 +3,7 @@ import { listPublishedPosts } from "@/lib/repositories/blog.repo";
 import { listBlogCategories } from "@/lib/repositories/blogTaxonomy.repo";
 import { localize } from "@/lib/schemas/localized";
 import { excerptFromHtml } from "@/lib/reading-time";
+import { bcp47 } from "@/lib/i18n/intl-locale";
 import { logger } from "@/lib/log";
 import type { Locale } from "@/i18n/routing";
 import { LatestNewsView, type NewsItem } from "./latest-news-view";
@@ -30,10 +31,11 @@ export async function LatestNews() {
     );
     items = res.items.map((p, i) => {
       const date = p.publishedAt
-        ? new Date(p.publishedAt).toLocaleDateString(
-            locale === "bn" ? "bn-BD" : "en-GB",
-            { year: "numeric", month: "short", day: "numeric" },
-          )
+        ? new Date(p.publishedAt).toLocaleDateString(bcp47(locale), {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          })
         : "";
       const excerpt = p.excerpt
         ? localize(p.excerpt, locale)

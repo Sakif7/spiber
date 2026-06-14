@@ -13,6 +13,7 @@ export function BrandForm() {
 
   const [nameEn, setNameEn] = useState("");
   const [nameBn, setNameBn] = useState("");
+  const [nameJa, setNameJa] = useState("");
   const [slug, setSlug] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -25,7 +26,11 @@ export function BrandForm() {
     setSaving(true);
     setError(null);
     const payload = {
-      name: { en: nameEn.trim(), bn: nameBn.trim() || undefined },
+      name: {
+        en: nameEn.trim(),
+        bn: nameBn.trim() || undefined,
+        ja: nameJa.trim() || undefined,
+      },
       slug: slug.trim() || undefined,
     };
     const res = await fetch("/api/admin/brands", {
@@ -38,6 +43,7 @@ export function BrandForm() {
     if (res.ok && json?.ok) {
       setNameEn("");
       setNameBn("");
+      setNameJa("");
       setSlug("");
       toast.success("Brand added");
       router.refresh();
@@ -52,7 +58,7 @@ export function BrandForm() {
     <div className="grid max-w-[520px] gap-4">
       <div className="grid gap-1.5">
         <Label>Name</Label>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <Input
             placeholder="EN"
             value={nameEn}
@@ -62,6 +68,11 @@ export function BrandForm() {
             placeholder="বাংলা"
             value={nameBn}
             onChange={(e) => setNameBn(e.target.value)}
+          />
+          <Input
+            placeholder="日本語"
+            value={nameJa}
+            onChange={(e) => setNameJa(e.target.value)}
           />
         </div>
       </div>

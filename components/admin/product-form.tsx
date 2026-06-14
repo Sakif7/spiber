@@ -15,8 +15,8 @@ export type ProductFormInitial = {
   id?: string;
   sku?: string;
   slug?: string;
-  name?: { en: string; bn?: string };
-  description?: { en: string; bn?: string };
+  name?: { en: string; bn?: string; ja?: string };
+  description?: { en: string; bn?: string; ja?: string };
   categoryId?: string;
   brandId?: string;
   priceMinor?: number;
@@ -44,8 +44,10 @@ export function ProductForm({
   const [slug, setSlug] = useState(initial?.slug ?? "");
   const [nameEn, setNameEn] = useState(initial?.name?.en ?? "");
   const [nameBn, setNameBn] = useState(initial?.name?.bn ?? "");
+  const [nameJa, setNameJa] = useState(initial?.name?.ja ?? "");
   const [descEn, setDescEn] = useState(initial?.description?.en ?? "");
   const [descBn, setDescBn] = useState(initial?.description?.bn ?? "");
+  const [descJa, setDescJa] = useState(initial?.description?.ja ?? "");
   const [categoryId, setCategoryId] = useState(
     initial?.categoryId ??
       categories.find((c) => !c.parentId)?.id ??
@@ -73,8 +75,10 @@ export function ProductForm({
       storefront: "instruments" as const,
       sku,
       slug,
-      name: { en: nameEn, bn: nameBn || undefined },
-      description: descEn ? { en: descEn, bn: descBn || undefined } : undefined,
+      name: { en: nameEn, bn: nameBn || undefined, ja: nameJa || undefined },
+      description: descEn
+        ? { en: descEn, bn: descBn || undefined, ja: descJa || undefined }
+        : undefined,
       categoryId,
       brandId: brandId || undefined,
       // Optional — blank means "Price on request".
@@ -108,6 +112,11 @@ export function ProductForm({
     gridTemplateColumns: "1fr 1fr",
     gap: "var(--s-4)",
   } as const;
+  const row3 = {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr 1fr",
+    gap: "var(--s-4)",
+  } as const;
   const sel: React.CSSProperties = {
     height: 40,
     padding: "0 10px",
@@ -121,7 +130,7 @@ export function ProductForm({
     <div style={{ display: "grid", gap: "var(--s-5)", maxWidth: 760 }}>
       <div style={field}>
         <Label>Name</Label>
-        <div style={row}>
+        <div style={row3}>
           <Input
             placeholder="EN"
             value={nameEn}
@@ -131,6 +140,11 @@ export function ProductForm({
             placeholder="বাংলা"
             value={nameBn}
             onChange={(e) => setNameBn(e.target.value)}
+          />
+          <Input
+            placeholder="日本語"
+            value={nameJa}
+            onChange={(e) => setNameJa(e.target.value)}
           />
         </div>
       </div>
@@ -150,7 +164,7 @@ export function ProductForm({
       </div>
       <div style={field}>
         <Label>Description</Label>
-        <div style={row}>
+        <div style={row3}>
           <textarea
             rows={3}
             placeholder="EN"
@@ -163,6 +177,13 @@ export function ProductForm({
             placeholder="বাংলা"
             value={descBn}
             onChange={(e) => setDescBn(e.target.value)}
+            style={{ ...sel, height: "auto", padding: 10 }}
+          />
+          <textarea
+            rows={3}
+            placeholder="日本語"
+            value={descJa}
+            onChange={(e) => setDescJa(e.target.value)}
             style={{ ...sel, height: "auto", padding: 10 }}
           />
         </div>

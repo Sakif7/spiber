@@ -1,7 +1,7 @@
 import { ok } from "@/lib/http/respond";
 import { listCategoryTree, listBrands } from "@/lib/repositories/taxonomy.repo";
 import { localize } from "@/lib/schemas/localized";
-import type { Locale } from "@/i18n/routing";
+import { asLocale } from "@/lib/i18n/intl-locale";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(req: Request) {
   const sp = new URL(req.url).searchParams;
-  const locale: Locale = sp.get("locale") === "bn" ? "bn" : "en";
+  const locale = asLocale(sp.get("locale"));
   try {
     const [tree, brands] = await Promise.all([
       listCategoryTree("instruments"),

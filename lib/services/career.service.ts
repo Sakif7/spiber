@@ -163,29 +163,40 @@ async function sendTeamNotification(
 }
 
 async function sendApplicantAck(app: IJobApplication, jobTitle: string) {
-  const bn = app.locale === "bn";
   const brand = siteConfig.brand;
-  const c = bn
-    ? {
-        subject: `আপনার আবেদন পেয়েছি — ${brand}`,
-        preheader: "আমরা আপনার আবেদন পেয়েছি।",
-        eyebrow: "আবেদন গৃহীত হয়েছে",
-        heading: "আবেদনের জন্য ধন্যবাদ",
-        paragraph: `প্রিয় ${app.name}, “${jobTitle}” পদে আবেদন করার জন্য ধন্যবাদ। আমরা আপনার আবেদন পেয়েছি এবং আমাদের টিম তা পর্যালোচনা করবে। আপনার প্রোফাইল উপযুক্ত হলে আমরা যোগাযোগ করব।`,
-        posLabel: "পদ",
-        refLabel: "রেফারেন্স",
-        outro: `যেকোনো প্রশ্নে আমাদের কল করুন ${CONTACT.phone} (সোম–শনি, ০৯:০০–১৮:০০ BST)।`,
-      }
-    : {
-        subject: `We received your application — ${brand}`,
-        preheader: "We've received your application.",
-        eyebrow: "Application received",
-        heading: "Thanks for applying",
-        paragraph: `Hi ${app.name}, thanks for applying for the “${jobTitle}” position at ${brand}. We've received your application and our team will review it. If your profile is a good fit, we'll be in touch.`,
-        posLabel: "Position",
-        refLabel: "Reference",
-        outro: `If you have any questions, call us at ${CONTACT.phone} (Mon–Sat, 09:00–18:00 BST).`,
-      };
+  const c =
+    app.locale === "ja"
+      ? {
+          subject: `ご応募を受け付けました — ${brand}`,
+          preheader: "ご応募を受け付けました。",
+          eyebrow: "応募受付完了",
+          heading: "ご応募ありがとうございます",
+          paragraph: `${app.name} 様、${brand} の「${jobTitle}」のポジションにご応募いただき、誠にありがとうございます。ご応募を受け付けました。担当チームが内容を確認いたします。ご経歴がポジションに適していると判断した場合は、改めてご連絡いたします。`,
+          posLabel: "ポジション",
+          refLabel: "受付番号",
+          outro: `ご不明な点がございましたら、${CONTACT.phone}（月～土、09:00～18:00 BST）までお電話ください。`,
+        }
+      : app.locale === "bn"
+        ? {
+            subject: `আপনার আবেদন পেয়েছি — ${brand}`,
+            preheader: "আমরা আপনার আবেদন পেয়েছি।",
+            eyebrow: "আবেদন গৃহীত হয়েছে",
+            heading: "আবেদনের জন্য ধন্যবাদ",
+            paragraph: `প্রিয় ${app.name}, “${jobTitle}” পদে আবেদন করার জন্য ধন্যবাদ। আমরা আপনার আবেদন পেয়েছি এবং আমাদের টিম তা পর্যালোচনা করবে। আপনার প্রোফাইল উপযুক্ত হলে আমরা যোগাযোগ করব।`,
+            posLabel: "পদ",
+            refLabel: "রেফারেন্স",
+            outro: `যেকোনো প্রশ্নে আমাদের কল করুন ${CONTACT.phone} (সোম–শনি, ০৯:০০–১৮:০০ BST)।`,
+          }
+        : {
+            subject: `We received your application — ${brand}`,
+            preheader: "We've received your application.",
+            eyebrow: "Application received",
+            heading: "Thanks for applying",
+            paragraph: `Hi ${app.name}, thanks for applying for the “${jobTitle}” position at ${brand}. We've received your application and our team will review it. If your profile is a good fit, we'll be in touch.`,
+            posLabel: "Position",
+            refLabel: "Reference",
+            outro: `If you have any questions, call us at ${CONTACT.phone} (Mon–Sat, 09:00–18:00 BST).`,
+          };
 
   const built = renderEmail({
     accent: "teal",

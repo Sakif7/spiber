@@ -15,7 +15,7 @@ import { COOKIE } from "./lib/auth/session";
  */
 const intlMiddleware = createMiddleware(routing);
 
-const ADMIN_PATH = /^\/(en|bn)\/admin(\/|$)/;
+const ADMIN_PATH = /^\/(en|bn|ja)\/admin(\/|$)/;
 
 export default async function proxy(request: NextRequest) {
   const response = intlMiddleware(request);

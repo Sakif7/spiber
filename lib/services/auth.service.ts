@@ -65,7 +65,8 @@ function bootstrapRoles(email: string): Role[] {
   return admins.includes(email.toLowerCase()) ? ["super_admin"] : ["customer"];
 }
 
-const localePrefix = (locale?: string) => (locale === "bn" ? "bn" : "en");
+const localePrefix = (locale?: string) =>
+  locale === "bn" ? "bn" : locale === "ja" ? "ja" : "en";
 
 // A throwaway cost-12 bcrypt hash compared against when the email is unknown, so
 // login takes the same time whether or not the account exists (anti-enumeration).

@@ -19,7 +19,7 @@ const password = z
   .string()
   .min(8, "Password must be at least 8 characters")
   .max(200);
-const localeField = z.enum(["en", "bn"]).optional();
+const localeField = z.enum(["en", "bn", "ja"]).optional();
 
 export const registerInputSchema = z.object({
   name: z.string().trim().min(1).max(200),

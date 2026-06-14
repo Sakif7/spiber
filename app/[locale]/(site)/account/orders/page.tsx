@@ -9,6 +9,7 @@ import { CtaButton } from "@/components/ui/cta-button";
 import { formatBDT } from "@/lib/money";
 import { getSessionUser } from "@/lib/auth/current-user";
 import { listOrdersByUser } from "@/lib/repositories/orders.repo";
+import { bcp47 } from "@/lib/i18n/intl-locale";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,7 @@ function formatDate(value: string | null, locale: Locale): string {
   if (!value) return "—";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "—";
-  return new Intl.DateTimeFormat(locale === "bn" ? "bn-BD" : "en-US", {
+  return new Intl.DateTimeFormat(bcp47(locale), {
     year: "numeric",
     month: "short",
     day: "numeric",

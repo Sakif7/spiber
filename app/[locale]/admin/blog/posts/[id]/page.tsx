@@ -30,13 +30,22 @@ export default async function EditBlogPostPage({
 
   const initial: PostEditorInitial = {
     id: String(post._id),
-    title: { en: post.title.en, bn: post.title.bn ?? "" },
+    title: {
+      en: post.title.en,
+      bn: post.title.bn ?? "",
+      ja: post.title.ja ?? "",
+    },
     slug: post.slug,
     excerpt: post.excerpt
-      ? { en: post.excerpt.en ?? "", bn: post.excerpt.bn ?? "" }
-      : { en: "", bn: "" },
+      ? {
+          en: post.excerpt.en ?? "",
+          bn: post.excerpt.bn ?? "",
+          ja: post.excerpt.ja ?? "",
+        }
+      : { en: "", bn: "", ja: "" },
     bodyEn: post.body.en ?? "",
     bodyBn: post.body.bn ?? "",
+    bodyJa: post.body.ja ?? "",
     coverImage: post.coverImage,
     authorName: post.authorName ?? "",
     categoryId: post.categoryId ? String(post.categoryId) : "",
@@ -49,10 +58,12 @@ export default async function EditBlogPostPage({
       metaTitle: {
         en: post.seo?.metaTitle?.en ?? "",
         bn: post.seo?.metaTitle?.bn ?? "",
+        ja: post.seo?.metaTitle?.ja ?? "",
       },
       metaDescription: {
         en: post.seo?.metaDescription?.en ?? "",
         bn: post.seo?.metaDescription?.bn ?? "",
+        ja: post.seo?.metaDescription?.ja ?? "",
       },
       ogImage: post.seo?.ogImage,
     },

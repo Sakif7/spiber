@@ -30,6 +30,13 @@ const TYPE_LABEL: Record<TravelRequestType, string> = {
   transfer: "Airport transfer",
 };
 
+const TYPE_LABEL_JA: Record<TravelRequestType, string> = {
+  air: "航空券",
+  hotel: "ホテル",
+  visa: "ビザ申請サポート",
+  transfer: "空港送迎",
+};
+
 export type CreateTravelRequestOpts = { locale?: string };
 
 export async function createTravelRequest(
@@ -161,24 +168,32 @@ async function sendTravelTeamNotification(r: ITravelRequest) {
 }
 
 async function sendTravelAck(r: ITravelRequest, locale?: string) {
-  const bn = locale === "bn";
   const brand = siteConfig.brand;
   const label = TYPE_LABEL[r.type];
-  const t = bn
-    ? {
-        subject: `আপনার অনুরোধ পেয়েছি — ${brand}`,
-        eyebrow: "অনুরোধ গৃহীত",
-        heading: "আপনার অনুরোধের জন্য ধন্যবাদ",
-        paragraph: `প্রিয় ${r.contact.name}, আমরা আপনার অনুরোধ পেয়েছি। আমাদের টিম একটি কোটেশন প্রস্তুত করে শীঘ্রই যোগাযোগ করবে। (এটি একটি অনুরোধ — সরাসরি বুকিং নয়।)`,
-        refLabel: "রেফারেন্স",
-      }
-    : {
-        subject: `We received your ${label.toLowerCase()} request — ${brand}`,
-        eyebrow: "Request received",
-        heading: "Thanks for your request",
-        paragraph: `Hi ${r.contact.name}, we've received your ${label.toLowerCase()} request. Our team will prepare a quote and get back to you shortly. (This is a request — not an instant booking.)`,
-        refLabel: "Reference",
-      };
+  const t =
+    locale === "ja"
+      ? {
+          subject: `${TYPE_LABEL_JA[r.type]}のご依頼を承りました — ${brand}`,
+          eyebrow: "ご依頼を受け付けました",
+          heading: "ご依頼ありがとうございます",
+          paragraph: `${r.contact.name}様、${TYPE_LABEL_JA[r.type]}のご依頼を承りました。担当チームがお見積もりを準備し、まもなくご連絡いたします。（こちらはご依頼であり、即時のご予約ではございません。）`,
+          refLabel: "参照番号",
+        }
+      : locale === "bn"
+        ? {
+            subject: `আপনার অনুরোধ পেয়েছি — ${brand}`,
+            eyebrow: "অনুরোধ গৃহীত",
+            heading: "আপনার অনুরোধের জন্য ধন্যবাদ",
+            paragraph: `প্রিয় ${r.contact.name}, আমরা আপনার অনুরোধ পেয়েছি। আমাদের টিম একটি কোটেশন প্রস্তুত করে শীঘ্রই যোগাযোগ করবে। (এটি একটি অনুরোধ — সরাসরি বুকিং নয়।)`,
+            refLabel: "রেফারেন্স",
+          }
+        : {
+            subject: `We received your ${label.toLowerCase()} request — ${brand}`,
+            eyebrow: "Request received",
+            heading: "Thanks for your request",
+            paragraph: `Hi ${r.contact.name}, we've received your ${label.toLowerCase()} request. Our team will prepare a quote and get back to you shortly. (This is a request — not an instant booking.)`,
+            refLabel: "Reference",
+          };
   const built = renderEmail({
     accent: "orange",
     eyebrow: t.eyebrow,

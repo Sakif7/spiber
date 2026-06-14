@@ -9,6 +9,7 @@ import {
 import { useTranslations, useLocale } from "next-intl";
 import { CtaButton } from "@/components/ui/cta-button";
 import { formatBDT } from "@/lib/money";
+import { asLocale } from "@/lib/i18n/intl-locale";
 
 /* ------------------------------------------------------------- primitives */
 const input: CSSProperties = {
@@ -864,10 +865,7 @@ export function CaseLookupForm() {
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span style={lbl}>{t("quotation")}</span>
               <strong>
-                {formatBDT(
-                  result.quotation.amountMinor,
-                  locale === "bn" ? "bn" : "en",
-                )}
+                {formatBDT(result.quotation.amountMinor, asLocale(locale))}
               </strong>
             </div>
           )}

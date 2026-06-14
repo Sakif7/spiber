@@ -16,8 +16,8 @@ export type MarketplaceProductInitial = {
   id?: string;
   sku?: string;
   slug?: string;
-  name?: { en: string; bn?: string };
-  description?: { en: string; bn?: string };
+  name?: { en: string; bn?: string; ja?: string };
+  description?: { en: string; bn?: string; ja?: string };
   categoryId?: string;
   brandId?: string;
   priceMinor?: number | null;
@@ -48,8 +48,10 @@ export function MarketplaceProductForm({
   const [slug, setSlug] = useState(initial?.slug ?? "");
   const [nameEn, setNameEn] = useState(initial?.name?.en ?? "");
   const [nameBn, setNameBn] = useState(initial?.name?.bn ?? "");
+  const [nameJa, setNameJa] = useState(initial?.name?.ja ?? "");
   const [descEn, setDescEn] = useState(initial?.description?.en ?? "");
   const [descBn, setDescBn] = useState(initial?.description?.bn ?? "");
+  const [descJa, setDescJa] = useState(initial?.description?.ja ?? "");
   const [categoryId, setCategoryId] = useState(
     initial?.categoryId ??
       categories.find((c) => !c.parentId)?.id ??
@@ -81,8 +83,10 @@ export function MarketplaceProductForm({
       storefront: "marketplace" as const,
       sku,
       slug,
-      name: { en: nameEn, bn: nameBn || undefined },
-      description: descEn ? { en: descEn, bn: descBn || undefined } : undefined,
+      name: { en: nameEn, bn: nameBn || undefined, ja: nameJa || undefined },
+      description: descEn
+        ? { en: descEn, bn: descBn || undefined, ja: descJa || undefined }
+        : undefined,
       categoryId,
       brandId: brandId || undefined,
       priceMinor: price.trim() ? toMinor(Number(price) || 0) : null,
@@ -118,6 +122,11 @@ export function MarketplaceProductForm({
     gridTemplateColumns: "1fr 1fr",
     gap: "var(--s-4)",
   } as const;
+  const triRow = {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr 1fr",
+    gap: "var(--s-4)",
+  } as const;
   const sel: React.CSSProperties = {
     height: 40,
     padding: "0 10px",
@@ -131,7 +140,7 @@ export function MarketplaceProductForm({
     <div style={{ display: "grid", gap: "var(--s-5)", maxWidth: 820 }}>
       <div style={field}>
         <Label>Name</Label>
-        <div style={row}>
+        <div style={triRow}>
           <Input
             placeholder="EN"
             value={nameEn}
@@ -141,6 +150,11 @@ export function MarketplaceProductForm({
             placeholder="বাংলা"
             value={nameBn}
             onChange={(e) => setNameBn(e.target.value)}
+          />
+          <Input
+            placeholder="日本語"
+            value={nameJa}
+            onChange={(e) => setNameJa(e.target.value)}
           />
         </div>
       </div>
@@ -160,7 +174,7 @@ export function MarketplaceProductForm({
       </div>
       <div style={field}>
         <Label>Description</Label>
-        <div style={row}>
+        <div style={triRow}>
           <textarea
             rows={3}
             placeholder="EN"
@@ -173,6 +187,13 @@ export function MarketplaceProductForm({
             placeholder="বাংলা"
             value={descBn}
             onChange={(e) => setDescBn(e.target.value)}
+            style={{ ...sel, height: "auto", padding: 10 }}
+          />
+          <textarea
+            rows={3}
+            placeholder="日本語"
+            value={descJa}
+            onChange={(e) => setDescJa(e.target.value)}
             style={{ ...sel, height: "auto", padding: 10 }}
           />
         </div>

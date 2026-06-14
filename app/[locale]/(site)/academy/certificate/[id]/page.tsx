@@ -8,6 +8,7 @@ import { findUserById } from "@/lib/repositories/users.repo";
 import { getSessionUser } from "@/lib/auth/current-user";
 import { isAdmin } from "@/lib/auth/rbac";
 import { localize } from "@/lib/schemas/localized";
+import { bcp47 } from "@/lib/i18n/intl-locale";
 import { siteConfig } from "@/lib/site-config";
 import type { Locale } from "@/i18n/routing";
 
@@ -42,10 +43,11 @@ export default async function CertificatePage({
   ]);
   const courseTitle = course ? localize(course.title, l) : "";
   const name = user?.name || enrollment.email.split("@")[0];
-  const issued = new Date(enrollment.completedAt).toLocaleDateString(
-    l === "bn" ? "bn-BD" : "en-US",
-    { year: "numeric", month: "long", day: "numeric" },
-  );
+  const issued = new Date(enrollment.completedAt).toLocaleDateString(bcp47(l), {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
 
   return (
     <section style={{ paddingBlock: "clamp(48px, 6vw, 96px)" }}>

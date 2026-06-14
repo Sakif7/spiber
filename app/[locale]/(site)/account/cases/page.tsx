@@ -7,6 +7,7 @@ import { Section } from "@/components/ui/section";
 import { CtaButton } from "@/components/ui/cta-button";
 import { getSessionUser } from "@/lib/auth/current-user";
 import { listMedicalCasesByUser } from "@/lib/repositories/medicalCases.repo";
+import { bcp47 } from "@/lib/i18n/intl-locale";
 import type { Locale } from "@/i18n/routing";
 
 export const dynamic = "force-dynamic";
@@ -116,14 +117,11 @@ export default async function AccountCasesPage({
                         </Link>
                       </td>
                       <td style={{ ...td, color: "var(--color-text-muted)" }}>
-                        {new Intl.DateTimeFormat(
-                          l === "bn" ? "bn-BD" : "en-US",
-                          {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                          },
-                        ).format(new Date(c.createdAt))}
+                        {new Intl.DateTimeFormat(bcp47(l), {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        }).format(new Date(c.createdAt))}
                       </td>
                       <td
                         style={{

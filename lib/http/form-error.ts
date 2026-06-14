@@ -63,7 +63,7 @@ function labelForPath(path: (string | number)[]): string {
   for (const p of path) {
     if (typeof p === "number") {
       if (segs.length) segs[segs.length - 1] += ` ${p + 1}`;
-    } else if (p === "en" || p === "bn") {
+    } else if (p === "en" || p === "bn" || p === "ja") {
       if (segs.length) segs[segs.length - 1] += p === "en" ? " (EN)" : " (BN)";
       else segs.push(p === "en" ? "English" : "Bangla");
     } else {

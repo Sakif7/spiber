@@ -21,13 +21,21 @@ export default async function EditSoftwareProductPage({
 
   const initial: SoftwareFormInitial = {
     id: String(p._id),
-    name: { en: p.name.en, bn: p.name.bn ?? "" },
+    name: { en: p.name.en, bn: p.name.bn ?? "", ja: p.name.ja ?? "" },
     slug: p.slug,
     description: p.description
-      ? { en: p.description.en ?? "", bn: p.description.bn ?? "" }
-      : { en: "", bn: "" },
+      ? {
+          en: p.description.en ?? "",
+          bn: p.description.bn ?? "",
+          ja: p.description.ja ?? "",
+        }
+      : { en: "", bn: "", ja: "" },
     screenshots: p.screenshots,
-    features: p.features.map((f) => ({ en: f.en, bn: f.bn ?? "" })),
+    features: p.features.map((f) => ({
+      en: f.en,
+      bn: f.bn ?? "",
+      ja: f.ja ?? "",
+    })),
     pricingModel: p.pricingModel,
     priceMinor: p.priceMinor,
     demoUrl: p.demoUrl,

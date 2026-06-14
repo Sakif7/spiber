@@ -15,15 +15,17 @@ import type {
   SoftwareStatus,
 } from "@/lib/schemas/systems";
 
-type L = { en: string; bn: string };
+type L = { en: string; bn: string; ja: string };
+
+type LInit = { en: string; bn?: string; ja?: string };
 
 export type SoftwareFormInitial = {
   id?: string;
-  name?: L;
+  name?: LInit;
   slug?: string;
-  description?: L;
+  description?: LInit;
   screenshots?: string[];
-  features?: L[];
+  features?: LInit[];
   pricingModel?: SoftwarePricingModel;
   priceMinor?: number;
   demoUrl?: string;
@@ -34,12 +36,22 @@ export type SoftwareFormInitial = {
   status?: SoftwareStatus;
 };
 
-const emptyL = (): L => ({ en: "", bn: "" });
+const emptyL = (): L => ({ en: "", bn: "", ja: "" });
+const toL = (l: LInit): L => ({
+  en: l.en ?? "",
+  bn: l.bn ?? "",
+  ja: l.ja ?? "",
+});
 
 const field: CSSProperties = { display: "grid", gap: 6 };
 const row: CSSProperties = {
   display: "grid",
   gridTemplateColumns: "1fr 1fr",
+  gap: "var(--s-4)",
+};
+const triRow: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr 1fr",
   gap: "var(--s-4)",
 };
 const selStyle: CSSProperties = {
@@ -68,15 +80,19 @@ export function SoftwareProductForm({
   const router = useRouter();
   const isEdit = Boolean(initial?.id);
 
-  const [name, setName] = useState<L>(initial?.name ?? emptyL());
+  const [name, setName] = useState<L>(
+    initial?.name ? toL(initial.name) : emptyL(),
+  );
   const [slug, setSlug] = useState(initial?.slug ?? "");
   const [description, setDescription] = useState<L>(
-    initial?.description ?? emptyL(),
+    initial?.description ? toL(initial.description) : emptyL(),
   );
   const [screenshots, setScreenshots] = useState<string[]>(
     initial?.screenshots ?? [],
   );
-  const [features, setFeatures] = useState<L[]>(initial?.features ?? []);
+  const [features, setFeatures] = useState<L[]>(
+    initial?.features ? initial.features.map(toL) : [],
+  );
   const [pricingModel, setPricingModel] = useState<SoftwarePricingModel>(
     initial?.pricingModel ?? "one_time",
   );
@@ -122,8 +138,13 @@ export function SoftwareProductForm({
   }
 
   function buildPayload() {
-    const clean = (l: L) => ({ en: l.en.trim(), bn: l.bn.trim() || undefined });
-    const optL = (l: L) => (l.en.trim() || l.bn.trim() ? clean(l) : undefined);
+    const clean = (l: L) => ({
+      en: l.en.trim(),
+      bn: l.bn.trim() || undefined,
+      ja: l.ja.trim() || undefined,
+    });
+    const optL = (l: L) =>
+      l.en.trim() || l.bn.trim() || l.ja.trim() ? clean(l) : undefined;
     const isQuote = pricingModel === "quote";
     const rateBp = affiliatePct
       ? Math.round(Number(affiliatePct) * 100)
@@ -376,6 +397,17 @@ export function SoftwareProductForm({
                 )
               }
             />
+            <Input
+              placeholder="日本語"
+              value={f.ja}
+              onChange={(e) =>
+                setFeatures((fs) =>
+                  fs.map((x, j) =>
+                    j === i ? { ...x, ja: e.target.value } : x,
+                  ),
+                )
+              }
+            />
             <button
               type="button"
               onClick={() => setFeatures((fs) => fs.filter((_, j) => j !== i))}
@@ -439,7 +471,7 @@ function BilingualField({
   return (
     <div style={field}>
       <Label>{label}</Label>
-      <div style={row}>
+      <div style={triRow}>
         {textarea ? (
           <>
             <textarea
@@ -456,6 +488,13 @@ function BilingualField({
               rows={3}
               style={taStyle}
             />
+            <textarea
+              placeholder="日本語"
+              value={value.ja}
+              onChange={(e) => onChange({ ...value, ja: e.target.value })}
+              rows={3}
+              style={taStyle}
+            />
           </>
         ) : (
           <>
@@ -468,6 +507,11 @@ function BilingualField({
               placeholder="বাংলা"
               value={value.bn}
               onChange={(e) => onChange({ ...value, bn: e.target.value })}
+            />
+            <Input
+              placeholder="日本語"
+              value={value.ja}
+              onChange={(e) => onChange({ ...value, ja: e.target.value })}
             />
           </>
         )}

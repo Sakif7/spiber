@@ -4,6 +4,7 @@ import { QuotationActions } from "@/components/admin/quotation-actions";
 import { getQuotationByIdLean } from "@/lib/repositories/quotations.repo";
 import { getSessionUser } from "@/lib/auth/current-user";
 import { localize } from "@/lib/schemas/localized";
+import { asLocale } from "@/lib/i18n/intl-locale";
 import { formatBDT } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
@@ -99,10 +100,7 @@ export default async function AdminQuotationDetailPage({
                 }}
               >
                 <span>
-                  {localize(
-                    it.productSnapshot.name,
-                    locale === "bn" ? "bn" : "en",
-                  )}
+                  {localize(it.productSnapshot.name, asLocale(locale))}
                   {it.productSnapshot.variantOptions &&
                   it.productSnapshot.variantOptions.length > 0
                     ? ` (${it.productSnapshot.variantOptions.map((o) => o.value).join(" · ")})`

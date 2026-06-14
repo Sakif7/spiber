@@ -12,8 +12,12 @@ import {
 
 export const dynamic = "force-dynamic";
 
-type Loc = { en?: string; bn?: string } | undefined;
-const mapL = (v: Loc) => ({ en: v?.en ?? "", bn: v?.bn ?? "" });
+type Loc = { en?: string; bn?: string; ja?: string } | undefined;
+const mapL = (v: Loc) => ({
+  en: v?.en ?? "",
+  bn: v?.bn ?? "",
+  ja: v?.ja ?? "",
+});
 
 export default async function EditCoursePage({
   params,

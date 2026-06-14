@@ -5,8 +5,8 @@ import { Input } from "@/components/ui/input";
 import { bulkSpecPasteFromText, parseSpecLines } from "@/lib/specs/parse";
 
 export type SpecRow = {
-  key: { en: string; bn?: string };
-  value: { en: string; bn?: string };
+  key: { en: string; bn?: string; ja?: string };
+  value: { en: string; bn?: string; ja?: string };
 };
 
 export function SpecsEditor({
@@ -23,7 +23,12 @@ export function SpecsEditor({
     onChange(value.map((r, j) => (j === i ? { ...r, ...patch } : r)));
 
   const isEmptyRow = (r: SpecRow) =>
-    !r.key.en && !r.key.bn && !r.value.en && !r.value.bn;
+    !r.key.en &&
+    !r.key.bn &&
+    !r.key.ja &&
+    !r.value.en &&
+    !r.value.bn &&
+    !r.value.ja;
 
   /**
    * Smart paste: if a multi-line block where EVERY non-empty line is a clean
@@ -88,6 +93,13 @@ export function SpecsEditor({
                 update(i, { key: { ...row.key, bn: e.target.value } })
               }
             />
+            <Input
+              placeholder="Key (日本語)"
+              value={row.key.ja ?? ""}
+              onChange={(e) =>
+                update(i, { key: { ...row.key, ja: e.target.value } })
+              }
+            />
           </div>
           <div style={{ display: "grid", gap: 4 }}>
             <Input
@@ -103,6 +115,13 @@ export function SpecsEditor({
               value={row.value.bn ?? ""}
               onChange={(e) =>
                 update(i, { value: { ...row.value, bn: e.target.value } })
+              }
+            />
+            <Input
+              placeholder="Value (日本語)"
+              value={row.value.ja ?? ""}
+              onChange={(e) =>
+                update(i, { value: { ...row.value, ja: e.target.value } })
               }
             />
           </div>

@@ -210,31 +210,43 @@ async function sendCaseTeamNotification(c: IMedicalCase) {
 }
 
 async function sendCaseAck(c: IMedicalCase, locale?: string) {
-  const bn = locale === "bn";
   const brand = siteConfig.brand;
-  const t = bn
-    ? {
-        subject: `আপনার মেডিকেল কেস পেয়েছি — ${brand}`,
-        preheader: "আমরা আপনার কেস পেয়েছি এবং শীঘ্রই পর্যালোচনা করব।",
-        eyebrow: "কেস গৃহীত হয়েছে",
-        heading: "আপনার অনুরোধের জন্য ধন্যবাদ",
-        paragraph: `প্রিয় ${fullName(c)}, ${brand} ট্যুরিজমে যোগাযোগ করার জন্য ধন্যবাদ। আমরা আপনার মেডিকেল কেস ও রিপোর্ট পেয়েছি। আমাদের কেস ম্যানেজার এটি পর্যালোচনা করে শীঘ্রই আপনার সাথে যোগাযোগ করবেন।`,
-        refLabel: "রেফারেন্স",
-        privacy:
-          "আপনার মেডিকেল রিপোর্ট গোপনীয়ভাবে সংরক্ষিত — শুধুমাত্র আপনার নির্ধারিত কেস ম্যানেজার ও অনুমোদিত স্টাফ এগুলো দেখতে পারবেন।",
-        outro: `জরুরি প্রয়োজনে কল করুন ${CONTACT.phone}।`,
-      }
-    : {
-        subject: `We received your medical case — ${brand}`,
-        preheader: "We've received your case and will review it shortly.",
-        eyebrow: "Case received",
-        heading: "Thanks for your request",
-        paragraph: `Hi ${fullName(c)}, thanks for contacting ${brand} Tourism. We've received your medical case and reports. Our case manager will review everything and get back to you shortly.`,
-        refLabel: "Reference",
-        privacy:
-          "Your medical reports are stored securely — only your assigned case manager and authorised staff can view them.",
-        outro: `If it's urgent, call us at ${CONTACT.phone}.`,
-      };
+  const t =
+    locale === "ja"
+      ? {
+          subject: `医療ケースを受け付けました — ${brand}`,
+          preheader: "ケースを受け付けました。まもなく確認いたします。",
+          eyebrow: "ケースを受け付けました",
+          heading: "ご依頼ありがとうございます",
+          paragraph: `${fullName(c)} 様、${brand} Tourism にお問い合わせいただきありがとうございます。医療ケースおよび診断書を受け付けました。担当のケースマネージャーが内容を確認のうえ、まもなくご連絡いたします。`,
+          refLabel: "参照番号",
+          privacy:
+            "お客様の診断書は安全に保管されており、担当のケースマネージャーおよび権限のあるスタッフのみが閲覧できます。",
+          outro: `お急ぎの場合は ${CONTACT.phone} までお電話ください。`,
+        }
+      : locale === "bn"
+        ? {
+            subject: `আপনার মেডিকেল কেস পেয়েছি — ${brand}`,
+            preheader: "আমরা আপনার কেস পেয়েছি এবং শীঘ্রই পর্যালোচনা করব।",
+            eyebrow: "কেস গৃহীত হয়েছে",
+            heading: "আপনার অনুরোধের জন্য ধন্যবাদ",
+            paragraph: `প্রিয় ${fullName(c)}, ${brand} ট্যুরিজমে যোগাযোগ করার জন্য ধন্যবাদ। আমরা আপনার মেডিকেল কেস ও রিপোর্ট পেয়েছি। আমাদের কেস ম্যানেজার এটি পর্যালোচনা করে শীঘ্রই আপনার সাথে যোগাযোগ করবেন।`,
+            refLabel: "রেফারেন্স",
+            privacy:
+              "আপনার মেডিকেল রিপোর্ট গোপনীয়ভাবে সংরক্ষিত — শুধুমাত্র আপনার নির্ধারিত কেস ম্যানেজার ও অনুমোদিত স্টাফ এগুলো দেখতে পারবেন।",
+            outro: `জরুরি প্রয়োজনে কল করুন ${CONTACT.phone}।`,
+          }
+        : {
+            subject: `We received your medical case — ${brand}`,
+            preheader: "We've received your case and will review it shortly.",
+            eyebrow: "Case received",
+            heading: "Thanks for your request",
+            paragraph: `Hi ${fullName(c)}, thanks for contacting ${brand} Tourism. We've received your medical case and reports. Our case manager will review everything and get back to you shortly.`,
+            refLabel: "Reference",
+            privacy:
+              "Your medical reports are stored securely — only your assigned case manager and authorised staff can view them.",
+            outro: `If it's urgent, call us at ${CONTACT.phone}.`,
+          };
   const built = renderEmail({
     accent: "orange",
     preheader: t.preheader,

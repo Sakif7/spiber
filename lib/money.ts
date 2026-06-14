@@ -1,4 +1,5 @@
 import type { Locale } from "@/i18n/routing";
+import { bcp47 } from "@/lib/i18n/intl-locale";
 
 /**
  * Money is stored everywhere as integer **poisha** (1 BDT = 100 poisha) to
@@ -14,11 +15,11 @@ export function fromMinor(minor: number): number {
   return minor / 100;
 }
 
-/** Format poisha as Bangladeshi Taka (৳), locale-aware (Bangla numerals for bn). */
+/** Format poisha as Bangladeshi Taka (৳), locale-aware (native numerals per locale). */
 export function formatBDT(minor: number, locale: Locale = "en"): string {
   const major = minor / 100;
   const hasFraction = minor % 100 !== 0;
-  return new Intl.NumberFormat(locale === "bn" ? "bn-BD" : "en-US", {
+  return new Intl.NumberFormat(bcp47(locale), {
     style: "currency",
     currency: "BDT",
     currencyDisplay: "narrowSymbol",

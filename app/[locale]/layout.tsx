@@ -8,18 +8,11 @@ import {
   Instrument_Serif,
   JetBrains_Mono,
   Hind_Siliguri,
+  Noto_Sans_JP,
 } from "next/font/google";
-import Script from "next/script";
 import { routing } from "@/i18n/routing";
 import { Providers } from "@/app/providers";
 import "../globals.css";
-
-// Pre-paint, no-flash theme script for the ADMIN area only. Runs before
-// hydration on a hard load; path-guarded so it never touches the public site
-// (which always stays light). Client-side navigations into /admin are handled
-// by AdminThemeProvider's effect. Injected via next/script (beforeInteractive)
-// so React never reconciles a raw <script> element.
-const ADMIN_THEME_SCRIPT = `(function(){try{if(!/^\\/(en|bn)\\/admin(\\/|$)/.test(location.pathname))return;var p=localStorage.getItem('spiber-admin-theme');var d=p==='dark'||((p===null||p==='system')&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');}catch(e){}})();`;
 
 const inter = Inter({
   variable: "--font-inter",
@@ -52,8 +45,17 @@ const hind = Hind_Siliguri({
   weight: ["400", "500", "600", "700"],
   display: "swap",
 });
+// Japanese (large CJK file) — only applied under [data-locale="ja"], so don't
+// preload it on en/bn pages.
+const notoSansJp = Noto_Sans_JP({
+  variable: "--font-jp",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+  preload: false,
+});
 
-const fontVars = `${inter.variable} ${spaceGrotesk.variable} ${instrumentSerif.variable} ${jetbrains.variable} ${hind.variable}`;
+const fontVars = `${inter.variable} ${spaceGrotesk.variable} ${instrumentSerif.variable} ${jetbrains.variable} ${hind.variable} ${notoSansJp.variable}`;
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
@@ -72,7 +74,7 @@ export async function generateMetadata({
     title: { default: t("title"), template: `%s — ${t("brand")}` },
     description: t("description"),
     alternates: {
-      languages: { en: "/en", bn: "/bn" },
+      languages: { en: "/en", bn: "/bn", ja: "/ja" },
     },
   };
 }
@@ -95,14 +97,10 @@ export default async function LocaleLayout({
     <html
       lang={locale}
       data-locale={locale}
+      data-scroll-behavior="smooth"
       className={fontVars}
       suppressHydrationWarning
     >
-      <head>
-        <Script id="admin-theme-no-flash" strategy="beforeInteractive">
-          {ADMIN_THEME_SCRIPT}
-        </Script>
-      </head>
       <body>
         <NextIntlClientProvider>
           <Providers>{children}</Providers>

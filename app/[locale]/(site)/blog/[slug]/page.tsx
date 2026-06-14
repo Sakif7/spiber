@@ -17,6 +17,7 @@ import {
 import { getBlogTagsByIds } from "@/lib/repositories/blogTaxonomy.repo";
 import { findUserById } from "@/lib/repositories/users.repo";
 import { localize } from "@/lib/schemas/localized";
+import { bcp47 } from "@/lib/i18n/intl-locale";
 import { pageMetadata } from "@/lib/seo/metadata";
 import { siteConfig } from "@/lib/site-config";
 import type { Locale } from "@/i18n/routing";
@@ -86,10 +87,11 @@ export default async function BlogPostPage({
   const authorName =
     post.authorName?.trim() || author?.name || siteConfig.brand;
   const date = post.publishedAt
-    ? new Date(post.publishedAt).toLocaleDateString(
-        l === "bn" ? "bn-BD" : "en-GB",
-        { year: "numeric", month: "long", day: "numeric" },
-      )
+    ? new Date(post.publishedAt).toLocaleDateString(bcp47(l), {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
     : "";
 
   const jsonLd = {

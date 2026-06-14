@@ -20,11 +20,11 @@ import { formatApiError } from "@/lib/http/form-error";
 export type BannerInitial = {
   id?: string;
   slot?: "hero" | "deal" | "strip";
-  title?: { en: string; bn?: string };
-  subtitle?: { en: string; bn?: string };
+  title?: { en: string; bn?: string; ja?: string };
+  subtitle?: { en: string; bn?: string; ja?: string };
   image?: string;
   href?: string;
-  cta?: { en: string; bn?: string };
+  cta?: { en: string; bn?: string; ja?: string };
   position?: number;
   active?: boolean;
 };
@@ -35,14 +35,17 @@ export function BannerForm({ initial }: { initial?: BannerInitial }) {
   const [slot, setSlot] = useState(initial?.slot ?? "hero");
   const [titleEn, setTitleEn] = useState(initial?.title?.en ?? "");
   const [titleBn, setTitleBn] = useState(initial?.title?.bn ?? "");
+  const [titleJa, setTitleJa] = useState(initial?.title?.ja ?? "");
   const [subEn, setSubEn] = useState(initial?.subtitle?.en ?? "");
   const [subBn, setSubBn] = useState(initial?.subtitle?.bn ?? "");
+  const [subJa, setSubJa] = useState(initial?.subtitle?.ja ?? "");
   const [images, setImages] = useState<string[]>(
     initial?.image ? [initial.image] : [],
   );
   const [href, setHref] = useState(initial?.href ?? "");
   const [ctaEn, setCtaEn] = useState(initial?.cta?.en ?? "");
   const [ctaBn, setCtaBn] = useState(initial?.cta?.bn ?? "");
+  const [ctaJa, setCtaJa] = useState(initial?.cta?.ja ?? "");
   const [position, setPosition] = useState(String(initial?.position ?? 0));
   const [active, setActive] = useState(initial?.active ?? true);
   const [error, setError] = useState<string | null>(null);
@@ -53,11 +56,19 @@ export function BannerForm({ initial }: { initial?: BannerInitial }) {
     setError(null);
     const payload = {
       slot,
-      title: { en: titleEn, bn: titleBn || undefined },
-      subtitle: subEn ? { en: subEn, bn: subBn || undefined } : undefined,
+      title: {
+        en: titleEn,
+        bn: titleBn || undefined,
+        ja: titleJa || undefined,
+      },
+      subtitle: subEn
+        ? { en: subEn, bn: subBn || undefined, ja: subJa || undefined }
+        : undefined,
       image: images[0] || undefined,
       href: href || undefined,
-      cta: ctaEn ? { en: ctaEn, bn: ctaBn || undefined } : undefined,
+      cta: ctaEn
+        ? { en: ctaEn, bn: ctaBn || undefined, ja: ctaJa || undefined }
+        : undefined,
       position: Number(position) || 0,
       active,
     };
@@ -99,7 +110,7 @@ export function BannerForm({ initial }: { initial?: BannerInitial }) {
       </div>
       <div className="grid gap-1.5">
         <Label>Title</Label>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <Input
             placeholder="EN"
             value={titleEn}
@@ -110,11 +121,16 @@ export function BannerForm({ initial }: { initial?: BannerInitial }) {
             value={titleBn}
             onChange={(e) => setTitleBn(e.target.value)}
           />
+          <Input
+            placeholder="日本語"
+            value={titleJa}
+            onChange={(e) => setTitleJa(e.target.value)}
+          />
         </div>
       </div>
       <div className="grid gap-1.5">
         <Label>Subtitle</Label>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <Input
             placeholder="EN"
             value={subEn}
@@ -124,6 +140,11 @@ export function BannerForm({ initial }: { initial?: BannerInitial }) {
             placeholder="বাংলা"
             value={subBn}
             onChange={(e) => setSubBn(e.target.value)}
+          />
+          <Input
+            placeholder="日本語"
+            value={subJa}
+            onChange={(e) => setSubJa(e.target.value)}
           />
         </div>
       </div>
@@ -142,7 +163,7 @@ export function BannerForm({ initial }: { initial?: BannerInitial }) {
         </div>
         <div className="grid gap-1.5">
           <Label>CTA label</Label>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <Input
               placeholder="EN"
               value={ctaEn}
@@ -152,6 +173,11 @@ export function BannerForm({ initial }: { initial?: BannerInitial }) {
               placeholder="বাংলা"
               value={ctaBn}
               onChange={(e) => setCtaBn(e.target.value)}
+            />
+            <Input
+              placeholder="日本語"
+              value={ctaJa}
+              onChange={(e) => setCtaJa(e.target.value)}
             />
           </div>
         </div>

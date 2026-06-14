@@ -18,7 +18,7 @@ import { SingleImageField } from "@/components/admin/upload-fields";
 import { formatApiError } from "@/lib/http/form-error";
 import type { GalleryStatus } from "@/lib/schemas/gallery";
 
-type L = { en: string; bn: string };
+type L = { en: string; bn: string; ja?: string };
 type Img = { url: string; caption: L };
 
 export type AlbumFormInitial = {
@@ -32,7 +32,7 @@ export type AlbumFormInitial = {
   status?: GalleryStatus;
 };
 
-const emptyL = (): L => ({ en: "", bn: "" });
+const emptyL = (): L => ({ en: "", bn: "", ja: "" });
 
 export function AlbumForm({ initial }: { initial?: AlbumFormInitial }) {
   const router = useRouter();
@@ -93,8 +93,13 @@ export function AlbumForm({ initial }: { initial?: AlbumFormInitial }) {
   }
 
   function buildPayload() {
-    const clean = (l: L) => ({ en: l.en.trim(), bn: l.bn.trim() || undefined });
-    const optL = (l: L) => (l.en.trim() || l.bn.trim() ? clean(l) : undefined);
+    const clean = (l: L) => ({
+      en: l.en.trim(),
+      bn: l.bn.trim() || undefined,
+      ja: (l.ja ?? "").trim() || undefined,
+    });
+    const optL = (l: L) =>
+      l.en.trim() || l.bn.trim() || (l.ja ?? "").trim() ? clean(l) : undefined;
     return {
       title: clean(title),
       slug: slug.trim() || undefined,
@@ -225,6 +230,13 @@ export function AlbumForm({ initial }: { initial?: AlbumFormInitial }) {
                       setCaption(i, { ...im.caption, bn: e.target.value })
                     }
                   />
+                  <Input
+                    placeholder="キャプション (日本語, optional)"
+                    value={im.caption.ja ?? ""}
+                    onChange={(e) =>
+                      setCaption(i, { ...im.caption, ja: e.target.value })
+                    }
+                  />
                 </div>
                 <div className="grid gap-1">
                   <MiniBtn
@@ -323,7 +335,7 @@ function BilingualField({
   return (
     <div className="grid gap-1.5">
       <Label>{label}</Label>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         {textarea ? (
           <>
             <Textarea
@@ -338,6 +350,12 @@ function BilingualField({
               onChange={(e) => onChange({ ...value, bn: e.target.value })}
               rows={2}
             />
+            <Textarea
+              placeholder="日本語"
+              value={value.ja ?? ""}
+              onChange={(e) => onChange({ ...value, ja: e.target.value })}
+              rows={2}
+            />
           </>
         ) : (
           <>
@@ -350,6 +368,11 @@ function BilingualField({
               placeholder="বাংলা"
               value={value.bn}
               onChange={(e) => onChange({ ...value, bn: e.target.value })}
+            />
+            <Input
+              placeholder="日本語"
+              value={value.ja ?? ""}
+              onChange={(e) => onChange({ ...value, ja: e.target.value })}
             />
           </>
         )}

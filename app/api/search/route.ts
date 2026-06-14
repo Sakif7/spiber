@@ -5,6 +5,7 @@ import { searchAll, type SearchResults } from "@/lib/services/search.service";
 import { localize } from "@/lib/schemas/localized";
 import { formatBDT } from "@/lib/money";
 import { routing, type Locale } from "@/i18n/routing";
+import { bcp47 } from "@/lib/i18n/intl-locale";
 import type {
   SearchGroupDTO,
   SearchHit,
@@ -151,14 +152,11 @@ function buildGroups(
   }
 
   if (r.posts.total > 0) {
-    const dateFmt = new Intl.DateTimeFormat(
-      locale === "bn" ? "bn-BD" : "en-US",
-      {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      },
-    );
+    const dateFmt = new Intl.DateTimeFormat(bcp47(locale), {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
     const hits: SearchHit[] = r.posts.items.map((post) => ({
       id: String(post._id),
       group: "blog",

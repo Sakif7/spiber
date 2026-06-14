@@ -17,38 +17,40 @@ import { SingleImageField } from "@/components/admin/upload-fields";
 import { formatApiError } from "@/lib/http/form-error";
 import type { EventStatus } from "@/lib/schemas/events";
 
-type L = { en: string; bn: string };
+type L = { en: string; bn: string; ja: string };
+
+type LInit = { en: string; bn?: string; ja?: string };
 
 export type EventFormInitial = {
   id?: string;
-  title?: L;
+  title?: LInit;
   slug?: string;
-  summary?: L;
-  description?: L;
+  summary?: LInit;
+  description?: LInit;
   coverImage?: string;
   startDate?: string; // datetime-local value
   endDate?: string;
-  location?: L;
+  location?: LInit;
   registrationUrl?: string;
   status?: EventStatus;
 };
 
-const emptyL = (): L => ({ en: "", bn: "" });
+const emptyL = (): L => ({ en: "", bn: "", ja: "" });
+const toL = (l?: LInit): L =>
+  l ? { en: l.en ?? "", bn: l.bn ?? "", ja: l.ja ?? "" } : emptyL();
 
 export function EventForm({ initial }: { initial?: EventFormInitial }) {
   const router = useRouter();
   const isEdit = Boolean(initial?.id);
 
-  const [title, setTitle] = useState<L>(initial?.title ?? emptyL());
+  const [title, setTitle] = useState<L>(toL(initial?.title));
   const [slug, setSlug] = useState(initial?.slug ?? "");
-  const [summary, setSummary] = useState<L>(initial?.summary ?? emptyL());
-  const [description, setDescription] = useState<L>(
-    initial?.description ?? emptyL(),
-  );
+  const [summary, setSummary] = useState<L>(toL(initial?.summary));
+  const [description, setDescription] = useState<L>(toL(initial?.description));
   const [coverImage, setCoverImage] = useState(initial?.coverImage ?? "");
   const [startDate, setStartDate] = useState(initial?.startDate ?? "");
   const [endDate, setEndDate] = useState(initial?.endDate ?? "");
-  const [location, setLocation] = useState<L>(initial?.location ?? emptyL());
+  const [location, setLocation] = useState<L>(toL(initial?.location));
   const [registrationUrl, setRegistrationUrl] = useState(
     initial?.registrationUrl ?? "",
   );
@@ -57,8 +59,13 @@ export function EventForm({ initial }: { initial?: EventFormInitial }) {
   const [saving, setSaving] = useState(false);
 
   function buildPayload() {
-    const clean = (l: L) => ({ en: l.en.trim(), bn: l.bn.trim() || undefined });
-    const optL = (l: L) => (l.en.trim() || l.bn.trim() ? clean(l) : undefined);
+    const clean = (l: L) => ({
+      en: l.en.trim(),
+      bn: l.bn.trim() || undefined,
+      ja: l.ja.trim() || undefined,
+    });
+    const optL = (l: L) =>
+      l.en.trim() || l.bn.trim() || l.ja.trim() ? clean(l) : undefined;
     return {
       title: clean(title),
       slug: slug.trim() || undefined,
@@ -220,7 +227,7 @@ function BilingualField({
   return (
     <div className="grid gap-1.5">
       <Label>{label}</Label>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         {textarea ? (
           <>
             <Textarea
@@ -235,6 +242,12 @@ function BilingualField({
               onChange={(e) => onChange({ ...value, bn: e.target.value })}
               rows={rows}
             />
+            <Textarea
+              placeholder="日本語"
+              value={value.ja}
+              onChange={(e) => onChange({ ...value, ja: e.target.value })}
+              rows={rows}
+            />
           </>
         ) : (
           <>
@@ -247,6 +260,11 @@ function BilingualField({
               placeholder="বাংলা"
               value={value.bn}
               onChange={(e) => onChange({ ...value, bn: e.target.value })}
+            />
+            <Input
+              placeholder="日本語"
+              value={value.ja}
+              onChange={(e) => onChange({ ...value, ja: e.target.value })}
             />
           </>
         )}

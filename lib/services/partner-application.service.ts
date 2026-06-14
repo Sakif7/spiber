@@ -119,23 +119,31 @@ async function sendPartnerTeamNotification(a: IPartnerApplication) {
 }
 
 async function sendPartnerAck(a: IPartnerApplication, locale?: string) {
-  const bn = locale === "bn";
   const brand = siteConfig.brand;
-  const t = bn
-    ? {
-        subject: `আপনার আবেদন পেয়েছি — ${brand}`,
-        eyebrow: "আবেদন গৃহীত",
-        heading: "আপনার আগ্রহের জন্য ধন্যবাদ",
-        paragraph: `প্রিয় ${a.contact.name}, ${brand}-এর সাথে অংশীদার হওয়ার জন্য আবেদন করার জন্য ধন্যবাদ। আমাদের টিম আপনার আবেদন পর্যালোচনা করে যোগাযোগ করবে।`,
-        refLabel: "রেফারেন্স",
-      }
-    : {
-        subject: `We received your partner application — ${brand}`,
-        eyebrow: "Application received",
-        heading: "Thanks for your interest",
-        paragraph: `Hi ${a.contact.name}, thanks for applying to partner with ${brand}. Our team will review your application and get back to you.`,
-        refLabel: "Reference",
-      };
+  const t =
+    locale === "ja"
+      ? {
+          subject: `パートナー申請を受け付けました — ${brand}`,
+          eyebrow: "申請を受領しました",
+          heading: "ご関心をお寄せいただきありがとうございます",
+          paragraph: `${a.contact.name} 様、${brand} とのパートナーシップにお申し込みいただき、ありがとうございます。担当チームが申請内容を確認のうえ、改めてご連絡いたします。`,
+          refLabel: "参照番号",
+        }
+      : locale === "bn"
+        ? {
+            subject: `আপনার আবেদন পেয়েছি — ${brand}`,
+            eyebrow: "আবেদন গৃহীত",
+            heading: "আপনার আগ্রহের জন্য ধন্যবাদ",
+            paragraph: `প্রিয় ${a.contact.name}, ${brand}-এর সাথে অংশীদার হওয়ার জন্য আবেদন করার জন্য ধন্যবাদ। আমাদের টিম আপনার আবেদন পর্যালোচনা করে যোগাযোগ করবে।`,
+            refLabel: "রেফারেন্স",
+          }
+        : {
+            subject: `We received your partner application — ${brand}`,
+            eyebrow: "Application received",
+            heading: "Thanks for your interest",
+            paragraph: `Hi ${a.contact.name}, thanks for applying to partner with ${brand}. Our team will review your application and get back to you.`,
+            refLabel: "Reference",
+          };
   const built = renderEmail({
     accent: "orange",
     eyebrow: t.eyebrow,
