@@ -397,6 +397,10 @@ export const MobileNavMenu = ({
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -6 }}
           transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+          // On the home page a global window Lenis (smooth-scroll) would hijack
+          // touch and scroll the page instead of this open menu — opt the menu
+          // out so it scrolls natively.
+          data-lenis-prevent=""
           className={cn(
             "absolute inset-x-0 top-16 z-50 flex max-h-[calc(100dvh-6rem)] w-full flex-col items-start justify-start gap-2 overflow-y-auto overscroll-contain rounded-2xl px-4 py-6",
             className,

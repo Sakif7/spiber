@@ -437,29 +437,57 @@ function MegaMenu({
       : null;
   const show = isProducts || isMarketplace || isCompany || !!services;
 
-  // Shared positioning for EVERY drawer: anchor the panel's left edge under its
-  // own trigger and extend right; if it would overflow the right edge, shift it
-  // left just enough to stay fully on-screen (never causing horizontal scroll).
-  // The trigger is found by id so no per-item wiring is needed.
+  // Shared positioning + fit for EVERY drawer. Anchor the panel's left edge
+  // under its own trigger, then shift it LEFT as far as needed (down to a 16px
+  // margin) so freshly-opened cascade columns stay fully on-screen — this is the
+  // dynamic "make room" behaviour. If even at the margin the full width can't
+  // fit (a deep cascade on a narrow laptop), scale the whole panel down a touch
+  // as a last resort so nothing is ever cut off. Re-runs as deeper levels open
+  // (ResizeObserver on the panel) and on viewport resize. Trigger found by id.
   useLayoutEffect(() => {
     const panel = panelRef.current;
     if (!panel || !open) return;
     const trigger = document.getElementById(navTriggerId(open));
     if (!trigger) return;
-    const apply = () => {
-      const margin = 16;
+    const MARGIN = 16;
+    const MIN_SCALE = 0.8; // below this, fall back to inner column scroll
+    const place = () => {
       const vw = document.documentElement.clientWidth;
+      // Measure the panel's NATURAL (uncapped, unscaled) content width.
+      // offsetWidth is the layout width — unaffected by CSS transforms (the
+      // wrapper's enter animation or our own fit-scale) — so it's stable to read
+      // at any time. max-content propagates the column widths up through the
+      // inner overflow-x:auto scroller, so this is the true full width.
+      panel.style.maxWidth = "none";
+      panel.style.transform = "none";
+      const natural = panel.offsetWidth;
+      const avail = vw - MARGIN * 2;
+      const scale = natural > avail ? Math.max(MIN_SCALE, avail / natural) : 1;
+      const visualW = natural * scale;
+      // Full width fits after the (possible) scale → no inner scroll. Only when
+      // even the floor scale overflows do we cap the layout width so the inner
+      // columns absorb just the residual.
+      panel.style.maxWidth =
+        visualW > avail ? `${Math.floor(avail / scale)}px` : `${natural}px`;
+      const w = Math.min(visualW, avail);
       const tLeft = trigger.getBoundingClientRect().left;
-      const w = panel.getBoundingClientRect().width;
-      const left = Math.max(margin, Math.min(tLeft, vw - margin - w));
+      const left = Math.max(MARGIN, Math.min(tLeft, vw - MARGIN - w));
+      panel.style.transformOrigin = "top left";
+      panel.style.transform = scale < 1 ? `scale(${scale})` : "none";
       panel.style.marginLeft = `${left}px`;
-      // Bound growth (open sub-columns) to the space remaining on the right, so
-      // the panel never pushes past the viewport — inner columns scroll instead.
-      panel.style.maxWidth = `${vw - left - margin}px`;
     };
-    apply();
-    window.addEventListener("resize", apply);
-    return () => window.removeEventListener("resize", apply);
+    place();
+    // A cascade level opening/closing (or async catalog data arriving) changes
+    // the panel's content width — re-place so the shift-left/scale adapts. The
+    // callback only writes position/transform/maxWidth(=natural), none of which
+    // change the observed layout width, so it converges without looping.
+    const ro = new ResizeObserver(() => place());
+    ro.observe(panel);
+    window.addEventListener("resize", place);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", place);
+    };
   }, [open]);
 
   // Absorb the wheel while the drawer is open: a hovered column scrolls itself,
@@ -520,6 +548,13 @@ function MegaMenu({
             id="mega-drawer"
             role="menu"
             aria-label={open ?? undefined}
+            // The home page mounts a global window Lenis (smooth-scroll, via the
+            // Pillars ScrollStack) that otherwise hijacks the wheel/touch and
+            // scrolls the PAGE instead of the hovered drawer column. This marker
+            // tells Lenis to ignore gestures inside the panel so the columns
+            // scroll natively (overscroll-behavior:contain + the wheel handler
+            // below keep that scroll from chaining to the page).
+            data-lenis-prevent=""
             style={{
               ...PANEL_DARK_VARS,
               display: "flex",
