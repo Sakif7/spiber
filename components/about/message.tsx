@@ -44,7 +44,7 @@ const ASSETS: {
   objectPosition: string;
 }[] = [
   {
-    image: "/top-message.jpg",
+    image: "/jahidul-message.jpeg",
     signature: "/signature.png",
     objectPosition: "center 18%",
   },
