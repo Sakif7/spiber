@@ -148,6 +148,14 @@ const MEGA_MENUS: Record<string, MegaItem[]> = {
       tone: "teal",
     },
     {
+      key: "team",
+      kicker: "The people",
+      title: "Managing Body",
+      desc: "Meet the leadership team guiding Spiber Med.",
+      href: "/company/team",
+      tone: "teal",
+    },
+    {
       key: "philosophy",
       kicker: "What drives us",
       title: "Corporate Philosophy",

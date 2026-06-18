@@ -572,6 +572,11 @@
     "events": {
       "title": "Events",
       "description": "Conferences, workshops, and announcements from across Spiber Med."
+    },
+    "team": {
+      "title": "Managing Body",
+      "description": "Meet the people leading Spiber Med — the clinicians, operators, and builders behind our medical devices, digital health, training, and tourism divisions.",
+      "breadcrumb": "Managing Body"
     }
   },
   "about": {
@@ -1469,6 +1474,7 @@
       "title": "Meet the people leading SPIBER MED.",
       "lede": "A team of clinicians, operators, and builders — combined decades of work across hospital systems, manufacturing, and medical education.",
       "seeFullLeadership": "See full leadership",
+      "viewFullTeam": "View full team",
       "members": [
         {
           "role": "Chairman",

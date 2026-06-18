@@ -1,0 +1,49 @@
+import { getTranslations, setRequestLocale } from "next-intl/server";
+
+import { Container, PageHeader, Section } from "@/components/ui";
+import { TeamGrid } from "@/components/sections/team-grid";
+import { namespaceMetadata } from "@/lib/seo/metadata";
+import type { Locale } from "@/i18n/routing";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  return namespaceMetadata(locale as Locale, "pages.team", "/company/team");
+}
+
+export default async function ManagingBodyPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  setRequestLocale(locale);
+
+  const t = await getTranslations({ locale, namespace: "pages.team" });
+  const nav = await getTranslations({ locale, namespace: "nav" });
+
+  return (
+    <>
+      <PageHeader
+        title={t("title")}
+        description={t("description")}
+        image="/smiling-medical-team-portrait.jpeg"
+        imageAlt={t("title")}
+        breadcrumbs={[
+          { label: nav("home"), href: "/" },
+          { label: nav("company") },
+          { label: t("breadcrumb") },
+        ]}
+      />
+
+      <Section>
+        <Container>
+          <TeamGrid />
+        </Container>
+      </Section>
+    </>
+  );
+}
