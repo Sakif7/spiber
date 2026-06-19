@@ -576,6 +576,27 @@
       "breadcrumb": "ব্যবস্থাপনা পর্ষদ"
     }
   },
+  "sectionTabs": {
+    "companyAria": "প্রতিষ্ঠানের বিভাগসমূহ",
+    "tourismAria": "মেডিকেল ট্যুরিজম বিভাগসমূহ",
+    "company": {
+      "about": "পরিচিতি",
+      "team": "ব্যবস্থাপনা পর্ষদ",
+      "philosophy": "কর্পোরেট দর্শন",
+      "vision": "ভিশন ২০৪০",
+      "career": "ক্যারিয়ার",
+      "gallery": "গ্যালারি",
+      "events": "ইভেন্টস"
+    },
+    "tourism": {
+      "overview": "ওভারভিউ",
+      "medicalTourism": "মেডিকেল ট্যুরিজম",
+      "destinations": "গন্তব্য",
+      "hospitals": "হাসপাতাল",
+      "doctors": "ডাক্তার",
+      "packages": "প্যাকেজ"
+    }
+  },
   "about": {
     "hero": {
       "breadcrumb": "আমরা কারা",

@@ -3,6 +3,7 @@ import { Container } from "@/components/ui/container";
 import { Section } from "@/components/ui/section";
 import { SectionTitle } from "@/components/ui/section-title";
 import { CaseForm } from "@/components/tourism/forms";
+import { TourismTabs } from "@/components/layout/section-tabs";
 import {
   TourismHero,
   ServiceOverview,
@@ -40,6 +41,7 @@ export default async function TourismHub({
   return (
     <>
       <TourismHero />
+      <TourismTabs />
       <ServiceOverview />
       <FeaturedDestinations />
       <PopularTreatments />

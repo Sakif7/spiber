@@ -2,6 +2,7 @@ import { setRequestLocale, getTranslations } from "next-intl/server";
 import Image from "next/image";
 import { Container } from "@/components/ui/container";
 import { PageHeader } from "@/components/ui/page-header";
+import { CompanyTabs } from "@/components/layout/section-tabs";
 import { ComingSoon } from "@/components/ui/coming-soon";
 import { LiveSearch } from "@/components/ui/live-search";
 import { Link } from "@/i18n/navigation";
@@ -75,6 +76,7 @@ export default async function GalleryIndex({
           { label: t("hero.breadcrumb") },
         ]}
       />
+      <CompanyTabs />
       <section style={{ paddingBlock: "clamp(40px, 5vw, 80px)" }}>
         <Container style={{ display: "grid", gap: "var(--s-6)" }}>
           {showEmpty ? (

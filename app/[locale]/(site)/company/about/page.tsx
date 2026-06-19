@@ -1,6 +1,7 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { PageHeader } from "@/components/ui";
+import { CompanyTabs } from "@/components/layout/section-tabs";
 import { ABOUT_HERO_IMAGES } from "@/lib/hero-images";
 import { namespaceMetadata } from "@/lib/seo/metadata";
 import type { Locale } from "@/i18n/routing";
@@ -44,6 +45,7 @@ export default async function AboutPage({
           { label: t("breadcrumb") },
         ]}
       />
+      <CompanyTabs />
       <AboutPassion />
       <AboutStats />
       <AboutEncounter />

@@ -3,6 +3,7 @@ import { Link } from "@/i18n/navigation";
 import { Container } from "@/components/ui/container";
 import { Section } from "@/components/ui/section";
 import { PageHeader } from "@/components/ui/page-header";
+import { TourismTabs } from "@/components/layout/section-tabs";
 import { ComingSoon } from "@/components/ui/coming-soon";
 import { CardGrid } from "@/components/ui/card-grid";
 import { CatalogCard } from "@/components/ui/catalog-card";
@@ -92,6 +93,7 @@ export default async function DoctorsPage({
           { label: t("sections.doctors.title") },
         ]}
       />
+      <TourismTabs />
       {result.total === 0 && !hasFilter ? (
         <ComingSoon />
       ) : (

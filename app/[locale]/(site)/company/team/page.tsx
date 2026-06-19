@@ -2,6 +2,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { Container, PageHeader, Section } from "@/components/ui";
 import { TeamGrid } from "@/components/sections/team-grid";
+import { CompanyTabs } from "@/components/layout/section-tabs";
 import { namespaceMetadata } from "@/lib/seo/metadata";
 import type { Locale } from "@/i18n/routing";
 
@@ -38,6 +39,7 @@ export default async function ManagingBodyPage({
           { label: t("breadcrumb") },
         ]}
       />
+      <CompanyTabs />
 
       <Section>
         <Container>

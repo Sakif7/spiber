@@ -1,6 +1,7 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { PageHeader } from "@/components/ui";
+import { CompanyTabs } from "@/components/layout/section-tabs";
 import { namespaceMetadata } from "@/lib/seo/metadata";
 import type { Locale } from "@/i18n/routing";
 import {
@@ -48,6 +49,7 @@ export default async function Vision2040Page({
           { label: hero("breadcrumb") },
         ]}
       />
+      <CompanyTabs />
       <VisionIntro />
       <VisionCompass />
       <VisionTransformations />

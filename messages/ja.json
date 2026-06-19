@@ -579,6 +579,27 @@
       "breadcrumb": "経営陣"
     }
   },
+  "sectionTabs": {
+    "companyAria": "会社セクション",
+    "tourismAria": "メディカルツーリズムのセクション",
+    "company": {
+      "about": "会社概要",
+      "team": "経営陣",
+      "philosophy": "企業理念",
+      "vision": "ビジョン2040",
+      "career": "採用情報",
+      "gallery": "ギャラリー",
+      "events": "イベント"
+    },
+    "tourism": {
+      "overview": "概要",
+      "medicalTourism": "メディカルツーリズム",
+      "destinations": "渡航先",
+      "hospitals": "病院",
+      "doctors": "医師",
+      "packages": "パッケージ"
+    }
+  },
   "about": {
     "hero": {
       "breadcrumb": "私たちについて",

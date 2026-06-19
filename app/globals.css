@@ -1382,3 +1382,55 @@ select.contact-field {
     transform: none;
   }
 }
+
+/* ── Section sub-nav tabs (Company / Tourism interior pages) ── */
+/* sibling-page navigation; active tab gets the accent underline */
+.section-tabs {
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-hairline);
+}
+.section-tabs-row {
+  display: flex;
+  /* Centered when they fit; `safe` keeps them scrollable (not clipped) when
+     the row overflows on narrow screens. */
+  justify-content: safe center;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.section-tabs-row::-webkit-scrollbar {
+  display: none;
+}
+.section-tab {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  padding: 15px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  transition:
+    color 160ms ease,
+    border-color 160ms ease;
+}
+.section-tab:hover {
+  color: var(--color-text-strong);
+}
+.section-tab.is-active {
+  color: var(--tab-accent-text);
+  border-bottom-color: var(--tab-accent);
+  font-weight: 600;
+}
+@media (max-width: 640px) {
+  .section-tab {
+    padding: 13px 13px;
+    font-size: 13px;
+  }
+}
