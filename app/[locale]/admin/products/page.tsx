@@ -63,7 +63,6 @@ export default async function AdminProductsPage({
 
   return (
     <ProductsManager
-      key={`${q}|${status ?? ""}|${page}`}
       storefront="instruments"
       title="Products"
       basePath="/admin/products"

@@ -72,7 +72,6 @@ export default async function AdminMarketplaceProductsPage({
 
   return (
     <ProductsManager
-      key={`${q}|${status ?? ""}|${page}`}
       storefront="marketplace"
       title="Marketplace products"
       basePath="/admin/marketplace/products"

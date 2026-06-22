@@ -79,6 +79,19 @@ export function ProductsManager({
   const [search, setSearch] = useState(q);
   const [isSearching, startSearching] = useTransition();
 
+  // Keep this component mounted across search/filter/pagination navigations so
+  // the search input never loses focus. (The page used to force a remount via a
+  // changing `key`, which dropped focus on the first keystroke.) Instead, reset
+  // the transient row selection when the filter/page actually changes — React's
+  // "adjust state during render on prop change" pattern: no effect, no remount.
+  const navKey = `${q}|${status}|${page}`;
+  const [prevNavKey, setPrevNavKey] = useState(navKey);
+  if (navKey !== prevNavKey) {
+    setPrevNavKey(navKey);
+    if (selected.size > 0) setSelected(new Set());
+    if (allMatching) setAllMatching(false);
+  }
+
   const allOnPage = rows.length > 0 && selected.size === rows.length;
   const selectedCount = allMatching ? total : selected.size;
 
