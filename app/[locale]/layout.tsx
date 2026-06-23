@@ -11,6 +11,7 @@ import {
   Noto_Sans_JP,
 } from "next/font/google";
 import { routing } from "@/i18n/routing";
+import { siteConfig } from "@/lib/site-config";
 import { Providers } from "@/app/providers";
 import "../globals.css";
 
@@ -70,7 +71,7 @@ export async function generateMetadata({
   const t = await getTranslations({ locale, namespace: "meta" });
 
   return {
-    metadataBase: new URL(process.env.APP_URL ?? "https://spibermed.com"),
+    metadataBase: new URL(siteConfig.url),
     title: { default: t("title"), template: `%s — ${t("brand")}` },
     description: t("description"),
     alternates: {

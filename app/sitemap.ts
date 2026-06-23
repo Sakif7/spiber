@@ -15,9 +15,11 @@ import { listActiveDoctorsForFeed } from "@/lib/repositories/doctors.repo";
 import { listActivePackagesForFeed } from "@/lib/repositories/packages.repo";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const base = siteConfig.url.replace(/\/$/, "");
+  // `siteConfig.url` is already a normalized absolute origin; build each entry
+  // with the URL constructor so the join can never collapse the scheme slashes.
+  const base = siteConfig.url;
   const urlFor = (route: string, locale: string) =>
-    `${base}/${locale}${route === "/" ? "" : route}`;
+    new URL(`/${locale}${route === "/" ? "" : route}`, base).toString();
   const languagesFor = (route: string) =>
     Object.fromEntries(routing.locales.map((l) => [l, urlFor(route, l)]));
 
