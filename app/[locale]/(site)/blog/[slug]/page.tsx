@@ -19,6 +19,7 @@ import { findUserById } from "@/lib/repositories/users.repo";
 import { localize } from "@/lib/schemas/localized";
 import { bcp47 } from "@/lib/i18n/intl-locale";
 import { pageMetadata } from "@/lib/seo/metadata";
+import { breadcrumbJsonLd } from "@/lib/seo/jsonld";
 import { siteConfig } from "@/lib/site-config";
 import type { Locale } from "@/i18n/routing";
 
@@ -113,6 +114,13 @@ export default async function BlogPostPage({
   return (
     <article style={{ paddingBlock: "clamp(32px, 4vw, 64px)" }}>
       <JsonLd data={jsonLd} />
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: nav("home"), url: `${siteConfig.url}/${l}` },
+          { name: nav("blog"), url: `${siteConfig.url}/${l}/blog` },
+          { name: title, url: `${siteConfig.url}/${l}/blog/${slug}` },
+        ])}
+      />
       <Container style={{ maxWidth: 760, display: "grid", gap: "var(--s-6)" }}>
         <Breadcrumb
           items={[

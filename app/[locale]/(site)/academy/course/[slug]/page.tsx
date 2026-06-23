@@ -17,6 +17,7 @@ import { getSessionUser } from "@/lib/auth/current-user";
 import { localize } from "@/lib/schemas/localized";
 import { formatBDT, fromMinor } from "@/lib/money";
 import { pageMetadata } from "@/lib/seo/metadata";
+import { breadcrumbJsonLd } from "@/lib/seo/jsonld";
 import { siteConfig } from "@/lib/site-config";
 import type { Locale } from "@/i18n/routing";
 
@@ -37,6 +38,7 @@ export async function generateMetadata({
     description: course.summary
       ? localize(course.summary, locale as Locale)
       : undefined,
+    image: course.thumbnail,
   });
 }
 
@@ -49,6 +51,7 @@ export default async function CourseDetail({
   setRequestLocale(locale);
   const l = locale as Locale;
   const t = await getTranslations({ locale, namespace: "academy" });
+  const nav = await getTranslations({ locale, namespace: "nav" });
 
   const course = await getCourseBySlug(slug);
   if (!course || course.status !== "published") notFound();
@@ -84,6 +87,13 @@ export default async function CourseDetail({
   return (
     <>
       <JsonLd data={jsonLd} />
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: nav("home"), url: `${siteConfig.url}/${l}` },
+          { name: nav("academy"), url: `${siteConfig.url}/${l}/academy` },
+          { name: title, url: `${siteConfig.url}/${l}/academy/course/${slug}` },
+        ])}
+      />
       <section
         style={{
           background:

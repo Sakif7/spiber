@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { setRequestLocale } from "next-intl/server";
 import { getSessionUser } from "@/lib/auth/current-user";
@@ -8,6 +9,12 @@ import { SessionKeepAlive } from "@/components/admin/session-keep-alive";
 
 // Admin depends on the auth cookie; never statically prerender it.
 export const dynamic = "force-dynamic";
+
+// Belt-and-suspenders: the proxy + robots.txt already block /admin; this keeps
+// any admin URL out of search indexes even if one leaks.
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 // Pre-paint, no-flash dark mode for the admin area. Rendered ONLY here (in the
 // admin server layout, dynamic) — not in the public locale layout — so a public

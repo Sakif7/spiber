@@ -5,43 +5,88 @@ import { siteConfig } from "@/lib/site-config";
 
 const path = (locale: string, p: string) => `/${locale}${p === "/" ? "" : p}`;
 
-/** hreflang alternates for a path across all locales (+ canonical for one). */
+/** Branded default social card (static, crawlable). See app/api/og + scripts/gen-og.mjs. */
+export const DEFAULT_OG_IMAGE = `${siteConfig.url}/og.png`;
+
+/** Make a possibly-relative image path absolute against the site origin. */
+function absImage(u: string): string {
+  if (/^https?:\/\//.test(u)) return u;
+  return `${siteConfig.url}${u.startsWith("/") ? "" : "/"}${u}`;
+}
+
+/**
+ * hreflang alternates for a path across all locales, plus a self canonical and
+ * an `x-default` (the default locale). Canonical/alternates are query-free so
+ * faceted + paginated variants all consolidate onto the clean page URL.
+ */
 export function alternatesFor(
   locale: Locale,
   p: string,
 ): Metadata["alternates"] {
-  return {
-    canonical: path(locale, p),
-    languages: Object.fromEntries(routing.locales.map((l) => [l, path(l, p)])),
-  };
+  const languages: Record<string, string> = Object.fromEntries(
+    routing.locales.map((l) => [l, path(l, p)]),
+  );
+  languages["x-default"] = path(routing.defaultLocale, p);
+  return { canonical: path(locale, p), languages };
 }
 
-/** Build per-page metadata with canonical, hreflang, and Open Graph. */
+type PageMetaInput = {
+  locale: Locale;
+  path: string;
+  title: string;
+  description?: string;
+  noindex?: boolean;
+  /** Per-entity social image; falls back to the site's default OG card. */
+  image?: string;
+  /** Multiple social images (first is primary). */
+  images?: string[];
+  /** Open Graph type — defaults to "website". */
+  type?: "website" | "article" | "profile";
+};
+
+/**
+ * Build per-page metadata: canonical + hreflang (+ x-default), Open Graph, and
+ * a Twitter summary-large-image card. When no entity image is supplied the site
+ * falls back to the generated default OG card (`app/opengraph-image`), so every
+ * page still has a valid social preview.
+ */
 export function pageMetadata({
   locale,
   path: p,
   title,
   description,
   noindex,
-}: {
-  locale: Locale;
-  path: string;
-  title: string;
-  description?: string;
-  noindex?: boolean;
-}): Metadata {
+  image,
+  images,
+  type,
+}: PageMetaInput): Metadata {
+  // Per-entity image(s) when given, else the branded default card — so every
+  // page always has a valid og:image / twitter:image.
+  const ogImages = (
+    images?.length ? images : image ? [image] : [DEFAULT_OG_IMAGE]
+  ).map(absImage);
+
+  const openGraph: NonNullable<Metadata["openGraph"]> = {
+    title,
+    description,
+    url: `${siteConfig.url}${path(locale, p)}`,
+    siteName: siteConfig.brand,
+    locale,
+    type: type ?? "website",
+    images: ogImages,
+  };
+
   return {
     title,
     description,
     alternates: alternatesFor(locale, p),
-    ...(noindex ? { robots: { index: false, follow: false } } : {}),
-    openGraph: {
+    ...(noindex ? { robots: { index: false, follow: true } } : {}),
+    openGraph,
+    twitter: {
+      card: "summary_large_image",
       title,
       description,
-      url: `${siteConfig.url}${path(locale, p)}`,
-      siteName: siteConfig.brand,
-      locale,
-      type: "website",
+      images: ogImages,
     },
   };
 }

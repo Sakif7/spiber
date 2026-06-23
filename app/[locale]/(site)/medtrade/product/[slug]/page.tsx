@@ -25,6 +25,8 @@ import { listWishlistProductIds } from "@/lib/repositories/wishlist.repo";
 import { getSessionUser } from "@/lib/auth/current-user";
 import { localize } from "@/lib/schemas/localized";
 import { pageMetadata } from "@/lib/seo/metadata";
+import { breadcrumbJsonLd } from "@/lib/seo/jsonld";
+import { siteConfig } from "@/lib/site-config";
 import type { Locale } from "@/i18n/routing";
 
 export const dynamic = "force-dynamic";
@@ -44,6 +46,7 @@ export async function generateMetadata({
     description: product.description
       ? localize(product.description, locale as Locale)
       : undefined,
+    image: product.images?.[0],
   });
 }
 
@@ -114,6 +117,21 @@ export default async function ProductDetail({
   return (
     <section style={{ paddingBlock: "clamp(28px, 4vw, 56px)" }}>
       <JsonLd data={jsonLd} />
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: nav("home"), url: `${siteConfig.url}/${l}` },
+          { name: nav("instruments"), url: `${siteConfig.url}/${l}/medtrade` },
+          ...(category
+            ? [
+                {
+                  name: localize(category.name, l),
+                  url: `${siteConfig.url}/${l}/medtrade/${category.slug}`,
+                },
+              ]
+            : []),
+          { name, url: `${siteConfig.url}/${l}/medtrade/product/${slug}` },
+        ])}
+      />
       <Container
         style={{ display: "flex", flexDirection: "column", gap: "var(--s-10)" }}
       >

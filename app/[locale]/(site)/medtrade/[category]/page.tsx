@@ -30,23 +30,36 @@ export const dynamic = "force-dynamic";
 
 type SP = Promise<{ [k: string]: string | string[] | undefined }>;
 
+function str(v: string | string[] | undefined): string | undefined {
+  return typeof v === "string" ? v : undefined;
+}
+
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string; category: string }>;
+  searchParams: SP;
 }) {
   const { locale, category } = await params;
   const cat = await getCategoryBySlug(category).catch(() => null);
   const title = cat ? localize(cat.name, locale as Locale) : category;
+  const sp = await searchParams;
+  const pageN = parseInt(str(sp.page) ?? "1", 10) || 1;
+  const filtered =
+    pageN > 1 ||
+    !!str(sp.q) ||
+    !!str(sp.brand) ||
+    !!str(sp.min) ||
+    !!str(sp.max) ||
+    sp.inStock === "1" ||
+    !!str(sp.sort);
   return pageMetadata({
     locale: locale as Locale,
     path: `/medtrade/${category}`,
     title,
+    noindex: filtered,
   });
-}
-
-function str(v: string | string[] | undefined): string | undefined {
-  return typeof v === "string" ? v : undefined;
 }
 
 export default async function CategoryListing({

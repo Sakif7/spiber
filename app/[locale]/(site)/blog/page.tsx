@@ -15,7 +15,7 @@ import {
   getBlogCategoryBySlug,
 } from "@/lib/repositories/blogTaxonomy.repo";
 import { localize } from "@/lib/schemas/localized";
-import { namespaceMetadata } from "@/lib/seo/metadata";
+import { pageMetadata } from "@/lib/seo/metadata";
 import { logger } from "@/lib/log";
 import type { Locale } from "@/i18n/routing";
 
@@ -26,11 +26,23 @@ const str = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: SP;
 }) {
   const { locale } = await params;
-  return namespaceMetadata(locale as Locale, "hubs.blog", "/blog");
+  const sp = await searchParams;
+  const pageN = parseInt(str(sp.page) ?? "1", 10) || 1;
+  const filtered = pageN > 1 || !!str(sp.q) || !!str(sp.category);
+  const t = await getTranslations({ locale, namespace: "hubs.blog" });
+  return pageMetadata({
+    locale: locale as Locale,
+    path: "/blog",
+    title: t("title"),
+    description: t("description"),
+    noindex: filtered,
+  });
 }
 
 export default async function BlogIndex({

@@ -17,16 +17,20 @@ type SP = Promise<{ page?: string }>;
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string; slug: string }>;
+  searchParams: SP;
 }) {
   const { locale, slug } = await params;
   const cat = await getBlogCategoryBySlug(slug).catch(() => null);
   if (!cat) return {};
+  const pageN = parseInt((await searchParams).page ?? "1", 10) || 1;
   return pageMetadata({
     locale: locale as Locale,
     path: `/blog/category/${slug}`,
     title: localize(cat.name, locale as Locale),
+    noindex: pageN > 1,
   });
 }
 

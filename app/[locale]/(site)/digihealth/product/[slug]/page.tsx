@@ -21,6 +21,8 @@ import { getSessionUser } from "@/lib/auth/current-user";
 import { localize } from "@/lib/schemas/localized";
 import { formatBDT, fromMinor } from "@/lib/money";
 import { pageMetadata } from "@/lib/seo/metadata";
+import { breadcrumbJsonLd } from "@/lib/seo/jsonld";
+import { siteConfig } from "@/lib/site-config";
 import type { Locale } from "@/i18n/routing";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +42,7 @@ export async function generateMetadata({
     description: product.description
       ? localize(product.description, locale as Locale)
       : undefined,
+    image: product.screenshots?.[0],
   });
 }
 
@@ -97,6 +100,7 @@ export default async function SoftwareDetail({
             "@type": "Offer",
             priceCurrency: "BDT",
             price: fromMinor(product.priceMinor).toFixed(2),
+            availability: "https://schema.org/InStock",
           },
         }
       : {}),
@@ -105,6 +109,13 @@ export default async function SoftwareDetail({
   return (
     <section style={{ paddingBlock: "clamp(40px, 5vw, 80px)" }}>
       <JsonLd data={jsonLd} />
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: nav("home"), url: `${siteConfig.url}/${l}` },
+          { name: nav("systems"), url: `${siteConfig.url}/${l}/digihealth` },
+          { name, url: `${siteConfig.url}/${l}/digihealth/product/${slug}` },
+        ])}
+      />
       <Container
         style={{ display: "flex", flexDirection: "column", gap: "var(--s-8)" }}
       >

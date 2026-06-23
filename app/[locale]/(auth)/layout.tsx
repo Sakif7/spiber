@@ -1,6 +1,12 @@
+import type { Metadata } from "next";
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { siteConfig } from "@/lib/site-config";
+
+// Auth screens (password reset, login redirect target) must never be indexed.
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 /**
  * Split-screen auth shell: a teal brand panel (left) + the form (right).

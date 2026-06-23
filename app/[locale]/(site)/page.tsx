@@ -1,7 +1,8 @@
-import { setRequestLocale } from "next-intl/server";
+import type { Metadata } from "next";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 
-import { JsonLd } from "@/components/ui/json-ld";
-import { organizationJsonLd } from "@/lib/seo/jsonld";
+import { pageMetadata } from "@/lib/seo/metadata";
+import type { Locale } from "@/i18n/routing";
 
 import { Hero } from "@/components/sections/hero";
 import { Pillars } from "@/components/sections/pillars";
@@ -16,6 +17,23 @@ import { CTABand } from "@/components/sections/cta-band";
 import { getTestimonials } from "@/lib/services/landing.service";
 
 export const revalidate = 60;
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "meta" });
+  const meta = pageMetadata({
+    locale: locale as Locale,
+    path: "/",
+    title: t("title"),
+    description: t("description"),
+  });
+  // Home keeps its full brand title verbatim (no "%s — Spiber Med" template).
+  return { ...meta, title: { absolute: t("title") } };
+}
 
 export default async function Home({
   params,
@@ -38,7 +56,6 @@ export default async function Home({
 
   return (
     <>
-      <JsonLd data={organizationJsonLd()} />
       <Hero />
       <Pillars />
       <SkillDevelopment />

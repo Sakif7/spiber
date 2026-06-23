@@ -1,6 +1,8 @@
 import { setRequestLocale } from "next-intl/server";
 
 import { Section, Container } from "@/components/ui";
+import { JsonLd } from "@/components/ui/json-ld";
+import { localBusinessJsonLd } from "@/lib/seo/jsonld";
 import { namespaceMetadata } from "@/lib/seo/metadata";
 import type { Locale } from "@/i18n/routing";
 
@@ -28,6 +30,7 @@ export default async function ContactPage({
 
   return (
     <>
+      <JsonLd data={localBusinessJsonLd(locale as Locale)} />
       <ContactHero />
 
       <Section style={{ background: "var(--color-bg)" }}>

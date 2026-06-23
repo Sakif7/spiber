@@ -4,6 +4,7 @@ import { Link } from "@/i18n/navigation";
 import { Container } from "@/components/ui/container";
 import { Section } from "@/components/ui/section";
 import { PageHeader } from "@/components/ui/page-header";
+import { JsonLd } from "@/components/ui/json-ld";
 import { CtaButton } from "@/components/ui/cta-button";
 import { getActivePackageBySlug } from "@/lib/repositories/packages.repo";
 import { getHospitalsByIds } from "@/lib/repositories/hospitals.repo";
@@ -11,6 +12,8 @@ import { localize } from "@/lib/schemas/localized";
 import { costRangeLabel } from "@/lib/tourism/format";
 import { tourismHero } from "@/lib/hero-images";
 import { pageMetadata } from "@/lib/seo/metadata";
+import { breadcrumbJsonLd } from "@/lib/seo/jsonld";
+import { siteConfig } from "@/lib/site-config";
 import { Check } from "lucide-react";
 import type { Locale } from "@/i18n/routing";
 
@@ -53,6 +56,20 @@ export default async function PackageDetailPage({
 
   return (
     <>
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: nav("home"), url: `${siteConfig.url}/${l}` },
+          { name: nav("tourism"), url: `${siteConfig.url}/${l}/tourism` },
+          {
+            name: t("sections.packages.title"),
+            url: `${siteConfig.url}/${l}/tourism/packages`,
+          },
+          {
+            name: localize(p.name, l),
+            url: `${siteConfig.url}/${l}/tourism/package/${slug}`,
+          },
+        ])}
+      />
       <PageHeader
         eyebrow={p.category.replace(/-/g, " ")}
         title={localize(p.name, l)}

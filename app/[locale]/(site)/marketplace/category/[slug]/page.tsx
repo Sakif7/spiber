@@ -31,16 +31,30 @@ const str = (v: string | string[] | undefined) =>
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string; slug: string }>;
+  searchParams: SP;
 }) {
   const { locale, slug } = await params;
   const cat = await getCategoryBySlug(slug, "marketplace").catch(() => null);
   const title = cat ? localize(cat.name, locale as Locale) : slug;
+  const sp = await searchParams;
+  const pageN = parseInt(str(sp.page) ?? "1", 10) || 1;
+  const filtered =
+    pageN > 1 ||
+    !!str(sp.q) ||
+    !!str(sp.brand) ||
+    !!str(sp.min) ||
+    !!str(sp.max) ||
+    !!str(sp.rating) ||
+    sp.inStock === "1" ||
+    !!str(sp.sort);
   return pageMetadata({
     locale: locale as Locale,
     path: `/marketplace/category/${slug}`,
     title,
+    noindex: filtered,
   });
 }
 

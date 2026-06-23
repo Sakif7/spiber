@@ -29,6 +29,7 @@ import {
 import { listApprovedByProduct } from "@/lib/repositories/reviews.repo";
 import { localize } from "@/lib/schemas/localized";
 import { pageMetadata } from "@/lib/seo/metadata";
+import { breadcrumbJsonLd } from "@/lib/seo/jsonld";
 import { fromMinor } from "@/lib/money";
 import { siteConfig } from "@/lib/site-config";
 import type { Locale } from "@/i18n/routing";
@@ -50,6 +51,7 @@ export async function generateMetadata({
     description: product.description
       ? localize(product.description, locale as Locale)
       : undefined,
+    image: product.images?.[0],
   });
 }
 
@@ -141,6 +143,11 @@ export default async function MarketplaceProductDetail({
             priceCurrency: "BDT",
             price: fromMinor(product.priceMinor).toFixed(2),
             url: `${siteConfig.url}/${l}/marketplace/product/${slug}`,
+            availability:
+              product.stockQty > 0 ||
+              product.variants.some((v) => v.stockQty > 0)
+                ? "https://schema.org/InStock"
+                : "https://schema.org/OutOfStock",
           },
         }
       : {}),
@@ -164,6 +171,27 @@ export default async function MarketplaceProductDetail({
   return (
     <section style={{ paddingBlock: "clamp(28px, 4vw, 56px)" }}>
       <JsonLd data={jsonLd} />
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: nav("home"), url: `${siteConfig.url}/${l}` },
+          {
+            name: tmh("title"),
+            url: `${siteConfig.url}/${l}/marketplace`,
+          },
+          ...(category
+            ? [
+                {
+                  name: localize(category.name, l),
+                  url: `${siteConfig.url}/${l}/marketplace/category/${category.slug}`,
+                },
+              ]
+            : []),
+          {
+            name,
+            url: `${siteConfig.url}/${l}/marketplace/product/${slug}`,
+          },
+        ])}
+      />
       <Container
         style={{ display: "flex", flexDirection: "column", gap: "var(--s-10)" }}
       >
