@@ -26,6 +26,7 @@ import { getSessionUser } from "@/lib/auth/current-user";
 import { localize } from "@/lib/schemas/localized";
 import { pageMetadata } from "@/lib/seo/metadata";
 import { breadcrumbJsonLd } from "@/lib/seo/jsonld";
+import { fromMinor } from "@/lib/money";
 import { siteConfig } from "@/lib/site-config";
 import type { Locale } from "@/i18n/routing";
 
@@ -94,19 +95,41 @@ export default async function ProductDetail({
   );
   const relCategoryName = category ? localize(category.name, l) : undefined;
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    name,
-    sku: product.sku,
-    image: product.images,
-    description: product.description
-      ? localize(product.description, l)
-      : undefined,
-    brand: brand
-      ? { "@type": "Brand", name: localize(brand.name, l) }
-      : undefined,
-  };
+  // Medtrade is a quote/RFQ catalogue: most items are "price on request" and
+  // carry no reviews. Google's Product snippet requires offers | review |
+  // aggregateRating, so we only emit Product structured data for items that
+  // actually have a price (a valid Offer) — otherwise it would be flagged
+  // invalid. Priceless items keep the BreadcrumbList only.
+  const productOffer =
+    product.priceMinor != null
+      ? {
+          "@type": "Offer",
+          priceCurrency: "BDT",
+          price: fromMinor(product.priceMinor).toFixed(2),
+          availability:
+            product.stockQty > 0
+              ? "https://schema.org/InStock"
+              : "https://schema.org/OutOfStock",
+          url: `${siteConfig.url}/${l}/medtrade/product/${slug}`,
+        }
+      : undefined;
+
+  const jsonLd = productOffer
+    ? {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        name,
+        sku: product.sku,
+        image: product.images,
+        description: product.description
+          ? localize(product.description, l)
+          : undefined,
+        brand: brand
+          ? { "@type": "Brand", name: localize(brand.name, l) }
+          : undefined,
+        offers: productOffer,
+      }
+    : null;
 
   const mono: React.CSSProperties = {
     fontFamily: "var(--font-mono)",
@@ -116,7 +139,7 @@ export default async function ProductDetail({
 
   return (
     <section style={{ paddingBlock: "clamp(28px, 4vw, 56px)" }}>
-      <JsonLd data={jsonLd} />
+      {jsonLd && <JsonLd data={jsonLd} />}
       <JsonLd
         data={breadcrumbJsonLd([
           { name: nav("home"), url: `${siteConfig.url}/${l}` },

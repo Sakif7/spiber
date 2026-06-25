@@ -686,7 +686,7 @@ export function Hero() {
             display: "grid",
             gridTemplateColumns: "minmax(0, 1.1fr) minmax(0, 1fr)",
             gap: 56,
-            alignItems: "center",
+            alignItems: "start",
             paddingTop: 40,
             paddingBottom: 40,
           }}
@@ -829,6 +829,20 @@ export function Hero() {
 
           <Reveal>
             <HeroScene onHover={setHoveredSolution} />
+            {/* Static, crawlable brand/entity line under the bento — names
+                "Spiber Med" + what + where in the homepage's first text
+                (the rotating headline above is evocative, not entity-defining).
+                Helps branded + entity SEO while balancing the column. */}
+            <p
+              style={{
+                margin: "20px 2px 0",
+                fontSize: 14.5,
+                lineHeight: 1.6,
+                color: "var(--color-text-muted)",
+              }}
+            >
+              {t("brandLead")}
+            </p>
           </Reveal>
         </div>
 

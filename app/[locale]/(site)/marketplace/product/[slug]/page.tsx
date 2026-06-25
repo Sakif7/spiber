@@ -124,43 +124,70 @@ export default async function MarketplaceProductDetail({
     createdAt: new Date(r.createdAt).toISOString(),
   }));
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    name,
-    sku: product.sku,
-    image: product.images,
-    description: product.description
-      ? localize(product.description, l)
-      : undefined,
-    brand: brand
-      ? { "@type": "Brand", name: localize(brand.name, l) }
-      : undefined,
-    ...(product.priceMinor != null
-      ? {
-          offers: {
+  // Build a valid Offer (or AggregateOffer for variant price ranges). Google's
+  // Product snippet requires offers | review | aggregateRating, so we only emit
+  // Product structured data when it has a resolvable price OR a rating —
+  // otherwise it would be flagged invalid (priceless items keep the breadcrumb).
+  const priceUrl = `${siteConfig.url}/${l}/marketplace/product/${slug}`;
+  const inStock =
+    product.stockQty > 0 || product.variants.some((v) => v.stockQty > 0);
+  const availability = inStock
+    ? "https://schema.org/InStock"
+    : "https://schema.org/OutOfStock";
+  const prices = [
+    ...(product.priceMinor != null ? [product.priceMinor] : []),
+    ...product.variants
+      .map((v) => v.priceMinorOverride ?? product.priceMinor)
+      .filter((p): p is number => p != null),
+  ];
+  const lo = prices.length ? Math.min(...prices) : null;
+  const hi = prices.length ? Math.max(...prices) : null;
+  const offers =
+    lo != null && hi != null
+      ? lo === hi
+        ? {
             "@type": "Offer",
             priceCurrency: "BDT",
-            price: fromMinor(product.priceMinor).toFixed(2),
-            url: `${siteConfig.url}/${l}/marketplace/product/${slug}`,
-            availability:
-              product.stockQty > 0 ||
-              product.variants.some((v) => v.stockQty > 0)
-                ? "https://schema.org/InStock"
-                : "https://schema.org/OutOfStock",
-          },
-        }
-      : {}),
-    ...(product.ratingCount > 0
+            price: fromMinor(lo).toFixed(2),
+            availability,
+            url: priceUrl,
+          }
+        : {
+            "@type": "AggregateOffer",
+            priceCurrency: "BDT",
+            lowPrice: fromMinor(lo).toFixed(2),
+            highPrice: fromMinor(hi).toFixed(2),
+            availability,
+            url: priceUrl,
+          }
+      : undefined;
+
+  const jsonLd =
+    offers || product.ratingCount > 0
       ? {
-          aggregateRating: {
-            "@type": "AggregateRating",
-            ratingValue: product.ratingAvg,
-            reviewCount: product.ratingCount,
-          },
+          "@context": "https://schema.org",
+          "@type": "Product",
+          name,
+          sku: product.sku,
+          image: product.images,
+          description: product.description
+            ? localize(product.description, l)
+            : undefined,
+          brand: brand
+            ? { "@type": "Brand", name: localize(brand.name, l) }
+            : undefined,
+          ...(offers ? { offers } : {}),
+          ...(product.ratingCount > 0
+            ? {
+                aggregateRating: {
+                  "@type": "AggregateRating",
+                  ratingValue: product.ratingAvg,
+                  reviewCount: product.ratingCount,
+                },
+              }
+            : {}),
         }
-      : {}),
-  };
+      : null;
 
   const mono: React.CSSProperties = {
     fontFamily: "var(--font-mono)",
@@ -170,7 +197,7 @@ export default async function MarketplaceProductDetail({
 
   return (
     <section style={{ paddingBlock: "clamp(28px, 4vw, 56px)" }}>
-      <JsonLd data={jsonLd} />
+      {jsonLd && <JsonLd data={jsonLd} />}
       <JsonLd
         data={breadcrumbJsonLd([
           { name: nav("home"), url: `${siteConfig.url}/${l}` },
