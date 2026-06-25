@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { routing } from "@/i18n/routing";
 import { siteConfig, publicRoutes } from "@/lib/site-config";
+import { localePath } from "@/lib/i18n/intl-locale";
 import { listProducts } from "@/lib/repositories/products.repo";
 import { listCategories } from "@/lib/repositories/taxonomy.repo";
 import { listCourses } from "@/lib/repositories/courses.repo";
@@ -17,9 +18,10 @@ import { listActivePackagesForFeed } from "@/lib/repositories/packages.repo";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // `siteConfig.url` is already a normalized absolute origin; build each entry
   // with the URL constructor so the join can never collapse the scheme slashes.
+  // `localePath` honours `as-needed` prefixing (bare English, prefixed bn/ja).
   const base = siteConfig.url;
   const urlFor = (route: string, locale: string) =>
-    new URL(`/${locale}${route === "/" ? "" : route}`, base).toString();
+    new URL(localePath(locale, route), base).toString();
   const languagesFor = (route: string) =>
     Object.fromEntries(routing.locales.map((l) => [l, urlFor(route, l)]));
 

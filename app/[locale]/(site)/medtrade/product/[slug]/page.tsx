@@ -28,6 +28,7 @@ import { pageMetadata } from "@/lib/seo/metadata";
 import { breadcrumbJsonLd } from "@/lib/seo/jsonld";
 import { fromMinor } from "@/lib/money";
 import { siteConfig } from "@/lib/site-config";
+import { localePath } from "@/lib/i18n/intl-locale";
 import type { Locale } from "@/i18n/routing";
 
 export const dynamic = "force-dynamic";
@@ -59,6 +60,7 @@ export default async function ProductDetail({
   const { locale, slug } = await params;
   setRequestLocale(locale);
   const l = locale as Locale;
+  const localeBase = siteConfig.url + localePath(l, "/").replace(/\/$/, "");
   const t = await getTranslations({ locale, namespace: "shop.product" });
   const tq = await getTranslations({ locale, namespace: "quotation" });
   const nav = await getTranslations({ locale, namespace: "nav" });
@@ -110,7 +112,7 @@ export default async function ProductDetail({
             product.stockQty > 0
               ? "https://schema.org/InStock"
               : "https://schema.org/OutOfStock",
-          url: `${siteConfig.url}/${l}/medtrade/product/${slug}`,
+          url: `${localeBase}/medtrade/product/${slug}`,
         }
       : undefined;
 
@@ -142,17 +144,17 @@ export default async function ProductDetail({
       {jsonLd && <JsonLd data={jsonLd} />}
       <JsonLd
         data={breadcrumbJsonLd([
-          { name: nav("home"), url: `${siteConfig.url}/${l}` },
-          { name: nav("instruments"), url: `${siteConfig.url}/${l}/medtrade` },
+          { name: nav("home"), url: `${localeBase}` },
+          { name: nav("instruments"), url: `${localeBase}/medtrade` },
           ...(category
             ? [
                 {
                   name: localize(category.name, l),
-                  url: `${siteConfig.url}/${l}/medtrade/${category.slug}`,
+                  url: `${localeBase}/medtrade/${category.slug}`,
                 },
               ]
             : []),
-          { name, url: `${siteConfig.url}/${l}/medtrade/product/${slug}` },
+          { name, url: `${localeBase}/medtrade/product/${slug}` },
         ])}
       />
       <Container

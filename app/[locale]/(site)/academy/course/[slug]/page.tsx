@@ -19,6 +19,7 @@ import { formatBDT, fromMinor } from "@/lib/money";
 import { pageMetadata } from "@/lib/seo/metadata";
 import { breadcrumbJsonLd } from "@/lib/seo/jsonld";
 import { siteConfig } from "@/lib/site-config";
+import { localePath } from "@/lib/i18n/intl-locale";
 import type { Locale } from "@/i18n/routing";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +51,7 @@ export default async function CourseDetail({
   const { locale, slug } = await params;
   setRequestLocale(locale);
   const l = locale as Locale;
+  const localeBase = siteConfig.url + localePath(l, "/").replace(/\/$/, "");
   const t = await getTranslations({ locale, namespace: "academy" });
   const nav = await getTranslations({ locale, namespace: "nav" });
 
@@ -89,9 +91,9 @@ export default async function CourseDetail({
       <JsonLd data={jsonLd} />
       <JsonLd
         data={breadcrumbJsonLd([
-          { name: nav("home"), url: `${siteConfig.url}/${l}` },
-          { name: nav("academy"), url: `${siteConfig.url}/${l}/academy` },
-          { name: title, url: `${siteConfig.url}/${l}/academy/course/${slug}` },
+          { name: nav("home"), url: `${localeBase}` },
+          { name: nav("academy"), url: `${localeBase}/academy` },
+          { name: title, url: `${localeBase}/academy/course/${slug}` },
         ])}
       />
       <section

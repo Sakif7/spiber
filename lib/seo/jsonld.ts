@@ -1,5 +1,6 @@
 import { siteConfig } from "@/lib/site-config";
 import { CONTACT, OFFICES } from "@/lib/contact";
+import { localePath } from "@/lib/i18n/intl-locale";
 import type { Locale } from "@/i18n/routing";
 
 const ORG_ID = `${siteConfig.url}/#organization`;
@@ -40,14 +41,14 @@ export function websiteJsonLd(locale: Locale) {
     "@type": "WebSite",
     "@id": `${siteConfig.url}/#website`,
     name: siteConfig.brand,
-    url: `${siteConfig.url}/${locale}`,
+    url: `${siteConfig.url}${localePath(locale, "/")}`,
     inLanguage: locale,
     publisher: { "@id": ORG_ID },
     potentialAction: {
       "@type": "SearchAction",
       target: {
         "@type": "EntryPoint",
-        urlTemplate: `${siteConfig.url}/${locale}/search?q={search_term_string}`,
+        urlTemplate: `${siteConfig.url}${localePath(locale, "/search")}?q={search_term_string}`,
       },
       "query-input": "required name=search_term_string",
     },
@@ -63,10 +64,10 @@ export function localBusinessJsonLd(locale: Locale) {
   return OFFICES.map((o) => ({
     "@context": "https://schema.org",
     "@type": "MedicalBusiness",
-    "@id": `${siteConfig.url}/${locale}/contact#${o.id}`,
+    "@id": `${siteConfig.url}${localePath(locale, "/contact")}#${o.id}`,
     name: o.name[lang],
     image: LOGO,
-    url: `${siteConfig.url}/${locale}/contact`,
+    url: `${siteConfig.url}${localePath(locale, "/contact")}`,
     telephone: o.phone,
     email: o.email,
     priceRange: "৳৳",

@@ -86,7 +86,8 @@ export async function generateMetadata({
     },
     formatDetection: { telephone: false },
     alternates: {
-      languages: { en: "/en", bn: "/bn", ja: "/ja", "x-default": "/en" },
+      // as-needed prefixing: English is served at the bare path.
+      languages: { en: "/", bn: "/bn", ja: "/ja", "x-default": "/" },
     },
   };
 }

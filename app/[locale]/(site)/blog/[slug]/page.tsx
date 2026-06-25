@@ -21,6 +21,7 @@ import { bcp47 } from "@/lib/i18n/intl-locale";
 import { pageMetadata } from "@/lib/seo/metadata";
 import { breadcrumbJsonLd } from "@/lib/seo/jsonld";
 import { siteConfig } from "@/lib/site-config";
+import { localePath } from "@/lib/i18n/intl-locale";
 import type { Locale } from "@/i18n/routing";
 
 export const dynamic = "force-dynamic";
@@ -67,6 +68,7 @@ export default async function BlogPostPage({
   const { locale, slug } = await params;
   setRequestLocale(locale);
   const l = locale as Locale;
+  const localeBase = siteConfig.url + localePath(l, "/").replace(/\/$/, "");
   const t = await getTranslations({ locale, namespace: "blog" });
   const nav = await getTranslations({ locale, namespace: "nav" });
 
@@ -116,9 +118,9 @@ export default async function BlogPostPage({
       <JsonLd data={jsonLd} />
       <JsonLd
         data={breadcrumbJsonLd([
-          { name: nav("home"), url: `${siteConfig.url}/${l}` },
-          { name: nav("blog"), url: `${siteConfig.url}/${l}/blog` },
-          { name: title, url: `${siteConfig.url}/${l}/blog/${slug}` },
+          { name: nav("home"), url: `${localeBase}` },
+          { name: nav("blog"), url: `${localeBase}/blog` },
+          { name: title, url: `${localeBase}/blog/${slug}` },
         ])}
       />
       <Container style={{ maxWidth: 760, display: "grid", gap: "var(--s-6)" }}>

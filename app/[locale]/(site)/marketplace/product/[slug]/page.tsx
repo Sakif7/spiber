@@ -32,6 +32,7 @@ import { pageMetadata } from "@/lib/seo/metadata";
 import { breadcrumbJsonLd } from "@/lib/seo/jsonld";
 import { fromMinor } from "@/lib/money";
 import { siteConfig } from "@/lib/site-config";
+import { localePath } from "@/lib/i18n/intl-locale";
 import type { Locale } from "@/i18n/routing";
 
 export const dynamic = "force-dynamic";
@@ -63,6 +64,7 @@ export default async function MarketplaceProductDetail({
   const { locale, slug } = await params;
   setRequestLocale(locale);
   const l = locale as Locale;
+  const localeBase = siteConfig.url + localePath(l, "/").replace(/\/$/, "");
   const t = await getTranslations({ locale, namespace: "shop.product" });
   const tm = await getTranslations({
     locale,
@@ -128,7 +130,7 @@ export default async function MarketplaceProductDetail({
   // Product snippet requires offers | review | aggregateRating, so we only emit
   // Product structured data when it has a resolvable price OR a rating —
   // otherwise it would be flagged invalid (priceless items keep the breadcrumb).
-  const priceUrl = `${siteConfig.url}/${l}/marketplace/product/${slug}`;
+  const priceUrl = `${localeBase}/marketplace/product/${slug}`;
   const inStock =
     product.stockQty > 0 || product.variants.some((v) => v.stockQty > 0);
   const availability = inStock
@@ -200,22 +202,22 @@ export default async function MarketplaceProductDetail({
       {jsonLd && <JsonLd data={jsonLd} />}
       <JsonLd
         data={breadcrumbJsonLd([
-          { name: nav("home"), url: `${siteConfig.url}/${l}` },
+          { name: nav("home"), url: `${localeBase}` },
           {
             name: tmh("title"),
-            url: `${siteConfig.url}/${l}/marketplace`,
+            url: `${localeBase}/marketplace`,
           },
           ...(category
             ? [
                 {
                   name: localize(category.name, l),
-                  url: `${siteConfig.url}/${l}/marketplace/category/${category.slug}`,
+                  url: `${localeBase}/marketplace/category/${category.slug}`,
                 },
               ]
             : []),
           {
             name,
-            url: `${siteConfig.url}/${l}/marketplace/product/${slug}`,
+            url: `${localeBase}/marketplace/product/${slug}`,
           },
         ])}
       />

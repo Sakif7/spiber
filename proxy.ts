@@ -15,7 +15,9 @@ import { COOKIE } from "./lib/auth/session";
  */
 const intlMiddleware = createMiddleware(routing);
 
-const ADMIN_PATH = /^\/(en|bn|ja)\/admin(\/|$)/;
+// Admin lives at the bare `/admin` (default locale, as-needed) or `/bn/admin`,
+// `/ja/admin` for the prefixed locales.
+const ADMIN_PATH = /^\/(?:(en|bn|ja)\/)?admin(\/|$)/;
 
 export default async function proxy(request: NextRequest) {
   const response = intlMiddleware(request);
@@ -25,10 +27,14 @@ export default async function proxy(request: NextRequest) {
     const token = request.cookies.get(COOKIE.access)?.value;
     const claims = token ? await verifyAccessToken(token) : null;
     if (!isAdmin(claims)) {
-      const locale = pathname.split("/")[1] || routing.defaultLocale;
+      const seg = pathname.split("/")[1];
+      const locale = (routing.locales as readonly string[]).includes(seg)
+        ? seg
+        : routing.defaultLocale;
       const loginUrl = request.nextUrl.clone();
       // /login + /register are gone; the auth modal opens from ?auth=login.
-      loginUrl.pathname = `/${locale}`;
+      // Default locale is served at "/"; other locales keep their prefix.
+      loginUrl.pathname = locale === routing.defaultLocale ? "/" : `/${locale}`;
       loginUrl.search = `?auth=login&next=${encodeURIComponent(pathname)}`;
       return NextResponse.redirect(loginUrl);
     }

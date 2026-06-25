@@ -832,8 +832,12 @@ export function Hero() {
             {/* Static, crawlable brand/entity line under the bento — names
                 "Spiber Med" + what + where in the homepage's first text
                 (the rotating headline above is evocative, not entity-defining).
-                Helps branded + entity SEO while balancing the column. */}
-            <p
+                Helps branded + entity SEO while balancing the column. Fades out
+                in sync with the bento when a tile is hovered (so the revealed
+                image isn't overlaid by lingering text). */}
+            <motion.p
+              animate={{ opacity: hoveredSolution ? 0 : 1 }}
+              transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
               style={{
                 margin: "20px 2px 0",
                 fontSize: 14.5,
@@ -842,7 +846,7 @@ export function Hero() {
               }}
             >
               {t("brandLead")}
-            </p>
+            </motion.p>
           </Reveal>
         </div>
 

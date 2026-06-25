@@ -23,3 +23,16 @@ export function asLocale(value: string | null | undefined): Locale {
     ? (value as Locale)
     : routing.defaultLocale;
 }
+
+/**
+ * Build a public pathname for a locale, honouring `localePrefix: "as-needed"`:
+ * the default locale (English) is served at the bare path (no prefix), and
+ * every other locale keeps its prefix. Single source of truth for canonical,
+ * hreflang, sitemap, and JSON-LD URLs.
+ *   localePath("en", "/contact") → "/contact"   localePath("bn", "/contact") → "/bn/contact"
+ *   localePath("en", "/")        → "/"           localePath("ja", "/")        → "/ja"
+ */
+export function localePath(locale: string, pathname: string): string {
+  const clean = pathname === "/" ? "" : pathname;
+  return locale === routing.defaultLocale ? clean || "/" : `/${locale}${clean}`;
+}

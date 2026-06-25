@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { routing, type Locale } from "@/i18n/routing";
 import { siteConfig } from "@/lib/site-config";
+import { localePath } from "@/lib/i18n/intl-locale";
 
-const path = (locale: string, p: string) => `/${locale}${p === "/" ? "" : p}`;
+// Locale-aware path (bare for the default locale, prefixed for bn/ja).
+const path = (locale: string, p: string) => localePath(locale, p);
 
 /** Branded default social card (static, crawlable). See app/api/og + scripts/gen-og.mjs. */
 export const DEFAULT_OG_IMAGE = `${siteConfig.url}/og.png`;

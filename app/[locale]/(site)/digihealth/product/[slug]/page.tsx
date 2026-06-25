@@ -23,6 +23,7 @@ import { formatBDT, fromMinor } from "@/lib/money";
 import { pageMetadata } from "@/lib/seo/metadata";
 import { breadcrumbJsonLd } from "@/lib/seo/jsonld";
 import { siteConfig } from "@/lib/site-config";
+import { localePath } from "@/lib/i18n/intl-locale";
 import type { Locale } from "@/i18n/routing";
 
 export const dynamic = "force-dynamic";
@@ -54,6 +55,7 @@ export default async function SoftwareDetail({
   const { locale, slug } = await params;
   setRequestLocale(locale);
   const l = locale as Locale;
+  const localeBase = siteConfig.url + localePath(l, "/").replace(/\/$/, "");
   const t = await getTranslations({ locale, namespace: "systems" });
   const nav = await getTranslations({ locale, namespace: "nav" });
 
@@ -111,9 +113,9 @@ export default async function SoftwareDetail({
       <JsonLd data={jsonLd} />
       <JsonLd
         data={breadcrumbJsonLd([
-          { name: nav("home"), url: `${siteConfig.url}/${l}` },
-          { name: nav("systems"), url: `${siteConfig.url}/${l}/digihealth` },
-          { name, url: `${siteConfig.url}/${l}/digihealth/product/${slug}` },
+          { name: nav("home"), url: `${localeBase}` },
+          { name: nav("systems"), url: `${localeBase}/digihealth` },
+          { name, url: `${localeBase}/digihealth/product/${slug}` },
         ])}
       />
       <Container

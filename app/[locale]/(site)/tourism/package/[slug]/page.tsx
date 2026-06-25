@@ -14,6 +14,7 @@ import { tourismHero } from "@/lib/hero-images";
 import { pageMetadata } from "@/lib/seo/metadata";
 import { breadcrumbJsonLd } from "@/lib/seo/jsonld";
 import { siteConfig } from "@/lib/site-config";
+import { localePath } from "@/lib/i18n/intl-locale";
 import { Check } from "lucide-react";
 import type { Locale } from "@/i18n/routing";
 
@@ -44,6 +45,7 @@ export default async function PackageDetailPage({
   const { locale, slug } = await params;
   setRequestLocale(locale);
   const l = locale as Locale;
+  const localeBase = siteConfig.url + localePath(l, "/").replace(/\/$/, "");
   const t = await getTranslations({ locale, namespace: "tourism" });
   const nav = await getTranslations({ locale, namespace: "nav" });
 
@@ -58,15 +60,15 @@ export default async function PackageDetailPage({
     <>
       <JsonLd
         data={breadcrumbJsonLd([
-          { name: nav("home"), url: `${siteConfig.url}/${l}` },
-          { name: nav("tourism"), url: `${siteConfig.url}/${l}/tourism` },
+          { name: nav("home"), url: `${localeBase}` },
+          { name: nav("tourism"), url: `${localeBase}/tourism` },
           {
             name: t("sections.packages.title"),
-            url: `${siteConfig.url}/${l}/tourism/packages`,
+            url: `${localeBase}/tourism/packages`,
           },
           {
             name: localize(p.name, l),
-            url: `${siteConfig.url}/${l}/tourism/package/${slug}`,
+            url: `${localeBase}/tourism/package/${slug}`,
           },
         ])}
       />
