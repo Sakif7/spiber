@@ -5,6 +5,8 @@ import {
   createInquiry as repoCreateInquiry,
   getInquiryById,
 } from "@/lib/repositories/inquiries.repo";
+import { getSoftwareProductByIdLean } from "@/lib/repositories/software.repo";
+import { submitZenhcareLead } from "@/lib/zenhcare";
 import { getMailer } from "@/lib/mailer";
 import {
   renderEmail,
@@ -40,10 +42,46 @@ export async function createInquiry(
     notes: [],
     attachments: [],
   });
+  await forwardZenhcareLead(doc, input).catch((e) =>
+    logger.warn("zenhcare lead forward failed", e),
+  );
   await sendInquiryAck(doc.toObject()).catch((e) =>
     logger.warn("inquiry ack email failed", e),
   );
   return doc.toObject();
+}
+
+/**
+ * When an inquiry targets the ZenHcare software product (deliveryType
+ * "external", externalApp "zenhcare"), forward it to ZenHcare's affiliate
+ * sales API so the lead lands attributed to Spiber, and stash the returned
+ * ZenHcare leadId on the inquiry. Best-effort: any failure is logged by the
+ * caller and never blocks the inquiry — the admin queue still shows the lead.
+ */
+async function forwardZenhcareLead(
+  doc: Awaited<ReturnType<typeof repoCreateInquiry>>,
+  input: InquiryCreateInput,
+): Promise<void> {
+  if (input.division !== "systems" || input.linkedEntity?.kind !== "software") {
+    return;
+  }
+  const product = await getSoftwareProductByIdLean(input.linkedEntity.id);
+  if (product?.externalApp !== "zenhcare") return;
+
+  // ZenHcare's SalesLead.interest.message caps at 2000 chars; our inquiry form
+  // allows up to 5000. Clamp so a long message still gets attributed rather than
+  // failing the whole forward (losing the tail beats losing the lead).
+  const message = (
+    input.message || `Referral via spibermed.com (${doc.inquiryNumber})`
+  ).slice(0, 2000);
+  const sale = await submitZenhcareLead({
+    organization: { name: input.company || input.name, type: "hospital" },
+    contact: { name: input.name, email: input.email, phone: input.phone },
+    interest: { message },
+  });
+  doc.payload = { ...(doc.payload ?? {}), zenhcareLeadId: sale.leadId };
+  doc.markModified("payload");
+  await doc.save();
 }
 
 export type InquiryTransitionResult =

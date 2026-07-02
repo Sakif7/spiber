@@ -19,6 +19,7 @@
     "seed-medtrade-subs": "node scripts/seed-medtrade-subcategories.mjs",
     "seed-medtrade-cats": "node scripts/seed-medtrade-categories.mjs",
     "seed-tourism-blog-cats": "node scripts/seed-tourism-blog-categories.mjs",
+    "seed-zenhcare": "node scripts/seed-zenhcare-product.mjs",
     "import-catalog": "node scripts/import-catalog-xlsx.mjs",
     "fetch-brand-logos": "node scripts/fetch-brand-logos.mjs",
     "apply-brand-logos": "node scripts/apply-brand-logos.mjs",

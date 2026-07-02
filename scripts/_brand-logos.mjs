@@ -31,9 +31,13 @@ export function arg(name, envName, def) {
 
 export function requireConfig() {
   loadEnvLocal();
-  const site = String(arg("site", "SITE_URL", "")).replace(/\/$/, "");
-  const email = arg("email", "ADMIN_EMAIL", "");
-  const password = arg("password", "ADMIN_PASSWORD", "");
+  // Positional fallback: `npm run x -- --site A --email B --password C` gets
+  // mangled by npm (it strips the --flag names and forwards only the values),
+  // so the script receives them positionally in the order: site email password.
+  const pos = process.argv.slice(2).filter((a) => !a.startsWith("--"));
+  const site = String(arg("site", "SITE_URL", pos[0] ?? "")).replace(/\/$/, "");
+  const email = arg("email", "ADMIN_EMAIL", pos[1] ?? "");
+  const password = arg("password", "ADMIN_PASSWORD", pos[2] ?? "");
   const missing = [];
   if (!site) missing.push("--site / SITE_URL");
   if (!email) missing.push("--email / ADMIN_EMAIL");
@@ -41,7 +45,8 @@ export function requireConfig() {
   if (missing.length) {
     console.error("Missing required config: " + missing.join(", "));
     console.error(
-      "Example: node scripts/apply-brand-logos.mjs --site https://spibermed.com --email you@x.com --password ****",
+      "Run it directly (npm mangles the flags):\n" +
+        "  node scripts/fetch-brand-logos.mjs --site https://spibermed.com --email you@x.com --password ****",
     );
     process.exit(1);
   }

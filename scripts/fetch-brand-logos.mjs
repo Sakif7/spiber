@@ -14,8 +14,8 @@
  *      drop in files (named <slug>.png) for any it missed.
  *   3. Then run: node scripts/apply-brand-logos.mjs --commit  (uploads + sets).
  *
- * Domain lookups use a logo service; the default (Clearbit) is keyless but
- * best-effort. Override for better coverage, e.g. Logo.dev / Brandfetch:
+ * Domain lookups use a logo service; the default (Google favicons) is keyless
+ * but favicon-quality. Override for crisper logos, e.g. Logo.dev / Brandfetch:
  *   --template "https://img.logo.dev/{domain}?token=pk_xxx"
  *   LOGO_URL_TEMPLATE="https://cdn.brandfetch.io/{domain}/w/512/h/512?c=CLIENTID"
  *
@@ -37,7 +37,14 @@ import {
 
 const CSV = path.join(LOGO_DIR, "brands.csv");
 const TEMPLATE = String(
-  arg("template", "LOGO_URL_TEMPLATE", "https://logo.clearbit.com/{domain}"),
+  arg(
+    "template",
+    "LOGO_URL_TEMPLATE",
+    // Keyless and still live. (Clearbit's free logo API was shut down.) Returns
+    // a 256px PNG favicon — fine for small brand tiles. For crisper full logos,
+    // override: --template "https://img.logo.dev/{domain}?token=pk_xxx"
+    "https://www.google.com/s2/favicons?domain={domain}&sz=256",
+  ),
 );
 const refetch = process.argv.includes("--refetch");
 
@@ -139,7 +146,7 @@ async function main() {
       );
       ok++;
     } catch (e) {
-      console.log(`  ERR   ${slug} (${e.message})`);
+      console.log(`  ERR   ${slug} (${e.cause?.code || e.message})`);
       fail++;
     }
   }
