@@ -66,6 +66,8 @@ Thumbs.db
 /private-uploads/
 # local data dir (when UPLOADS_DIR / PRIVATE_UPLOADS_DIR point at ./data)
 /data/
+# staged brand logos for the bulk brand-logo tooling (review folder, not source)
+/brand-logos/
 
 # local-only sample data for screenshots/QA (not for production)
 /scripts/demo-seed.mjs
@@ -76,5 +78,7 @@ Thumbs.db
 # extra
 /.playwright-mcp/
 /.docs/
+/.agents/
+/.claude/
 # Local dev server log (from manual restarts)
 .next-dev.log

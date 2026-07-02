@@ -26,6 +26,10 @@ import { applyMovement, InsufficientStockError } from "./inventory.service";
 import { priceCart, type PricingCoupon } from "./pricing.service";
 import { getShippingSettings } from "./shop-settings.service";
 import { validateCoupon } from "./coupon.service";
+import {
+  accrueSellerCommissions,
+  voidSellerCommissions,
+} from "./seller-commission.service";
 import { getPaymentProvider } from "@/lib/payments";
 import { getMailer } from "@/lib/mailer";
 import {
@@ -201,6 +205,7 @@ export async function placeOrder(
       image: l.variant?.image ?? l.product.images[0],
       variantId: l.variantId,
       variantOptions: l.variant?.options ?? [],
+      sellerId: l.product.sellerId ?? null,
     },
     qty: l.qty,
     lineTotalMinor: l.priceMinor * l.qty,
@@ -353,6 +358,19 @@ export async function transitionOrder(
       logger.warn("order status email failed", e),
     );
   }
+
+  // Seller commissions: accrue when the order is paid; void the still-accrued
+  // ones if it is later cancelled/refunded.
+  if (to === "paid") {
+    await accrueSellerCommissions(order.toObject(), String(order._id)).catch(
+      (e) => logger.warn("accrue seller commissions failed", e),
+    );
+  } else if (to === "cancelled" || to === "refunded") {
+    await voidSellerCommissions(String(order._id)).catch((e) =>
+      logger.warn("void seller commissions failed", e),
+    );
+  }
+
   return { ok: true, order: order.toObject() };
 }
 

@@ -73,7 +73,7 @@ export default async function AdminMarketplaceProductsPage({
   return (
     <ProductsManager
       storefront="marketplace"
-      title="Marketplace products"
+      title="Spiber Kart products"
       basePath="/admin/marketplace/products"
       newHref="/admin/marketplace/products/new"
       rows={rows}

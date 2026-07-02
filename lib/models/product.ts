@@ -1,6 +1,10 @@
 import mongoose, { Schema, type Model } from "mongoose";
 import { localizedDef, type LocalizedDoc } from "./_shared";
-import type { ProductStatus, Storefront } from "@/lib/schemas/catalog";
+import type {
+  ProductStatus,
+  ProductApprovalStatus,
+  Storefront,
+} from "@/lib/schemas/catalog";
 
 export interface ISpec {
   key: LocalizedDoc;
@@ -35,6 +39,8 @@ export interface IProduct {
   images: string[];
   /** null = "Price on request" (instruments) or variant-priced (marketplace). */
   priceMinor: number | null;
+  /** Optional "was"/RRP price; when > priceMinor the storefront shows a sale. */
+  compareAtMinor?: number | null;
   stockQty: number;
   lowStockThreshold: number;
   status: ProductStatus;
@@ -43,6 +49,12 @@ export interface IProduct {
   variants: IProductVariant[];
   ratingAvg: number;
   ratingCount: number;
+  /** null = platform/house product; else the Seller that owns this listing. */
+  sellerId?: mongoose.Types.ObjectId | string | null;
+  /** Approval gate for seller-owned listings (house products = "approved"). */
+  approvalStatus: ProductApprovalStatus;
+  approvedAt?: Date | null;
+  rejectionReason?: string | null;
   deletedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -110,6 +122,8 @@ const productSchema = new Schema<IProduct>(
     images: { type: [String], default: [] },
     // null = "Price on request" (instruments) or variant-priced (marketplace).
     priceMinor: { type: Number, default: null, min: 0 },
+    // Optional "was"/RRP price; when > priceMinor the storefront shows a sale.
+    compareAtMinor: { type: Number, default: null, min: 0 },
     stockQty: { type: Number, default: 0 },
     lowStockThreshold: { type: Number, default: 5, min: 0 },
     status: {
@@ -123,6 +137,20 @@ const productSchema = new Schema<IProduct>(
     variants: { type: [productVariantSchema], default: [] },
     ratingAvg: { type: Number, default: 0, min: 0, max: 5 },
     ratingCount: { type: Number, default: 0, min: 0 },
+    sellerId: {
+      type: Schema.Types.ObjectId,
+      ref: "Seller",
+      default: null,
+      index: true,
+    },
+    approvalStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "approved",
+      index: true,
+    },
+    approvedAt: { type: Date, default: null },
+    rejectionReason: { type: String, default: null },
     deletedAt: { type: Date, default: null },
   },
   { collection: "products", timestamps: true },

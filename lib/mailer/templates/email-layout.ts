@@ -197,7 +197,7 @@ export function renderEmail(content: EmailContent): {
         <!-- footer -->
         <tr><td colspan="2" style="padding:24px 36px 30px;border-top:1px solid ${COLOR.pageBg};">
           <p style="margin:0 0 4px;font-family:${FONT};font-size:13px;color:${COLOR.heading};font-weight:600;">${escapeHtml(siteConfig.brand)} <span style="color:${COLOR.muted};font-weight:400;">Ltd.</span></p>
-          <p style="margin:0 0 10px;font-family:${FONT};font-size:12px;line-height:1.6;color:${COLOR.muted};">Medical devices &middot; Academy &middot; Health software &middot; Tourism &middot; Consulting</p>
+          <p style="margin:0 0 10px;font-family:${FONT};font-size:12px;line-height:1.6;color:${COLOR.muted};">Medical devices &middot; Academy &middot; Health software &middot; Tourism &middot; Health Corner</p>
           <p style="margin:0;font-family:${FONT};font-size:12px;color:${COLOR.muted};">
             <a href="${siteConfig.url}" target="_blank" style="color:${accent.deep};text-decoration:none;">${escapeHtml(siteConfig.domain)}</a>
             &nbsp;&middot;&nbsp; &copy; ${year} ${escapeHtml(siteConfig.brand)}

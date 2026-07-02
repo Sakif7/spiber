@@ -2,9 +2,25 @@ import { ok, fail } from "@/lib/http/respond";
 import { parseJson } from "@/lib/http/validate";
 import { requireAdmin } from "@/lib/auth/guard";
 import { brandSchema } from "@/lib/schemas/catalog";
-import { createBrand } from "@/lib/repositories/taxonomy.repo";
+import { createBrand, listBrands } from "@/lib/repositories/taxonomy.repo";
 import { writeAudit } from "@/lib/repositories/audit.repo";
 import { slugify } from "@/lib/slug";
+
+/** List all brands (admin) — used by the bulk brand-logo tooling. */
+export async function GET() {
+  const admin = await requireAdmin();
+  if (!admin) return fail({ code: "forbidden" }, 403);
+  const brands = await listBrands();
+  return ok({
+    brands: brands.map((b) => ({
+      id: String(b._id),
+      name: b.name,
+      slug: b.slug,
+      logo: b.logo ?? null,
+      position: b.position,
+    })),
+  });
+}
 
 export async function POST(req: Request) {
   const admin = await requireAdmin();

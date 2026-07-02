@@ -48,7 +48,7 @@ export default async function NewMarketplaceProductPage({
             color: "var(--color-text-muted)",
           }}
         >
-          ← Marketplace products
+          ← Spiber Kart products
         </Link>
         <h1
           style={{

@@ -16,17 +16,24 @@ export type ProductListParams = {
   categoryId?: string;
   categoryIds?: string[];
   brandId?: string;
+  sellerId?: string;
   search?: string;
   minPriceMinor?: number;
   maxPriceMinor?: number;
   minRating?: number;
   inStockOnly?: boolean;
   featured?: boolean;
+  /** Include seller listings awaiting/failing approval (admin/seller views only). */
+  includeUnapproved?: boolean;
   status?: ProductStatus;
   sort?: ProductSort;
   page?: number;
   pageSize?: number;
 };
+
+/** Approval predicate: match house/approved products (also legacy docs lacking
+ * the field). Excludes seller listings that are pending or rejected. */
+const APPROVED_FILTER = { $nin: ["pending", "rejected"] } as const;
 
 function buildQuery(params: ProductListParams): Record<string, unknown> {
   const q: Record<string, unknown> = { deletedAt: null };
@@ -39,6 +46,9 @@ function buildQuery(params: ProductListParams): Record<string, unknown> {
     q.categoryId = params.categoryId;
   }
   if (params.brandId) q.brandId = params.brandId;
+  if (params.sellerId) q.sellerId = params.sellerId;
+  // Secure-by-default: public listings never show unapproved seller listings.
+  if (!params.includeUnapproved) q.approvalStatus = APPROVED_FILTER;
   if (params.minRating != null) q.ratingAvg = { $gte: params.minRating };
   if (params.inStockOnly) {
     // In stock if the base product has stock OR any variant does.
@@ -93,10 +103,15 @@ export async function listProducts(params: ProductListParams) {
   };
 }
 
-export async function getProductBySlug(slug: string, storefront?: Storefront) {
+export async function getProductBySlug(
+  slug: string,
+  storefront?: Storefront,
+  includeUnapproved = false,
+) {
   await connectToDatabase();
   const q: Record<string, unknown> = { slug, deletedAt: null };
   if (storefront) q.storefront = storefront;
+  if (!includeUnapproved) q.approvalStatus = APPROVED_FILTER;
   return Product.findOne(q as unknown as ProductFilter)
     .lean<Lean<IProduct>>()
     .exec();
@@ -118,6 +133,7 @@ export async function listRelatedProducts(
     categoryId,
     _id: { $ne: excludeId },
     status: "active",
+    approvalStatus: APPROVED_FILTER,
     deletedAt: null,
   };
   if (storefront) q.storefront = storefront;
@@ -137,6 +153,7 @@ export async function listFeaturedProducts(
     storefront,
     featured: true,
     status: "active",
+    approvalStatus: APPROVED_FILTER,
     deletedAt: null,
   })
     .sort({ createdAt: -1 })
@@ -197,6 +214,7 @@ export async function findProductsForBulk(params: {
       storefront: params.storefront,
       status: params.status,
       search: params.search,
+      includeUnapproved: true, // admin bulk operates on every product
     });
   }
   return Product.find(q as unknown as ProductFilter)
@@ -301,6 +319,7 @@ export async function frequentlyBoughtTogether(
   const q: Record<string, unknown> = {
     _id: { $in: ids },
     status: "active",
+    approvalStatus: APPROVED_FILTER,
     deletedAt: null,
   };
   if (storefront) q.storefront = storefront;
@@ -312,4 +331,103 @@ export async function frequentlyBoughtTogether(
   return ids
     .map((id) => byId.get(String(id)))
     .filter((p): p is Lean<IProduct> => Boolean(p));
+}
+
+// ── Seller-owned products ──
+
+export async function listSellerProducts(
+  sellerId: string,
+  params: { status?: ProductStatus; page?: number; pageSize?: number } = {},
+) {
+  await connectToDatabase();
+  if (!mongoose.isValidObjectId(sellerId))
+    return { items: [], total: 0, page: 1, pageSize: 20, pages: 1 };
+  const q: Record<string, unknown> = { sellerId, deletedAt: null };
+  if (params.status) q.status = params.status;
+  const page = Math.max(1, params.page ?? 1);
+  const pageSize = Math.min(60, Math.max(1, params.pageSize ?? 20));
+  const filter = q as unknown as ProductFilter;
+  const [items, total] = await Promise.all([
+    Product.find(filter)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * pageSize)
+      .limit(pageSize)
+      .lean<Lean<IProduct>[]>()
+      .exec(),
+    Product.countDocuments(filter),
+  ]);
+  return {
+    items,
+    total,
+    page,
+    pageSize,
+    pages: Math.max(1, Math.ceil(total / pageSize)),
+  };
+}
+
+export async function countSellerProducts(
+  sellerId: string,
+  status?: ProductStatus,
+): Promise<number> {
+  await connectToDatabase();
+  if (!mongoose.isValidObjectId(sellerId)) return 0;
+  const q: Record<string, unknown> = { sellerId, deletedAt: null };
+  if (status) q.status = status;
+  return Product.countDocuments(q as unknown as ProductFilter);
+}
+
+/** A product owned by this seller (edit/guard); null if not theirs. */
+export async function getSellerProductById(sellerId: string, id: string) {
+  await connectToDatabase();
+  if (!mongoose.isValidObjectId(id) || !mongoose.isValidObjectId(sellerId))
+    return null;
+  return Product.findOne({ _id: id, sellerId, deletedAt: null }).exec();
+}
+
+/** Lean read of a seller-owned product (for the edit-form prefill). */
+export async function getSellerProductByIdLean(sellerId: string, id: string) {
+  await connectToDatabase();
+  if (!mongoose.isValidObjectId(id) || !mongoose.isValidObjectId(sellerId))
+    return null;
+  return Product.findOne({ _id: id, sellerId, deletedAt: null })
+    .lean<Lean<IProduct>>()
+    .exec();
+}
+
+/** Seller listings awaiting admin approval (approval board). */
+export async function listPendingSellerProducts() {
+  await connectToDatabase();
+  return Product.find({ approvalStatus: "pending", deletedAt: null })
+    .sort({ createdAt: 1 })
+    .lean<Lean<IProduct>[]>()
+    .exec();
+}
+
+export async function countPendingSellerProducts(): Promise<number> {
+  await connectToDatabase();
+  return Product.countDocuments({
+    approvalStatus: "pending",
+    deletedAt: null,
+  } as unknown as ProductFilter);
+}
+
+export async function setProductApproval(
+  id: string,
+  status: "approved" | "rejected",
+  reason?: string,
+) {
+  await connectToDatabase();
+  const update: Record<string, unknown> = { approvalStatus: status };
+  if (status === "approved") {
+    update.approvedAt = new Date();
+    update.rejectionReason = null;
+  }
+  if (status === "rejected") update.rejectionReason = reason ?? null;
+  return Product.findOneAndUpdate(
+    { _id: id, deletedAt: null },
+    { $set: update },
+    { new: true },
+  )
+    .lean<Lean<IProduct>>()
+    .exec();
 }

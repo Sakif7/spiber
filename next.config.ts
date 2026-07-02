@@ -78,6 +78,20 @@ const nextConfig: NextConfig = {
         destination: "/digihealth/:path*",
         permanent: true,
       },
+      // Marketplace → Spiber Kart rebrand (2026): /marketplace → /kart. Display
+      // name only — the DB storefront enum stays "marketplace". Permanent (308),
+      // locale-prefixed + bare, deep-path preserving. `:path*` covers the hub
+      // itself and all sub-routes (product/category/search/cart/checkout/order).
+      {
+        source: "/:locale(en|bn|ja)/marketplace/:path*",
+        destination: "/:locale/kart/:path*",
+        permanent: true,
+      },
+      {
+        source: "/marketplace/:path*",
+        destination: "/kart/:path*",
+        permanent: true,
+      },
       // Company section 2026: /about moved under the Company group.
       {
         source: "/:locale(en|bn|ja)/about",

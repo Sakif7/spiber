@@ -43,9 +43,9 @@ const PANEL_DARK_VARS: React.CSSProperties = {
 } as React.CSSProperties;
 
 // Only these nav items open a drawer (gate the chevron/aria on the NAME, not
-// link==='#': Marketplace has a real href yet still opens a drawer).
+// link==='#': Spiber Kart has a real href yet still opens a drawer).
 const NAV_DRAWERS = new Set([
-  "Marketplace",
+  "Spiber Kart",
   "Products & Solutions",
   "Services",
   "Company",
@@ -55,7 +55,7 @@ const MotionLink = motion.create(Link);
 
 const NAV_ITEMS = [
   { name: "Home", link: "/" },
-  { name: "Marketplace", link: "/marketplace" },
+  { name: "Spiber Kart", link: "/kart" },
   { name: "Products & Solutions", link: "#" },
   { name: "Services", link: "#" },
   { name: "Blog", link: "/blog" },
@@ -126,16 +126,13 @@ const MEGA_MENUS: Record<string, MegaItem[]> = {
       ],
     },
     {
-      key: "consulting",
-      kicker: "Advisory",
-      title: "Spiber Consulting",
-      desc: "Strategic management and advisory services for hospitals and healthcare organisations.",
-      href: "/consulting",
+      key: "health-corner",
+      kicker: "Wellness & Resources",
+      title: "Spiber Health Corner",
+      desc: "Trusted health information, wellness tips and everyday care resources — coming soon.",
+      href: "/health-corner",
       tone: "orange",
-      links: [
-        { label: "Our services", href: "/consulting" },
-        { label: "Book a consultation", href: "/contact" },
-      ],
+      links: [{ label: "Explore Health Corner", href: "/health-corner" }],
     },
   ],
   Company: [
@@ -437,7 +434,7 @@ function MegaMenu({
   const reduce = useReducedMotion();
   const panelRef = useRef<HTMLDivElement>(null);
   const isProducts = open === "Products & Solutions";
-  const isMarketplace = open === "Marketplace";
+  const isMarketplace = open === "Spiber Kart";
   const isCompany = open === "Company";
   const services =
     open && !isProducts && !isMarketplace && !isCompany

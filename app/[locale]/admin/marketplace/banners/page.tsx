@@ -60,7 +60,7 @@ export default async function AdminBannersPage({
     <div className="space-y-6">
       <AdminPageHeader
         title="Banners"
-        description="Marketplace promotional banners and their schedule slots."
+        description="Spiber Kart promotional banners and their schedule slots."
         action={
           <Button asChild>
             <Link href="/admin/marketplace/banners/new">

@@ -7,7 +7,7 @@ import { QuoteButton } from "./quote-button";
 /**
  * Header action that adapts to the current storefront:
  *  - /medtrade/* → "Request for Quotation" list (QuoteButton)
- *  - /marketplace/* → shopping cart (CartButton)
+ *  - /kart/* → shopping cart (CartButton)
  *  - everywhere else → nothing (no shopping affordance on corporate pages)
  *
  * `usePathname` (from next-intl) is locale-stripped and stable on the client,
@@ -17,6 +17,6 @@ import { QuoteButton } from "./quote-button";
 export function StorefrontAction() {
   const pathname = usePathname();
   if (pathname.startsWith("/medtrade")) return <QuoteButton />;
-  if (pathname.startsWith("/marketplace")) return <CartButton />;
+  if (pathname.startsWith("/kart")) return <CartButton />;
   return null;
 }

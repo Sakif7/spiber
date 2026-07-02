@@ -5,7 +5,7 @@ import { defineRouting } from "next-intl/routing";
  * English is the default and fallback; Bangla and Japanese are fully supported.
  *
  * `localePrefix: "as-needed"` serves the default locale (English) at bare,
- * un-prefixed paths (`/`, `/contact`, `/marketplace`) — these are real 200
+ * un-prefixed paths (`/`, `/contact`, `/kart`) — these are real 200
  * pages and their own canonical — while Bangla/Japanese keep their prefix
  * (`/bn/…`, `/ja/…`). `/en/…` permanently redirects to the bare path. This
  * avoids the duplicate-content / wrong-canonical problem Google hits when the

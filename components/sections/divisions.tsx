@@ -58,11 +58,11 @@ const DIVISIONS: Division[] = [
     imageAlt: "Tree-lined road abroad, evoking medical travel",
   },
   {
-    key: "consulting",
+    key: "health-corner",
     tone: "orange",
-    href: "/consulting",
-    image: "/manager-reviewing-work-with-employee-computer.jpeg",
-    imageAlt: "Advisor reviewing a plan with a hospital colleague",
+    href: "/health-corner",
+    image: "/nurse-comforting-elderly-woman-home-care.jpeg",
+    imageAlt: "A nurse supporting an elderly patient at home",
   },
 ];
 

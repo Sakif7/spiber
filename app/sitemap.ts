@@ -53,14 +53,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       });
     }
     for (const p of marketplace.items) {
-      const route = `/marketplace/product/${p.slug}`;
+      const route = `/kart/product/${p.slug}`;
       entries.push({
         url: urlFor(route, routing.defaultLocale),
         alternates: { languages: languagesFor(route) },
       });
     }
     for (const c of mpCategories) {
-      const route = `/marketplace/category/${c.slug}`;
+      const route = `/kart/category/${c.slug}`;
       entries.push({
         url: urlFor(route, routing.defaultLocale),
         alternates: { languages: languagesFor(route) },

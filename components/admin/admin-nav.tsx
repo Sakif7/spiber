@@ -56,7 +56,7 @@ const GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "Marketplace",
+    label: "Spiber Kart",
     items: [
       { href: "/admin/marketplace/products", label: "Products", icon: Store },
       {
@@ -64,6 +64,7 @@ const GROUPS: NavGroup[] = [
         label: "Categories",
         icon: FolderTree,
       },
+      { href: "/admin/brands", label: "Brands", icon: Tag },
       { href: "/admin/marketplace/banners", label: "Banners", icon: ImageIcon },
       { href: "/admin/marketplace/reviews", label: "Reviews", icon: Star },
     ],

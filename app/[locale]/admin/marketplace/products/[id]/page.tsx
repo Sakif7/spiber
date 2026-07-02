@@ -58,6 +58,7 @@ export default async function EditMarketplaceProductPage({
     categoryId: String(p.categoryId),
     brandId: p.brandId ? String(p.brandId) : undefined,
     priceMinor: p.priceMinor,
+    compareAtMinor: p.compareAtMinor ?? null,
     lowStockThreshold: p.lowStockThreshold,
     status: p.status,
     featured: p.featured,
@@ -89,7 +90,7 @@ export default async function EditMarketplaceProductPage({
             color: "var(--color-text-muted)",
           }}
         >
-          ← Marketplace products
+          ← Spiber Kart products
         </Link>
         <h1
           style={{

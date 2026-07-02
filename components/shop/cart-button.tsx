@@ -19,7 +19,7 @@ export function CartButton() {
 
   return (
     <MotionLink
-      href="/marketplace/cart"
+      href="/kart/cart"
       aria-label={label}
       whileHover={{ y: -2 }}
       whileTap={{ scale: 0.96 }}

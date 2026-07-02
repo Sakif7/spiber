@@ -31,7 +31,7 @@ export async function generateMetadata({
   const t = await getTranslations({ locale, namespace: "marketplace.home" });
   return pageMetadata({
     locale: locale as Locale,
-    path: "/marketplace/search",
+    path: "/kart/search",
     title: t("allProducts"),
     noindex: true,
   });
@@ -116,7 +116,7 @@ export default async function MarketplaceSearch({
         title={title}
         breadcrumbs={[
           { label: nav("home"), href: "/" },
-          { label: tm("title"), href: "/marketplace" },
+          { label: tm("title"), href: "/kart" },
           { label: tm("allProducts") },
         ]}
       />
@@ -124,7 +124,7 @@ export default async function MarketplaceSearch({
         <Container>
           <MarketplaceProductListing
             locale={l}
-            basePath="/marketplace/search"
+            basePath="/kart/search"
             sp={spFlat}
             result={result}
             brands={brands}

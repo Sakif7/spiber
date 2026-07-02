@@ -47,7 +47,7 @@ export async function generateMetadata({
   if (!product) return {};
   return pageMetadata({
     locale: locale as Locale,
-    path: `/marketplace/product/${slug}`,
+    path: `/kart/product/${slug}`,
     title: localize(product.name, locale as Locale),
     description: product.description
       ? localize(product.description, locale as Locale)
@@ -130,7 +130,7 @@ export default async function MarketplaceProductDetail({
   // Product snippet requires offers | review | aggregateRating, so we only emit
   // Product structured data when it has a resolvable price OR a rating —
   // otherwise it would be flagged invalid (priceless items keep the breadcrumb).
-  const priceUrl = `${localeBase}/marketplace/product/${slug}`;
+  const priceUrl = `${localeBase}/kart/product/${slug}`;
   const inStock =
     product.stockQty > 0 || product.variants.some((v) => v.stockQty > 0);
   const availability = inStock
@@ -205,19 +205,19 @@ export default async function MarketplaceProductDetail({
           { name: nav("home"), url: `${localeBase}` },
           {
             name: tmh("title"),
-            url: `${localeBase}/marketplace`,
+            url: `${localeBase}/kart`,
           },
           ...(category
             ? [
                 {
                   name: localize(category.name, l),
-                  url: `${localeBase}/marketplace/category/${category.slug}`,
+                  url: `${localeBase}/kart/category/${category.slug}`,
                 },
               ]
             : []),
           {
             name,
-            url: `${localeBase}/marketplace/product/${slug}`,
+            url: `${localeBase}/kart/product/${slug}`,
           },
         ])}
       />
@@ -227,12 +227,12 @@ export default async function MarketplaceProductDetail({
         <Breadcrumb
           items={[
             { label: nav("home"), href: "/" },
-            { label: tmh("title"), href: "/marketplace" },
+            { label: tmh("title"), href: "/kart" },
             ...(category
               ? [
                   {
                     label: localize(category.name, l),
-                    href: `/marketplace/category/${category.slug}`,
+                    href: `/kart/category/${category.slug}`,
                   },
                 ]
               : []),
@@ -309,7 +309,7 @@ export default async function MarketplaceProductDetail({
                 <span>
                   {t("categories")}:{" "}
                   <Link
-                    href={`/marketplace/category/${category.slug}`}
+                    href={`/kart/category/${category.slug}`}
                     style={{ color: "var(--color-brand-deep)" }}
                   >
                     {localize(category.name, l)}
@@ -481,7 +481,7 @@ export default async function MarketplaceProductDetail({
         <RecentlyViewed
           title={tm("recentlyViewed")}
           current={{
-            href: `/marketplace/product/${slug}`,
+            href: `/kart/product/${slug}`,
             name,
             image: product.images[0],
             meta: undefined,

@@ -106,7 +106,7 @@ export function CTABand() {
                 {t("requestQuote")} <Arrow size={16} />
               </Link>
               <Link
-                href="/consulting"
+                href="/contact"
                 style={{
                   background: "transparent",
                   color: "white",

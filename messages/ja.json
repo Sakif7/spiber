@@ -440,7 +440,7 @@
     "readingTime": "読了時間 {min} 分",
     "groups": {
       "instruments": "Medtrade",
-      "marketplace": "マーケットプレイス",
+      "marketplace": "Spiber Kart",
       "academy": "コース",
       "systems": "ソフトウェア",
       "blog": "記事"
@@ -466,9 +466,9 @@
     "academy": "Academy",
     "systems": "Digihealth",
     "tourism": "メディカルツーリズム",
-    "consulting": "コンサルティング",
+    "health-corner": "ヘルスコーナー",
     "blog": "ブログ",
-    "marketplace": "マーケットプレイス",
+    "marketplace": "Spiber Kart",
     "company": "企業情報",
     "viewAllIn": "{name}のすべてを見る"
   },
@@ -507,10 +507,10 @@
       "title": "Spiber Tourism",
       "description": "認定提携施設による厳選された治療パッケージに加え、渡航や航空券の手配もサポートします。"
     },
-    "consulting": {
-      "eyebrow": "ヘルスケアマネジメント・アドバイザリー",
-      "title": "Spiber Consulting",
-      "description": "医療機関向けの戦略的アドバイザリーおよびマネジメントサービス。"
+    "health-corner": {
+      "eyebrow": "ウェルネス・健康リソース",
+      "title": "Spiber Health Corner",
+      "description": "信頼できる健康情報、ウェルネスのヒント、日常のケアリソース — 近日公開。"
     },
     "blog": {
       "eyebrow": "インサイト・最新情報",
@@ -1154,7 +1154,7 @@
       "brandLead": "Spiber Med は、バングラデシュを拠点とする医療・外科機器の企業です。2008年以来、臨床グレードの機器、専門研修、デジタルヘルス、メディカルツーリズムを全国の病院へ提供しています。",
       "ctaQuote": "見積もりを依頼する",
       "ctaExplore": "ソリューションを見る",
-      "ctaMarketplace": "マーケットプレイスを見る",
+      "ctaMarketplace": "Spiber Kart を見る",
       "trustIso": "ISO 13485",
       "trustBiomed": "24×7 バイオメッド対応",
       "taglines": [
@@ -1624,31 +1624,35 @@
                 "href": "/tourism"
               },
               {
-                "label": "Spiber Consulting",
-                "href": "/consulting"
+                "label": "Spiber Health Corner",
+                "href": "/health-corner"
               }
             ]
           }
         ]
       },
       {
-        "title": "マーケットプレイス",
+        "title": "Spiber Kart",
         "links": [
           {
             "label": "すべての製品",
-            "href": "/marketplace"
+            "href": "/kart/shop"
           },
           {
             "label": "医療",
-            "href": "/marketplace/category/medical"
+            "href": "/kart/category/medical"
           },
           {
             "label": "ヘルス＆ウェルネス",
-            "href": "/marketplace/category/health-and-wellness"
+            "href": "/kart/category/health-and-wellness"
           },
           {
             "label": "テクノロジー",
-            "href": "/marketplace/category/technology"
+            "href": "/kart/category/technology"
+          },
+          {
+            "label": "出品者になる",
+            "href": "/become-a-seller"
           }
         ]
       },
@@ -2086,9 +2090,9 @@
   },
   "marketplace": {
     "home": {
-      "metaTitle": "Spiber Marketplace — ヘルスケア・テクノロジー・ライフスタイル",
-      "metaDescription": "Spiber Marketplaceで、医療、健康・ウェルネス、テクノロジー、ホームなど幅広いカテゴリーの商品をお買い求めいただけます。バングラデシュ全土へお届けします。",
-      "eyebrow": "Spiber Marketplace",
+      "metaTitle": "Spiber Kart — ヘルスケア・テクノロジー・ライフスタイル",
+      "metaDescription": "Spiber Kartで、医療、健康・ウェルネス、テクノロジー、ホームなど幅広いカテゴリーの商品をお買い求めいただけます。バングラデシュ全土へお届けします。",
+      "eyebrow": "Spiber Kart",
       "title": "健康・暮らし・生活のすべてをここに",
       "lede": "医療必需品からウェルネス、テクノロジー、ホームまで、多彩なカテゴリーを取り揃えたマーケットプレイス。バングラデシュ全土へお届けします。",
       "search": "検索",
@@ -2100,6 +2104,49 @@
       "comingSoonNote": "ただいま品揃えを準備中です。上のカテゴリーをご覧ください。まもなく商品が表示されます。",
       "allProducts": "商品",
       "resultsFor": "「{q}」の検索結果"
+    },
+    "shop": {
+      "metaTitle": "すべての製品を見る — Spiber Kart",
+      "metaDescription": "Spiber Kart のすべての製品を閲覧・絞り込みできます。医療、ウェルネス、テクノロジー、ホームなど。バングラデシュ全土へお届けします。",
+      "eyebrow": "Spiber Kart",
+      "title": "すべての製品",
+      "lede": "全カタログを閲覧。カテゴリー・ブランド・価格・評価で絞り込めます。",
+      "breadcrumb": "ショップ",
+      "allProducts": "製品"
+    },
+    "brands": {
+      "metaTitle": "ブランド — Spiber Kart",
+      "metaDescription": "Spiber Kartのすべてのブランドを見て、その商品へ直接ジャンプできます。バングラデシュ全土にお届けします。",
+      "eyebrow": "Spiber Kart",
+      "title": "ブランドで探す",
+      "lede": "Spiber Kartのすべてのブランドを見て、その商品へ直接ジャンプできます。",
+      "breadcrumb": "ブランド",
+      "count": "ブランド",
+      "empty": "まだブランドがありません。また後でご確認ください。"
+    },
+    "landing": {
+      "searchPlaceholder": "Spiber Kart 内を検索…",
+      "shopAll": "すべての製品を見る",
+      "requestProduct": "製品をリクエスト",
+      "becomeSeller": "出品者になる",
+      "viewAll": "すべて見る",
+      "categoriesEyebrow": "カテゴリー",
+      "categoriesTitle": "カテゴリーから探す",
+      "brandsEyebrow": "信頼のブランド",
+      "brandsTitle": "ブランドから探す",
+      "topRatedEyebrow": "お客様に人気",
+      "topRatedTitle": "高評価",
+      "featuredEyebrow": "厳選",
+      "featuredTitle": "おすすめ製品",
+      "newArrivalsEyebrow": "新着",
+      "newArrivalsTitle": "新着製品",
+      "dealsTitle": "本日のセール",
+      "sellerCtaTitle": "Spiber Kart で販売する",
+      "sellerCtaLede": "バングラデシュ全土のお客様にリーチ。出品、注文管理、入金までを一つの出品者ダッシュボードで。",
+      "sellerCtaButton": "出品者になる",
+      "requestCtaTitle": "お探しの商品が見つかりませんか？",
+      "requestCtaLede": "ご希望の製品をお知らせください。当社チームが調達します。",
+      "requestCtaButton": "製品をリクエスト"
     },
     "product": {
       "more": "その他の商品",
@@ -2116,6 +2163,186 @@
       "genuineNote": "認証済みサプライヤーから調達",
       "returnsTitle": "かんたん返品",
       "returnsNote": "わずらわしさのない返品ポリシー"
+    },
+    "heroSection": {
+      "badge": "医療プロフェッショナルに信頼されています",
+      "titleLine1": "より良い健康。",
+      "titleLine2": "より良い暮らし。",
+      "lede": "医療機器・用品・ウェルネスのワンストップショップ。プレミアム品質で専門家に信頼され、バングラデシュ全土にお届けします。",
+      "shopAll": "すべての商品を見る",
+      "exploreDeals": "セールを見る",
+      "imageAlt": "医療モニタリング機器",
+      "feature1Value": "100+",
+      "feature1Note": "トップブランド",
+      "feature2Value": "迅速",
+      "feature2Note": "送料無料*",
+      "feature3Value": "簡単",
+      "feature3Note": "30日間返品",
+      "feature4Value": "ライブ",
+      "feature4Note": "サポート"
+    },
+    "brandStrip": {
+      "title": "健康とライフスタイルのためのトップブランド",
+      "viewAll": "すべて見る"
+    },
+    "promo": {
+      "eyebrow": "期間限定オファー",
+      "title": "電化製品・ウェルネスが最大25%オフ",
+      "note": "今すぐ購入して大きく節約！",
+      "cta": "セールを見る",
+      "days": "日",
+      "hours": "時間",
+      "minutes": "分",
+      "seconds": "秒"
+    },
+    "bestSellers": {
+      "eyebrow": "ベストセラー",
+      "title": "健康とライフスタイルの人気商品",
+      "viewAll": "すべて見る"
+    },
+    "priceCheck": {
+      "eyebrow": "プライスチェック",
+      "title": "あなたのためのプライスチェック",
+      "viewAll": "すべて見る"
+    },
+    "badges": {
+      "sale": "セール",
+      "new": "新着",
+      "bestseller": "ベストセラー",
+      "featured": "おすすめ"
+    },
+    "card": {
+      "addToCart": "カートに追加",
+      "adding": "追加中…",
+      "added": "追加しました",
+      "selectOptions": "オプションを選択",
+      "outOfStock": "在庫切れ",
+      "view": "見る"
+    },
+    "valueProps": {
+      "dealerTitle": "正規販売店",
+      "dealerNote": "100%正規品",
+      "secureTitle": "安全な決済",
+      "secureNote": "安全で暗号化されたチェックアウト",
+      "returnsTitle": "わずらわしさのない返品",
+      "returnsNote": "30日間かんたん返品",
+      "savingsTitle": "大きな節約",
+      "savingsNote": "毎日お得なセール"
+    },
+    "support": {
+      "humanTitle": "24時間365日、実際のスタッフが対応",
+      "humanNote": "昼でも夜でも、ケアの専門家がサポートします。",
+      "humanCta": "サポートを見る",
+      "returnsTitle": "かんたん返品で安心",
+      "returnsNote": "100%ご満足いただけない場合、対象商品をわずらわしさなく返品できます。",
+      "returnsCta": "返品について見る",
+      "bulkTitle": "大口 / プロ / 施設向け価格",
+      "bulkNote": "大口・施設向けの特別価格をご利用いただけます。",
+      "bulkCta": "今すぐ見る"
+    },
+    "newsletter": {
+      "title": "新着商品・限定セール・健康のヒントをお届けします",
+      "note": "今すぐニュースレターに登録！",
+      "placeholder": "メールアドレスを入力",
+      "submit": "登録する",
+      "submitting": "登録中…",
+      "success": "登録が完了しました — ありがとうございます！",
+      "error": "問題が発生しました。もう一度お試しください。",
+      "invalid": "有効なメールアドレスを入力してください。"
+    },
+    "shopNav": {
+      "shopByCategory": "カテゴリーで探す",
+      "searchPlaceholder": "商品・ブランドなどを検索…",
+      "bestSellers": "ベストセラー",
+      "brands": "ブランド",
+      "offerZone": "お得なコーナー",
+      "blog": "ブログ",
+      "requestProduct": "商品リクエスト",
+      "allProducts": "すべての商品",
+      "newArrivals": "新着",
+      "healthCorner": "ヘルスコーナー",
+      "becomeSeller": "出店する",
+      "support": "サポート",
+      "shopAllIn": "{name}をすべて見る"
+    }
+  },
+  "productRequest": {
+    "hero": {
+      "metaTitle": "製品をリクエスト — Spiber Kart",
+      "metaDescription": "Spiber Kart でお探しの商品が見つかりませんか？ご希望の製品をお知らせください。当社チームが調達します。",
+      "eyebrow": "Spiber Kart",
+      "title": "製品をリクエスト",
+      "lede": "カタログに見つかりませんか？ご希望の製品をご記入ください。調達チームがお探しし、選択肢と価格をご案内します。",
+      "breadcrumb": "製品をリクエスト"
+    },
+    "form": {
+      "productName": "お探しの製品は何ですか？",
+      "category": "カテゴリー（任意）",
+      "brand": "希望ブランド（任意）",
+      "quantity": "数量（任意）",
+      "budget": "予算・希望価格（任意）",
+      "referenceUrl": "参考リンク（任意）",
+      "details": "追加の詳細（任意）",
+      "name": "お名前",
+      "email": "メールアドレス",
+      "phone": "電話番号（任意）",
+      "submit": "リクエストを送信",
+      "submitting": "送信中…",
+      "error": "エラーが発生しました。もう一度お試しください。",
+      "successTitle": "リクエストを受け付けました",
+      "successNote": "ありがとうございます。調達チームが確認し、追ってご連絡します。受付番号："
+    }
+  },
+  "becomeSeller": {
+    "hero": {
+      "metaTitle": "出品者になる — Spiber Kart",
+      "metaDescription": "Spiber Kart でバングラデシュ全土のお客様に商品を販売しましょう。出品者に申し込んで、商品の登録・注文管理・入金までを行えます。",
+      "eyebrow": "Spiber Kart",
+      "title": "Spiber Kart で販売する",
+      "lede": "バングラデシュ全土のお客様にリーチ。出品、注文管理、入金までを一つの出品者ダッシュボードで。",
+      "breadcrumb": "出品者になる"
+    },
+    "benefits": {
+      "title": "出品するメリット",
+      "reachTitle": "全国にリーチ",
+      "reachNote": "信頼できる配送パートナーとともに、バングラデシュ全土のお客様に商品を届けます。",
+      "easyTitle": "かんたん管理",
+      "easyNote": "シンプルな出品者ダッシュボードで、出品・注文管理・在庫更新ができます。",
+      "payoutsTitle": "確実な入金",
+      "payoutsNote": "透明な手数料と定期的な入金で、販売ごとに収益を得られます。"
+    },
+    "form": {
+      "title": "出品者に申し込む",
+      "businessName": "事業者名",
+      "contactName": "担当者名",
+      "email": "メールアドレス",
+      "phone": "電話番号",
+      "website": "ウェブサイト（任意）",
+      "address": "事業所住所（任意）",
+      "categories": "何を販売しますか？",
+      "description": "事業内容を教えてください",
+      "bank": "入金情報（任意 — 後から追加できます）",
+      "accountName": "口座名義",
+      "bankName": "銀行名",
+      "accountNumber": "口座番号",
+      "branch": "支店",
+      "routingNumber": "ルーティング番号",
+      "mobileWallet": "モバイルウォレット（bKash / Nagad）",
+      "submit": "申請を送信",
+      "submitting": "送信中…",
+      "error": "エラーが発生しました。フォームをご確認のうえ、もう一度お試しください。",
+      "successTitle": "申請を受け付けました",
+      "successNote": "ありがとうございます。担当チームが確認し、追ってご連絡します。受付番号：",
+      "loginPrompt": "出品者に申し込むにはサインインしてください。",
+      "signIn": "サインイン",
+      "alreadySeller": "すでに出品者として登録されています。",
+      "goToDashboard": "ダッシュボードへ",
+      "alreadyApplied": "申請は現在審査中です。追ってご連絡いたします。"
+    },
+    "store": {
+      "eyebrow": "出品者",
+      "productsBy": "{name} の商品",
+      "empty": "この出品者にはまだ登録された商品がありません。"
     }
   },
   "reviews": {

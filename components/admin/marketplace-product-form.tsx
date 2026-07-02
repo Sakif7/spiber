@@ -21,6 +21,7 @@ export type MarketplaceProductInitial = {
   categoryId?: string;
   brandId?: string;
   priceMinor?: number | null;
+  compareAtMinor?: number | null;
   lowStockThreshold?: number;
   status?: "draft" | "active" | "archived";
   featured?: boolean;
@@ -62,6 +63,11 @@ export function MarketplaceProductForm({
   const [price, setPrice] = useState(
     initial?.priceMinor != null ? String(fromMinor(initial.priceMinor)) : "",
   );
+  const [compareAt, setCompareAt] = useState(
+    initial?.compareAtMinor != null
+      ? String(fromMinor(initial.compareAtMinor))
+      : "",
+  );
   const [lowStock, setLowStock] = useState(
     String(initial?.lowStockThreshold ?? 5),
   );
@@ -90,6 +96,7 @@ export function MarketplaceProductForm({
       categoryId,
       brandId: brandId || undefined,
       priceMinor: price.trim() ? toMinor(Number(price) || 0) : null,
+      compareAtMinor: compareAt.trim() ? toMinor(Number(compareAt) || 0) : null,
       lowStockThreshold: Number(lowStock) || 0,
       status,
       featured,
@@ -223,7 +230,7 @@ export function MarketplaceProductForm({
           </select>
         </div>
       </div>
-      <div style={row}>
+      <div style={triRow}>
         <div style={field}>
           <Label>Base price (BDT)</Label>
           <Input
@@ -231,6 +238,15 @@ export function MarketplaceProductForm({
             value={price}
             placeholder="Required (or set per variant)"
             onChange={(e) => setPrice(e.target.value)}
+          />
+        </div>
+        <div style={field}>
+          <Label>Compare-at / “was” price (BDT)</Label>
+          <Input
+            type="number"
+            value={compareAt}
+            placeholder="Optional — shows a Sale badge"
+            onChange={(e) => setCompareAt(e.target.value)}
           />
         </div>
         <div style={field}>

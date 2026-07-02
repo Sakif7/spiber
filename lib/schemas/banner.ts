@@ -10,6 +10,7 @@ export const bannerSchema = z.object({
   title: localizedSchema,
   subtitle: localizedSchema.optional(),
   image: z.string().optional(),
+  images: z.array(z.string()).max(6).optional(),
   href: z.string().max(512).optional(),
   cta: localizedSchema.optional(),
   position: z.number().int().nonnegative().default(0),

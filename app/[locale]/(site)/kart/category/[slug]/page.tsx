@@ -52,7 +52,7 @@ export async function generateMetadata({
     !!str(sp.sort);
   return pageMetadata({
     locale: locale as Locale,
-    path: `/marketplace/category/${slug}`,
+    path: `/kart/category/${slug}`,
     title,
     noindex: filtered,
   });
@@ -152,7 +152,7 @@ export default async function MarketplaceCategory({
         imageAlt={localize(cat.name, l)}
         breadcrumbs={[
           { label: nav("home"), href: "/" },
-          { label: tm("title"), href: "/marketplace" },
+          { label: tm("title"), href: "/kart" },
           { label: localize(cat.name, l) },
         ]}
       />
@@ -160,7 +160,7 @@ export default async function MarketplaceCategory({
         <Container>
           <MarketplaceProductListing
             locale={l}
-            basePath={`/marketplace/category/${slug}`}
+            basePath={`/kart/category/${slug}`}
             sp={spFlat}
             result={result}
             brands={brands}

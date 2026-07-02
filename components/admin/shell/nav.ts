@@ -20,6 +20,9 @@ import {
   Store,
   Star,
   FileText,
+  PackageSearch,
+  ShoppingBag,
+  Banknote,
   Image as ImageIcon,
   Trash2,
   CalendarDays,
@@ -53,7 +56,7 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "Marketplace",
+    label: "Spiber Kart",
     items: [
       { href: "/admin/marketplace/products", label: "Products", icon: Store },
       {
@@ -61,8 +64,36 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Categories",
         icon: FolderTree,
       },
+      { href: "/admin/brands", label: "Brands", icon: Tag },
       { href: "/admin/marketplace/banners", label: "Banners", icon: ImageIcon },
       { href: "/admin/marketplace/reviews", label: "Reviews", icon: Star },
+      {
+        href: "/admin/product-requests",
+        label: "Product Requests",
+        icon: PackageSearch,
+      },
+    ],
+  },
+  {
+    label: "Sellers",
+    items: [
+      { href: "/admin/sellers", label: "Sellers", icon: ShoppingBag },
+      {
+        href: "/admin/sellers/applications",
+        label: "Applications",
+        icon: Mailbox,
+      },
+      {
+        href: "/admin/sellers/products",
+        label: "Pending products",
+        icon: PackageOpen,
+      },
+      {
+        href: "/admin/sellers/commissions",
+        label: "Commissions",
+        icon: Percent,
+      },
+      { href: "/admin/sellers/payouts", label: "Payouts", icon: Banknote },
     ],
   },
   {

@@ -99,7 +99,7 @@ export function CheckoutForm() {
     if (res.ok && json.ok) {
       qc.setQueryData(["cart"], { items: [], subtotalMinor: 0, count: 0 });
       router.push(
-        `/marketplace/order/${json.data.orderNumber}?email=${encodeURIComponent(json.data.email)}`,
+        `/kart/order/${json.data.orderNumber}?email=${encodeURIComponent(json.data.email)}`,
       );
       return;
     }
@@ -313,7 +313,7 @@ export function CheckoutForm() {
           {isSubmitting ? t("placing") : t("placeOrder")}
         </CtaButton>
         <Link
-          href="/marketplace/cart"
+          href="/kart/cart"
           style={{
             textAlign: "center",
             fontSize: "var(--fs-small)",

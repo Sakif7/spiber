@@ -30,7 +30,7 @@ export const HERO = {
   systemsHub: "/surgeon-viewing-medical-imaging-screen.jpeg",
   academyHub: "/cpr-training-manikin-with-aed.jpeg",
   tourismHub: "/cherry-blossom-tree-lined-road.jpeg",
-  consultingHub: "/smiling-medical-team-portrait.jpeg",
+  healthCornerHub: "/nurse-comforting-elderly-woman-home-care.jpeg",
   marketplaceHub: "/diverse-medical-team-cheering.jpeg",
 } as const;
 
@@ -48,6 +48,9 @@ export const MARKETPLACE_HUB_IMAGES = [
   "/icu-patient-blood-pressure-monitor.jpeg",
   "/iv-infusion-pump-bedside.jpeg",
 ];
+
+/** Rotating hero photos for the Spiber Kart homepage (multi-category retail). */
+export const KART_HOME_IMAGES = MARKETPLACE_HUB_IMAGES;
 
 /** Rotating hero photos for the Spiber Tourism hub. */
 export const TOURISM_HUB_IMAGES = [

@@ -23,6 +23,12 @@ export async function markEmailVerified(id: string) {
   await User.updateOne({ _id: id }, { $set: { emailVerified: true } }).exec();
 }
 
+/** Grant a role idempotently (e.g. "seller" when a seller application is approved). */
+export async function addUserRole(id: string, role: IUser["roles"][number]) {
+  await connectToDatabase();
+  await User.updateOne({ _id: id }, { $addToSet: { roles: role } }).exec();
+}
+
 export async function updatePasswordHash(id: string, passwordHash: string) {
   await connectToDatabase();
   // Bump tokenVersion so every outstanding refresh/reset token is invalidated:

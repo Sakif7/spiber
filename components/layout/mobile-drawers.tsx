@@ -37,7 +37,7 @@ export function MobileDrawers({
   return (
     <div style={{ width: "100%", display: "flex", flexDirection: "column" }}>
       <Section
-        label="Marketplace"
+        label="Spiber Kart"
         open={open === "marketplace"}
         onToggle={() => toggle("marketplace")}
       >
@@ -222,14 +222,14 @@ function MarketplacePanel({ onNavigate }: { onNavigate: () => void }) {
   }, [locale]);
   return (
     <div>
-      <MobileLink href="/marketplace" onNavigate={onNavigate} strong>
+      <MobileLink href="/kart" onNavigate={onNavigate} strong>
         Shop all products
       </MobileLink>
       {cats === null && <Loading />}
       {cats?.map((c) => (
         <MobileLink
           key={c.slug}
-          href={`/marketplace/category/${c.slug}`}
+          href={`/kart/category/${c.slug}`}
           onNavigate={onNavigate}
           indent
         >

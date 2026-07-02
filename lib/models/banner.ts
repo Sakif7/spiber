@@ -7,6 +7,9 @@ export interface IBanner {
   title: LocalizedDoc;
   subtitle?: LocalizedDoc;
   image?: string;
+  /** Extra images (e.g. the deal-banner product cluster). `image` stays the
+   * primary/first for back-compat with the hero slot. */
+  images?: string[];
   href?: string;
   cta?: LocalizedDoc;
   position: number;
@@ -27,6 +30,7 @@ const bannerSchema = new Schema<IBanner>(
     title: { ...localizedDef },
     subtitle: { en: { type: String }, bn: { type: String } },
     image: { type: String },
+    images: { type: [String], default: undefined },
     href: { type: String },
     cta: { en: { type: String }, bn: { type: String } },
     position: { type: Number, default: 0 },

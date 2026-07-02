@@ -34,7 +34,7 @@ export const divisions = [
   { key: "academy", href: "/academy" },
   { key: "systems", href: "/digihealth" },
   { key: "tourism", href: "/tourism" },
-  { key: "consulting", href: "/consulting" },
+  { key: "health-corner", href: "/health-corner" },
 ] as const;
 
 export type DivisionKey = (typeof divisions)[number]["key"];
@@ -49,7 +49,11 @@ export const publicRoutes = [
   "/company/gallery",
   "/company/events",
   "/contact",
-  "/marketplace",
+  "/kart",
+  "/kart/shop",
+  "/kart/brands",
+  "/kart/request-product",
+  "/become-a-seller",
   "/medtrade",
   "/academy",
   "/digihealth",
@@ -64,7 +68,7 @@ export const publicRoutes = [
   "/tourism/hotels",
   "/tourism/visa",
   "/tourism/partner",
-  "/consulting",
+  "/health-corner",
   "/blog",
   "/privacy",
   "/terms",

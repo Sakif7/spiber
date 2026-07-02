@@ -106,7 +106,7 @@ export default async function AdminOrdersPage({
     <div className="space-y-6">
       <AdminPageHeader
         title="Orders"
-        description="Marketplace orders — payment, fulfillment, and shipping."
+        description="Spiber Kart orders — payment, fulfillment, and shipping."
         action={
           <a
             href="/api/admin/orders/export"

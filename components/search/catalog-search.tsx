@@ -383,13 +383,17 @@ export function CatalogSearch({
   defaultValue = "",
   autoFocus = false,
   enableShortcut = true,
+  placeholder,
 }: {
   mode?: Mode;
   defaultValue?: string;
   autoFocus?: boolean;
   enableShortcut?: boolean;
+  /** Overrides the default cross-catalog placeholder (e.g. a marketplace one). */
+  placeholder?: string;
 }) {
   const t = useTranslations("search");
+  const ph = placeholder ?? t("placeholder");
   const locale = useLocale();
   const router = useRouter();
   const reduce = useReducedMotion();
@@ -620,7 +624,7 @@ export function CatalogSearch({
       if (next.trim().length < MIN_CHARS) clearResults();
     },
     onKeyDown: onInputKeyDown,
-    placeholder: t("placeholder"),
+    placeholder: ph,
     "aria-label": t("ariaLabel"),
     role: "combobox" as const,
     "aria-expanded": panelOpen,
@@ -687,7 +691,7 @@ export function CatalogSearch({
                 textOverflow: "ellipsis",
               }}
             >
-              {t("placeholder")}
+              {ph}
             </span>
             <kbd
               className="catalog-search-kbd"

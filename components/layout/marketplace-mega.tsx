@@ -39,7 +39,7 @@ export function MarketplaceMega({ onNavigate }: { onNavigate?: () => void }) {
       id: `c:${c.id}`,
       label: c.name,
       kind: "category",
-      href: `/marketplace/category/${c.slug}`,
+      href: `/kart/category/${c.slug}`,
       loadChildren: () => {
         if (c.children.length) {
           return Promise.resolve(
@@ -47,12 +47,12 @@ export function MarketplaceMega({ onNavigate }: { onNavigate?: () => void }) {
               id: `s:${sub.id}`,
               label: sub.name,
               kind: "subcategory" as const,
-              href: `/marketplace/category/${sub.slug}`,
+              href: `/kart/category/${sub.slug}`,
               loadChildren: () =>
                 loadCatalogProducts(
                   locale,
                   `storefront=marketplace&categoryId=${sub.id}`,
-                  "/marketplace/product",
+                  "/kart/product",
                 ),
             })),
           );
@@ -60,7 +60,7 @@ export function MarketplaceMega({ onNavigate }: { onNavigate?: () => void }) {
         return loadCatalogProducts(
           locale,
           `storefront=marketplace&categoryId=${c.id}`,
-          "/marketplace/product",
+          "/kart/product",
         );
       },
     }));
@@ -69,7 +69,7 @@ export function MarketplaceMega({ onNavigate }: { onNavigate?: () => void }) {
         id: "all",
         label: "Shop all products",
         kind: "link",
-        href: "/marketplace",
+        href: "/kart/shop",
       },
       ...catNodes,
     ];

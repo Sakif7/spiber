@@ -12,6 +12,14 @@ export const productStatusEnum = z.enum(["draft", "active", "archived"]);
 export type ProductStatus = z.infer<typeof productStatusEnum>;
 
 /**
+ * Approval gate for third-party (seller-owned) products. House/admin products
+ * default to "approved"; a seller's product starts "pending" and is hidden from
+ * public listings until an admin approves it.
+ */
+export const productApprovalEnum = z.enum(["pending", "approved", "rejected"]);
+export type ProductApprovalStatus = z.infer<typeof productApprovalEnum>;
+
+/**
  * Which storefront a product/category belongs to. `instruments` = B2B
  * quote-only catalog (no cart/checkout, price optional). `marketplace` = the
  * buyable multi-category store (full commerce engine).
@@ -122,6 +130,9 @@ export const productSchema = z.object({
   // Optional: instruments products are "Price on request"; marketplace
   // products must resolve a price (enforced by `refineProduct`).
   priceMinor: z.number().int().nonnegative().nullable().optional(),
+  // Optional "was"/RRP price. When set above `priceMinor`, storefronts show a
+  // strikethrough + "Sale" badge (the saving = compareAt − price).
+  compareAtMinor: z.number().int().nonnegative().nullable().optional(),
   stockQty: z.number().int().default(0),
   lowStockThreshold: z.number().int().nonnegative().default(5),
   status: productStatusEnum.default("draft"),

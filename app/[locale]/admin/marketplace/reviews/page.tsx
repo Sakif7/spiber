@@ -46,7 +46,7 @@ export default async function AdminReviewsPage({
     <div className="space-y-6">
       <AdminPageHeader
         title="Reviews"
-        description="Moderate marketplace product reviews."
+        description="Moderate Spiber Kart product reviews."
       />
 
       <div style={{ display: "flex", gap: 8 }}>

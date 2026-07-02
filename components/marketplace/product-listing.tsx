@@ -113,8 +113,8 @@ export async function MarketplaceProductListing({
         showRating
         categories={categories}
         currentSlug={currentSlug}
-        categoryBasePath="/marketplace"
-        categoryLinkPrefix="/marketplace/category"
+        categoryBasePath="/kart/shop"
+        categoryLinkPrefix="/kart/category"
       />
 
       <div
@@ -132,7 +132,7 @@ export async function MarketplaceProductListing({
             {subcategories.map((s) => (
               <Link
                 key={s.slug}
-                href={`/marketplace/category/${s.slug}`}
+                href={`/kart/category/${s.slug}`}
                 style={{
                   padding: "6px 14px",
                   borderRadius: "var(--r-pill)",

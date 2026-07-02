@@ -29,7 +29,7 @@ function viewAllHref(group: SearchGroupKey, q: string): string {
     case "instruments":
       return "/medtrade";
     case "marketplace":
-      return `/marketplace/search?q=${e}`;
+      return `/kart/search?q=${e}`;
     case "academy":
       return `/academy/courses?q=${e}`;
     case "systems":

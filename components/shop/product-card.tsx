@@ -1,5 +1,6 @@
 import { useTranslations } from "next-intl";
 import { localize } from "@/lib/schemas/localized";
+import { formatBDT } from "@/lib/money";
 import { PriceTag } from "./price-tag";
 import { WishlistButton } from "./wishlist-button";
 import { RatingStars } from "@/components/marketplace/rating-stars";
@@ -59,13 +60,19 @@ export function ProductCard({
   const isInstruments = mode === "instruments";
   const href = isInstruments
     ? `/medtrade/product/${product.slug}`
-    : `/marketplace/product/${product.slug}`;
+    : `/kart/product/${product.slug}`;
 
   const { price, from } = effectivePrice(product);
   const stock = effectiveStock(product);
   const out = !isInstruments && stock <= 0;
   const low = !isInstruments && !out && stock <= product.lowStockThreshold;
   const showRating = !isInstruments && product.ratingCount > 0;
+
+  // Discount: admin-set "compare-at" (was) price above the current price.
+  const compareAt = product.compareAtMinor ?? null;
+  const onSale =
+    !isInstruments && price != null && compareAt != null && compareAt > price;
+  const pct = onSale ? Math.round((1 - price / compareAt) * 100) : 0;
 
   return (
     <CatalogCard
@@ -75,21 +82,50 @@ export function ProductCard({
       placeholderLabel={name}
       placeholderTone="teal"
       imageTopLeft={
-        out || low ? (
-          <span
+        onSale || out || low ? (
+          <div
             style={{
-              borderRadius: 999,
-              padding: "4px 10px",
-              fontSize: 11,
-              fontWeight: 600,
-              backdropFilter: "blur(4px)",
-              background:
-                "color-mix(in srgb, var(--color-surface) 92%, transparent)",
-              color: out ? "var(--color-error)" : "var(--color-secondary-deep)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 6,
+              alignItems: "flex-start",
             }}
           >
-            {out ? t("outOfStock") : t("lowStock", { count: stock })}
-          </span>
+            {onSale && (
+              <span
+                style={{
+                  borderRadius: 999,
+                  padding: "4px 10px",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: ".02em",
+                  color: "#fff",
+                  background: "var(--color-secondary)",
+                  boxShadow: "0 4px 12px -4px rgba(10,31,44,.35)",
+                }}
+              >
+                -{pct}%
+              </span>
+            )}
+            {(out || low) && (
+              <span
+                style={{
+                  borderRadius: 999,
+                  padding: "4px 10px",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  backdropFilter: "blur(4px)",
+                  background:
+                    "color-mix(in srgb, var(--color-surface) 92%, transparent)",
+                  color: out
+                    ? "var(--color-error)"
+                    : "var(--color-secondary-deep)",
+                }}
+              >
+                {out ? t("outOfStock") : t("lowStock", { count: stock })}
+              </span>
+            )}
+          </div>
         ) : undefined
       }
       imageTopRight={
@@ -130,17 +166,38 @@ export function ProductCard({
             {tq("priceOnRequest")}
           </span>
         ) : (
-          <PriceTag
-            minor={price}
-            locale={locale}
-            prefix={from ? tc("from") : undefined}
-            fallback={tq("priceOnRequest")}
+          <span
             style={{
-              fontSize: "var(--fs-h5)",
-              color: "var(--color-brand-deep)",
-              fontWeight: 700,
+              display: "inline-flex",
+              alignItems: "baseline",
+              gap: 6,
+              flexWrap: "wrap",
             }}
-          />
+          >
+            <PriceTag
+              minor={price}
+              locale={locale}
+              prefix={from ? tc("from") : undefined}
+              fallback={tq("priceOnRequest")}
+              style={{
+                fontSize: "var(--fs-h5)",
+                color: "var(--color-brand-deep)",
+                fontWeight: 700,
+              }}
+            />
+            {onSale && (
+              <span
+                style={{
+                  fontSize: "var(--fs-caption)",
+                  color: "var(--color-text-subtle)",
+                  textDecoration: "line-through",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {formatBDT(compareAt, locale)}
+              </span>
+            )}
+          </span>
         )
       }
       action={isInstruments ? tq("requestQuotationShort") : tc("view")}

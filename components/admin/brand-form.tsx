@@ -6,15 +6,39 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SingleImageField } from "@/components/admin/upload-fields";
 import { formatApiError } from "@/lib/http/form-error";
 
-export function BrandForm() {
-  const router = useRouter();
+export type BrandFormValue = {
+  id: string;
+  nameEn: string;
+  nameBn?: string;
+  nameJa?: string;
+  slug: string;
+  logo?: string;
+};
 
-  const [nameEn, setNameEn] = useState("");
-  const [nameBn, setNameBn] = useState("");
-  const [nameJa, setNameJa] = useState("");
-  const [slug, setSlug] = useState("");
+/**
+ * Create OR edit a brand. Pass `brand` to edit an existing one (PATCHes
+ * `/api/admin/brands/[id]`); omit it to create (POST). Both flows accept a
+ * logo/icon image, uploaded via the shared `SingleImageField`. The logo drives
+ * the "Shop by brand" grid and the storefront brand strip.
+ */
+export function BrandForm({
+  brand,
+  onDone,
+}: {
+  brand?: BrandFormValue;
+  onDone?: () => void;
+}) {
+  const router = useRouter();
+  const editing = Boolean(brand);
+
+  const [nameEn, setNameEn] = useState(brand?.nameEn ?? "");
+  const [nameBn, setNameBn] = useState(brand?.nameBn ?? "");
+  const [nameJa, setNameJa] = useState(brand?.nameJa ?? "");
+  const [slug, setSlug] = useState(brand?.slug ?? "");
+  const [logo, setLogo] = useState(brand?.logo ?? "");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -32,21 +56,29 @@ export function BrandForm() {
         ja: nameJa.trim() || undefined,
       },
       slug: slug.trim() || undefined,
+      logo: logo.trim() || undefined,
     };
-    const res = await fetch("/api/admin/brands", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    const res = await fetch(
+      editing ? `/api/admin/brands/${brand!.id}` : "/api/admin/brands",
+      {
+        method: editing ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+    );
     const json = await res.json().catch(() => null);
     setSaving(false);
     if (res.ok && json?.ok) {
-      setNameEn("");
-      setNameBn("");
-      setNameJa("");
-      setSlug("");
-      toast.success("Brand added");
+      if (!editing) {
+        setNameEn("");
+        setNameBn("");
+        setNameJa("");
+        setSlug("");
+        setLogo("");
+      }
+      toast.success(editing ? "Brand updated" : "Brand added");
       router.refresh();
+      onDone?.();
     } else {
       const msg = formatApiError(json);
       setError(msg);
@@ -55,7 +87,7 @@ export function BrandForm() {
   }
 
   return (
-    <div className="grid max-w-[520px] gap-4">
+    <div className="grid max-w-[560px] gap-4">
       <div className="grid gap-1.5">
         <Label>Name</Label>
         <div className="grid grid-cols-3 gap-4">
@@ -84,13 +116,26 @@ export function BrandForm() {
           onChange={(e) => setSlug(e.target.value)}
         />
       </div>
+      <div className="grid gap-1.5">
+        <Label>Logo / icon</Label>
+        <SingleImageField value={logo} onChange={setLogo} label="Upload logo" />
+        <p className="text-muted-foreground text-xs">
+          A transparent PNG or SVG works best — it shows in the “Shop by brand”
+          grid and the brand strip on the Spiber Kart homepage.
+        </p>
+      </div>
 
       {error && <p className="text-destructive text-sm">{error}</p>}
 
-      <div>
+      <div className="flex items-center gap-2">
         <Button onClick={submit} disabled={saving}>
-          {saving ? "Saving…" : "Add brand"}
+          {saving ? "Saving…" : editing ? "Save changes" : "Add brand"}
         </Button>
+        {editing && onDone && (
+          <Button variant="ghost" type="button" onClick={onDone}>
+            Cancel
+          </Button>
+        )}
       </div>
     </div>
   );

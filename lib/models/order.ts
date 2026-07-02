@@ -18,6 +18,8 @@ export interface IOrderItem {
     variantId?: string | null;
     /** Resolved option labels for display, e.g. [{name:"Size",value:"M"}]. */
     variantOptions?: { name: string; value: string }[];
+    /** null = platform/house product; else the Seller that owns it (for payouts). */
+    sellerId?: mongoose.Types.ObjectId | string | null;
   };
   qty: number;
   lineTotalMinor: number;
@@ -80,6 +82,7 @@ const orderItemSchema = new Schema<IOrderItem>(
         ],
         default: [],
       },
+      sellerId: { type: Schema.Types.ObjectId, ref: "Seller", default: null },
     },
     qty: { type: Number, required: true, min: 1 },
     lineTotalMinor: { type: Number, required: true },

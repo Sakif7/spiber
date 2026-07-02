@@ -192,7 +192,7 @@ export function CouponForm() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All storefronts</SelectItem>
-              <SelectItem value="marketplace">Marketplace</SelectItem>
+              <SelectItem value="marketplace">Spiber Kart</SelectItem>
               <SelectItem value="instruments">Medtrade</SelectItem>
               <SelectItem value="academy">Academy</SelectItem>
               <SelectItem value="systems">Digihealth</SelectItem>

@@ -1,6 +1,9 @@
 import { getSessionUser } from "./current-user";
 import { isAdmin } from "./rbac";
 import { findUserById } from "@/lib/repositories/users.repo";
+import { getSellerByUserId } from "@/lib/repositories/sellers.repo";
+import type { Lean } from "@/lib/models/_shared";
+import type { ISeller } from "@/lib/models/seller";
 import type { AccessClaims } from "./tokens";
 
 /**
@@ -17,4 +20,24 @@ export async function requireAdmin(): Promise<AccessClaims | null> {
   const doc = await findUserById(user!.sub).catch(() => null);
   if (!doc || doc.disabled || !isAdmin({ roles: doc.roles })) return null;
   return user;
+}
+
+export type SellerSession = { claims: AccessClaims; seller: Lean<ISeller> };
+
+/**
+ * Returns the seller session (claims + active Seller profile), or null → redirect.
+ *
+ * DB-authoritative: gates on an ACTIVE `Seller` profile (created at approval)
+ * rather than only the JWT role, so a freshly-approved seller works without
+ * re-logging-in, and a suspended/removed seller is locked out immediately even
+ * on a still-valid token.
+ */
+export async function requireSeller(): Promise<SellerSession | null> {
+  const claims = await getSessionUser();
+  if (!claims) return null;
+  const doc = await findUserById(claims.sub).catch(() => null);
+  if (!doc || doc.disabled) return null;
+  const seller = await getSellerByUserId(claims.sub).catch(() => null);
+  if (!seller || seller.status !== "active") return null;
+  return { claims, seller };
 }

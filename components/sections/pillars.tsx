@@ -102,7 +102,7 @@ export function Pillars() {
             />
             <Reveal delay={200}>
               <Link
-                href="/consulting"
+                href="/contact"
                 style={{
                   background: "var(--color-surface)",
                   color: "var(--color-text-strong)",

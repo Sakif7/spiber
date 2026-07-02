@@ -56,7 +56,7 @@ export function CategoryMegaGrid({
         return (
           <Link
             key={c.id}
-            href={`/marketplace/category/${c.slug}`}
+            href={`/kart/category/${c.slug}`}
             style={{
               display: "flex",
               flexDirection: "column",

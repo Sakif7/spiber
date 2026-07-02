@@ -18,11 +18,30 @@ const intlMiddleware = createMiddleware(routing);
 // Admin lives at the bare `/admin` (default locale, as-needed) or `/bn/admin`,
 // `/ja/admin` for the prefixed locales.
 const ADMIN_PATH = /^\/(?:(en|bn|ja)\/)?admin(\/|$)/;
+// Seller portal: require a valid session (coarse); the seller layout re-checks
+// the DB for an active Seller profile (role-based access is authoritative there).
+const SELLER_PATH = /^\/(?:(en|bn|ja)\/)?seller(\/|$)/;
 
 export default async function proxy(request: NextRequest) {
   const response = intlMiddleware(request);
 
   const { pathname } = request.nextUrl;
+
+  if (SELLER_PATH.test(pathname)) {
+    const token = request.cookies.get(COOKIE.access)?.value;
+    const claims = token ? await verifyAccessToken(token) : null;
+    if (!claims) {
+      const seg = pathname.split("/")[1];
+      const locale = (routing.locales as readonly string[]).includes(seg)
+        ? seg
+        : routing.defaultLocale;
+      const loginUrl = request.nextUrl.clone();
+      loginUrl.pathname = locale === routing.defaultLocale ? "/" : `/${locale}`;
+      loginUrl.search = `?auth=login&next=${encodeURIComponent(pathname)}`;
+      return NextResponse.redirect(loginUrl);
+    }
+  }
+
   if (ADMIN_PATH.test(pathname)) {
     const token = request.cookies.get(COOKIE.access)?.value;
     const claims = token ? await verifyAccessToken(token) : null;

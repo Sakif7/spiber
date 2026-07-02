@@ -57,7 +57,7 @@ export default async function AdminMarketplaceCategoriesPage({
           color: "var(--color-text-strong)",
         }}
       >
-        Marketplace categories
+        Spiber Kart categories
       </h1>
 
       <section

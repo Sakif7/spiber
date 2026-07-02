@@ -9,15 +9,19 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  return namespaceMetadata(locale as Locale, "hubs.consulting", "/consulting");
+  return namespaceMetadata(
+    locale as Locale,
+    "hubs.health-corner",
+    "/health-corner",
+  );
 }
 
-export default async function ConsultingHub({
+export default async function HealthCornerHub({
   params,
 }: {
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  return <DivisionHub locale={locale as Locale} division="consulting" />;
+  return <DivisionHub locale={locale as Locale} division="health-corner" />;
 }

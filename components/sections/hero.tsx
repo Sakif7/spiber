@@ -722,7 +722,7 @@ export function Hero() {
                 }}
               >
                 <Link
-                  href="/marketplace"
+                  href="/kart"
                   style={{
                     background: "var(--color-surface)",
                     color: "var(--color-text-strong)",

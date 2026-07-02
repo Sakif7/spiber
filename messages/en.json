@@ -440,7 +440,7 @@
     "readingTime": "{min} min read",
     "groups": {
       "instruments": "Medtrade",
-      "marketplace": "Marketplace",
+      "marketplace": "Spiber Kart",
       "academy": "Courses",
       "systems": "Software",
       "blog": "Articles"
@@ -466,9 +466,9 @@
     "academy": "Academy",
     "systems": "Digihealth",
     "tourism": "Tourism",
-    "consulting": "Consulting",
+    "health-corner": "Health Corner",
     "blog": "Blog",
-    "marketplace": "Marketplace",
+    "marketplace": "Spiber Kart",
     "company": "Company",
     "viewAllIn": "View all in {name}"
   },
@@ -507,10 +507,10 @@
       "title": "Spiber Tourism",
       "description": "Curated treatment packages with accredited partner facilities, plus travel and air-ticket support."
     },
-    "consulting": {
-      "eyebrow": "Healthcare Management & Advisory",
-      "title": "Spiber Consulting",
-      "description": "Strategic advisory and management services for healthcare organisations."
+    "health-corner": {
+      "eyebrow": "Wellness & Health Resources",
+      "title": "Spiber Health Corner",
+      "description": "Trusted health information, wellness tips and everyday care resources — coming soon."
     },
     "blog": {
       "eyebrow": "Insights & Updates",
@@ -1148,7 +1148,7 @@
       "brandLead": "Spiber Med is a Bangladesh-based medical & surgical equipment company — delivering clinical-grade devices, professional training, digital health, and medical tourism to hospitals nationwide since 2008.",
       "ctaQuote": "Request a Quote",
       "ctaExplore": "Explore Solutions",
-      "ctaMarketplace": "Explore Marketplace",
+      "ctaMarketplace": "Explore Spiber Kart",
       "trustIso": "ISO 13485",
       "trustBiomed": "24×7 biomed",
       "taglines": [
@@ -1618,31 +1618,35 @@
                 "href": "/tourism"
               },
               {
-                "label": "Spiber Consulting",
-                "href": "/consulting"
+                "label": "Spiber Health Corner",
+                "href": "/health-corner"
               }
             ]
           }
         ]
       },
       {
-        "title": "Marketplace",
+        "title": "Spiber Kart",
         "links": [
           {
             "label": "All products",
-            "href": "/marketplace"
+            "href": "/kart/shop"
           },
           {
             "label": "Medical",
-            "href": "/marketplace/category/medical"
+            "href": "/kart/category/medical"
           },
           {
             "label": "Health & Wellness",
-            "href": "/marketplace/category/health-and-wellness"
+            "href": "/kart/category/health-and-wellness"
           },
           {
             "label": "Technology",
-            "href": "/marketplace/category/technology"
+            "href": "/kart/category/technology"
+          },
+          {
+            "label": "Become a seller",
+            "href": "/become-a-seller"
           }
         ]
       },
@@ -2080,9 +2084,9 @@
   },
   "marketplace": {
     "home": {
-      "metaTitle": "Spiber Marketplace — Healthcare, technology & lifestyle",
-      "metaDescription": "Shop medical, health & wellness, technology, home and more across the Spiber Marketplace. Delivered across Bangladesh.",
-      "eyebrow": "Spiber Marketplace",
+      "metaTitle": "Spiber Kart — Healthcare, technology & lifestyle",
+      "metaDescription": "Shop medical, health & wellness, technology, home and more across Spiber Kart. Delivered across Bangladesh.",
+      "eyebrow": "Spiber Kart",
       "title": "Everything for health, home & life",
       "lede": "A multi-category marketplace — medical essentials, wellness, technology, home and more, delivered across Bangladesh.",
       "search": "Search",
@@ -2094,6 +2098,49 @@
       "comingSoonNote": "We're stocking the shelves. Browse the categories above — products will appear here shortly.",
       "allProducts": "Products",
       "resultsFor": "Results for “{q}”"
+    },
+    "shop": {
+      "metaTitle": "Shop all products — Spiber Kart",
+      "metaDescription": "Browse and filter every product on Spiber Kart — medical, wellness, technology, home and more. Delivered across Bangladesh.",
+      "eyebrow": "Spiber Kart",
+      "title": "Shop all products",
+      "lede": "Browse the full catalogue. Filter by category, brand, price and rating.",
+      "breadcrumb": "Shop",
+      "allProducts": "Products"
+    },
+    "brands": {
+      "metaTitle": "Brands on Spiber Kart",
+      "metaDescription": "Browse all brands on Spiber Kart and jump straight to their products, delivered across Bangladesh.",
+      "eyebrow": "Spiber Kart",
+      "title": "Shop by brand",
+      "lede": "Browse every brand on Spiber Kart and jump straight to their products.",
+      "breadcrumb": "Brands",
+      "count": "Brands",
+      "empty": "No brands yet. Check back soon."
+    },
+    "landing": {
+      "searchPlaceholder": "Search Spiber Kart…",
+      "shopAll": "Shop all products",
+      "requestProduct": "Request a product",
+      "becomeSeller": "Become a seller",
+      "viewAll": "View all",
+      "categoriesEyebrow": "Browse",
+      "categoriesTitle": "Shop by category",
+      "brandsEyebrow": "Trusted brands",
+      "brandsTitle": "Shop by brand",
+      "topRatedEyebrow": "Loved by customers",
+      "topRatedTitle": "Top rated",
+      "featuredEyebrow": "Handpicked",
+      "featuredTitle": "Featured products",
+      "newArrivalsEyebrow": "Just in",
+      "newArrivalsTitle": "New arrivals",
+      "dealsTitle": "Today's deals",
+      "sellerCtaTitle": "Sell on Spiber Kart",
+      "sellerCtaLede": "Reach customers across Bangladesh. List your products, manage orders, and get paid from one seller dashboard.",
+      "sellerCtaButton": "Become a seller",
+      "requestCtaTitle": "Can't find what you need?",
+      "requestCtaLede": "Tell us what you're looking for and our team will source it for you.",
+      "requestCtaButton": "Request a product"
     },
     "product": {
       "more": "More products",
@@ -2110,6 +2157,186 @@
       "genuineNote": "Sourced from verified suppliers",
       "returnsTitle": "Easy returns",
       "returnsNote": "Hassle-free return policy"
+    },
+    "heroSection": {
+      "badge": "Trusted by healthcare pros",
+      "titleLine1": "Better health.",
+      "titleLine2": "Better life.",
+      "lede": "Your one-stop shop for medical equipment, supplies and everyday wellness. Premium quality, trusted by experts, delivered nationwide.",
+      "shopAll": "Shop all products",
+      "exploreDeals": "Explore deals",
+      "imageAlt": "Medical monitoring equipment",
+      "feature1Value": "100+",
+      "feature1Note": "Top brands",
+      "feature2Value": "Fast",
+      "feature2Note": "Free shipping*",
+      "feature3Value": "Easy",
+      "feature3Note": "30-day returns",
+      "feature4Value": "Live",
+      "feature4Note": "Support"
+    },
+    "brandStrip": {
+      "title": "Top brands for your health & lifestyle",
+      "viewAll": "View all"
+    },
+    "promo": {
+      "eyebrow": "Limited time offer",
+      "title": "Up to 25% off electronics & wellness",
+      "note": "Shop now and save big!",
+      "cta": "View the deals",
+      "days": "Days",
+      "hours": "Hrs",
+      "minutes": "Mins",
+      "seconds": "Secs"
+    },
+    "bestSellers": {
+      "eyebrow": "Best sellers",
+      "title": "Top picks for your health & lifestyle",
+      "viewAll": "View all"
+    },
+    "priceCheck": {
+      "eyebrow": "Price check",
+      "title": "Price check, just for you",
+      "viewAll": "View all"
+    },
+    "badges": {
+      "sale": "Sale",
+      "new": "New",
+      "bestseller": "Bestseller",
+      "featured": "Featured"
+    },
+    "card": {
+      "addToCart": "Add to cart",
+      "adding": "Adding…",
+      "added": "Added",
+      "selectOptions": "Select options",
+      "outOfStock": "Out of stock",
+      "view": "View"
+    },
+    "valueProps": {
+      "dealerTitle": "Authorized dealers",
+      "dealerNote": "100% genuine products",
+      "secureTitle": "Secure payments",
+      "secureNote": "Safe & encrypted checkout",
+      "returnsTitle": "Hassle-free returns",
+      "returnsNote": "30-day easy returns",
+      "savingsTitle": "Big savings",
+      "savingsNote": "Exclusive deals every day"
+    },
+    "support": {
+      "humanTitle": "Talk to a real human 24/7",
+      "humanNote": "Get help from our care experts anytime, day or night.",
+      "humanCta": "Explore support",
+      "returnsTitle": "Easy returns, peace of mind",
+      "returnsNote": "Not 100% satisfied? Return eligible items hassle-free.",
+      "returnsCta": "Explore returns",
+      "bulkTitle": "Bulk / Pro / Facility pricing",
+      "bulkNote": "Unlock special pricing for bulk and facility orders.",
+      "bulkCta": "Explore now"
+    },
+    "newsletter": {
+      "title": "Get updates on new arrivals, exclusive deals & health tips",
+      "note": "Join our newsletter today!",
+      "placeholder": "Enter your email address",
+      "submit": "Subscribe",
+      "submitting": "Subscribing…",
+      "success": "You're subscribed. Thank you.",
+      "error": "Something went wrong. Please try again.",
+      "invalid": "Please enter a valid email address."
+    },
+    "shopNav": {
+      "shopByCategory": "Shop by category",
+      "searchPlaceholder": "Search products, brands and more…",
+      "bestSellers": "Best sellers",
+      "brands": "Brands",
+      "offerZone": "Offer zone",
+      "blog": "Blog",
+      "requestProduct": "Request a product",
+      "allProducts": "All products",
+      "newArrivals": "New arrivals",
+      "healthCorner": "Health Corner",
+      "becomeSeller": "Become a seller",
+      "support": "Support",
+      "shopAllIn": "Shop all {name}"
+    }
+  },
+  "productRequest": {
+    "hero": {
+      "metaTitle": "Request a product — Spiber Kart",
+      "metaDescription": "Can't find what you need on Spiber Kart? Tell us what you're looking for and our team will source it for you.",
+      "eyebrow": "Spiber Kart",
+      "title": "Request a product",
+      "lede": "Can't find it in our catalogue? Describe the product you need and our sourcing team will track it down and get back to you with options and pricing.",
+      "breadcrumb": "Request a product"
+    },
+    "form": {
+      "productName": "What product are you looking for?",
+      "category": "Category (optional)",
+      "brand": "Preferred brand (optional)",
+      "quantity": "Quantity (optional)",
+      "budget": "Budget / target price (optional)",
+      "referenceUrl": "Reference link (optional)",
+      "details": "Additional details (optional)",
+      "name": "Your name",
+      "email": "Email",
+      "phone": "Phone (optional)",
+      "submit": "Submit request",
+      "submitting": "Submitting…",
+      "error": "Something went wrong. Please try again.",
+      "successTitle": "Request received",
+      "successNote": "Thanks! Our sourcing team will review your request and get back to you shortly. Your reference:"
+    }
+  },
+  "becomeSeller": {
+    "hero": {
+      "metaTitle": "Become a seller — Spiber Kart",
+      "metaDescription": "Sell your products to customers across Bangladesh on Spiber Kart. Apply to become a seller — list products, manage orders, and get paid.",
+      "eyebrow": "Spiber Kart",
+      "title": "Sell on Spiber Kart",
+      "lede": "Reach customers across Bangladesh. List your products, manage orders, and get paid — all from one seller dashboard.",
+      "breadcrumb": "Become a seller"
+    },
+    "benefits": {
+      "title": "Why sell with us",
+      "reachTitle": "Nationwide reach",
+      "reachNote": "Put your products in front of customers across Bangladesh, backed by our trusted delivery partners.",
+      "easyTitle": "Easy to manage",
+      "easyNote": "List products, track orders, and update stock from a simple seller dashboard.",
+      "payoutsTitle": "Reliable payouts",
+      "payoutsNote": "Earn on every sale with transparent commissions and regular payouts to your account."
+    },
+    "form": {
+      "title": "Apply to become a seller",
+      "businessName": "Business name",
+      "contactName": "Contact name",
+      "email": "Email",
+      "phone": "Phone",
+      "website": "Website (optional)",
+      "address": "Business address (optional)",
+      "categories": "What do you sell?",
+      "description": "Tell us about your business",
+      "bank": "Payout details (optional — you can add these later)",
+      "accountName": "Account name",
+      "bankName": "Bank name",
+      "accountNumber": "Account number",
+      "branch": "Branch",
+      "routingNumber": "Routing number",
+      "mobileWallet": "Mobile wallet (bKash / Nagad)",
+      "submit": "Submit application",
+      "submitting": "Submitting…",
+      "error": "Something went wrong. Please check the form and try again.",
+      "successTitle": "Application received",
+      "successNote": "Thanks! Our team will review your application and get back to you shortly. Your reference:",
+      "loginPrompt": "Please sign in to apply to become a seller.",
+      "signIn": "Sign in",
+      "alreadySeller": "You're already a seller.",
+      "goToDashboard": "Go to your dashboard",
+      "alreadyApplied": "You already have an application under review. We'll be in touch soon."
+    },
+    "store": {
+      "eyebrow": "Seller",
+      "productsBy": "Products by {name}",
+      "empty": "This seller has no listed products yet."
     }
   },
   "reviews": {

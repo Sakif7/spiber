@@ -7,7 +7,7 @@ import type { Locale } from "@/i18n/routing";
 // Hero photo per division (others fall back to the plain text header).
 const DIVISION_HERO: Record<string, string | undefined> = {
   tourism: HERO.tourismHub,
-  consulting: HERO.consultingHub,
+  "health-corner": HERO.healthCornerHub,
 };
 
 /**

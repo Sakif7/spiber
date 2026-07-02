@@ -43,5 +43,11 @@ export const appointmentNumber = (): string => makeId("SPM-APT");
 export const travelRequestNumber = (): string => makeId("SPM-TRV");
 /** SPM-PTR-… — a "Partner With Us" application reference. */
 export const partnerApplicationNumber = (): string => makeId("SPM-PTR");
+/** SPM-PRQ-… — a "Request a product" sourcing-request reference. */
+export const productRequestNumber = (): string => makeId("SPM-PRQ");
+/** SPM-SEL-… — a "Become a seller" onboarding-application reference. */
+export const sellerApplicationNumber = (): string => makeId("SPM-SEL");
+/** SPM-PAYOUT-… — a seller payout reference. */
+export const sellerPayoutNumber = (): string => makeId("SPM-PAYOUT");
 /** VAR-… — a stable product-variant id (referenced by cart/order/inventory). */
 export const variantId = (): string => makeId("VAR", 6);

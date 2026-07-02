@@ -211,7 +211,7 @@ export function MarketplaceBuyBox({
             canAdd &&
             add.mutate(
               { productId, qty, variantId },
-              { onSuccess: () => router.push("/marketplace/checkout") },
+              { onSuccess: () => router.push("/kart/checkout") },
             )
           }
           style={{

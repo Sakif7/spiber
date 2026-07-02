@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/db/connect";
 import { Order, type IOrder } from "@/lib/models/order";
 import type { Lean } from "@/lib/models/_shared";
@@ -106,4 +107,20 @@ export async function revenueSince(dayStart: Date) {
 export async function countOrdersByStatus(status: OrderStatus) {
   await connectToDatabase();
   return Order.countDocuments({ status });
+}
+
+/** Orders containing at least one item owned by this seller (seller portal). */
+export async function listOrdersForSeller(sellerId: string) {
+  await connectToDatabase();
+  if (!mongoose.isValidObjectId(sellerId)) return [];
+  return Order.find({ "items.productSnapshot.sellerId": sellerId })
+    .sort({ createdAt: -1 })
+    .lean<Lean<IOrder>[]>()
+    .exec();
+}
+
+export async function countOrdersForSeller(sellerId: string): Promise<number> {
+  await connectToDatabase();
+  if (!mongoose.isValidObjectId(sellerId)) return 0;
+  return Order.countDocuments({ "items.productSnapshot.sellerId": sellerId });
 }

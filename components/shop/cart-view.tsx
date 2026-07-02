@@ -28,7 +28,7 @@ export function CartView() {
         }}
       >
         <p style={{ color: "var(--color-text-muted)" }}>{t("empty")}</p>
-        <CtaButton href="/marketplace">{t("emptyCta")}</CtaButton>
+        <CtaButton href="/kart">{t("emptyCta")}</CtaButton>
       </div>
     );
   }
@@ -93,7 +93,7 @@ export function CartView() {
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <Link
-                href={`/marketplace/product/${item.slug}`}
+                href={`/kart/product/${item.slug}`}
                 style={{ fontWeight: 600, color: "var(--color-text-strong)" }}
               >
                 {item.name}
@@ -184,8 +184,8 @@ export function CartView() {
       </div>
 
       <div style={{ display: "flex", gap: "var(--s-4)", flexWrap: "wrap" }}>
-        <CtaButton href="/marketplace/checkout">{t("checkout")}</CtaButton>
-        <CtaButton href="/marketplace" variant="secondary">
+        <CtaButton href="/kart/checkout">{t("checkout")}</CtaButton>
+        <CtaButton href="/kart" variant="secondary">
           {t("continue")}
         </CtaButton>
       </div>

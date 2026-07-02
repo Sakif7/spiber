@@ -118,7 +118,7 @@ function buildGroups(
       group: "marketplace",
       title: localize(p.name, locale),
       subtitle: marketplacePriceLabel(p.priceMinor, p.variants, locale, labels),
-      href: `/marketplace/product/${p.slug}`,
+      href: `/kart/product/${p.slug}`,
       image: p.images?.[0] ?? null,
     }));
     groups.push({ key: "marketplace", total: r.marketplace.total, hits });

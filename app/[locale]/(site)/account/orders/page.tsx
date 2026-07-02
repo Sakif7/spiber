@@ -109,7 +109,7 @@ export default async function AccountOrdersPage({
               >
                 Browse the marketplace and place your first order.
               </p>
-              <CtaButton href="/marketplace" variant="primary">
+              <CtaButton href="/kart" variant="primary">
                 Shop marketplace
               </CtaButton>
             </div>

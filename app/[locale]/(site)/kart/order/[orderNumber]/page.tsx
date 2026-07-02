@@ -25,7 +25,7 @@ export default async function MarketplaceOrderConfirmationPage({
         title={t("title")}
         breadcrumbs={[
           { label: nav("home"), href: "/" },
-          { label: nav("marketplace"), href: "/marketplace" },
+          { label: nav("marketplace"), href: "/kart" },
           { label: t("title") },
         ]}
       />

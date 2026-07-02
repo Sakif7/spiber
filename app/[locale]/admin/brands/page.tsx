@@ -22,7 +22,9 @@ export default async function AdminBrandsPage({
       id: String(b._id),
       nameEn: localize(b.name, "en"),
       nameBn: b.name?.bn ?? "",
+      nameJa: b.name?.ja ?? "",
       slug: b.slug,
+      logo: b.logo,
     }));
   } catch {
     brands = [];
@@ -48,8 +50,10 @@ export default async function AdminBrandsPage({
             fontSize: "var(--fs-small)",
           }}
         >
-          Reorder with the up/down arrows — the order here drives brand filters
-          and the “By brand” navigation menu.
+          Add a logo/icon to each brand, reorder with the up/down arrows, or
+          click Edit on a row to change its name, slug or logo. The order here
+          drives brand filters, the storefront brand strip and the “By brand”
+          navigation menu.
         </p>
       </div>
 
