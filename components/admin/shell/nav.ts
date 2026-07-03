@@ -37,6 +37,7 @@ import {
   Stethoscope,
   PackageOpen,
   MessageSquareQuote,
+  MessagesSquare,
   type LucideIcon,
 } from "lucide-react";
 
@@ -162,6 +163,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Company",
     items: [
+      { href: "/admin/chat", label: "Chat inbox", icon: MessagesSquare },
       {
         href: "/admin/testimonials",
         label: "Testimonials",

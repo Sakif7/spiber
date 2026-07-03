@@ -51,3 +51,7 @@ export const sellerApplicationNumber = (): string => makeId("SPM-SEL");
 export const sellerPayoutNumber = (): string => makeId("SPM-PAYOUT");
 /** VAR-… — a stable product-variant id (referenced by cart/order/inventory). */
 export const variantId = (): string => makeId("VAR", 6);
+/** SPM-CHAT-… — a chatbot conversation reference. */
+export const chatConversationRef = (): string => makeId("SPM-CHAT");
+/** SPM-LEAD-… — a chatbot-captured lead reference. */
+export const chatLeadNumber = (): string => makeId("SPM-LEAD");

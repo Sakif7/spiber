@@ -5,6 +5,7 @@ import { Footer } from "@/components/layout/footer";
 import { AuthModalProvider } from "@/components/auth/auth-modal";
 import { RouteTransitionOverlay } from "@/components/layout/route-transition-overlay";
 import { LightModeGuard } from "@/components/layout/light-mode-guard";
+import { ChatWidget } from "@/components/chat/chat-widget";
 import { JsonLd } from "@/components/ui/json-ld";
 import { organizationJsonLd, websiteJsonLd } from "@/lib/seo/jsonld";
 import type { Locale } from "@/i18n/routing";
@@ -36,6 +37,7 @@ export default async function SiteLayout({
       </header>
       <main>{children}</main>
       <Footer />
+      <ChatWidget />
     </AuthModalProvider>
   );
 }
