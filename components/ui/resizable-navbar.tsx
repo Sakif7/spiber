@@ -140,12 +140,27 @@ export const Navbar = ({ children, className }: NavbarProps) => {
   // never came back. Once it has scrolled fully out of view we switch it to
   // `fixed` and drive it with scroll DIRECTION: hidden while scrolling down,
   // slid back in the moment the user scrolls up.
-  const [detached, setDetached] = useState(false); // out of flow (fixed)
-  const [hidden, setHidden] = useState(false); // translated off-screen
+  //
+  //   flow     — in normal document flow, scrolling away with the header
+  //   hidden   — fixed, translated fully out of view
+  //   revealed — fixed, pinned at the top of the viewport
+  const [mode, setMode] = useState<"flow" | "hidden" | "revealed">("flow");
+  // Discrete flow<->fixed switches must NOT tween: animating them is precisely
+  // the "navbar flashes for a split second on the first scroll" artefact.
+  const [instant, setInstant] = useState(false);
+  const modeRef = useRef<"flow" | "hidden" | "revealed">("flow");
+  const detached = mode !== "flow";
   const lastY = useRef(0);
-  // Measured while in flow: how far the bar's own bottom edge is from the top of
-  // the document, and its height (for the spacer that prevents a layout jump).
-  const geom = useRef({ threshold: 140, height: 60 });
+  // Measured while in flow: the bar's own offset from the top of the document,
+  // and its height (for the spacer that prevents a layout jump).
+  const geom = useRef({ top: 68, height: 60 });
+
+  const applyMode = (next: "flow" | "hidden" | "revealed", jump: boolean) => {
+    if (modeRef.current === next) return;
+    modeRef.current = next;
+    setMode(next);
+    setInstant(jump);
+  };
 
   const spacerRef = useRef<HTMLDivElement>(null);
 
@@ -161,7 +176,7 @@ export const Navbar = ({ children, className }: NavbarProps) => {
         // In flow: the numbers are meaningful, so (re)measure.
         const r = el.getBoundingClientRect();
         geom.current = {
-          threshold: Math.max(80, r.top + window.scrollY + r.height),
+          top: Math.max(0, r.top + window.scrollY),
           height: r.height,
         };
       }
@@ -175,20 +190,41 @@ export const Navbar = ({ children, className }: NavbarProps) => {
   useMotionValueEvent(scrollY, "change", (latest) => {
     setVisible(latest > 100);
 
-    const { threshold } = geom.current;
-    if (latest <= threshold) {
-      // Back in the header's own zone: restore normal flow, fully shown.
-      setDetached(false);
-      setHidden(false);
+    const { top, height } = geom.current;
+    // TWO thresholds, so neither switch is ever visible:
+    //  • detach only once the bar is fully out of view (scrollY > top+height),
+    //    where its in-flow position already equals the hidden position;
+    //  • re-attach only once the in-flow position has come back level with the
+    //    pinned position (scrollY <= top), i.e. both are y=0.
+    // Between them the mode is held (hysteresis) and the bar just scrolls.
+    const detachAt = top + height;
+    const attachAt = top;
+    const delta = latest - lastY.current;
+
+    if (latest <= attachAt) {
       lastY.current = latest;
+      applyMode("flow", true);
       return;
     }
 
-    setDetached(true);
-    const delta = latest - lastY.current;
+    if (modeRef.current === "flow") {
+      if (latest <= detachAt) {
+        lastY.current = latest;
+        return; // still inside the header zone — let it scroll naturally
+      }
+      // Crossing out. Adopt the CURRENT direction immediately: scrolling down
+      // must start `hidden`, otherwise the bar is painted pinned-at-top for a
+      // frame and then tweens away — the flash. Jump, never tween.
+      lastY.current = latest;
+      applyMode(delta >= 0 ? "hidden" : "revealed", true);
+      return;
+    }
+
     if (Math.abs(delta) < DIR_DEADZONE) return; // ignore jitter / bounce
     lastY.current = latest;
-    setHidden(delta > 0); // down -> hide, up -> reveal
+    // Detached: hide/reveal by direction, and DO animate — that slide is the
+    // intended behaviour, unlike the discrete switches above.
+    applyMode(delta > 0 ? "hidden" : "revealed", false);
   });
 
   return (
@@ -197,14 +233,24 @@ export const Navbar = ({ children, className }: NavbarProps) => {
           without it the header collapses and the page jumps up by the bar's
           height at the exact moment we detach. */}
       <div ref={spacerRef} aria-hidden style={{ height: 0 }} />
-      <motion.div
+      {/* The offset is a PLAIN inline style, deliberately not a framer `animate`.
+          React commits `position: fixed` and this transform in the SAME paint,
+          whereas framer writes its transform on its own rAF tick — one frame
+          later. That one-frame gap is visible as the bar snapping to the top of
+          the viewport before jumping away: the "navbar flashes on first scroll"
+          artefact. `duration: 0` does not help, because the lag is the deferred
+          write, not the tween. A CSS transition still gives the animated
+          hide/reveal slide while detached. */}
+      <div
         ref={ref}
-        animate={{ y: detached && hidden ? "-100%" : "0%" }}
-        transition={
-          reduce
-            ? { duration: 0 }
-            : { type: "tween", duration: 0.28, ease: [0.16, 1, 0.3, 1] }
-        }
+        style={{
+          transform: mode === "hidden" ? "translateY(-100%)" : "translateY(0)",
+          transition:
+            reduce || instant
+              ? "none"
+              : "transform .28s cubic-bezier(.16,1,.3,1)",
+          willChange: detached ? "transform" : undefined,
+        }}
         className={cn(
           "inset-x-0 z-40 w-full",
           detached
@@ -249,7 +295,7 @@ export const Navbar = ({ children, className }: NavbarProps) => {
               )
             : child,
         )}
-      </motion.div>
+      </div>
     </>
   );
 };
