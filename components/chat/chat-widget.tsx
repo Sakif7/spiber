@@ -120,6 +120,8 @@ const panelStyle: React.CSSProperties = {
 const bodyStyle: React.CSSProperties = {
   flex: 1,
   overflowY: "auto",
+  // Never chain the transcript's scroll to the page behind the panel.
+  overscrollBehavior: "contain",
   padding: "var(--s-4)",
   display: "flex",
   flexDirection: "column",
@@ -309,6 +311,7 @@ export function ChatWidget() {
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   const starters = useMemo(() => {
     const raw = t.raw("starters");
@@ -332,6 +335,38 @@ export function ChatWidget() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  // Absorb the wheel while the panel is open: a scrollable element inside it
+  // (the transcript, the lead-form textarea) scrolls itself, but the page behind
+  // never scrolls. `overscroll-behavior` alone isn't enough — a SHORT transcript
+  // isn't a scroll port at all, so the gesture would chain straight to the page.
+  // Native non-passive listener so preventDefault actually applies.
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel || !open) return;
+    const onWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return; // leave horizontal alone
+      let el: HTMLElement | null = e.target as HTMLElement | null;
+      while (el) {
+        const overflowY = getComputedStyle(el).overflowY;
+        if (
+          (overflowY === "auto" || overflowY === "scroll") &&
+          el.scrollHeight > el.clientHeight
+        ) {
+          const atTop = el.scrollTop <= 0;
+          const atBottom =
+            el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
+          // It can still scroll this way — let it handle the gesture.
+          if (!((e.deltaY < 0 && atTop) || (e.deltaY > 0 && atBottom))) return;
+        }
+        if (el === panel) break;
+        el = el.parentElement;
+      }
+      e.preventDefault();
+    };
+    panel.addEventListener("wheel", onWheel, { passive: false });
+    return () => panel.removeEventListener("wheel", onWheel);
   }, [open]);
 
   const errorReply = useCallback(
@@ -568,8 +603,17 @@ export function ChatWidget() {
       <AnimatePresence>
         {open && (
           <motion.div
+            ref={panelRef}
             role="dialog"
             aria-label={t("title")}
+            // The home page mounts a global window Lenis (smooth-scroll, via the
+            // Pillars ScrollStack) with smoothWheel + syncTouch and no
+            // allowNestedScroll, so it hijacks wheel/touch document-wide and
+            // scrolls the PAGE instead of the chat transcript. This marker tells
+            // Lenis to ignore gestures inside the panel (it checks the event's
+            // composedPath), so the transcript scrolls natively — same fix as the
+            // nav mega-drawer. Covers touch as well as wheel.
+            data-lenis-prevent=""
             style={panelStyle}
             {...panelMotion}
           >
