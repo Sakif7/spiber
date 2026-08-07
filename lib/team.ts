@@ -24,4 +24,7 @@ export const TEAM_MEMBERS: TeamMemberBase[] = [
   { name: "Mostary Morshed Smriti", image: "/smriti-managing-body.png" },
   { name: "Subrina Azmi Kanta", image: "/kanta-managing-body.jpeg" },
   { name: "Md Saadman Sakif", image: "/sakif-managing-body.jpeg" },
+  // Appended last on purpose: the homepage shows the FIRST five (see the
+  // `limit` prop on <TeamGrid/>), so ordering here decides who appears there.
+  { name: "Faria Hossain Chowdhury", image: "/faria-managing-body.jpeg" },
 ];

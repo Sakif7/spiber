@@ -10,7 +10,7 @@ import { TEAM_MEMBERS } from "@/lib/team";
 
 type Social = { label: string; href: string; icon: ReactNode };
 
-type TeamMember = {
+export type TeamMember = {
   name: string;
   role: string;
   image: string;
@@ -48,12 +48,10 @@ const EmailIcon = (
 const SOCIAL_ICONS: ReactNode[] = [LinkedInIcon, EmailIcon];
 
 /**
- * The managing-body card grid — shared by the homepage `Management` section
- * and the dedicated `/company/team` page so both use the exact same 3D
- * hover-reveal cards. Reads roles/bios/socials from `home.management.members`
- * (index-aligned with `TEAM_MEMBERS`).
+ * Resolve the localized role/bio/socials onto the `TEAM_MEMBERS` base list.
+ * Exported so the carousel rendition renders identical cards from the same data.
  */
-export function TeamGrid() {
+export function useTeamMembers(limit?: number): TeamMember[] {
   const t = useTranslations("home.management");
 
   const members = t.raw("members") as Array<{
@@ -62,7 +60,7 @@ export function TeamGrid() {
     socials: { label: string }[];
   }>;
 
-  const team: TeamMember[] = TEAM_MEMBERS.map((m, i) => ({
+  const team = TEAM_MEMBERS.map((m, i) => ({
     ...m,
     role: members[i].role,
     bio: members[i].bio,
@@ -73,12 +71,36 @@ export function TeamGrid() {
     })),
   }));
 
+  return typeof limit === "number" ? team.slice(0, limit) : team;
+}
+
+/**
+ * The managing-body card grid — shared by the homepage `Management` section
+ * and the dedicated `/company/team` page so both use the exact same 3D
+ * hover-reveal cards. Reads roles/bios/socials from `home.management.members`
+ * (index-aligned with `TEAM_MEMBERS`).
+ *
+ * `columns` sets the desktop track count (the `.equal-Ncol` classes collapse it
+ * to 2-up then 1-up on smaller screens); `limit` shows only the first N members,
+ * which is how the homepage keeps its original card size while the full team
+ * page shows everyone. See `components/sections/management.tsx` for the
+ * homepage renditions.
+ */
+export function TeamGrid({
+  columns = 5,
+  limit,
+}: {
+  columns?: 3 | 4 | 5 | 6;
+  limit?: number;
+}) {
+  const team = useTeamMembers(limit);
+
   return (
     <div
-      className="card-grid equal-5col"
+      className={`card-grid equal-${columns}col`}
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(5, 1fr)",
+        gridTemplateColumns: `repeat(${columns}, 1fr)`,
         gap: 16,
         perspective: 1400,
       }}
@@ -92,7 +114,7 @@ export function TeamGrid() {
   );
 }
 
-function TeamCard({ member }: { member: TeamMember }) {
+export function TeamCard({ member }: { member: TeamMember }) {
   const ref = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
   const mx = useMotionValue(0);

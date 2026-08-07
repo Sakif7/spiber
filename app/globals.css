@@ -714,7 +714,8 @@ html[data-locale="ja"] h6 {
   .equal-4col {
     grid-template-columns: 1fr 1fr !important;
   }
-  .equal-5col {
+  .equal-5col,
+  .equal-6col {
     grid-template-columns: 1fr 1fr !important;
   }
   .seg-grid {
@@ -725,7 +726,8 @@ html[data-locale="ja"] h6 {
 @media (max-width: 640px) {
   .equal-3col,
   .equal-4col,
-  .equal-5col {
+  .equal-5col,
+  .equal-6col {
     grid-template-columns: 1fr !important;
   }
 }
@@ -737,14 +739,16 @@ html[data-locale="ja"] h6 {
 @media (max-width: 640px) {
   .card-grid.equal-3col,
   .card-grid.equal-4col,
-  .card-grid.equal-5col {
+  .card-grid.equal-5col,
+  .card-grid.equal-6col {
     grid-template-columns: 1fr 1fr !important;
   }
 }
 @media (max-width: 339px) {
   .card-grid.equal-3col,
   .card-grid.equal-4col,
-  .card-grid.equal-5col {
+  .card-grid.equal-5col,
+  .card-grid.equal-6col {
     grid-template-columns: 1fr !important;
   }
 }

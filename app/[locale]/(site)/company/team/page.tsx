@@ -43,7 +43,11 @@ export default async function ManagingBodyPage({
 
       <Section>
         <Container>
-          <TeamGrid />
+          {/* Everyone, 3 x 2. At the previous 5 columns a sixth member left a
+              single orphan card stranded on row two; three columns is
+              symmetric for six people AND renders the cards larger, which
+              suits a dedicated team page. */}
+          <TeamGrid columns={3} />
         </Container>
       </Section>
     </>

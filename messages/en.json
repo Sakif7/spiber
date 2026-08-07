@@ -369,8 +369,6 @@
       }
     },
     "steps": {
-      "heading": "How it works",
-      "lede": "Your journey to better health, simplified.",
       "1": {
         "title": "Submit inquiry / medical reports",
         "desc": "Upload your reports and share your medical history securely."
@@ -390,7 +388,9 @@
       "5": {
         "title": "Treatment & post-treatment follow-up",
         "desc": "Receive treatment and continue care with post-treatment follow-up."
-      }
+      },
+      "heading": "How it works",
+      "lede": "Your journey to better health, simplified."
     },
     "support": {
       "heading": "Travel & hospitality support",
@@ -658,7 +658,10 @@
           "title": "Service",
           "body": "Responsive maintenance and technical expertise."
         },
-        { "title": "Support", "body": "Ongoing guidance whenever you need it." }
+        {
+          "title": "Support",
+          "body": "Ongoing guidance whenever you need it."
+        }
       ]
     },
     "encounter": {
@@ -979,7 +982,10 @@
           "title": "Technical Interview",
           "desc": "Assessment with the hiring team."
         },
-        { "title": "Final Interview", "desc": "Discussion & offer." }
+        {
+          "title": "Final Interview",
+          "desc": "Discussion & offer."
+        }
       ]
     },
     "related": "Related Opportunities",
@@ -1582,6 +1588,18 @@
         {
           "role": "Technical Advisor · CTO",
           "bio": "Technology lead — architects SPIBER MED's digital platform, e-commerce, and data systems across its healthcare divisions.",
+          "socials": [
+            {
+              "label": "LinkedIn"
+            },
+            {
+              "label": "Email"
+            }
+          ]
+        },
+        {
+          "role": "Associate Director · Digital Transformation",
+          "bio": "Digital transformation lead — drives SPIBER MED's technology adoption, process automation, and digital service delivery across its healthcare divisions.",
           "socials": [
             {
               "label": "LinkedIn"
