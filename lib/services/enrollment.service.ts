@@ -495,7 +495,7 @@ async function sendEnrollmentEmail(
           },
           button: {
             label: "Go to your courses",
-            url: `${siteConfig.url}/en/academy`,
+            url: `${siteConfig.url}/en/medacademy`,
           },
         })
       : renderEmail({
@@ -529,7 +529,7 @@ async function sendEnrollmentEmail(
 
 async function sendCompletionEmail(e: IEnrollment, courseTitle: string) {
   const certUrl = e.certificateId
-    ? `${siteConfig.url}/en/academy/certificate/${e.certificateId}`
+    ? `${siteConfig.url}/en/medacademy/certificate/${e.certificateId}`
     : undefined;
   const built = renderEmail({
     accent: "orange",

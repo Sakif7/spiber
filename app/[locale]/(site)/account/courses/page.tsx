@@ -89,7 +89,7 @@ export default async function MyCoursesPage({
             >
               <p style={{ color: "var(--color-text-muted)" }}>{t("empty")}</p>
               <CtaButton
-                href="/academy/courses"
+                href="/medacademy/courses"
                 style={{ background: "var(--color-secondary)" }}
               >
                 {t("browse")}
@@ -115,7 +115,7 @@ export default async function MyCoursesPage({
                     style={{ flex: 1, minWidth: 220, display: "grid", gap: 8 }}
                   >
                     <Link
-                      href={`/academy/course/${c.slug}`}
+                      href={`/medacademy/course/${c.slug}`}
                       style={{
                         fontWeight: 600,
                         color: "var(--color-text-strong)",
@@ -156,7 +156,7 @@ export default async function MyCoursesPage({
                   </div>
                   {c.status === "active" && c.resumeId && (
                     <CtaButton
-                      href={`/academy/course/${c.slug}/learn/${c.resumeId}`}
+                      href={`/medacademy/course/${c.slug}/learn/${c.resumeId}`}
                       style={{ background: "var(--color-secondary)" }}
                     >
                       {c.percent > 0 ? t("resume") : t("start")}

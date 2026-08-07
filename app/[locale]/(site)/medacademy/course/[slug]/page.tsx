@@ -34,7 +34,7 @@ export async function generateMetadata({
   if (!course) return {};
   return pageMetadata({
     locale: locale as Locale,
-    path: `/academy/course/${slug}`,
+    path: `/medacademy/course/${slug}`,
     title: localize(course.title, locale as Locale),
     description: course.summary
       ? localize(course.summary, locale as Locale)
@@ -92,8 +92,8 @@ export default async function CourseDetail({
       <JsonLd
         data={breadcrumbJsonLd([
           { name: nav("home"), url: `${localeBase}` },
-          { name: nav("academy"), url: `${localeBase}/academy` },
-          { name: title, url: `${localeBase}/academy/course/${slug}` },
+          { name: nav("academy"), url: `${localeBase}/medacademy` },
+          { name: title, url: `${localeBase}/medacademy/course/${slug}` },
         ])}
       />
       <section
@@ -294,7 +294,7 @@ export default async function CourseDetail({
         <RecentlyViewed
           title={t("course.recentlyViewed")}
           current={{
-            href: `/academy/course/${course.slug}`,
+            href: `/medacademy/course/${course.slug}`,
             name: title,
             image: course.thumbnail,
             meta:

@@ -194,7 +194,7 @@ export function CouponForm() {
               <SelectItem value="all">All storefronts</SelectItem>
               <SelectItem value="marketplace">Spiber Kart</SelectItem>
               <SelectItem value="instruments">Medtrade</SelectItem>
-              <SelectItem value="academy">Academy</SelectItem>
+              <SelectItem value="academy">MedAcademy</SelectItem>
               <SelectItem value="systems">Digihealth</SelectItem>
             </SelectContent>
           </Select>

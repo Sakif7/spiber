@@ -485,7 +485,7 @@
       "lede": "医療機器・マーケットプレイス・コース・ソフトウェア・記事を横断した{count, plural, =0 {検索結果はまだありません} one {# 件の結果} other {# 件の結果}}。",
       "ledeEmpty": "医療機器、マーケットプレイス商品、研修コース、ソフトウェアプラットフォーム、記事を、ひとつの場所でまとめて見つけられます。",
       "promptTitle": "お探しのものは何ですか？",
-      "promptBody": "上の検索ボックスから、医療機器、マーケットプレイス商品、Spiber Academy のコース、ソフトウェアプラットフォーム、記事を横断的に検索できます。",
+      "promptBody": "上の検索ボックスから、医療機器、マーケットプレイス商品、Spiber MedAcademy のコース、ソフトウェアプラットフォーム、記事を横断的に検索できます。",
       "noResultsTitle": "「{query}」の検索結果はありません",
       "noResultsBody": "そのキーワードに一致するものが見つかりませんでした。より広い範囲のキーワードや、別の表記でお試しください。",
       "viewAll": "すべて見る"
@@ -496,7 +496,7 @@
     "about": "会社概要",
     "contact": "お問い合わせ",
     "instruments": "Medtrade",
-    "academy": "Academy",
+    "academy": "MedAcademy",
     "systems": "Digihealth",
     "tourism": "メディカルツーリズム",
     "health-corner": "ヘルスコーナー",
@@ -527,7 +527,7 @@
     },
     "academy": {
       "eyebrow": "研修・教育・専門能力開発",
-      "title": "Spiber Academy",
+      "title": "Spiber MedAcademy",
       "description": "医療従事者のための認定コースと実践的トレーニング。オンライン・対面の両方に対応しています。"
     },
     "systems": {
@@ -1164,7 +1164,7 @@
     "groups": {
       "overview": "概要",
       "instruments": "Medtrade",
-      "academy": "Academy",
+      "academy": "MedAcademy",
       "systems": "Digihealth",
       "tourism": "Tourism",
       "consulting": "Consulting",
@@ -1649,8 +1649,8 @@
             "title": "サービス",
             "links": [
               {
-                "label": "Spiber Academy",
-                "href": "/academy"
+                "label": "Spiber MedAcademy",
+                "href": "/medacademy"
               },
               {
                 "label": "Spiber Tourism",
@@ -1861,7 +1861,7 @@
   },
   "academy": {
     "hub": {
-      "title": "Spiber Academy",
+      "title": "Spiber MedAcademy",
       "lede": "医療従事者のための認定講座と実践的トレーニング。オンラインと対面の両方でご受講いただけます。",
       "featured": "注目の講座",
       "browseAll": "すべての講座を見る"

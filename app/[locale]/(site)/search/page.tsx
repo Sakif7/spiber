@@ -31,7 +31,7 @@ function viewAllHref(group: SearchGroupKey, q: string): string {
     case "marketplace":
       return `/kart/search?q=${e}`;
     case "academy":
-      return `/academy/courses?q=${e}`;
+      return `/medacademy/courses?q=${e}`;
     case "systems":
       return "/digihealth/products";
     case "blog":

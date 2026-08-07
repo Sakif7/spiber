@@ -9,7 +9,7 @@ import { Placeholder, type Tone } from "@/components/ui/placeholder";
  * CatalogCard — the shared catalog card, extracted 1:1 from the homepage
  * "capital equipment" card: teal-framed, hover-lift, an animated top accent bar
  * and a slow image zoom. Every catalog surface (Instruments, Marketplace,
- * Systems, Academy) renders through this so the chrome is identical; only the
+ * Systems, MedAcademy) renders through this so the chrome is identical; only the
  * slotted content (label, title, footer, badges) differs per division.
  *
  * On hover a translucent brand-teal veil is drawn over the whole card.

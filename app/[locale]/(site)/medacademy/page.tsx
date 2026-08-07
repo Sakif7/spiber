@@ -22,7 +22,7 @@ export async function generateMetadata({
   const t = await getTranslations({ locale, namespace: "academy.hub" });
   return pageMetadata({
     locale: locale as Locale,
-    path: "/academy",
+    path: "/medacademy",
     title: t("title"),
     description: t("lede"),
   });
@@ -89,7 +89,7 @@ export default async function AcademyHub({
               >
                 {t("hub.featured")}
               </h2>
-              <CtaButton href="/academy/courses" variant="ghost">
+              <CtaButton href="/medacademy/courses" variant="ghost">
                 {t("hub.browseAll")}
               </CtaButton>
             </div>

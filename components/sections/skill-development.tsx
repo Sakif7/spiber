@@ -187,7 +187,7 @@ export function SkillDevelopment() {
 
               <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
                 <Link
-                  href="/academy"
+                  href="/medacademy"
                   style={{
                     background: "var(--color-brand)",
                     color: "white",
@@ -206,7 +206,7 @@ export function SkillDevelopment() {
                   {t("applyCta")} <Arrow />
                 </Link>
                 <Link
-                  href="/academy"
+                  href="/medacademy"
                   style={{
                     background: "transparent",
                     color: "var(--color-text-strong)",

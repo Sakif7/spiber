@@ -86,7 +86,7 @@ export default async function AdminCoursesPage({
     <div className="space-y-6">
       <AdminPageHeader
         title="Courses"
-        description="Academy courses — content, pricing, and publish status."
+        description="MedAcademy courses — content, pricing, and publish status."
         action={
           <Button asChild>
             <Link href="/admin/courses/new">

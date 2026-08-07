@@ -191,6 +191,12 @@ const INTENTS: IntentDef[] = [
   {
     id: "academy",
     kw: [
+      // Latin keywords match on word boundaries, so the new brand name needs its
+      // own entry — "medacademy" does not match the bare "academy" keyword. The
+      // legacy name stays: visitors still say "academy". (Bangla matches by
+      // substring, so "মেডএকাডেমি" already hits "একাডেমি".)
+      "medacademy",
+      "med academy",
       "academy",
       "course",
       "courses",
@@ -212,7 +218,14 @@ const INTENTS: IntentDef[] = [
       "認定",
       "学ぶ",
     ],
-    strong: ["academy", "course", "কোর্স", "コース"],
+    strong: [
+      "medacademy",
+      "med academy",
+      "academy",
+      "course",
+      "কোর্স",
+      "コース",
+    ],
   },
   {
     id: "digihealth",

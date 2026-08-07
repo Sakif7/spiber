@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * Enrollment + progress for the Academy LMS. An Enrollment is its own entity
+ * Enrollment + progress for the MedAcademy LMS. An Enrollment is its own entity
  * (not an Order) with its own PaymentRef, mirroring the order lifecycle:
  * pending → active (paid/granted) with cancel/refund branches. Completion is a
  * flag (`completedAt`), not a status. Money is integer poisha.

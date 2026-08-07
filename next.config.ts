@@ -92,6 +92,21 @@ const nextConfig: NextConfig = {
         destination: "/kart/:path*",
         permanent: true,
       },
+      // Spiber Academy → Spiber MedAcademy rebrand (2026): /academy →
+      // /medacademy. Display name + public route only — the DB enums, coupon
+      // scope ("academy"), and /api/academy/* endpoints keep the legacy name.
+      // Permanent (308), locale-prefixed + bare, deep-path preserving.
+      // `:path*` covers the hub itself plus courses/course/enrollment/certificate.
+      {
+        source: "/:locale(en|bn|ja)/academy/:path*",
+        destination: "/:locale/medacademy/:path*",
+        permanent: true,
+      },
+      {
+        source: "/academy/:path*",
+        destination: "/medacademy/:path*",
+        permanent: true,
+      },
       // Company section 2026: /about moved under the Company group.
       {
         source: "/:locale(en|bn|ja)/about",

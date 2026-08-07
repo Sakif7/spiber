@@ -87,7 +87,7 @@ function statusLabel(map: Record<string, L>, status: string, locale: Locale) {
 const GROUP_META: Record<string, L> = {
   medtrade: { en: "Medtrade", bn: "মেডট্রেড", ja: "Medtrade" },
   kart: { en: "Spiber Kart", bn: "স্পাইবার কার্ট", ja: "Spiber Kart" },
-  academy: { en: "Academy", bn: "একাডেমি", ja: "Academy" },
+  academy: { en: "MedAcademy", bn: "মেডএকাডেমি", ja: "MedAcademy" },
   digihealth: { en: "Digihealth", bn: "ডিজিহেলথ", ja: "Digihealth" },
   blog: { en: "Blog", bn: "ব্লগ", ja: "ブログ" },
 };

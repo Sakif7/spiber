@@ -88,7 +88,7 @@ export function LessonPlayer({
     }
   }
 
-  const lessonHref = (id: string) => `/academy/course/${slug}/learn/${id}`;
+  const lessonHref = (id: string) => `/medacademy/course/${slug}/learn/${id}`;
   const resourceHref = (i: number) =>
     `/api/media/resource/${courseId}/${lesson.id}/${i}`;
 
@@ -359,7 +359,7 @@ export function LessonPlayer({
 
         {certificateId && (
           <Link
-            href={`/academy/certificate/${certificateId}`}
+            href={`/medacademy/certificate/${certificateId}`}
             style={{
               display: "inline-flex",
               alignItems: "center",

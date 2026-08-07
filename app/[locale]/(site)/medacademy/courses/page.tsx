@@ -29,7 +29,7 @@ export async function generateMetadata({
   const t = await getTranslations({ locale, namespace: "academy.catalog" });
   return pageMetadata({
     locale: locale as Locale,
-    path: "/academy/courses",
+    path: "/medacademy/courses",
     title: t("title"),
     description: t("lede"),
   });
@@ -88,7 +88,7 @@ export default async function CoursesCatalog({
         imageAlt={t("catalog.title")}
         breadcrumbs={[
           { label: nav("home"), href: "/" },
-          { label: t("hub.title"), href: "/academy" },
+          { label: t("hub.title"), href: "/medacademy" },
           { label: t("catalog.title") },
         ]}
       />
@@ -154,7 +154,7 @@ export default async function CoursesCatalog({
                     return (
                       <Link
                         key={n}
-                        href={`/academy/courses${q.toString() ? `?${q.toString()}` : ""}`}
+                        href={`/medacademy/courses${q.toString() ? `?${q.toString()}` : ""}`}
                         style={{
                           padding: "6px 12px",
                           borderRadius: "var(--r-sm)",

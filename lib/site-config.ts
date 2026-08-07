@@ -31,7 +31,7 @@ export const siteConfig = {
 /** The five divisions, in nav order. */
 export const divisions = [
   { key: "instruments", href: "/medtrade" },
-  { key: "academy", href: "/academy" },
+  { key: "academy", href: "/medacademy" },
   { key: "systems", href: "/digihealth" },
   { key: "tourism", href: "/tourism" },
   { key: "health-corner", href: "/health-corner" },
@@ -55,7 +55,7 @@ export const publicRoutes = [
   "/kart/request-product",
   "/become-a-seller",
   "/medtrade",
-  "/academy",
+  "/medacademy",
   "/digihealth",
   "/tourism",
   "/tourism/medical-tourism",

@@ -124,7 +124,7 @@ export function Curriculum({
                 <li key={l.id}>
                   {accessible ? (
                     <Link
-                      href={`/academy/course/${slug}/learn/${l.id}`}
+                      href={`/medacademy/course/${slug}/learn/${l.id}`}
                       style={{ textDecoration: "none" }}
                     >
                       {inner}

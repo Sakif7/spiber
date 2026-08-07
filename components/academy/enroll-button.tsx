@@ -26,8 +26,8 @@ export function EnrollButton({
   const [error, setError] = useState<string | null>(null);
 
   const courseHref = firstLessonId
-    ? `/academy/course/${slug}/learn/${firstLessonId}`
-    : `/academy/course/${slug}`;
+    ? `/medacademy/course/${slug}/learn/${firstLessonId}`
+    : `/medacademy/course/${slug}`;
 
   if (enrolled) {
     return (
@@ -44,7 +44,7 @@ export function EnrollButton({
   if (!isLoading && !user) {
     return (
       <CtaButton
-        onClick={() => open("login", { next: `/academy/course/${slug}` })}
+        onClick={() => open("login", { next: `/medacademy/course/${slug}` })}
         style={{ background: "var(--color-secondary)" }}
       >
         {t("signInToEnroll")}
@@ -63,7 +63,7 @@ export function EnrollButton({
     const json = await res.json().catch(() => null);
     setBusy(false);
     if (res.ok && json?.ok) {
-      router.push(`/academy/enrollment/${json.data.enrollmentNumber}`);
+      router.push(`/medacademy/enrollment/${json.data.enrollmentNumber}`);
       router.refresh();
     } else {
       setError(json?.error?.code ?? "enroll_failed");

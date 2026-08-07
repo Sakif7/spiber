@@ -2,7 +2,7 @@ import { z } from "zod";
 import { localizedSchema } from "./localized";
 
 /**
- * Spiber Academy (LMS) content model. Zod is the single source of truth;
+ * Spiber MedAcademy (LMS) content model. Zod is the single source of truth;
  * Mongoose models + TS types derive from it. Money is integer poisha.
  * Localized fields are { en, bn }. A Course embeds Modules → Lessons; each
  * module/lesson carries a stable string `id` (referenced by enrollment

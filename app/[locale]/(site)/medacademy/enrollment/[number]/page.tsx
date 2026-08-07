@@ -24,7 +24,7 @@ export default async function EnrollmentPage({
   const user = await getSessionUser();
   if (!user) {
     redirect(
-      `/${locale}?auth=login&next=/${locale}/academy/enrollment/${number}`,
+      `/${locale}?auth=login&next=/${locale}/medacademy/enrollment/${number}`,
     );
   }
 
@@ -126,8 +126,8 @@ export default async function EnrollmentPage({
             <CtaButton
               href={
                 firstLessonId
-                  ? `/academy/course/${course.slug}/learn/${firstLessonId}`
-                  : `/academy/course/${course.slug}`
+                  ? `/medacademy/course/${course.slug}/learn/${firstLessonId}`
+                  : `/medacademy/course/${course.slug}`
               }
               style={{ background: "var(--color-secondary)" }}
             >

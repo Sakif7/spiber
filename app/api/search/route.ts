@@ -130,7 +130,7 @@ function buildGroups(
       group: "academy",
       title: localize(c.title, locale),
       subtitle: priceLabel(c.priceMinor, locale, labels),
-      href: `/academy/course/${c.slug}`,
+      href: `/medacademy/course/${c.slug}`,
       image: c.thumbnail ?? null,
     }));
     groups.push({ key: "academy", total: r.courses.total, hits });

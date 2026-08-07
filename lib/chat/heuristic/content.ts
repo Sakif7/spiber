@@ -45,7 +45,7 @@ export const ROUTES = {
   kartBrands: "/kart/brands",
   requestProduct: "/kart/request-product",
   becomeSeller: "/become-a-seller",
-  academy: "/academy",
+  academy: "/medacademy",
   digihealth: "/digihealth",
   tourism: "/tourism",
   tourismDoctors: "/tourism/doctors",
@@ -165,14 +165,14 @@ export const SAY: Record<string, L> = {
     ja: "こんにちは！ご用件をどうぞ。",
   },
   fallback: {
-    en: "I'm not sure I caught that. I can help with our medical devices, the Spiber Kart marketplace, Academy courses, health software, medical tourism, orders, or getting you to a human. Try one of these:",
-    bn: "ঠিক বুঝতে পারিনি। আমি মেডিকেল ডিভাইস, স্পাইবার কার্ট মার্কেটপ্লেস, একাডেমি কোর্স, হেলথ সফটওয়্যার, মেডিকেল ট্যুরিজম, অর্ডার, বা টিমের সাথে সংযোগে সাহায্য করতে পারি। যেকোনো একটি বেছে নিন:",
-    ja: "うまく理解できませんでした。医療機器、Spiber Kart マーケットプレイス、Academy コース、ヘルスソフトウェア、医療ツーリズム、注文、担当者へのおつなぎができます。次からお選びください：",
+    en: "I'm not sure I caught that. I can help with our medical devices, the Spiber Kart marketplace, MedAcademy courses, health software, medical tourism, orders, or getting you to a human. Try one of these:",
+    bn: "ঠিক বুঝতে পারিনি। আমি মেডিকেল ডিভাইস, স্পাইবার কার্ট মার্কেটপ্লেস, মেডএকাডেমি কোর্স, হেলথ সফটওয়্যার, মেডিকেল ট্যুরিজম, অর্ডার, বা টিমের সাথে সংযোগে সাহায্য করতে পারি। যেকোনো একটি বেছে নিন:",
+    ja: "うまく理解できませんでした。医療機器、Spiber Kart マーケットプレイス、MedAcademy コース、ヘルスソフトウェア、医療ツーリズム、注文、担当者へのおつなぎができます。次からお選びください：",
   },
   divisionsOverview: {
-    en: "Spiber Med is a healthcare group with five divisions plus a blog:\n\n• Spiber Medtrade — medical devices & hospital equipment (quotation-based)\n• Spiber Kart — an online marketplace you can buy from directly\n• Spiber Academy — medical training & certification courses\n• Spiber Digihealth — digital-health software\n• Spiber Tourism — medical travel & treatment abroad\n• Spiber Health Corner — coming soon\n\nWhich one would you like to explore?",
-    bn: "স্পাইবার মেড একটি হেলথকেয়ার গ্রুপ — পাঁচটি বিভাগ ও একটি ব্লগ:\n\n• স্পাইবার মেডট্রেড — মেডিকেল ডিভাইস ও হাসপাতাল সরঞ্জাম (কোটেশন-ভিত্তিক)\n• স্পাইবার কার্ট — অনলাইন মার্কেটপ্লেস, সরাসরি কেনা যায়\n• স্পাইবার একাডেমি — মেডিকেল প্রশিক্ষণ ও সার্টিফিকেশন কোর্স\n• স্পাইবার ডিজিহেলথ — ডিজিটাল হেলথ সফটওয়্যার\n• স্পাইবার ট্যুরিজম — মেডিকেল ভ্রমণ ও বিদেশে চিকিৎসা\n• স্পাইবার হেলথ কর্নার — শীঘ্রই আসছে\n\nকোনটি দেখতে চান?",
-    ja: "Spiber Med は5つの部門とブログを持つヘルスケアグループです：\n\n• Spiber Medtrade — 医療機器・病院設備（見積もり制）\n• Spiber Kart — 直接購入できるオンラインマーケット\n• Spiber Academy — 医療研修・認定コース\n• Spiber Digihealth — デジタルヘルス・ソフトウェア\n• Spiber Tourism — 海外での医療・治療\n• Spiber Health Corner — 近日公開\n\nどれをご覧になりますか？",
+    en: "Spiber Med is a healthcare group with five divisions plus a blog:\n\n• Spiber Medtrade — medical devices & hospital equipment (quotation-based)\n• Spiber Kart — an online marketplace you can buy from directly\n• Spiber MedAcademy — medical training & certification courses\n• Spiber Digihealth — digital-health software\n• Spiber Tourism — medical travel & treatment abroad\n• Spiber Health Corner — coming soon\n\nWhich one would you like to explore?",
+    bn: "স্পাইবার মেড একটি হেলথকেয়ার গ্রুপ — পাঁচটি বিভাগ ও একটি ব্লগ:\n\n• স্পাইবার মেডট্রেড — মেডিকেল ডিভাইস ও হাসপাতাল সরঞ্জাম (কোটেশন-ভিত্তিক)\n• স্পাইবার কার্ট — অনলাইন মার্কেটপ্লেস, সরাসরি কেনা যায়\n• স্পাইবার মেডএকাডেমি — মেডিকেল প্রশিক্ষণ ও সার্টিফিকেশন কোর্স\n• স্পাইবার ডিজিহেলথ — ডিজিটাল হেলথ সফটওয়্যার\n• স্পাইবার ট্যুরিজম — মেডিকেল ভ্রমণ ও বিদেশে চিকিৎসা\n• স্পাইবার হেলথ কর্নার — শীঘ্রই আসছে\n\nকোনটি দেখতে চান?",
+    ja: "Spiber Med は5つの部門とブログを持つヘルスケアグループです：\n\n• Spiber Medtrade — 医療機器・病院設備（見積もり制）\n• Spiber Kart — 直接購入できるオンラインマーケット\n• Spiber MedAcademy — 医療研修・認定コース\n• Spiber Digihealth — デジタルヘルス・ソフトウェア\n• Spiber Tourism — 海外での医療・治療\n• Spiber Health Corner — 近日公開\n\nどれをご覧になりますか？",
   },
   medtrade: {
     en: "Spiber Medtrade supplies medical devices and hospital equipment — imaging, patient monitoring, critical care, OR & surgical solutions, lab and more. Prices are quotation-based: browse the catalog and request a quote for the items you need, and our team responds with pricing and availability.",
@@ -185,9 +185,9 @@ export const SAY: Record<string, L> = {
     ja: "Spiber Kart はオンラインマーケットプレイスです — 健康・ウェルネス・日常の医療用品をカートに入れて直接購入でき、安全な決済とバングラデシュ全国配送に対応。特定の商品をお探ししましょうか？",
   },
   academy: {
-    en: "Spiber Academy offers medical training and certification — video courses with quizzes and completion certificates. Some lessons are free to preview; enrolment is per-course. Want to see what's available?",
-    bn: "স্পাইবার একাডেমি মেডিকেল প্রশিক্ষণ ও সার্টিফিকেশন দেয় — কুইজ ও সমাপ্তি সার্টিফিকেট সহ ভিডিও কোর্স। কিছু লেসন ফ্রি প্রিভিউ; এনরোলমেন্ট কোর্সভিত্তিক। কী কী আছে দেখবেন?",
-    ja: "Spiber Academy は医療研修・認定を提供します — クイズと修了証つきの動画コース。一部レッスンは無料プレビュー可能で、受講はコース単位です。開講中のコースをご覧になりますか？",
+    en: "Spiber MedAcademy offers medical training and certification — video courses with quizzes and completion certificates. Some lessons are free to preview; enrolment is per-course. Want to see what's available?",
+    bn: "স্পাইবার মেডএকাডেমি মেডিকেল প্রশিক্ষণ ও সার্টিফিকেশন দেয় — কুইজ ও সমাপ্তি সার্টিফিকেট সহ ভিডিও কোর্স। কিছু লেসন ফ্রি প্রিভিউ; এনরোলমেন্ট কোর্সভিত্তিক। কী কী আছে দেখবেন?",
+    ja: "Spiber MedAcademy は医療研修・認定を提供します — クイズと修了証つきの動画コース。一部レッスンは無料プレビュー可能で、受講はコース単位です。開講中のコースをご覧になりますか？",
   },
   digihealth: {
     en: "Spiber Digihealth builds digital-health software — clinical and practice tools delivered as licenses, downloadable assets or hosted access. Some products are purchasable online; others are quote / request-access based. Want to browse them?",

@@ -64,7 +64,7 @@ export default async function LessonPage({
           </h1>
           <div style={{ justifySelf: "center" }}>
             <CtaButton
-              href={`/academy/course/${slug}`}
+              href={`/medacademy/course/${slug}`}
               style={{ background: "var(--color-secondary)" }}
             >
               {t("viewCourse")}
@@ -140,7 +140,7 @@ export default async function LessonPage({
         style={{ display: "flex", flexDirection: "column", gap: "var(--s-5)" }}
       >
         <Link
-          href={`/academy/course/${slug}`}
+          href={`/medacademy/course/${slug}`}
           style={{
             fontSize: "var(--fs-small)",
             color: "var(--color-text-muted)",

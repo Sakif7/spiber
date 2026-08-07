@@ -46,7 +46,7 @@ const DIVISIONS: Division[] = [
   {
     key: "academy",
     tone: "orange",
-    href: "/academy",
+    href: "/medacademy",
     image: "/cpr-training-manikin-with-aed.jpeg",
     imageAlt: "Hands-on resuscitation training with a manikin and AED",
   },

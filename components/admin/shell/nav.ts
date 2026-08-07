@@ -107,7 +107,7 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "Academy",
+    label: "MedAcademy",
     items: [
       { href: "/admin/courses", label: "Courses", icon: GraduationCap },
       { href: "/admin/enrollments", label: "Enrollments", icon: Users },

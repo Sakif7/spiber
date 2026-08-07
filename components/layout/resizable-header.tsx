@@ -98,13 +98,13 @@ const MEGA_MENUS: Record<string, MegaItem[]> = {
     {
       key: "academy",
       kicker: "Training & Education",
-      title: "Spiber Academy",
+      title: "Spiber MedAcademy",
       desc: "Accredited programmes and hands-on training for doctors, nurses, and biomedical technicians.",
-      href: "/academy",
+      href: "/medacademy",
       tone: "orange",
       links: [
-        { label: "Browse courses", href: "/academy/courses" },
-        { label: "All programmes", href: "/academy" },
+        { label: "Browse courses", href: "/medacademy/courses" },
+        { label: "All programmes", href: "/medacademy" },
       ],
     },
     {

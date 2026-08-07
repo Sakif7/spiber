@@ -31,7 +31,7 @@ export default async function CertificatePage({
   const session = await getSessionUser();
   if (!session) {
     redirect(
-      `/${l}?auth=login&next=${encodeURIComponent(`/${l}/academy/certificate/${id}`)}`,
+      `/${l}?auth=login&next=${encodeURIComponent(`/${l}/medacademy/certificate/${id}`)}`,
     );
   }
   const isOwner = session.sub === String(enrollment.userId);

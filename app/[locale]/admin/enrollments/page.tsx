@@ -105,7 +105,7 @@ export default async function AdminEnrollmentsPage({
     <div className="space-y-6">
       <AdminPageHeader
         title="Enrollments"
-        description="Academy enrollments — payment status and student access."
+        description="MedAcademy enrollments — payment status and student access."
       />
 
       <ManualEnrollForm courses={courseOptions} />

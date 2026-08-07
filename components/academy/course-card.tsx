@@ -20,7 +20,7 @@ export function CourseCard({
 
   return (
     <CatalogCard
-      href={`/academy/course/${course.slug}`}
+      href={`/medacademy/course/${course.slug}`}
       image={course.thumbnail}
       imageAlt={title}
       placeholderLabel={title}
