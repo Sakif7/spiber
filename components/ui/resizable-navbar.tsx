@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   motion,
   AnimatePresence,
   useScroll,
   useMotionValueEvent,
+  useReducedMotion,
 } from "framer-motion";
 import { usePathname } from "@/i18n/navigation";
 import { cn } from "@/lib/cn";
@@ -121,62 +122,135 @@ interface MobileNavMenuProps {
   onClose: () => void;
 }
 
+/** Ignore sub-pixel/bounce scroll jitter when deciding the direction. */
+const DIR_DEADZONE = 6;
+
 export const Navbar = ({ children, className }: NavbarProps) => {
   const ref = useRef<HTMLDivElement>(null);
-  const { scrollY } = useScroll({
-    target: ref,
-    offset: ["start start", "end start"],
-  });
+  // Page scroll. (Previously target-scoped with an offset, but only the raw
+  // pixel value was ever read, and a target-scoped measurement misbehaves once
+  // this element is taken out of flow below.)
+  const { scrollY } = useScroll();
+  const reduce = useReducedMotion() ?? false;
   const [visible, setVisible] = useState<boolean>(false);
+
+  // Auto-hide: `sticky` alone cannot work here — a sticky element only sticks
+  // within its PARENT's box, and the parent <header> (utility bar + nav) is
+  // barely taller than the nav itself, so the bar scrolled away after ~68px and
+  // never came back. Once it has scrolled fully out of view we switch it to
+  // `fixed` and drive it with scroll DIRECTION: hidden while scrolling down,
+  // slid back in the moment the user scrolls up.
+  const [detached, setDetached] = useState(false); // out of flow (fixed)
+  const [hidden, setHidden] = useState(false); // translated off-screen
+  const lastY = useRef(0);
+  // Measured while in flow: how far the bar's own bottom edge is from the top of
+  // the document, and its height (for the spacer that prevents a layout jump).
+  const geom = useRef({ threshold: 140, height: 60 });
+
+  const spacerRef = useRef<HTMLDivElement>(null);
+
+  // DOM-only measurement + spacer sizing. Deliberately imperative: reading a ref
+  // during render, or mirroring the measurement into state from an effect, both
+  // trip the repo's React-Compiler lint rules.
+  useEffect(() => {
+    const sync = () => {
+      const el = ref.current;
+      const sp = spacerRef.current;
+      if (!el) return;
+      if (!detached) {
+        // In flow: the numbers are meaningful, so (re)measure.
+        const r = el.getBoundingClientRect();
+        geom.current = {
+          threshold: Math.max(80, r.top + window.scrollY + r.height),
+          height: r.height,
+        };
+      }
+      if (sp) sp.style.height = detached ? `${geom.current.height}px` : "0px";
+    };
+    sync();
+    window.addEventListener("resize", sync);
+    return () => window.removeEventListener("resize", sync);
+  }, [detached]);
 
   useMotionValueEvent(scrollY, "change", (latest) => {
     setVisible(latest > 100);
+
+    const { threshold } = geom.current;
+    if (latest <= threshold) {
+      // Back in the header's own zone: restore normal flow, fully shown.
+      setDetached(false);
+      setHidden(false);
+      lastY.current = latest;
+      return;
+    }
+
+    setDetached(true);
+    const delta = latest - lastY.current;
+    if (Math.abs(delta) < DIR_DEADZONE) return; // ignore jitter / bounce
+    lastY.current = latest;
+    setHidden(delta > 0); // down -> hide, up -> reveal
   });
 
   return (
-    <motion.div
-      ref={ref}
-      className={cn(
-        "sticky inset-x-0 z-40 w-full",
-        // alwaysOn presets are a flush full-width header; floating presets sit 1rem down.
-        NAV_THEME.alwaysOn ? "top-0" : "top-4",
-        className,
-      )}
-    >
-      {/* Full-bleed themed band so the bar reaches both edges (no white sides).
+    <>
+      {/* Placeholder for the height the bar gives up when it goes `fixed`;
+          without it the header collapses and the page jumps up by the bar's
+          height at the exact moment we detach. */}
+      <div ref={spacerRef} aria-hidden style={{ height: 0 }} />
+      <motion.div
+        ref={ref}
+        animate={{ y: detached && hidden ? "-100%" : "0%" }}
+        transition={
+          reduce
+            ? { duration: 0 }
+            : { type: "tween", duration: 0.28, ease: [0.16, 1, 0.3, 1] }
+        }
+        className={cn(
+          "inset-x-0 z-40 w-full",
+          detached
+            ? "fixed top-0"
+            : // alwaysOn presets are a flush full-width header; floating presets sit 1rem down.
+              NAV_THEME.alwaysOn
+              ? "sticky top-0"
+              : "sticky top-4",
+          className,
+        )}
+      >
+        {/* Full-bleed themed band so the bar reaches both edges (no white sides).
           Top of page: SOLID topBg, no blur. Scrolled: translucent `bg` + backdrop
           blur (glassmorphism). The blur eases between 0 and full so the transition
           is smooth (transitioning to/from `none` would snap). */}
-      {NAV_THEME.alwaysOn && (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 -z-10"
-          style={{
-            backgroundColor: visible
-              ? NAV_THEME.bg
-              : (NAV_THEME.topBg ?? NAV_THEME.bg),
-            backdropFilter: visible
-              ? "blur(16px) saturate(180%)"
-              : "blur(0px) saturate(100%)",
-            WebkitBackdropFilter: visible
-              ? "blur(16px) saturate(180%)"
-              : "blur(0px) saturate(100%)",
-            borderBottom: `1px solid ${visible ? "rgba(255,255,255,.12)" : "rgba(255,255,255,0)"}`,
-            boxShadow: visible ? "0 14px 34px -22px rgba(0,0,0,.6)" : "none",
-            transition:
-              "background-color .45s ease, backdrop-filter .45s ease, -webkit-backdrop-filter .45s ease, border-color .45s ease, box-shadow .45s ease",
-          }}
-        />
-      )}
-      {React.Children.map(children, (child) =>
-        React.isValidElement(child)
-          ? React.cloneElement(
-              child as React.ReactElement<{ visible?: boolean }>,
-              { visible },
-            )
-          : child,
-      )}
-    </motion.div>
+        {NAV_THEME.alwaysOn && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 -z-10"
+            style={{
+              backgroundColor: visible
+                ? NAV_THEME.bg
+                : (NAV_THEME.topBg ?? NAV_THEME.bg),
+              backdropFilter: visible
+                ? "blur(16px) saturate(180%)"
+                : "blur(0px) saturate(100%)",
+              WebkitBackdropFilter: visible
+                ? "blur(16px) saturate(180%)"
+                : "blur(0px) saturate(100%)",
+              borderBottom: `1px solid ${visible ? "rgba(255,255,255,.12)" : "rgba(255,255,255,0)"}`,
+              boxShadow: visible ? "0 14px 34px -22px rgba(0,0,0,.6)" : "none",
+              transition:
+                "background-color .45s ease, backdrop-filter .45s ease, -webkit-backdrop-filter .45s ease, border-color .45s ease, box-shadow .45s ease",
+            }}
+          />
+        )}
+        {React.Children.map(children, (child) =>
+          React.isValidElement(child)
+            ? React.cloneElement(
+                child as React.ReactElement<{ visible?: boolean }>,
+                { visible },
+              )
+            : child,
+        )}
+      </motion.div>
+    </>
   );
 };
 

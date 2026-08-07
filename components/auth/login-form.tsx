@@ -5,31 +5,16 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { useRouter, Link } from "@/i18n/navigation";
-import {
-  loginFormSchema,
-  type LoginFormValues,
-  type Role,
-} from "@/lib/schemas/user";
-import { isAdmin } from "@/lib/auth/rbac";
-import { routing } from "@/i18n/routing";
+import { loginFormSchema, type LoginFormValues } from "@/lib/schemas/user";
+import { postLoginDestination } from "@/lib/auth/post-login";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CtaButton } from "@/components/ui/cta-button";
 
-/**
- * Strip a leading locale segment (e.g. "/en/admin" → "/admin") so the
- * locale-aware router doesn't double-prefix it ("/en/en/admin"). `next` can
- * arrive locale-prefixed from the proxy/guard redirects or a bookmarked URL.
- */
-export function stripLocale(path: string): string {
-  for (const loc of routing.locales) {
-    if (path === `/${loc}`) return "/";
-    if (path.startsWith(`/${loc}/`)) return path.slice(loc.length + 1);
-  }
-  return path;
-}
-
-export type AuthedUser = { roles?: string[] };
+// Re-exported for existing importers; the logic lives in the (unit-tested,
+// framework-free) lib module so both entry points share one implementation.
+export { stripLocale, type AuthedUser } from "@/lib/auth/post-login";
+import type { AuthedUser } from "@/lib/auth/post-login";
 
 export function LoginForm({
   next,
@@ -75,14 +60,9 @@ export function LoginForm({
           onSuccess(user);
           return;
         }
-        // Standalone fallback: explicit ?next= wins; else admins → panel.
-        const dest =
-          next && next.startsWith("/")
-            ? stripLocale(next)
-            : isAdmin({ roles: (user.roles ?? []) as Role[] })
-              ? "/admin"
-              : "/";
-        router.replace(dest);
+        // Standalone page: ?next= wins, else role-routed; a plain customer goes
+        // home (there's nowhere else for a dedicated /login page to land).
+        router.replace(postLoginDestination(user, next) ?? "/");
         router.refresh();
         return;
       }

@@ -14,7 +14,8 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@/i18n/navigation";
-import { LoginForm, stripLocale } from "./login-form";
+import { LoginForm } from "./login-form";
+import { postLoginDestination, type AuthedUser } from "@/lib/auth/post-login";
 import { RegisterForm } from "./register-form";
 
 type Tab = "login" | "register";
@@ -167,10 +168,14 @@ function AuthModalView({
     }
   }
 
-  function handleLoginSuccess() {
+  function handleLoginSuccess(user: AuthedUser) {
     qc.invalidateQueries({ queryKey: ["session"] });
     qc.invalidateQueries({ queryKey: ["cart"] });
-    const dest = next && next.startsWith("/") ? stripLocale(next) : null;
+    // Same rules as the standalone /login page: an explicit `next` wins,
+    // otherwise staff are routed to their own surface (admins → /admin,
+    // sellers → /seller). A regular customer gets null and simply stays on the
+    // page they were already on.
+    const dest = postLoginDestination(user, next);
     close();
     if (dest) router.replace(dest);
     // Always refresh so the new auth cookies take effect: this clears the App
