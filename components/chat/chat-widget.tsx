@@ -777,7 +777,7 @@ export function ChatWidget() {
                 aria-label={t("inputPlaceholder")}
                 style={{
                   flex: 1,
-                  border: "1px solid var(--color-border)",
+                  border: "1px solid var(--color-border-field)",
                   borderRadius: "var(--r-pill)",
                   padding: "10px 16px",
                   fontSize: 15,
@@ -836,7 +836,7 @@ function LeadForm({
   const [error, setError] = useState<string | null>(null);
 
   const fieldStyle: React.CSSProperties = {
-    border: "1px solid var(--color-border)",
+    border: "1px solid var(--color-border-field)",
     borderRadius: "var(--r-sm)",
     padding: "9px 12px",
     fontSize: 14,

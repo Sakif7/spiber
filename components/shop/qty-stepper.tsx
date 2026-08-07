@@ -43,7 +43,7 @@ export function QtyStepper({
           width: 56,
           height: 36,
           textAlign: "center",
-          border: "1px solid var(--color-border)",
+          border: "1px solid var(--color-border-field)",
           borderRadius: "var(--r-sm)",
           font: "inherit",
         }}

@@ -203,7 +203,7 @@ function BilingualField({
 const taStyle: CSSProperties = {
   font: "inherit",
   padding: "8px 10px",
-  border: "1px solid var(--color-border)",
+  border: "1px solid var(--color-border-field)",
   borderRadius: "var(--r-sm)",
   background: "var(--color-surface)",
   width: "100%",
@@ -616,7 +616,7 @@ export function CourseBuilder({ initial }: { initial?: CourseBuilderInitial }) {
 const selStyle: CSSProperties = {
   height: 40,
   padding: "0 10px",
-  border: "1px solid var(--color-border)",
+  border: "1px solid var(--color-border-field)",
   borderRadius: "var(--r-sm)",
   font: "inherit",
   background: "var(--color-surface)",

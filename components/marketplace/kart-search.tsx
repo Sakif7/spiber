@@ -37,7 +37,7 @@ export function KartSearch({
         width: "100%",
         maxWidth: 620,
         background: "var(--color-surface)",
-        border: "1px solid var(--color-border)",
+        border: "1px solid var(--color-border-field)",
         borderRadius: "var(--r-pill)",
         padding: "6px 6px 6px 18px",
         boxShadow: "var(--shadow-sm)",

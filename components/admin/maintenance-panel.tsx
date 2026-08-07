@@ -328,7 +328,7 @@ export function MaintenancePanel({
                   style={{
                     font: "inherit",
                     padding: "6px 10px",
-                    border: "1px solid var(--color-border)",
+                    border: "1px solid var(--color-border-field)",
                     borderRadius: "var(--r-sm)",
                     background: "var(--color-surface)",
                   }}

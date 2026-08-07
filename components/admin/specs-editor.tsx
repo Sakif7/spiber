@@ -189,7 +189,7 @@ export function SpecsEditor({
               width: "100%",
               padding: "8px 10px",
               borderRadius: "var(--r-sm)",
-              border: "1px solid var(--color-border)",
+              border: "1px solid var(--color-border-field)",
               background: "var(--color-surface)",
               fontFamily: "var(--font-mono)",
               fontSize: 13,

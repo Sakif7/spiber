@@ -21,7 +21,7 @@ const input: CSSProperties = {
   width: "100%",
   padding: "11px 14px",
   borderRadius: "var(--r-md)",
-  border: "1px solid var(--color-hairline)",
+  border: "1px solid var(--color-border-field)",
   background: "var(--color-surface)",
   fontSize: 15,
   fontFamily: "inherit",

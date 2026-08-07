@@ -254,7 +254,7 @@ const twoCol: CSSProperties = {
 const textarea: CSSProperties = {
   font: "inherit",
   padding: "8px 10px",
-  border: "1px solid var(--color-border)",
+  border: "1px solid var(--color-border-field)",
   borderRadius: "var(--r-sm)",
   background: "var(--color-surface)",
   width: "100%",

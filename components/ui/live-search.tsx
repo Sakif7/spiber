@@ -75,7 +75,7 @@ export function LiveSearch({
     width: "100%",
     height: dims.h,
     padding: "0 6px 0 14px",
-    border: `1px solid ${focused ? "var(--brand-teal)" : "var(--color-border)"}`,
+    border: `1px solid ${focused ? "var(--brand-teal)" : "var(--color-border-field)"}`,
     borderRadius: "var(--r-pill)",
     background: "var(--color-surface)",
     boxShadow: focused

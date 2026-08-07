@@ -64,7 +64,7 @@ export function CourseFilters() {
   const field: React.CSSProperties = {
     height: 40,
     padding: "0 10px",
-    border: "1px solid var(--color-border)",
+    border: "1px solid var(--color-border-field)",
     borderRadius: "var(--r-sm)",
     font: "inherit",
     width: "100%",

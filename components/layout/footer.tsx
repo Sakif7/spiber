@@ -37,7 +37,9 @@ function NewsletterForm() {
       style={{
         display: "flex",
         background: "rgba(255,255,255,.06)",
-        border: "1px solid rgba(255,255,255,.16)",
+        // 40% is the minimum white-alpha that clears SC 1.4.11's 3:1 against
+        // this field's own fill on the dark footer (.16 measured only 1.39:1).
+        border: "1px solid rgba(255,255,255,.40)",
         borderRadius: 999,
         padding: 4,
       }}

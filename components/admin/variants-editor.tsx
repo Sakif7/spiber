@@ -129,7 +129,7 @@ export function VariantsEditor({
 
   const cell: React.CSSProperties = {
     padding: "6px 8px",
-    border: "1px solid var(--color-border)",
+    border: "1px solid var(--color-border-field)",
     borderRadius: "var(--r-sm)",
     font: "inherit",
     width: "100%",

@@ -67,9 +67,29 @@
   --color-surface-2: var(--slate-100);
   --color-surface-inv: var(--slate-900);
 
-  /* lines */
+  /* lines
+   *
+   * Two DELIBERATELY different weights — do not collapse them into one:
+   *
+   *  --color-border / --color-hairline  DECORATIVE boundaries (card edges,
+   *      dividers, table rules). WCAG 2.1 SC 1.4.11 exempts purely decorative
+   *      boundaries, so these stay whisper-light on purpose.
+   *
+   *  --color-border-field               INTERACTIVE control boundaries (input,
+   *      textarea, select). SC 1.4.11 REQUIRES >= 3:1 here — on a form control
+   *      the border IS the affordance that says "you can type here".
+   *      slate-200 measured 1.23:1 on white / 1.16:1 on the field fill, i.e.
+   *      2.4x under the bar, which is why the borders read as invisible to
+   *      anyone not on a high-contrast monitor.
+   *
+   * #869296 is the LIGHTEST hue-matched value that clears 3:1 on both surfaces
+   * (3.20:1 on white, 3.03:1 on the slate-50 field fill) — chosen to fix the
+   * failure with the smallest possible visual change. It is still lighter than
+   * --color-text-muted (4.32:1), so fields stay visually quiet.
+   */
   --color-border: var(--slate-200);
   --color-hairline: #e8edef;
+  --color-border-field: #869296;
 
   /* text */
   --color-text: var(--slate-900);
@@ -199,6 +219,7 @@
   --color-surface-inv: var(--color-surface-inv);
   --color-border: var(--color-border);
   --color-hairline: var(--color-hairline);
+  --color-border-field: var(--color-border-field);
   --color-text: var(--color-text);
   --color-text-strong: var(--color-text-strong);
   --color-text-muted: var(--color-text-muted);
@@ -288,7 +309,11 @@
   --destructive: var(--color-error);
   --destructive-foreground: #ffffff;
   --border: var(--color-border);
-  --input: var(--color-border);
+  /* Interactive controls, not decoration — shadcn's Input/Textarea/Select all
+     render `border-input`, so this single line carries SC 1.4.11 compliance
+     across every admin form. `--border` (cards, dividers, table rules) stays
+     decorative and unchanged. */
+  --input: var(--color-border-field);
   --ring: var(--color-brand);
   --radius: 0.625rem;
 
@@ -376,6 +401,11 @@
      remaining inline-bordered panel, divider, and field. */
   --color-border: rgba(255, 255, 255, 0.1);
   --color-hairline: rgba(255, 255, 255, 0.06);
+  /* Field borders must still clear SC 1.4.11's 3:1 in dark mode. The decorative
+     10% white above measures only ~1.35:1 against every dark surface; 35% is the
+     minimum that passes on the LIGHTEST of them (--color-surface-2 #1f3137,
+     3.01:1), so it clears on all three. */
+  --color-border-field: rgba(255, 255, 255, 0.35);
 
   --color-text: #e6eef0;
   --color-text-strong: #f5fafb;
@@ -861,7 +891,7 @@ html[data-locale="ja"] h6 {
   width: 100%;
   padding: 11px 14px;
   border-radius: var(--radius-md);
-  border: 1px solid var(--color-hairline);
+  border: 1px solid var(--color-border-field);
   background: var(--color-surface);
   font: inherit;
   font-size: var(--fs-body-sm);
@@ -880,7 +910,7 @@ html[data-locale="ja"] h6 {
   border-color: color-mix(
     in oklab,
     var(--color-brand) 36%,
-    var(--color-hairline)
+    var(--color-border-field)
   );
 }
 .contact-field:focus {

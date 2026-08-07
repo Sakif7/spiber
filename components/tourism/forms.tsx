@@ -15,7 +15,7 @@ import { asLocale } from "@/lib/i18n/intl-locale";
 const input: CSSProperties = {
   font: "inherit",
   padding: "10px 12px",
-  border: "1px solid var(--color-border)",
+  border: "1px solid var(--color-border-field)",
   borderRadius: "var(--r-sm)",
   background: "var(--color-surface)",
   width: "100%",
