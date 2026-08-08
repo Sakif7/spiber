@@ -284,6 +284,10 @@ export function TeamCard({ member }: { member: TeamMember }) {
               color: "var(--color-brand-deep)",
               fontWeight: 500,
               marginTop: 4,
+              lineHeight: 1.45,
+              // Every card reserves two role lines, so a long title that wraps
+              // (or a long bn/ja translation) never makes one card taller.
+              minHeight: "2.9em",
             }}
           >
             {member.role}
