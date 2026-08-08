@@ -95,6 +95,7 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: Percent,
       },
       { href: "/admin/sellers/payouts", label: "Payouts", icon: Banknote },
+      { href: "/admin/sellers/settings", label: "Settings", icon: Settings },
     ],
   },
   {

@@ -8,6 +8,14 @@ export const localizedDef = {
   ja: { type: String },
 } as const;
 
+/** Fully-optional localized field (e.g. an optional description) — same trio
+ * of locales but nothing required, so an absent value stays valid. */
+export const localizedOptionalDef = {
+  en: { type: String },
+  bn: { type: String },
+  ja: { type: String },
+} as const;
+
 export interface LocalizedDoc {
   en: string;
   bn?: string;

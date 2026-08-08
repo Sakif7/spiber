@@ -35,6 +35,17 @@ export type ProductListParams = {
  * the field). Excludes seller listings that are pending or rejected. */
 const APPROVED_FILTER = { $nin: ["pending", "rejected"] } as const;
 
+/** Suspended-seller predicate: `$ne: true` also matches legacy docs lacking
+ * the flag, so house/pre-existing products are unaffected. */
+const NOT_SUSPENDED = { $ne: true } as const;
+
+/** The full public-visibility gate for seller listings — spread into every
+ * public query alongside status/deletedAt. */
+const PUBLIC_SELLER_GATE = {
+  approvalStatus: APPROVED_FILTER,
+  sellerSuspended: NOT_SUSPENDED,
+} as const;
+
 function buildQuery(params: ProductListParams): Record<string, unknown> {
   const q: Record<string, unknown> = { deletedAt: null };
   if (params.storefront) q.storefront = params.storefront;
@@ -47,8 +58,12 @@ function buildQuery(params: ProductListParams): Record<string, unknown> {
   }
   if (params.brandId) q.brandId = params.brandId;
   if (params.sellerId) q.sellerId = params.sellerId;
-  // Secure-by-default: public listings never show unapproved seller listings.
-  if (!params.includeUnapproved) q.approvalStatus = APPROVED_FILTER;
+  // Secure-by-default: public listings never show unapproved seller listings
+  // or listings of a suspended seller.
+  if (!params.includeUnapproved) {
+    q.approvalStatus = APPROVED_FILTER;
+    q.sellerSuspended = NOT_SUSPENDED;
+  }
   if (params.minRating != null) q.ratingAvg = { $gte: params.minRating };
   if (params.inStockOnly) {
     // In stock if the base product has stock OR any variant does.
@@ -111,7 +126,7 @@ export async function getProductBySlug(
   await connectToDatabase();
   const q: Record<string, unknown> = { slug, deletedAt: null };
   if (storefront) q.storefront = storefront;
-  if (!includeUnapproved) q.approvalStatus = APPROVED_FILTER;
+  if (!includeUnapproved) Object.assign(q, PUBLIC_SELLER_GATE);
   return Product.findOne(q as unknown as ProductFilter)
     .lean<Lean<IProduct>>()
     .exec();
@@ -133,7 +148,7 @@ export async function listRelatedProducts(
     categoryId,
     _id: { $ne: excludeId },
     status: "active",
-    approvalStatus: APPROVED_FILTER,
+    ...PUBLIC_SELLER_GATE,
     deletedAt: null,
   };
   if (storefront) q.storefront = storefront;
@@ -153,7 +168,7 @@ export async function listFeaturedProducts(
     storefront,
     featured: true,
     status: "active",
-    approvalStatus: APPROVED_FILTER,
+    ...PUBLIC_SELLER_GATE,
     deletedAt: null,
   })
     .sort({ createdAt: -1 })
@@ -319,7 +334,7 @@ export async function frequentlyBoughtTogether(
   const q: Record<string, unknown> = {
     _id: { $in: ids },
     status: "active",
-    approvalStatus: APPROVED_FILTER,
+    ...PUBLIC_SELLER_GATE,
     deletedAt: null,
   };
   if (storefront) q.storefront = storefront;
@@ -376,6 +391,73 @@ export async function countSellerProducts(
   return Product.countDocuments(q as unknown as ProductFilter);
 }
 
+/** One-pass state summary for the seller dashboard. */
+export async function sellerProductStateCounts(sellerId: string): Promise<{
+  total: number;
+  live: number;
+  pendingReview: number;
+  updatesInReview: number;
+  rejected: number;
+  lowStock: { id: string; name: string; stockQty: number }[];
+}> {
+  const empty = {
+    total: 0,
+    live: 0,
+    pendingReview: 0,
+    updatesInReview: 0,
+    rejected: 0,
+    lowStock: [] as { id: string; name: string; stockQty: number }[],
+  };
+  await connectToDatabase();
+  if (!mongoose.isValidObjectId(sellerId)) return empty;
+  const docs = await Product.find({ sellerId, deletedAt: null })
+    .select(
+      "name approvalStatus pendingDraft stockQty lowStockThreshold status",
+    )
+    .lean<Lean<IProduct>[]>()
+    .exec();
+  const out = { ...empty, lowStock: [] as typeof empty.lowStock };
+  for (const p of docs) {
+    out.total++;
+    if (p.approvalStatus === "approved") {
+      out.live++;
+      if (p.pendingDraft) out.updatesInReview++;
+    } else if (p.approvalStatus === "pending") out.pendingReview++;
+    else if (p.approvalStatus === "rejected") out.rejected++;
+    if (
+      p.approvalStatus === "approved" &&
+      p.status === "active" &&
+      p.stockQty <= p.lowStockThreshold
+    ) {
+      out.lowStock.push({
+        id: String(p._id),
+        name: p.name.en,
+        stockQty: p.stockQty,
+      });
+    }
+  }
+  out.lowStock.sort((a, b) => a.stockQty - b.stockQty);
+  out.lowStock = out.lowStock.slice(0, 6);
+  return out;
+}
+
+/**
+ * Denormalize a seller's suspension onto their products so every public query
+ * can exclude them with a cheap indexed predicate (no join per read).
+ */
+export async function setSellerProductsSuspended(
+  sellerId: string,
+  suspended: boolean,
+): Promise<number> {
+  await connectToDatabase();
+  if (!mongoose.isValidObjectId(sellerId)) return 0;
+  const res = await Product.updateMany(
+    { sellerId },
+    { $set: { sellerSuspended: suspended } },
+  ).exec();
+  return res.modifiedCount ?? 0;
+}
+
 /** A product owned by this seller (edit/guard); null if not theirs. */
 export async function getSellerProductById(sellerId: string, id: string) {
   await connectToDatabase();
@@ -394,10 +476,14 @@ export async function getSellerProductByIdLean(sellerId: string, id: string) {
     .exec();
 }
 
-/** Seller listings awaiting admin approval (approval board). */
+/** The moderation queue: NEW seller listings (approvalStatus pending) plus
+ * LIVE listings whose seller submitted a content UPDATE (pendingDraft set). */
 export async function listPendingSellerProducts() {
   await connectToDatabase();
-  return Product.find({ approvalStatus: "pending", deletedAt: null })
+  return Product.find({
+    deletedAt: null,
+    $or: [{ approvalStatus: "pending" }, { pendingDraft: { $ne: null } }],
+  })
     .sort({ createdAt: 1 })
     .lean<Lean<IProduct>[]>()
     .exec();
@@ -406,28 +492,7 @@ export async function listPendingSellerProducts() {
 export async function countPendingSellerProducts(): Promise<number> {
   await connectToDatabase();
   return Product.countDocuments({
-    approvalStatus: "pending",
     deletedAt: null,
+    $or: [{ approvalStatus: "pending" }, { pendingDraft: { $ne: null } }],
   } as unknown as ProductFilter);
-}
-
-export async function setProductApproval(
-  id: string,
-  status: "approved" | "rejected",
-  reason?: string,
-) {
-  await connectToDatabase();
-  const update: Record<string, unknown> = { approvalStatus: status };
-  if (status === "approved") {
-    update.approvedAt = new Date();
-    update.rejectionReason = null;
-  }
-  if (status === "rejected") update.rejectionReason = reason ?? null;
-  return Product.findOneAndUpdate(
-    { _id: id, deletedAt: null },
-    { $set: update },
-    { new: true },
-  )
-    .lean<Lean<IProduct>>()
-    .exec();
 }

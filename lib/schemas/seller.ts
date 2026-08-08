@@ -50,3 +50,23 @@ export const globalCommissionSchema = z.object({
   commissionBp: z.number().int().min(0).max(10000),
 });
 export type GlobalCommissionInput = z.infer<typeof globalCommissionSchema>;
+
+/**
+ * Admin: seller-commission settings — the global default and/or per-category
+ * rates (bp; null clears a category back to inherit). One POST saves both.
+ */
+export const sellerSettingsUpdateSchema = z.object({
+  commissionBp: z.number().int().min(0).max(10000).optional(),
+  categoryRates: z
+    .array(
+      z.object({
+        categoryId: z.string().min(1),
+        commissionBp: z.number().int().min(0).max(10000).nullable(),
+      }),
+    )
+    .max(300)
+    .optional(),
+});
+export type SellerSettingsUpdateInput = z.infer<
+  typeof sellerSettingsUpdateSchema
+>;

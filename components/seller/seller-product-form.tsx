@@ -132,7 +132,8 @@ export function SellerProductForm({
   return (
     <form onSubmit={submit} style={{ display: "grid", gap: "var(--s-5)" }}>
       <p style={note}>
-        New and edited products are reviewed by our team before going live.
+        New products and content changes are reviewed by our team before going
+        live. Price and stock changes on a live listing apply immediately.
       </p>
 
       <Section title="Name">
@@ -240,7 +241,11 @@ export function SellerProductForm({
       </Section>
 
       <Section title="Images">
-        <ImageUploader value={images} onChange={setImages} />
+        <ImageUploader
+          value={images}
+          onChange={setImages}
+          endpoint="/api/seller/uploads"
+        />
       </Section>
 
       <Section title="Specifications">

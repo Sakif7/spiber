@@ -6,6 +6,13 @@ import { getSessionUser } from "@/lib/auth/current-user";
 
 export const dynamic = "force-dynamic";
 
+const DOC_LABELS: Record<string, string> = {
+  trade_license: "Trade license",
+  national_id: "National ID (NID)",
+  tin_certificate: "TIN certificate",
+  bank_statement: "Bank statement / cheque leaf",
+};
+
 export default async function AdminSellerApplicationDetailPage({
   params,
 }: {
@@ -88,6 +95,77 @@ export default async function AdminSellerApplicationDetailPage({
               {a.description}
             </p>
           </section>
+
+          {a.documents && a.documents.length > 0 ? (
+            <section style={card}>
+              <strong style={{ color: "var(--color-text-strong)" }}>
+                Verification documents
+              </strong>
+              <div style={{ display: "grid", gap: 8 }}>
+                {a.documents.map((d, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: "var(--s-4)",
+                    }}
+                  >
+                    <span style={{ display: "grid", gap: 2, minWidth: 0 }}>
+                      <strong
+                        style={{
+                          color: "var(--color-text-strong)",
+                          fontSize: "var(--fs-body-sm)",
+                        }}
+                      >
+                        {DOC_LABELS[d.label] ?? d.label}
+                      </strong>
+                      <span
+                        style={{
+                          ...muted,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {d.filename}
+                        {d.size ? ` · ${Math.round(d.size / 1024)} KB` : ""}
+                      </span>
+                    </span>
+                    <a
+                      href={`/api/media/seller-application/${String(a._id)}/${i}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        flexShrink: 0,
+                        color: "var(--color-brand-deep)",
+                        fontWeight: 600,
+                        fontSize: "var(--fs-body-sm)",
+                      }}
+                    >
+                      View
+                    </a>
+                  </div>
+                ))}
+              </div>
+              {a.termsAcceptedAt && (
+                <span style={muted}>
+                  Seller terms accepted{" "}
+                  {new Date(a.termsAcceptedAt).toLocaleString()}
+                </span>
+              )}
+            </section>
+          ) : (
+            <section style={card}>
+              <strong style={{ color: "var(--color-text-strong)" }}>
+                Verification documents
+              </strong>
+              <span style={muted}>
+                None uploaded (application predates document verification).
+              </span>
+            </section>
+          )}
 
           {bank && (
             <section style={card}>

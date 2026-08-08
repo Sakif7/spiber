@@ -40,7 +40,34 @@ export default async function AdminSellerProductsPage({
     {
       key: "product",
       header: "Product",
-      cell: (r) => localize(r.name, locale as Locale),
+      cell: (r) => {
+        const isUpdate = r.approvalStatus === "approved" && !!r.pendingDraft;
+        const draftName = r.pendingDraft
+          ? localize(r.pendingDraft.name, locale as Locale)
+          : null;
+        const liveName = localize(r.name, locale as Locale);
+        return (
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <span className="flex items-center gap-2">
+              <span className="truncate">{draftName ?? liveName}</span>
+              <span
+                className={
+                  isUpdate
+                    ? "rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800"
+                    : "rounded-full bg-teal-100 px-2 py-0.5 text-[11px] font-semibold text-teal-800"
+                }
+              >
+                {isUpdate ? "Update" : "New listing"}
+              </span>
+            </span>
+            {isUpdate && draftName !== liveName && (
+              <span className="text-muted-foreground truncate text-xs">
+                live: {liveName}
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: "seller",
@@ -62,7 +89,9 @@ export default async function AdminSellerProductsPage({
       header: "Submitted",
       cell: (r) => (
         <span className="text-muted-foreground whitespace-nowrap">
-          {new Date(r.createdAt).toLocaleDateString()}
+          {new Date(
+            r.pendingDraft?.submittedAt ?? r.createdAt,
+          ).toLocaleDateString()}
         </span>
       ),
     },

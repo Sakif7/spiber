@@ -3,10 +3,14 @@ import {
   createProduct,
   getProductBySlug,
   getSellerProductById,
+  getProductById,
 } from "@/lib/repositories/products.repo";
+import { getSellerById } from "@/lib/repositories/sellers.repo";
 import { applyMovement } from "./inventory.service";
+import { notifySellerProductModeration } from "./seller-notifications.service";
 import { slugify } from "@/lib/slug";
 import { makeId } from "@/lib/ids";
+import { logger } from "@/lib/log";
 import type { IProduct } from "@/lib/models/product";
 import type { SellerProductInput } from "@/lib/schemas/seller-product";
 
@@ -61,10 +65,28 @@ export type UpdateSellerProductResult =
   | { ok: true; product: IProduct }
   | { ok: false; code: "not_found" };
 
+/** Content fields that require re-review when changed on a LIVE listing. */
+function contentChanged(doc: IProduct, input: SellerProductInput): boolean {
+  const norm = (v: unknown) => JSON.stringify(v ?? null);
+  return (
+    norm(doc.name) !== norm(input.name) ||
+    norm(doc.description ?? null) !== norm(input.description ?? null) ||
+    String(doc.categoryId) !== input.categoryId ||
+    norm(doc.images) !== norm(input.images) ||
+    norm(doc.specs) !== norm(input.specs)
+  );
+}
+
 /**
- * Update a seller's own product. A content edit re-enters the approval queue
- * (guards against bait-and-switch on an approved listing). Stock deltas are
- * routed through an inventory movement so the audit trail stays authoritative.
+ * Update a seller's own product.
+ *
+ * Amazon-style moderation: on an APPROVED (live) listing, price/stock/status
+ * changes apply immediately, while CONTENT changes (name, description,
+ * category, images, specs) are stored as a `pendingDraft` for re-review — the
+ * last-approved version keeps serving, so an edit never takes the listing
+ * offline. Never-approved (pending/rejected) products update in place and
+ * (re-)enter the queue. Stock deltas always route through an inventory
+ * movement so the audit trail stays authoritative.
  */
 export async function updateSellerProduct(
   sellerId: string,
@@ -77,18 +99,42 @@ export async function updateSellerProduct(
   if (!doc) return { ok: false, code: "not_found" };
 
   const currentStock = doc.stockQty;
-  doc.name = input.name;
-  doc.description = input.description;
-  doc.categoryId = input.categoryId;
-  doc.priceMinor = input.priceMinor;
-  doc.lowStockThreshold = input.lowStockThreshold;
-  doc.images = input.images;
-  doc.specs = input.specs;
-  doc.status = input.status;
-  // Re-review on edit.
-  doc.approvalStatus = "pending";
-  doc.approvedAt = null;
-  doc.rejectionReason = null;
+  const isLive = doc.approvalStatus === "approved";
+
+  if (isLive) {
+    // Immediate fields — visible price/stock changes carry no
+    // misrepresentation risk and match marketplace norms.
+    doc.priceMinor = input.priceMinor;
+    doc.lowStockThreshold = input.lowStockThreshold;
+    doc.status = input.status;
+
+    if (contentChanged(doc.toObject(), input)) {
+      doc.pendingDraft = {
+        name: input.name,
+        description: input.description,
+        categoryId: input.categoryId,
+        images: input.images,
+        specs: input.specs,
+        submittedAt: new Date(),
+      };
+      // A fresh draft supersedes any previous update-rejection note.
+      doc.rejectionReason = null;
+    }
+  } else {
+    // Not live yet — update in place and (re-)enter the review queue.
+    doc.name = input.name;
+    doc.description = input.description;
+    doc.categoryId = input.categoryId;
+    doc.priceMinor = input.priceMinor;
+    doc.lowStockThreshold = input.lowStockThreshold;
+    doc.images = input.images;
+    doc.specs = input.specs;
+    doc.status = input.status;
+    doc.approvalStatus = "pending";
+    doc.approvedAt = null;
+    doc.rejectionReason = null;
+    doc.pendingDraft = null;
+  }
   await doc.save();
 
   if (input.stockQty !== currentStock) {
@@ -103,6 +149,72 @@ export async function updateSellerProduct(
     doc.stockQty = input.stockQty;
   }
   return { ok: true, product: doc.toObject() };
+}
+
+export type ModerateSellerProductResult =
+  | { ok: true; product: IProduct; kind: "listing" | "update" }
+  | { ok: false; code: "not_found" };
+
+/**
+ * Admin decision on a seller listing OR on a live listing's pending update.
+ *
+ * - New/pending listing: approve → live; reject → rejected + reason.
+ * - Live listing with a pendingDraft: approve → the draft is applied to the
+ *   live fields and cleared; reject → the draft is discarded, the live
+ *   version keeps serving, and the reason is stored for the seller.
+ *
+ * Emails the seller either way (best-effort).
+ */
+export async function moderateSellerProduct(
+  id: string,
+  decision: "approved" | "rejected",
+  reason?: string,
+): Promise<ModerateSellerProductResult> {
+  await connectToDatabase();
+  const doc = await getProductById(id);
+  if (!doc || !doc.sellerId) return { ok: false, code: "not_found" };
+
+  const isUpdate = doc.approvalStatus === "approved" && !!doc.pendingDraft;
+  const draft = doc.pendingDraft;
+
+  if (isUpdate && draft) {
+    if (decision === "approved") {
+      doc.name = draft.name;
+      doc.description = draft.description;
+      doc.categoryId = draft.categoryId;
+      doc.images = draft.images;
+      doc.specs = draft.specs;
+      doc.approvedAt = new Date();
+      doc.rejectionReason = null;
+    } else {
+      doc.rejectionReason = reason?.trim() || null;
+    }
+    doc.pendingDraft = null;
+  } else {
+    doc.approvalStatus = decision;
+    if (decision === "approved") {
+      doc.approvedAt = new Date();
+      doc.rejectionReason = null;
+    } else {
+      doc.rejectionReason = reason?.trim() || null;
+    }
+  }
+  await doc.save();
+
+  // Notify the seller (best-effort — a mail failure never fails the decision).
+  const seller = await getSellerById(String(doc.sellerId)).catch(() => null);
+  if (seller) {
+    await notifySellerProductModeration(seller, doc.name.en, decision, {
+      reason,
+      isUpdate,
+    }).catch((e) => logger.warn("moderation notify failed", e));
+  }
+
+  return {
+    ok: true,
+    product: doc.toObject(),
+    kind: isUpdate ? "update" : "listing",
+  };
 }
 
 export async function softDeleteSellerProduct(

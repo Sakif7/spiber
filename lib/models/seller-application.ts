@@ -8,6 +8,17 @@ export interface ISellerAppActivity {
   at: Date;
 }
 
+/** A KYC/verification document uploaded with the application. The `key` is a
+ * PRIVATE storage key — served to admins only via the gated media route. */
+export interface ISellerAppDocument {
+  /** Document kind: trade_license | national_id | tin_certificate | bank_statement */
+  label: string;
+  key: string;
+  filename: string;
+  size?: number;
+  mime?: string;
+}
+
 export interface ISellerApplication {
   applicationNumber: string;
   userId: mongoose.Types.ObjectId | string;
@@ -20,6 +31,10 @@ export interface ISellerApplication {
   categories?: string;
   description: string;
   bankDetails?: IBankDetails;
+  /** KYC documents (trade license, NID, …) — private storage keys. */
+  documents: ISellerAppDocument[];
+  /** When the applicant accepted the seller terms (required to submit). */
+  termsAcceptedAt?: Date | null;
   locale?: string;
   status: SellerApplicationStatus;
   assignedTo?: mongoose.Types.ObjectId | string | null;
@@ -61,6 +76,22 @@ const sellerApplicationSchema = new Schema<ISellerApplication>(
     categories: { type: String },
     description: { type: String, required: true },
     bankDetails: { type: bankDetailsSchema, default: undefined },
+    documents: {
+      type: [
+        new Schema<ISellerAppDocument>(
+          {
+            label: { type: String, required: true },
+            key: { type: String, required: true },
+            filename: { type: String, required: true },
+            size: { type: Number },
+            mime: { type: String },
+          },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
+    termsAcceptedAt: { type: Date, default: null },
     locale: { type: String },
     status: {
       type: String,

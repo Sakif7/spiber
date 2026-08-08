@@ -4,6 +4,7 @@ import { siteConfig, publicRoutes } from "@/lib/site-config";
 import { localePath } from "@/lib/i18n/intl-locale";
 import { listProducts } from "@/lib/repositories/products.repo";
 import { listCategories } from "@/lib/repositories/taxonomy.repo";
+import { listActiveSellers } from "@/lib/repositories/sellers.repo";
 import { listCourses } from "@/lib/repositories/courses.repo";
 import { listSoftwareProducts } from "@/lib/repositories/software.repo";
 import { listVisiblePostsForFeed } from "@/lib/repositories/blog.repo";
@@ -61,6 +62,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
     for (const c of mpCategories) {
       const route = `/kart/category/${c.slug}`;
+      entries.push({
+        url: urlFor(route, routing.defaultLocale),
+        alternates: { languages: languagesFor(route) },
+      });
+    }
+    // Public seller storefronts (active sellers only).
+    const sellers = await listActiveSellers();
+    for (const s of sellers) {
+      const route = `/kart/seller/${s.slug}`;
       entries.push({
         url: urlFor(route, routing.defaultLocale),
         alternates: { languages: languagesFor(route) },

@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/db/connect";
 import { Brand, type IBrand } from "@/lib/models/brand";
 import { Category, type ICategory } from "@/lib/models/category";
@@ -131,6 +132,51 @@ export async function getCategoryById(id: string) {
   return Category.findOne({ _id: id, deletedAt: null })
     .lean<Lean<ICategory>>()
     .exec();
+}
+
+/**
+ * Effective per-category seller-commission rate: the category's own
+ * `sellerCommissionBp`, else the nearest ancestor's (rates are usually set on
+ * top-level categories), else null → the caller falls back to the platform
+ * default. Ancestor walk is bounded so a cyclic parentId can never hang.
+ */
+export async function resolveCategoryCommissionBp(
+  categoryId: string,
+): Promise<number | null> {
+  await connectToDatabase();
+  let currentId: string | null = categoryId;
+  for (let depth = 0; depth < 6 && currentId; depth++) {
+    const cat: Lean<ICategory> | null = await Category.findOne({
+      _id: currentId,
+      deletedAt: null,
+    })
+      .select("sellerCommissionBp parentId")
+      .lean<Lean<ICategory>>()
+      .exec()
+      .catch(() => null);
+    if (!cat) return null;
+    if (typeof cat.sellerCommissionBp === "number")
+      return cat.sellerCommissionBp;
+    currentId = cat.parentId ? String(cat.parentId) : null;
+  }
+  return null;
+}
+
+/** Admin bulk-set of per-category commission rates (null clears → inherit). */
+export async function setCategoryCommissionRates(
+  rates: { categoryId: string; commissionBp: number | null }[],
+): Promise<number> {
+  await connectToDatabase();
+  let updated = 0;
+  for (const r of rates) {
+    if (!mongoose.isValidObjectId(r.categoryId)) continue;
+    const res = await Category.updateOne(
+      { _id: r.categoryId, deletedAt: null },
+      { $set: { sellerCommissionBp: r.commissionBp } },
+    ).exec();
+    updated += res.modifiedCount ?? 0;
+  }
+  return updated;
 }
 export async function createCategory(data: Partial<ICategory>) {
   await connectToDatabase();

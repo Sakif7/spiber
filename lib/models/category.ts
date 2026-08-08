@@ -1,5 +1,9 @@
 import mongoose, { Schema, type Model } from "mongoose";
-import { localizedDef, type LocalizedDoc } from "./_shared";
+import {
+  localizedDef,
+  localizedOptionalDef,
+  type LocalizedDoc,
+} from "./_shared";
 import type { Storefront } from "@/lib/schemas/catalog";
 
 export interface ICategory {
@@ -12,6 +16,11 @@ export interface ICategory {
   position: number;
   featured: boolean;
   icon?: string;
+  /**
+   * Per-category seller commission (basis points). null → inherit from the
+   * parent category, then the platform default. Admin-set (Sellers → Settings).
+   */
+  sellerCommissionBp?: number | null;
   deletedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -35,10 +44,11 @@ const categorySchema = new Schema<ICategory>(
       default: "marketplace",
       index: true,
     },
-    description: { en: { type: String }, bn: { type: String } },
+    description: { ...localizedOptionalDef },
     position: { type: Number, default: 0 },
     featured: { type: Boolean, default: false },
     icon: { type: String },
+    sellerCommissionBp: { type: Number, default: null, min: 0, max: 10000 },
     deletedAt: { type: Date, default: null },
   },
   { collection: "categories", timestamps: true },

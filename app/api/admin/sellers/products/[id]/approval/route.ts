@@ -2,7 +2,7 @@ import { z } from "zod";
 import { ok, fail } from "@/lib/http/respond";
 import { parseJson } from "@/lib/http/validate";
 import { requireAdmin } from "@/lib/auth/guard";
-import { setProductApproval } from "@/lib/repositories/products.repo";
+import { moderateSellerProduct } from "@/lib/services/seller-product.service";
 import { writeAudit } from "@/lib/repositories/audit.repo";
 
 const approvalSchema = z.object({
@@ -10,7 +10,11 @@ const approvalSchema = z.object({
   reason: z.string().max(1000).optional(),
 });
 
-/** Approve or reject a seller-owned product listing. */
+/**
+ * Approve or reject a seller listing — or, for a LIVE listing with a pending
+ * content update, approve/discard that update (the live version keeps serving
+ * either way). Emails the seller with the decision + reason.
+ */
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -22,18 +26,23 @@ export async function POST(
   if (!parsed.success)
     return fail({ code: "invalid_input", details: parsed.issues }, 400);
 
-  const updated = await setProductApproval(
+  const result = await moderateSellerProduct(
     id,
     parsed.data.status,
     parsed.data.reason,
   );
-  if (!updated) return fail({ code: "not_found" }, 404);
+  if (!result.ok) return fail({ code: result.code }, 404);
+
   await writeAudit({
     actorId: admin.sub,
-    action: `product.${parsed.data.status}`,
+    action: `product.${result.kind === "update" ? "update_" : ""}${parsed.data.status}`,
     entityType: "Product",
     entityId: id,
-    after: { approvalStatus: parsed.data.status },
+    after: {
+      approvalStatus: parsed.data.status,
+      kind: result.kind,
+      ...(parsed.data.reason ? { reason: parsed.data.reason } : {}),
+    },
   });
-  return ok({ status: parsed.data.status });
+  return ok({ status: parsed.data.status, kind: result.kind });
 }

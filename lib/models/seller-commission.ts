@@ -6,15 +6,31 @@ import type { SellerCommissionStatus } from "@/lib/schemas/seller-commission";
  * record: soft-delete/void only, never hard-delete. Rate is snapshotted so a
  * later per-seller rate change doesn't alter recorded amounts.
  */
+
+/** Per-item fee breakdown (rates can differ per category within one order). */
+export interface ICommissionLine {
+  productId: mongoose.Types.ObjectId | string;
+  name: string;
+  qty: number;
+  subtotalMinor: number;
+  rateBp: number;
+  /** Which rate applied: the seller's override, a category rate, or the global default. */
+  rateSource: "seller" | "category" | "global";
+  commissionMinor: number;
+}
+
 export interface ISellerCommission {
   orderId: mongoose.Types.ObjectId | string;
   orderNumber: string;
   sellerId: mongoose.Types.ObjectId | string;
   /** Sum of this seller's item line totals in the order (poisha). */
   itemSubtotalMinor: number;
+  /** Effective (blended) rate — per-line rates live in `lines`. */
   commissionRateBp: number;
   commissionAmountMinor: number;
   sellerEarningsMinor: number;
+  /** Per-item breakdown (absent on legacy rows accrued before category rates). */
+  lines?: ICommissionLine[];
   currency: "BDT";
   status: SellerCommissionStatus;
   accruedAt: Date;
@@ -40,6 +56,27 @@ const sellerCommissionSchema = new Schema<ISellerCommission>(
     commissionRateBp: { type: Number, required: true },
     commissionAmountMinor: { type: Number, required: true },
     sellerEarningsMinor: { type: Number, required: true },
+    lines: {
+      type: [
+        new Schema<ICommissionLine>(
+          {
+            productId: { type: Schema.Types.ObjectId, ref: "Product" },
+            name: { type: String, required: true },
+            qty: { type: Number, required: true },
+            subtotalMinor: { type: Number, required: true },
+            rateBp: { type: Number, required: true },
+            rateSource: {
+              type: String,
+              enum: ["seller", "category", "global"],
+              required: true,
+            },
+            commissionMinor: { type: Number, required: true },
+          },
+          { _id: false },
+        ),
+      ],
+      default: undefined,
+    },
     currency: { type: String, default: "BDT" },
     status: {
       type: String,

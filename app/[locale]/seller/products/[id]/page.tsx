@@ -31,6 +31,11 @@ export default async function EditSellerProductPage({
 
   const categories = await listCategories("marketplace");
 
+  // Prefill CONTENT from the pending draft when one exists — the seller edits
+  // their latest submitted intent, not the (older) live version behind it.
+  const draft = p.approvalStatus === "approved" ? p.pendingDraft : null;
+  const isLive = p.approvalStatus === "approved";
+
   return (
     <div style={{ display: "grid", gap: "var(--s-5)" }}>
       <div style={{ display: "grid", gap: 8 }}>
@@ -39,6 +44,30 @@ export default async function EditSellerProductPage({
         </Link>
         <h1 style={pageTitle}>Edit product</h1>
       </div>
+
+      {draft && (
+        <p style={{ ...notice, background: "#e0f2fe", color: "#075985" }}>
+          This listing has a content update awaiting review — you are editing
+          that update. The approved version stays live until it is approved.
+        </p>
+      )}
+      {p.rejectionReason && !draft && (
+        <p style={{ ...notice, background: "#fee2e2", color: "#991b1b" }}>
+          {isLive
+            ? "Your last update was not approved: "
+            : "This listing was not approved: "}
+          {p.rejectionReason}
+          {" — revise and save to resubmit."}
+        </p>
+      )}
+      {isLive && (
+        <p style={notice}>
+          Price, stock and visibility changes apply immediately. Changes to the
+          name, description, category, images or specifications go for a quick
+          review first — your live listing keeps selling in the meantime.
+        </p>
+      )}
+
       <SellerProductForm
         categories={categories.map((c) => ({
           id: String(c._id),
@@ -46,20 +75,31 @@ export default async function EditSellerProductPage({
         }))}
         initial={{
           id: String(p._id),
-          name: p.name,
-          description: p.description,
-          categoryId: String(p.categoryId),
+          name: draft?.name ?? p.name,
+          description: draft?.description ?? p.description,
+          categoryId: String(draft?.categoryId ?? p.categoryId),
           priceMajor: p.priceMinor != null ? p.priceMinor / 100 : "",
           stockQty: p.stockQty,
           lowStockThreshold: p.lowStockThreshold,
-          images: p.images,
-          specs: p.specs,
+          images: draft?.images ?? p.images,
+          specs: draft?.specs ?? p.specs,
           status: p.status === "archived" ? "active" : p.status,
         }}
       />
     </div>
   );
 }
+
+const notice: CSSProperties = {
+  fontSize: "var(--fs-small)",
+  color: "var(--color-text-muted)",
+  background: "var(--color-surface-2)",
+  border: "1px solid var(--color-border)",
+  borderRadius: "var(--r-sm)",
+  padding: "10px 14px",
+  margin: 0,
+  lineHeight: 1.5,
+};
 
 const pageTitle: CSSProperties = {
   fontFamily: "var(--font-display)",

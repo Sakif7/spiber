@@ -63,6 +63,8 @@ export async function createSellerApplication(
     categories: input.categories,
     description: input.description,
     bankDetails: input.bankDetails,
+    documents: input.documents ?? [],
+    termsAcceptedAt: new Date(),
     locale: input.locale,
     status: "new",
     activity: [],

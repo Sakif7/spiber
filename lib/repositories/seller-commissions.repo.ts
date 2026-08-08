@@ -119,6 +119,64 @@ export async function availableEarningsBySeller(): Promise<
   }));
 }
 
+/** Daily earnings series for the seller dashboard chart (last `days` days,
+ * accrued + paid; voided rows excluded). Zero-filled by the caller. */
+export async function sellerEarningsSeries(
+  sellerId: string,
+  days = 30,
+  now = new Date(),
+): Promise<{ day: string; earningsMinor: number; orders: number }[]> {
+  await connectToDatabase();
+  if (!mongoose.isValidObjectId(sellerId)) return [];
+  const since = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+  const rows = await SellerCommission.aggregate<{
+    _id: string;
+    earningsMinor: number;
+    orders: number;
+  }>([
+    {
+      $match: {
+        sellerId: new mongoose.Types.ObjectId(sellerId),
+        status: { $in: ["accrued", "paid"] },
+        accruedAt: { $gte: since },
+        deletedAt: null,
+      },
+    },
+    {
+      $group: {
+        _id: { $dateToString: { format: "%Y-%m-%d", date: "$accruedAt" } },
+        earningsMinor: { $sum: "$sellerEarningsMinor" },
+        orders: { $sum: 1 },
+      },
+    },
+    { $sort: { _id: 1 } },
+  ]).exec();
+  return rows.map((r) => ({
+    day: r._id,
+    earningsMinor: r.earningsMinor,
+    orders: r.orders,
+  }));
+}
+
+/** This seller's commission rows for a set of orders (net-earnings display on
+ * the seller orders page). Keyed by order id by the caller. */
+export async function sellerCommissionsByOrderIds(
+  sellerId: string,
+  orderIds: string[],
+) {
+  await connectToDatabase();
+  if (!mongoose.isValidObjectId(sellerId)) return [];
+  const valid = orderIds.filter((id) => mongoose.isValidObjectId(id));
+  if (valid.length === 0) return [];
+  return SellerCommission.find({
+    sellerId,
+    orderId: { $in: valid },
+    deletedAt: null,
+  })
+    .lean<Lean<ISellerCommission>[]>()
+    .exec();
+}
+
 /** Lifetime earnings summary for a seller's dashboard. */
 export async function sellerEarningsSummary(sellerId: string): Promise<{
   accruedMinor: number;

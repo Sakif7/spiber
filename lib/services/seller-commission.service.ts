@@ -1,7 +1,9 @@
 import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/db/connect";
-import type { IOrder } from "@/lib/models/order";
+import type { IOrder, IOrderItem } from "@/lib/models/order";
 import type { ISellerPayout } from "@/lib/models/seller-payout";
+import type { ICommissionLine } from "@/lib/models/seller-commission";
+import { Product } from "@/lib/models/product";
 import {
   createSellerCommission,
   voidAccruedByOrder,
@@ -15,59 +17,150 @@ import {
   setPayoutStatus,
 } from "@/lib/repositories/seller-payouts.repo";
 import { getSellerById } from "@/lib/repositories/sellers.repo";
+import { resolveCategoryCommissionBp } from "@/lib/repositories/taxonomy.repo";
 import {
   getSellerCommissionBp,
   DEFAULT_COMMISSION_BP,
 } from "./seller-settings.service";
+import {
+  notifySellerNewPaidOrder,
+  notifySellerPayoutPaid,
+} from "./seller-notifications.service";
 import { sellerPayoutNumber } from "@/lib/ids";
 import { logger } from "@/lib/log";
 import type { SellerPayoutStatus } from "@/lib/schemas/seller-commission";
 
 /**
+ * Rate precedence for one item: the seller's negotiated override, else the
+ * product category's rate (inheriting from ancestor categories), else the
+ * admin-set platform default. Exported for tests.
+ */
+export async function resolveItemRateBp(
+  sellerOverrideBp: number | null | undefined,
+  categoryId: string | null,
+  globalBp: number,
+): Promise<{ rateBp: number; source: ICommissionLine["rateSource"] }> {
+  if (typeof sellerOverrideBp === "number") {
+    return { rateBp: sellerOverrideBp, source: "seller" };
+  }
+  if (categoryId) {
+    const catBp = await resolveCategoryCommissionBp(categoryId).catch(
+      () => null,
+    );
+    if (typeof catBp === "number") return { rateBp: catBp, source: "category" };
+  }
+  return { rateBp: globalBp, source: "global" };
+}
+
+/**
  * Accrue a commission per seller for a PAID order. Idempotent (one row per
  * order+seller, enforced by a unique index). Earnings = the seller's item
- * subtotal − platform commission (rate = the seller's override, else the global
- * default). House/platform items (no sellerId) accrue nothing.
+ * subtotal − platform commission, computed PER ITEM (rates can differ by
+ * category), with the full per-line breakdown stored on the ledger row.
+ * House/platform items (no sellerId) accrue nothing. Emails the seller.
  */
 export async function accrueSellerCommissions(
   order: IOrder,
   orderId: string,
 ): Promise<void> {
   await connectToDatabase();
-  // Group this order's item subtotals by seller.
-  const bySeller = new Map<string, number>();
+  // Group this order's items by seller.
+  const bySeller = new Map<string, IOrderItem[]>();
   for (const it of order.items) {
     const sid = it.productSnapshot.sellerId
       ? String(it.productSnapshot.sellerId)
       : null;
     if (!sid) continue;
-    bySeller.set(sid, (bySeller.get(sid) ?? 0) + it.lineTotalMinor);
+    const list = bySeller.get(sid) ?? [];
+    list.push(it);
+    bySeller.set(sid, list);
   }
   if (bySeller.size === 0) return;
 
   const globalBp = await getSellerCommissionBp().catch(
     () => DEFAULT_COMMISSION_BP,
   );
+
+  // Category ids for rate lookup — the order snapshot predates category rates,
+  // so resolve through the product docs (missing/deleted product → global rate).
+  const productIds = [...bySeller.values()]
+    .flat()
+    .map((it) => it.productId)
+    .filter(Boolean);
+  const products = await Product.find({ _id: { $in: productIds } })
+    .select("categoryId")
+    .lean<{ _id: mongoose.Types.ObjectId; categoryId?: unknown }[]>()
+    .exec()
+    .catch(() => []);
+  const categoryByProduct = new Map(
+    products.map((p) => [
+      String(p._id),
+      p.categoryId ? String(p.categoryId) : null,
+    ]),
+  );
+
   const now = new Date();
 
-  for (const [sellerId, subtotal] of bySeller) {
+  for (const [sellerId, items] of bySeller) {
     const seller = await getSellerById(sellerId).catch(() => null);
-    const rateBp =
-      typeof seller?.commissionBp === "number" ? seller.commissionBp : globalBp;
-    const commission = Math.floor((subtotal * rateBp) / 10000);
+    const overrideBp =
+      typeof seller?.commissionBp === "number" ? seller.commissionBp : null;
+
+    const lines: ICommissionLine[] = [];
+    for (const it of items) {
+      const categoryId = it.productId
+        ? (categoryByProduct.get(String(it.productId)) ?? null)
+        : null;
+      const { rateBp, source } = await resolveItemRateBp(
+        overrideBp,
+        categoryId,
+        globalBp,
+      );
+      lines.push({
+        productId: it.productId,
+        name: it.productSnapshot.name.en,
+        qty: it.qty,
+        subtotalMinor: it.lineTotalMinor,
+        rateBp,
+        rateSource: source,
+        commissionMinor: Math.floor((it.lineTotalMinor * rateBp) / 10000),
+      });
+    }
+
+    const subtotal = lines.reduce((s, l) => s + l.subtotalMinor, 0);
+    const commission = lines.reduce((s, l) => s + l.commissionMinor, 0);
     const earnings = subtotal - commission;
-    await createSellerCommission({
+    // Effective (blended) rate for display; exact per-line rates live in lines.
+    const effectiveBp =
+      subtotal > 0 ? Math.round((commission * 10000) / subtotal) : globalBp;
+
+    const created = await createSellerCommission({
       orderId: new mongoose.Types.ObjectId(orderId),
       orderNumber: order.orderNumber,
       sellerId: new mongoose.Types.ObjectId(sellerId),
       itemSubtotalMinor: subtotal,
-      commissionRateBp: rateBp,
+      commissionRateBp: effectiveBp,
       commissionAmountMinor: commission,
       sellerEarningsMinor: earnings,
+      lines,
       currency: "BDT",
       status: "accrued",
       accruedAt: now,
-    }).catch((e) => logger.warn("accrue seller commission failed", e));
+    }).catch((e) => {
+      logger.warn("accrue seller commission failed", e);
+      return null;
+    });
+
+    // "You made a sale" — only on a fresh accrual (not an idempotent replay).
+    if (created && seller) {
+      await notifySellerNewPaidOrder(seller, {
+        orderNumber: order.orderNumber,
+        itemSubtotalMinor: subtotal,
+        commissionAmountMinor: commission,
+        sellerEarningsMinor: earnings,
+        lines,
+      });
+    }
   }
 }
 
@@ -127,8 +220,22 @@ export async function updatePayoutStatus(
 ): Promise<UpdatePayoutResult> {
   const payout = await getSellerPayoutById(payoutId);
   if (!payout) return { ok: false, code: "not_found" };
+  const wasPaid = payout.status === "paid";
   const updated = await setPayoutStatus(payoutId, status, note);
-  // Marking a payout paid settles its linked commissions.
-  if (status === "paid") await markCommissionsPaidByPayout(payoutId);
+  // Marking a payout paid settles its linked commissions + notifies the seller.
+  if (status === "paid") {
+    await markCommissionsPaidByPayout(payoutId);
+    if (!wasPaid) {
+      const seller = await getSellerById(String(payout.sellerId)).catch(
+        () => null,
+      );
+      if (seller) {
+        await notifySellerPayoutPaid(seller, {
+          payoutNumber: payout.payoutNumber,
+          totalEarningsMinor: payout.totalEarningsMinor,
+        });
+      }
+    }
+  }
   return { ok: true, payout: (updated ?? payout).toObject() };
 }

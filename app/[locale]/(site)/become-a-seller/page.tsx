@@ -10,6 +10,7 @@ import { SellerApplyForm } from "@/components/seller/seller-apply-form";
 import { getSessionUser } from "@/lib/auth/current-user";
 import { getSellerByUserId } from "@/lib/repositories/sellers.repo";
 import { getOpenApplicationByUser } from "@/lib/repositories/seller-applications.repo";
+import { findUserById } from "@/lib/repositories/users.repo";
 import { pageMetadata } from "@/lib/seo/metadata";
 import type { Locale } from "@/i18n/routing";
 
@@ -47,6 +48,11 @@ export default async function BecomeASellerPage({
   const openApplication =
     user && !seller
       ? await getOpenApplicationByUser(user.sub).catch(() => null)
+      : null;
+  // Prefill the form from the account (claims carry email; name needs the doc).
+  const account =
+    user && !seller && !openApplication
+      ? await findUserById(user.sub).catch(() => null)
       : null;
 
   const benefits = [
@@ -165,9 +171,43 @@ export default async function BecomeASellerPage({
               <p style={{ color: "var(--color-text-muted)" }}>
                 {t("form.alreadyApplied")}
               </p>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "var(--s-5)",
+                  flexWrap: "wrap",
+                  fontSize: "var(--fs-body-sm)",
+                }}
+              >
+                <span style={{ color: "var(--color-text-muted)" }}>
+                  {t("form.appliedRef")}{" "}
+                  <strong
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      color: "var(--color-text-strong)",
+                    }}
+                  >
+                    {openApplication.applicationNumber}
+                  </strong>
+                </span>
+                <span style={{ color: "var(--color-text-muted)" }}>
+                  {t("form.appliedStatus")}{" "}
+                  <strong
+                    style={{
+                      color: "var(--color-brand-deep)",
+                      textTransform: "capitalize",
+                    }}
+                  >
+                    {openApplication.status}
+                  </strong>
+                </span>
+              </div>
             </StateCard>
           ) : (
-            <SellerApplyForm />
+            <SellerApplyForm
+              defaultName={account?.name ?? ""}
+              defaultEmail={account?.email ?? user?.email ?? ""}
+            />
           )}
         </Container>
       </Section>

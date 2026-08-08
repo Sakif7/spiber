@@ -7,8 +7,13 @@ import {
   sellerEarningsSummary,
 } from "@/lib/repositories/seller-commissions.repo";
 import { listSellerPayouts } from "@/lib/repositories/seller-payouts.repo";
+import { getSellerCommissionBp } from "@/lib/services/seller-settings.service";
 import { formatBDT } from "@/lib/money";
 import type { Locale } from "@/i18n/routing";
+
+function pct(bp: number): string {
+  return `${(bp / 100).toFixed(bp % 100 === 0 ? 0 : 2)}%`;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -28,11 +33,15 @@ export default async function SellerPayoutsPage({
 
   const sellerId = String(session!.seller._id);
 
-  const [summary, commissions, payouts] = await Promise.all([
+  const [summary, commissions, payouts, globalBp] = await Promise.all([
     sellerEarningsSummary(sellerId),
     listSellerCommissions({ sellerId }),
     listSellerPayouts({ sellerId }),
+    getSellerCommissionBp().catch(() => 1000),
   ]);
+
+  const overrideBp = session!.seller.commissionBp;
+  const hasOverride = typeof overrideBp === "number";
 
   return (
     <div style={{ display: "grid", gap: "var(--s-6)" }}>
@@ -52,6 +61,17 @@ export default async function SellerPayoutsPage({
           <span style={kpiLabel}>Paid out</span>
           <strong style={kpiValue}>{formatBDT(summary.paidMinor, loc)}</strong>
         </div>
+        <div style={kpiCard}>
+          <span style={kpiLabel}>Your commission rate</span>
+          <strong style={kpiValue}>
+            {pct(hasOverride ? (overrideBp as number) : globalBp)}
+          </strong>
+          <span style={subtle}>
+            {hasOverride
+              ? "Negotiated rate — applies to all your sales."
+              : "Platform default. Some categories carry their own rate; each order's exact fee is shown below."}
+          </span>
+        </div>
       </div>
 
       <section style={{ display: "grid", gap: "var(--s-4)" }}>
@@ -65,6 +85,7 @@ export default async function SellerPayoutsPage({
                 <tr>
                   <th style={th}>Order</th>
                   <th style={{ ...th, textAlign: "right" }}>Sales</th>
+                  <th style={{ ...th, textAlign: "right" }}>Rate</th>
                   <th style={{ ...th, textAlign: "right" }}>Commission</th>
                   <th style={{ ...th, textAlign: "right" }}>Earnings</th>
                   <th style={th}>Status</th>
@@ -78,6 +99,15 @@ export default async function SellerPayoutsPage({
                     </td>
                     <td style={{ ...td, textAlign: "right" }}>
                       {formatBDT(c.itemSubtotalMinor, loc)}
+                    </td>
+                    <td
+                      style={{
+                        ...td,
+                        textAlign: "right",
+                        color: "var(--color-text-muted)",
+                      }}
+                    >
+                      {pct(c.commissionRateBp)}
                     </td>
                     <td style={{ ...td, textAlign: "right" }}>
                       {formatBDT(c.commissionAmountMinor, loc)}

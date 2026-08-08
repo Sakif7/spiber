@@ -2219,7 +2219,10 @@
       "more": "その他の商品",
       "recentlyViewed": "最近見た商品",
       "selectOptions": "オプションを選択",
-      "selectToSeePrice": "価格を表示するにはオプションを選択してください"
+      "selectToSeePrice": "価格を表示するにはオプションを選択してください",
+      "soldBy": "販売元",
+      "houseSeller": "Spiber Kart",
+      "visitStore": "ストアを見る"
     },
     "trust": {
       "deliveryTitle": "全国配送",
@@ -2404,12 +2407,31 @@
       "signIn": "サインイン",
       "alreadySeller": "すでに出品者として登録されています。",
       "goToDashboard": "ダッシュボードへ",
-      "alreadyApplied": "申請は現在審査中です。追ってご連絡いたします。"
+      "alreadyApplied": "申請は現在審査中です。追ってご連絡いたします。",
+      "documentsTitle": "確認書類",
+      "documentsHint": "鮮明なスキャンまたは写真をアップロードしてください(JPG・PNG・PDF、各10MBまで)。ストア承認前に担当チームが確認します。",
+      "docTradeLicense": "営業許可証(トレードライセンス)",
+      "docNationalId": "国民IDカード(NID)",
+      "docTin": "TIN証明書",
+      "docBankStatement": "銀行取引明細書 / 小切手",
+      "optional": "任意",
+      "upload": "アップロード",
+      "replace": "差し替え",
+      "uploading": "アップロード中…",
+      "remove": "削除",
+      "docUploadError": "ファイルをアップロードできませんでした。10MB以下のJPG・PNG・PDFをご利用ください。",
+      "docsRequiredError": "必須書類(営業許可証と国民ID)をアップロードしてください。",
+      "terms": "提供した情報と書類が正確であることを確認し、Spiber Kart の出品者規約・手数料体系・出金ポリシーに同意します。",
+      "termsRequiredError": "続行するには出品者規約に同意してください。",
+      "appliedRef": "受付番号:",
+      "appliedStatus": "状況:"
     },
     "store": {
       "eyebrow": "出品者",
       "productsBy": "{name} の商品",
-      "empty": "この出品者にはまだ登録された商品がありません。"
+      "empty": "この出品者にはまだ登録された商品がありません。",
+      "memberSince": "出店開始",
+      "productCount": "商品数"
     }
   },
   "reviews": {

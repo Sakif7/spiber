@@ -1,5 +1,9 @@
 import mongoose, { Schema, type Model } from "mongoose";
-import { localizedDef, type LocalizedDoc } from "./_shared";
+import {
+  localizedDef,
+  localizedOptionalDef,
+  type LocalizedDoc,
+} from "./_shared";
 import type {
   ProductStatus,
   ProductApprovalStatus,
@@ -25,6 +29,21 @@ export interface IProductVariant {
   priceMinorOverride?: number | null;
   stockQty: number;
   image?: string;
+}
+
+/**
+ * Seller-submitted content changes to an APPROVED listing, held for re-review
+ * while the last-approved version keeps serving (Amazon-style — an edit never
+ * takes a live listing offline). Applied to the live fields on approval.
+ * Price/stock/status changes are NOT drafted — they apply immediately.
+ */
+export interface IPendingDraft {
+  name: LocalizedDoc;
+  description?: LocalizedDoc;
+  categoryId: mongoose.Types.ObjectId | string;
+  images: string[];
+  specs: ISpec[];
+  submittedAt: Date;
 }
 
 export interface IProduct {
@@ -55,6 +74,10 @@ export interface IProduct {
   approvalStatus: ProductApprovalStatus;
   approvedAt?: Date | null;
   rejectionReason?: string | null;
+  /** Denormalized from Seller.status — suspended sellers' listings are delisted. */
+  sellerSuspended?: boolean;
+  /** Content edit awaiting re-review while the approved version stays live. */
+  pendingDraft?: IPendingDraft | null;
   deletedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -98,7 +121,8 @@ const productSchema = new Schema<IProduct>(
     sku: { type: String, required: true, trim: true },
     name: { ...localizedDef },
     slug: { type: String, required: true, trim: true },
-    description: { en: { type: String }, bn: { type: String } },
+    // Optional localized trio (the old hand-rolled {en,bn} dropped ja writes).
+    description: { ...localizedOptionalDef },
     brandId: {
       type: Schema.Types.ObjectId,
       ref: "Brand",
@@ -151,6 +175,25 @@ const productSchema = new Schema<IProduct>(
     },
     approvedAt: { type: Date, default: null },
     rejectionReason: { type: String, default: null },
+    sellerSuspended: { type: Boolean, default: false },
+    pendingDraft: {
+      type: new Schema<IPendingDraft>(
+        {
+          name: { ...localizedDef },
+          description: { ...localizedOptionalDef },
+          categoryId: {
+            type: Schema.Types.ObjectId,
+            ref: "Category",
+            required: true,
+          },
+          images: { type: [String], default: [] },
+          specs: { type: [specSchema], default: [] },
+          submittedAt: { type: Date, required: true },
+        },
+        { _id: false },
+      ),
+      default: null,
+    },
     deletedAt: { type: Date, default: null },
   },
   { collection: "products", timestamps: true },

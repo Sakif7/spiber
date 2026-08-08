@@ -122,6 +122,7 @@ export function SellerProfileForm({ initial }: { initial: Initial }) {
             value={logo}
             onChange={setLogo}
             label="Upload logo"
+            endpoint="/api/seller/uploads"
           />
         </Field>
       </Section>

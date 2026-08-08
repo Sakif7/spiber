@@ -3,12 +3,33 @@
 import { useState } from "react";
 import Image from "next/image";
 
+/** Raw API error codes → human messages (shared by both upload fields). */
+export function uploadErrorMessage(code: string | undefined): string {
+  switch (code) {
+    case "forbidden":
+    case "unauthorized":
+      return "You don't have permission to upload here.";
+    case "too_large":
+      return "That file is too large.";
+    case "bad_type":
+      return "That file type isn't supported — use JPG, PNG or WebP.";
+    case "rate_limited":
+      return "Too many uploads — wait a moment and try again.";
+    default:
+      return "Upload failed. Please try again.";
+  }
+}
+
 export function ImageUploader({
   value,
   onChange,
+  endpoint = "/api/admin/uploads",
 }: {
   value: string[];
   onChange: (urls: string[]) => void;
+  /** Upload endpoint — admin forms use the default; the seller portal passes
+   * its own `requireSeller`-gated `/api/seller/uploads`. */
+  endpoint?: string;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,11 +39,11 @@ export function ImageUploader({
     setError(null);
     const fd = new FormData();
     fd.append("file", file);
-    const res = await fetch("/api/admin/uploads", { method: "POST", body: fd });
+    const res = await fetch(endpoint, { method: "POST", body: fd });
     const json = await res.json().catch(() => null);
     setBusy(false);
     if (res.ok && json?.ok) onChange([...value, json.data.url]);
-    else setError(json?.error?.code ?? "upload_failed");
+    else setError(uploadErrorMessage(json?.error?.code));
   }
 
   return (

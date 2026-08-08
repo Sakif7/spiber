@@ -2,6 +2,7 @@
 
 import { useState, type CSSProperties } from "react";
 import Image from "next/image";
+import { uploadErrorMessage } from "./image-uploader";
 
 /**
  * Reusable single public-image upload control for admin forms (gallery cover,
@@ -13,10 +14,14 @@ export function SingleImageField({
   value,
   onChange,
   label = "Upload",
+  endpoint = "/api/admin/uploads",
 }: {
   value: string;
   onChange: (url: string) => void;
   label?: string;
+  /** Upload endpoint — admin forms use the default; the seller portal passes
+   * its own `requireSeller`-gated `/api/seller/uploads`. */
+  endpoint?: string;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,11 +31,11 @@ export function SingleImageField({
     setError(null);
     const fd = new FormData();
     fd.append("file", file);
-    const res = await fetch("/api/admin/uploads", { method: "POST", body: fd });
+    const res = await fetch(endpoint, { method: "POST", body: fd });
     const json = await res.json().catch(() => null);
     setBusy(false);
     if (res.ok && json?.ok) onChange(json.data.url);
-    else setError(json?.error?.code ?? "upload_failed");
+    else setError(uploadErrorMessage(json?.error?.code));
   }
 
   const btn: CSSProperties = {

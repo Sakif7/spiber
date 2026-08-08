@@ -2219,7 +2219,10 @@
       "more": "More products",
       "recentlyViewed": "Recently viewed",
       "selectOptions": "Select options",
-      "selectToSeePrice": "Select options to see price"
+      "selectToSeePrice": "Select options to see price",
+      "soldBy": "Sold by",
+      "houseSeller": "Spiber Kart",
+      "visitStore": "Visit store"
     },
     "trust": {
       "deliveryTitle": "Nationwide delivery",
@@ -2404,12 +2407,31 @@
       "signIn": "Sign in",
       "alreadySeller": "You're already a seller.",
       "goToDashboard": "Go to your dashboard",
-      "alreadyApplied": "You already have an application under review. We'll be in touch soon."
+      "alreadyApplied": "You already have an application under review. We'll be in touch soon.",
+      "documentsTitle": "Verification documents",
+      "documentsHint": "Upload clear scans or photos (JPG, PNG or PDF, max 10 MB each). Our team verifies these before approving your store.",
+      "docTradeLicense": "Trade license",
+      "docNationalId": "National ID (NID)",
+      "docTin": "TIN certificate",
+      "docBankStatement": "Bank statement / cheque leaf",
+      "optional": "optional",
+      "upload": "Upload",
+      "replace": "Replace",
+      "uploading": "Uploading…",
+      "remove": "Remove",
+      "docUploadError": "Could not upload that file. Use JPG, PNG or PDF up to 10 MB.",
+      "docsRequiredError": "Please upload the required documents (trade license and national ID).",
+      "terms": "I confirm the information and documents provided are accurate, and I agree to Spiber Kart's seller terms, commission structure and payout policy.",
+      "termsRequiredError": "Please accept the seller terms to continue.",
+      "appliedRef": "Reference:",
+      "appliedStatus": "Status:"
     },
     "store": {
       "eyebrow": "Seller",
       "productsBy": "Products by {name}",
-      "empty": "This seller has no listed products yet."
+      "empty": "This seller has no listed products yet.",
+      "memberSince": "Member since",
+      "productCount": "Products"
     }
   },
   "reviews": {

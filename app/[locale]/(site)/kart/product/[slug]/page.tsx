@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { setRequestLocale, getTranslations } from "next-intl/server";
-import { Truck, ShieldCheck } from "lucide-react";
+import { Truck, ShieldCheck, Store } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { CardGrid } from "@/components/ui/card-grid";
@@ -26,6 +26,7 @@ import {
   getCategoryById,
   listBrands,
 } from "@/lib/repositories/taxonomy.repo";
+import { getSellerById } from "@/lib/repositories/sellers.repo";
 import { listApprovedByProduct } from "@/lib/repositories/reviews.repo";
 import { localize } from "@/lib/schemas/localized";
 import { pageMetadata } from "@/lib/seo/metadata";
@@ -79,22 +80,31 @@ export default async function MarketplaceProductDetail({
 
   const name = localize(product.name, l);
   const productId = String(product._id);
-  const [related, brand, category, reviews, allBrands] = await Promise.all([
-    listRelatedProducts(
-      String(product.categoryId),
-      productId,
-      4,
-      "marketplace",
-    ).catch(() => []),
-    product.brandId
-      ? getBrandById(String(product.brandId)).catch(() => null)
-      : Promise.resolve(null),
-    product.categoryId
-      ? getCategoryById(String(product.categoryId)).catch(() => null)
-      : Promise.resolve(null),
-    listApprovedByProduct(productId, 20).catch(() => []),
-    listBrands().catch(() => []),
-  ]);
+  const [related, brand, category, reviews, allBrands, seller] =
+    await Promise.all([
+      listRelatedProducts(
+        String(product.categoryId),
+        productId,
+        4,
+        "marketplace",
+      ).catch(() => []),
+      product.brandId
+        ? getBrandById(String(product.brandId)).catch(() => null)
+        : Promise.resolve(null),
+      product.categoryId
+        ? getCategoryById(String(product.categoryId)).catch(() => null)
+        : Promise.resolve(null),
+      listApprovedByProduct(productId, 20).catch(() => []),
+      listBrands().catch(() => []),
+      product.sellerId
+        ? getSellerById(String(product.sellerId)).catch(() => null)
+        : Promise.resolve(null),
+    ]);
+  // "Sold by" attribution: the third-party store (linked) or the house brand.
+  const soldBy =
+    seller && seller.status === "active"
+      ? { name: seller.displayName, slug: seller.slug }
+      : null;
   // Brand + category labels for the related rail (categoryName drives the
   // eyebrow — delete the categoryName prop below to drop it).
   const relBrandMap = new Map(
@@ -294,6 +304,64 @@ export default async function MarketplaceProductDetail({
             />
 
             <ShareButtons title={name} />
+
+            {/* Sold by — third-party store (linked) or the house label. */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                flexWrap: "wrap",
+                padding: "var(--s-3) var(--s-4)",
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--r-lg)",
+                background: "var(--color-surface-2)",
+              }}
+            >
+              <Store
+                size={16}
+                color="var(--color-brand)"
+                strokeWidth={1.75}
+                aria-hidden
+              />
+              <span
+                style={{
+                  fontSize: "var(--fs-body-sm)",
+                  color: "var(--color-text-muted)",
+                }}
+              >
+                {tm("soldBy")}{" "}
+                {soldBy ? (
+                  <Link
+                    href={`/kart/seller/${soldBy.slug}`}
+                    style={{
+                      color: "var(--color-brand-deep)",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {soldBy.name}
+                  </Link>
+                ) : (
+                  <strong style={{ color: "var(--color-text-strong)" }}>
+                    {tm("houseSeller")}
+                  </strong>
+                )}
+              </span>
+              {soldBy && (
+                <Link
+                  href={`/kart/seller/${soldBy.slug}`}
+                  style={{
+                    marginLeft: "auto",
+                    fontSize: "var(--fs-caption)",
+                    fontWeight: 600,
+                    color: "var(--color-brand-deep)",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {tm("visitStore")} →
+                </Link>
+              )}
+            </div>
 
             <div
               style={{

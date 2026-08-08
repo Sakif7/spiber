@@ -94,6 +94,14 @@ export async function getCartView(
   for (const it of cart.items) {
     const p = byId.get(String(it.productId));
     if (!p) continue; // product gone — silently drop from view
+    // Delisted while in the cart (edit re-queued, rejected, seller suspended).
+    if (
+      p.approvalStatus === "pending" ||
+      p.approvalStatus === "rejected" ||
+      p.sellerSuspended
+    ) {
+      continue;
+    }
     const variantId = it.variantId ?? null;
     const variant = findVariant(p, variantId);
     if (variantId && !variant) continue; // variant gone — drop
@@ -130,6 +138,8 @@ export async function addToCart(
   const product = await Product.findOne({
     _id: productId,
     status: "active",
+    approvalStatus: { $nin: ["pending", "rejected"] },
+    sellerSuspended: { $ne: true },
     deletedAt: null,
   })
     .lean<Lean<IProduct>>()

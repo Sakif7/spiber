@@ -94,6 +94,15 @@ export async function placeOrder(
     if (!p || p.status !== "active" || p.deletedAt) {
       return { ok: false, code: "product_unavailable" };
     }
+    // Not publicly buyable: pending/rejected listings and suspended sellers'
+    // products can't be purchased through a stale cart either.
+    if (
+      p.approvalStatus === "pending" ||
+      p.approvalStatus === "rejected" ||
+      p.sellerSuspended
+    ) {
+      return { ok: false, code: "product_unavailable" };
+    }
     const variantId = it.variantId ?? null;
     let variant: IProductVariant | undefined;
     let unitPrice: number | null;

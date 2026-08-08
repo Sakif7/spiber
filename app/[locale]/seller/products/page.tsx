@@ -16,6 +16,12 @@ const APPROVAL: Record<string, { label: string; bg: string; color: string }> = {
   pending: { label: "Pending review", bg: "#fef3c7", color: "#92400e" },
   approved: { label: "Live", bg: "#dcfce7", color: "#166534" },
   rejected: { label: "Rejected", bg: "#fee2e2", color: "#991b1b" },
+  // Live listing whose content edit is awaiting re-review (still selling).
+  updating: {
+    label: "Live · update in review",
+    bg: "#e0f2fe",
+    color: "#075985",
+  },
 };
 
 export default async function SellerProductsPage({
@@ -81,7 +87,13 @@ export default async function SellerProductsPage({
             <tbody>
               {items.map((p) => {
                 const id = String(p._id);
-                const approval = APPROVAL[p.approvalStatus] ?? APPROVAL.pending;
+                const stateKey =
+                  p.approvalStatus === "approved" && p.pendingDraft
+                    ? "updating"
+                    : p.approvalStatus;
+                const approval = APPROVAL[stateKey] ?? APPROVAL.pending;
+                const showReason =
+                  Boolean(p.rejectionReason) && !p.pendingDraft;
                 return (
                   <tr key={id} style={tr}>
                     <td style={td}>
@@ -135,15 +147,32 @@ export default async function SellerProductsPage({
                       <span style={statusPill}>{p.status}</span>
                     </td>
                     <td style={td}>
-                      <span
-                        style={{
-                          ...badge,
-                          background: approval.bg,
-                          color: approval.color,
-                        }}
-                      >
-                        {approval.label}
-                      </span>
+                      <div style={{ display: "grid", gap: 4 }}>
+                        <span
+                          style={{
+                            ...badge,
+                            background: approval.bg,
+                            color: approval.color,
+                          }}
+                        >
+                          {approval.label}
+                        </span>
+                        {showReason && (
+                          <span
+                            style={{
+                              fontSize: "var(--fs-caption)",
+                              color: "#991b1b",
+                              maxWidth: 260,
+                              lineHeight: 1.4,
+                            }}
+                          >
+                            {p.approvalStatus === "approved"
+                              ? "Update rejected: "
+                              : "Reason: "}
+                            {p.rejectionReason}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td style={{ ...td, textAlign: "right" }}>
                       <div

@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import { redirect } from "@/i18n/navigation";
 import { requireSeller } from "@/lib/auth/guard";
 import { listOrdersForSeller } from "@/lib/repositories/orders.repo";
+import { sellerCommissionsByOrderIds } from "@/lib/repositories/seller-commissions.repo";
 import { formatBDT } from "@/lib/money";
 import { localize } from "@/lib/schemas/localized";
 import type { Locale } from "@/i18n/routing";
@@ -25,6 +26,15 @@ export default async function SellerOrdersPage({
 
   const sellerId = String(session!.seller._id);
   const orders = await listOrdersForSeller(sellerId);
+
+  // Net earnings per order from the commission ledger (exists once paid).
+  const commissions = await sellerCommissionsByOrderIds(
+    sellerId,
+    orders.map((o) => String(o._id)),
+  ).catch(() => []);
+  const commissionByOrder = new Map(
+    commissions.map((c) => [String(c.orderId), c]),
+  );
 
   return (
     <div style={{ display: "grid", gap: "var(--s-6)" }}>
@@ -89,6 +99,36 @@ export default async function SellerOrdersPage({
                     {formatBDT(yourSales, loc)}
                   </strong>
                 </div>
+                {(() => {
+                  const c = commissionByOrder.get(String(order._id));
+                  return (
+                    <div style={{ ...salesRow, paddingTop: 4 }}>
+                      <span style={{ color: "var(--color-text-muted)" }}>
+                        Your earnings (after{" "}
+                        {c
+                          ? `${(c.commissionRateBp / 100).toFixed(c.commissionRateBp % 100 === 0 ? 0 : 2)}%`
+                          : ""}{" "}
+                        platform fee)
+                      </span>
+                      {c ? (
+                        c.status === "void" ? (
+                          <strong style={{ color: "var(--color-error)" }}>
+                            Voided (order {order.status})
+                          </strong>
+                        ) : (
+                          <strong style={{ color: "var(--color-brand-deep)" }}>
+                            {formatBDT(c.sellerEarningsMinor, loc)}
+                            {c.status === "paid" ? " · paid out" : ""}
+                          </strong>
+                        )
+                      ) : (
+                        <span style={{ color: "var(--color-text-muted)" }}>
+                          Pending payment
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
               </article>
             );
           })}
