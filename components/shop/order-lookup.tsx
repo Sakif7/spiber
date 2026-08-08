@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import { Input } from "@/components/ui/input";
 import { CtaButton } from "@/components/ui/cta-button";
 import { formatBDT } from "@/lib/money";
@@ -14,11 +15,24 @@ type LookedUpOrder = {
   status: string;
   totalMinor: number;
   email: string;
+  trackingNumber?: string | null;
   items: {
-    productSnapshot: { name: { en: string; bn?: string }; sku: string };
+    productSnapshot: {
+      name: { en: string; bn?: string };
+      sku: string;
+      variantOptions?: { name: string; value: string }[];
+    };
     qty: number;
     lineTotalMinor: number;
   }[];
+};
+
+/** Per-status headline + tone; anything not listed keeps the thank-you copy. */
+const STATUS_NOTE: Record<string, { key: string; color: string }> = {
+  shipped: { key: "noteShipped", color: "var(--color-brand-deep)" },
+  delivered: { key: "noteDelivered", color: "var(--color-success)" },
+  cancelled: { key: "noteCancelled", color: "var(--color-error)" },
+  refunded: { key: "noteRefunded", color: "var(--color-error)" },
 };
 
 export function OrderLookup({
@@ -54,15 +68,16 @@ export function OrderLookup({
   const notFound = !!query && lookup.isFetched && !order;
 
   if (order) {
+    const statusNote = STATUS_NOTE[order.status];
     return (
       <div style={{ display: "grid", gap: "var(--s-4)", maxWidth: 560 }}>
         <p
           style={{
-            color: "var(--color-success)",
+            color: statusNote?.color ?? "var(--color-success)",
             fontSize: "var(--fs-body-lg)",
           }}
         >
-          {t("thankYou")}
+          {statusNote ? t(statusNote.key) : t("thankYou")}
         </p>
         <dl
           style={{
@@ -79,7 +94,19 @@ export function OrderLookup({
             {order.orderNumber}
           </dd>
           <dt style={{ color: "var(--color-text-muted)" }}>{t("status")}</dt>
-          <dd style={{ margin: 0 }}>{order.status}</dd>
+          <dd style={{ margin: 0, textTransform: "capitalize" }}>
+            {order.status}
+          </dd>
+          {order.trackingNumber && (
+            <>
+              <dt style={{ color: "var(--color-text-muted)" }}>
+                {t("tracking")}
+              </dt>
+              <dd style={{ margin: 0, fontFamily: "var(--font-mono)" }}>
+                {order.trackingNumber}
+              </dd>
+            </>
+          )}
           <dt style={{ color: "var(--color-text-muted)" }}>{t("total")}</dt>
           <dd style={{ margin: 0, fontWeight: 600 }}>
             {formatBDT(order.totalMinor, locale)}
@@ -105,7 +132,23 @@ export function OrderLookup({
               }}
             >
               <span>
-                {localize(it.productSnapshot.name, locale)} × {it.qty}
+                {localize(it.productSnapshot.name, locale)}
+                {(it.productSnapshot.variantOptions?.length ?? 0) > 0 && (
+                  <span
+                    style={{
+                      color: "var(--color-text-muted)",
+                      fontSize: "var(--fs-small)",
+                    }}
+                  >
+                    {" "}
+                    (
+                    {it.productSnapshot
+                      .variantOptions!.map((o) => o.value)
+                      .join(" / ")}
+                    )
+                  </span>
+                )}{" "}
+                × {it.qty}
               </span>
               <span>{formatBDT(it.lineTotalMinor, locale)}</span>
             </li>
@@ -118,6 +161,21 @@ export function OrderLookup({
           }}
         >
           {t("emailedTo")} {order.email}
+        </p>
+        <p
+          style={{
+            fontSize: "var(--fs-small)",
+            color: "var(--color-text-muted)",
+            margin: 0,
+          }}
+        >
+          {t("needHelp")}{" "}
+          <Link
+            href="/kart/returns"
+            style={{ color: "var(--color-brand-deep)", fontWeight: 600 }}
+          >
+            {t("policyLink")}
+          </Link>
         </p>
       </div>
     );

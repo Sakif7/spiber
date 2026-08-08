@@ -19,14 +19,29 @@ function baseOptions() {
 
 export async function setAuthCookies(access: string, refresh: string) {
   const store = await cookies();
-  store.set(COOKIE.access, access, {
-    ...baseOptions(),
-    maxAge: ACCESS_MAX_AGE,
-  });
-  store.set(COOKIE.refresh, refresh, {
-    ...baseOptions(),
-    maxAge: REFRESH_MAX_AGE,
-  });
+  for (const c of authCookieSpecs(access, refresh)) {
+    store.set(c.name, c.value, c.options);
+  }
+}
+
+/**
+ * The same cookie pairs as `setAuthCookies`, as plain specs — for handlers that
+ * must attach auth cookies to a response they build themselves (e.g. the
+ * redirect returned by /api/auth/renew).
+ */
+export function authCookieSpecs(access: string, refresh: string) {
+  return [
+    {
+      name: COOKIE.access,
+      value: access,
+      options: { ...baseOptions(), maxAge: ACCESS_MAX_AGE },
+    },
+    {
+      name: COOKIE.refresh,
+      value: refresh,
+      options: { ...baseOptions(), maxAge: REFRESH_MAX_AGE },
+    },
+  ] as const;
 }
 
 export async function clearAuthCookies() {

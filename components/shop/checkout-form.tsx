@@ -34,7 +34,12 @@ type Totals = {
   totalMinor: number;
 };
 
-export function CheckoutForm() {
+export function CheckoutForm({
+  initial,
+}: {
+  /** Prefill (logged-in users: profile name/phone + default address). */
+  initial?: Partial<FormValues>;
+}) {
   const t = useTranslations("shop.checkout");
   const locale = useLocale() as Locale;
   const router = useRouter();
@@ -49,7 +54,10 @@ export function CheckoutForm() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({ resolver: zodResolver(schema) });
+  } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: initial,
+  });
 
   // Server-priced summary; refetches automatically when the applied coupon changes.
   const quoteQuery = useQuery({
@@ -300,7 +308,13 @@ export function CheckoutForm() {
             color: "var(--color-text-muted)",
           }}
         >
-          {t("paymentNote")}
+          {t("paymentNote")}{" "}
+          <Link
+            href="/kart/returns"
+            style={{ color: "var(--color-brand-deep)", fontWeight: 600 }}
+          >
+            {t("returnsPolicy")}
+          </Link>
         </p>
         {submitError && (
           <p

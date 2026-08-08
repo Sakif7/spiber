@@ -3,7 +3,7 @@
 import { useState, type CSSProperties } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter, Link } from "@/i18n/navigation";
 import { loginFormSchema, type LoginFormValues } from "@/lib/schemas/user";
 import { postLoginDestination } from "@/lib/auth/post-login";
@@ -19,12 +19,15 @@ import type { AuthedUser } from "@/lib/auth/post-login";
 export function LoginForm({
   next,
   verified,
+  verifyError,
   onSuccess,
   onForgot,
   submitStyle,
 }: {
   next?: string;
   verified?: boolean;
+  /** The verify-email link the user clicked was invalid/expired. */
+  verifyError?: boolean;
   /** When provided (modal), called on success instead of navigating. */
   onSuccess?: (user: AuthedUser) => void;
   /** When provided (modal), intercepts the "forgot password" link. */
@@ -33,17 +36,46 @@ export function LoginForm({
   submitStyle?: CSSProperties;
 }) {
   const t = useTranslations("auth.login");
+  const locale = useLocale();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  // Offer "resend verification" after an unverified-login attempt or a dead
+  // verification link.
+  const [showResend, setShowResend] = useState(Boolean(verifyError));
+  const [resendState, setResendState] = useState<
+    "idle" | "sending" | "sent" | "needEmail"
+  >("idle");
 
   const {
     register,
     handleSubmit,
+    getValues,
+    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
     defaultValues: { email: "", password: "" },
   });
+
+  async function resendVerification() {
+    const email = getValues("email").trim();
+    if (!email) {
+      setResendState("needEmail");
+      setFocus("email");
+      return;
+    }
+    setResendState("sending");
+    try {
+      await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, locale }),
+      });
+      setResendState("sent");
+    } catch {
+      setResendState("idle");
+    }
+  }
 
   async function onSubmit(values: LoginFormValues) {
     setError(null);
@@ -68,8 +100,10 @@ export function LoginForm({
       }
       const code = json?.error?.code;
       if (code === "invalid_credentials") setError(t("errorInvalid"));
-      else if (code === "email_not_verified") setError(t("errorUnverified"));
-      else setError(t("errorGeneric"));
+      else if (code === "email_not_verified") {
+        setError(t("errorUnverified"));
+        setShowResend(true);
+      } else setError(t("errorGeneric"));
     } catch {
       setError(t("errorGeneric"));
     }
@@ -86,6 +120,11 @@ export function LoginForm({
           style={{ color: "var(--color-success)", fontSize: "var(--fs-small)" }}
         >
           {t("verifiedNotice")}
+        </p>
+      )}
+      {verifyError && !error && (
+        <p style={{ color: "var(--color-error)", fontSize: "var(--fs-small)" }}>
+          {t("errorVerifyLink")}
         </p>
       )}
       <div style={{ display: "grid", gap: 6 }}>
@@ -113,6 +152,48 @@ export function LoginForm({
           {error}
         </p>
       )}
+      {showResend &&
+        (resendState === "sent" ? (
+          <p
+            style={{
+              color: "var(--color-success)",
+              fontSize: "var(--fs-small)",
+            }}
+          >
+            {t("resendSent")}
+          </p>
+        ) : (
+          <div style={{ display: "grid", gap: 4 }}>
+            <button
+              type="button"
+              onClick={resendVerification}
+              disabled={resendState === "sending"}
+              style={{
+                background: "none",
+                border: "none",
+                font: "inherit",
+                cursor: "pointer",
+                fontSize: "var(--fs-small)",
+                fontWeight: 600,
+                color: "var(--color-brand-deep)",
+                textAlign: "left",
+                padding: 0,
+              }}
+            >
+              {resendState === "sending" ? t("resendSending") : t("resend")}
+            </button>
+            {resendState === "needEmail" && (
+              <span
+                style={{
+                  color: "var(--color-error)",
+                  fontSize: "var(--fs-caption)",
+                }}
+              >
+                {t("resendNeedEmail")}
+              </span>
+            )}
+          </div>
+        ))}
       <CtaButton type="submit" style={{ width: "100%", ...submitStyle }}>
         {isSubmitting ? t("submitting") : t("submit")}
       </CtaButton>

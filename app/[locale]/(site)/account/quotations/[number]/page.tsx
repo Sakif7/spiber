@@ -125,8 +125,12 @@ export default async function AccountQuotationDetail({
                 )}
                 {q.quote.note && <p style={{ marginTop: 8 }}>{q.quote.note}</p>}
                 {q.quote.fileKey && (
-                  <Link
-                    href={q.quote.fileKey as string}
+                  // Plain <a>: this is an API download route, not an app page.
+                  // Gated: only the owner (or an admin) can fetch the PDF.
+                  <a
+                    href={`/api/media/quotation/${String(q._id)}`}
+                    target="_blank"
+                    rel="noreferrer"
                     style={{
                       color: "var(--color-brand-deep)",
                       textDecoration: "underline",
@@ -134,7 +138,7 @@ export default async function AccountQuotationDetail({
                     }}
                   >
                     {t("downloadQuote")}
-                  </Link>
+                  </a>
                 )}
               </div>
             )}

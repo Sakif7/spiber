@@ -74,12 +74,15 @@ export function QuotationActions({
     try {
       const fd = new FormData();
       fd.append("file", file);
+      // Business quotes are private: store under the private root and serve
+      // only through the owner/admin-gated /api/media/quotation route.
+      fd.append("visibility", "private");
       const res = await fetch("/api/admin/uploads", {
         method: "POST",
         body: fd,
       });
       const json = await res.json().catch(() => null);
-      if (res.ok && json?.ok) setFileKey(json.data.url);
+      if (res.ok && json?.ok) setFileKey(json.data.key || json.data.url);
       else setError("Upload failed.");
     } finally {
       setUploading(false);

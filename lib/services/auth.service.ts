@@ -79,21 +79,10 @@ export type RegisterResult =
   | { ok: true; user: AuthUser }
   | { ok: false; code: "email_taken" };
 
-export async function register(input: RegisterInput): Promise<RegisterResult> {
-  const existing = await findUserByEmail(input.email);
-  if (existing) return { ok: false, code: "email_taken" };
-
-  const passwordHash = await hashPassword(input.password);
-  const locale = localePrefix(input.locale);
-  const doc = await createUser({
-    name: input.name,
-    email: input.email,
-    passwordHash,
-    roles: bootstrapRoles(input.email),
-    locale,
-  });
-  const user = toAuthUser(doc);
-
+async function sendVerificationEmail(
+  user: { id: string; name: string; email: string },
+  locale: string,
+): Promise<void> {
   const token = await signVerifyToken(user.id);
   const link = `${siteConfig.url}/api/auth/verify-email?token=${encodeURIComponent(token)}&locale=${locale}`;
   const verifyEmail = renderEmail({
@@ -117,8 +106,44 @@ export async function register(input: RegisterInput): Promise<RegisterResult> {
     text: verifyEmail.text,
     attachments: verifyEmail.attachments,
   });
+}
 
+export async function register(input: RegisterInput): Promise<RegisterResult> {
+  const existing = await findUserByEmail(input.email);
+  if (existing) return { ok: false, code: "email_taken" };
+
+  const passwordHash = await hashPassword(input.password);
+  const locale = localePrefix(input.locale);
+  const doc = await createUser({
+    name: input.name,
+    email: input.email,
+    passwordHash,
+    roles: bootstrapRoles(input.email),
+    locale,
+  });
+  const user = toAuthUser(doc);
+  await sendVerificationEmail(user, locale);
   return { ok: true, user };
+}
+
+/**
+ * Re-send the verification email. Always resolves ok (anti-enumeration): the
+ * email is only actually sent when the account exists, is enabled, and is not
+ * yet verified. Callers must rate-limit.
+ */
+export async function resendVerification(
+  email: string,
+  locale?: string,
+): Promise<{ ok: true }> {
+  const doc = await findUserByEmail(email);
+  if (doc && !doc.disabled && !doc.emailVerified) {
+    await sendVerificationEmail(toAuthUser(doc), localePrefix(locale)).catch(
+      (err) => logger.warn("resend verification email failed", { err }),
+    );
+  } else {
+    logger.info("verification resend requested (no-op)");
+  }
+  return { ok: true };
 }
 
 // ---- Verify email ----
@@ -208,6 +233,34 @@ export async function requestPasswordReset(
     logger.info("password reset requested for unknown email");
   }
   return { ok: true };
+}
+
+// ---- Change password (logged-in) ----
+
+export type ChangePasswordResult =
+  | { ok: true; user: AuthUser; tokens: Tokens }
+  | { ok: false; code: "not_found" | "invalid_current" };
+
+/**
+ * Changes the password of a logged-in user. Bumps tokenVersion (logging every
+ * OTHER session out) and returns fresh tokens carrying the new version so the
+ * current session survives — set them as cookies in the calling route.
+ */
+export async function changePassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string,
+): Promise<ChangePasswordResult> {
+  const doc = await findUserById(userId);
+  if (!doc || doc.disabled) return { ok: false, code: "not_found" };
+  const valid = await verifyPassword(currentPassword, doc.passwordHash);
+  if (!valid) return { ok: false, code: "invalid_current" };
+
+  const passwordHash = await hashPassword(newPassword);
+  await updatePasswordHash(userId, passwordHash); // $inc tokenVersion
+  const user = toAuthUser(doc);
+  const tokens = await issueTokens(user, (doc.tokenVersion ?? 0) + 1);
+  return { ok: true, user, tokens };
 }
 
 export async function resetPassword(

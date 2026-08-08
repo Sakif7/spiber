@@ -36,6 +36,7 @@ export function OrderActions({ orderId, status }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  const [internalNote, setInternalNote] = useState("");
   const [trackingNumber, setTrackingNumber] = useState("");
 
   const allowed = TRANSITIONS[status] ?? [];
@@ -46,6 +47,7 @@ export function OrderActions({ orderId, status }: Props) {
     try {
       const body: Record<string, unknown> = { to };
       if (note.trim()) body.note = note.trim();
+      if (internalNote.trim()) body.internalNote = internalNote.trim();
       if (to === "shipped" && trackingNumber.trim()) {
         body.trackingNumber = trackingNumber.trim();
       }
@@ -62,6 +64,7 @@ export function OrderActions({ orderId, status }: Props) {
         return;
       }
       setNote("");
+      setInternalNote("");
       setTrackingNumber("");
       router.refresh();
     } catch {
@@ -95,12 +98,25 @@ export function OrderActions({ orderId, status }: Props) {
       ) : (
         <div className="flex flex-wrap items-end gap-3">
           <div className="min-w-[200px] flex-[1_1_220px] space-y-1.5">
-            <Label htmlFor="order-note">Note (optional)</Label>
+            <Label htmlFor="order-note">
+              Note to customer (shown on their timeline)
+            </Label>
             <Input
               id="order-note"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Internal note for this change"
+              placeholder="e.g. Handed to courier, arriving Sunday"
+            />
+          </div>
+          <div className="min-w-[200px] flex-[1_1_220px] space-y-1.5">
+            <Label htmlFor="order-internal-note">
+              Internal note (admins only)
+            </Label>
+            <Input
+              id="order-internal-note"
+              value={internalNote}
+              onChange={(e) => setInternalNote(e.target.value)}
+              placeholder="Never shown to the customer"
             />
           </div>
           {allowed.includes("shipped") ? (

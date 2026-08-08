@@ -1126,7 +1126,12 @@
       "verifiedNotice": "Your email is verified. You can now sign in.",
       "errorInvalid": "Incorrect email or password.",
       "errorUnverified": "Please verify your email before signing in.",
-      "errorGeneric": "Sign in failed. Please try again."
+      "errorGeneric": "Sign in failed. Please try again.",
+      "errorVerifyLink": "That verification link is invalid or has expired. Enter your email below and resend it.",
+      "resend": "Resend verification email",
+      "resendSending": "Sending…",
+      "resendSent": "Verification email sent. Please check your inbox.",
+      "resendNeedEmail": "Enter your email address above first."
     },
     "register": {
       "title": "Create your account",
@@ -1698,6 +1703,10 @@
           {
             "label": "Become a seller",
             "href": "/become-a-seller"
+          },
+          {
+            "label": "Returns & refunds",
+            "href": "/kart/returns"
           }
         ]
       },
@@ -1823,7 +1832,8 @@
       "checkout": "Proceed to checkout",
       "continue": "Continue shopping",
       "qty": "Qty",
-      "outOfStock": "Exceeds available stock"
+      "outOfStock": "Exceeds available stock",
+      "maxStock": "Only {count} available"
     },
     "checkout": {
       "title": "Checkout",
@@ -1852,7 +1862,8 @@
       "backToCart": "Back to cart",
       "paymentNote": "Payment is arranged offline (bank transfer / cash on delivery). We'll confirm your order by email.",
       "error": "We couldn't place your order. Please try again.",
-      "outOfStock": "Some items are no longer in stock."
+      "outOfStock": "Some items are no longer in stock.",
+      "returnsPolicy": "Returns & refund policy"
     },
     "confirmation": {
       "title": "Order confirmed",
@@ -1864,7 +1875,18 @@
       "lookupTitle": "Look up an order",
       "lookupHint": "Enter your order number and email.",
       "lookup": "Find order",
-      "notFound": "No matching order found."
+      "notFound": "No matching order found.",
+      "titleShipped": "Order on its way",
+      "titleDelivered": "Order delivered",
+      "titleCancelled": "Order cancelled",
+      "titleRefunded": "Order refunded",
+      "noteShipped": "Your order is on its way.",
+      "noteDelivered": "Delivered — thank you for shopping with us.",
+      "noteCancelled": "This order has been cancelled.",
+      "noteRefunded": "This order has been refunded.",
+      "tracking": "Tracking",
+      "needHelp": "Need help with this order? See our",
+      "policyLink": "returns & refund policy"
     },
     "common": {
       "from": "From",
@@ -2406,5 +2428,21 @@
     "ratingRequired": "Please select a rating.",
     "alreadyReviewed": "You've already reviewed this product.",
     "error": "Something went wrong. Please try again."
+  },
+  "returns": {
+    "title": "Returns & Refund Policy",
+    "lede": "How cancellations, returns, and refunds work on Spiber Kart.",
+    "cancelTitle": "Cancelling an order",
+    "cancelBody": "You can cancel an order yourself from your account for as long as it is still pending (payment not yet confirmed). Once payment is confirmed and the order enters processing, cancellation becomes a refund request that our team reviews.\nCancelled orders release their stock immediately, and if any payment was already made it is refunded in full.",
+    "refundTitle": "Requesting a refund",
+    "refundBody": "Paid orders can request a refund at any point before delivery. After delivery, you have 7 days to request a refund for items that arrive damaged, defective, or different from what was ordered.\nSubmit the request from the order page in your account with a short description of the problem. Our team reviews every request and responds by email, usually within 2 business days.",
+    "methodTitle": "How refunds are paid",
+    "methodBody": "Since payments are currently arranged offline (bank transfer or cash on delivery), refunds are returned the same way: bank-transfer payments are reversed to the originating account, and cash payments are refunded by bank transfer or mobile banking to details you provide.\nRefunds are issued in full, including any shipping you paid, when the return is due to our error. Please allow 3–7 business days after approval for the money to arrive.",
+    "exclusionsTitle": "What cannot be returned",
+    "exclusionsBody": "For safety and hygiene, opened consumables and single-use medical disposables (e.g. syringes, gloves, dressings), and any item marked non-returnable on its product page, cannot be returned unless they arrived damaged or defective.",
+    "contactTitle": "Questions?",
+    "contactBody": "Write to info@spibermed.com or call +880 1346 092798 (Mon–Sat, 09:00–18:00) and include your order number. We are happy to help.",
+    "ordersHint": "Ready to cancel or request a refund?",
+    "ordersLink": "Go to my orders"
   }
 }

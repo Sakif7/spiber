@@ -52,6 +52,7 @@ export const publicRoutes = [
   "/kart",
   "/kart/shop",
   "/kart/brands",
+  "/kart/returns",
   "/kart/request-product",
   "/become-a-seller",
   "/medtrade",

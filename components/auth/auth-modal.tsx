@@ -19,7 +19,7 @@ import { postLoginDestination, type AuthedUser } from "@/lib/auth/post-login";
 import { RegisterForm } from "./register-form";
 
 type Tab = "login" | "register";
-type OpenOpts = { next?: string; verified?: boolean };
+type OpenOpts = { next?: string; verified?: boolean; verifyError?: boolean };
 
 type AuthModalCtx = {
   open: (tab?: Tab, opts?: OpenOpts) => void;
@@ -48,18 +48,21 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
   const [tab, setTab] = useState<Tab | null>(null);
   const [next, setNext] = useState<string | undefined>(undefined);
   const [verified, setVerified] = useState(false);
+  const [verifyError, setVerifyError] = useState(false);
   const triggerRef = useRef<HTMLElement | null>(null);
 
   const open = useCallback((t: Tab = "login", opts?: OpenOpts) => {
     triggerRef.current = (document.activeElement as HTMLElement) ?? null;
     setNext(opts?.next);
     setVerified(opts?.verified ?? false);
+    setVerifyError(opts?.verifyError ?? false);
     setTab(t);
   }, []);
 
   const close = useCallback(() => {
     setTab(null);
     setVerified(false);
+    setVerifyError(false);
     setNext(undefined);
     // Return focus to whatever opened the modal.
     triggerRef.current?.focus?.();
@@ -76,8 +79,9 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
     open(auth, {
       next: params.get("next") ?? undefined,
       verified: params.get("verified") === "1",
+      verifyError: params.get("error") === "verify",
     });
-    ["auth", "next", "verified"].forEach((k) => params.delete(k));
+    ["auth", "next", "verified", "error"].forEach((k) => params.delete(k));
     const qs = params.toString();
     window.history.replaceState(
       null,
@@ -95,6 +99,7 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
         tab={tab}
         next={next}
         verified={verified}
+        verifyError={verifyError}
         setTab={setTab}
         close={close}
       />
@@ -106,12 +111,14 @@ function AuthModalView({
   tab,
   next,
   verified,
+  verifyError,
   setTab,
   close,
 }: {
   tab: Tab | null;
   next?: string;
   verified: boolean;
+  verifyError: boolean;
   setTab: (t: Tab) => void;
   close: () => void;
 }) {
@@ -436,6 +443,7 @@ function AuthModalView({
                     <LoginForm
                       next={next}
                       verified={verified}
+                      verifyError={verifyError}
                       onSuccess={handleLoginSuccess}
                       onForgot={() => {
                         close();

@@ -29,6 +29,18 @@ export async function addUserRole(id: string, role: IUser["roles"][number]) {
   await User.updateOne({ _id: id }, { $addToSet: { roles: role } }).exec();
 }
 
+export async function updateUserProfile(
+  id: string,
+  patch: Pick<IUser, "name"> & Partial<Pick<IUser, "phone" | "defaultAddress">>,
+) {
+  await connectToDatabase();
+  return User.findByIdAndUpdate(
+    id,
+    { $set: patch },
+    { returnDocument: "after", runValidators: true },
+  ).exec();
+}
+
 export async function updatePasswordHash(id: string, passwordHash: string) {
   await connectToDatabase();
   // Bump tokenVersion so every outstanding refresh/reset token is invalidated:

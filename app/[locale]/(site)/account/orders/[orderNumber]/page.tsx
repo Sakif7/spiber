@@ -6,6 +6,8 @@ import { getSessionUser } from "@/lib/auth/current-user";
 import { getOrderByNumber } from "@/lib/repositories/orders.repo";
 import { formatBDT } from "@/lib/money";
 import { localize } from "@/lib/schemas/localized";
+import { computeSelfService } from "@/lib/services/order.service";
+import { OrderSelfService } from "@/components/account/order-self-service";
 import type { Locale } from "@/i18n/routing";
 import type { IOrder } from "@/lib/models/order";
 
@@ -62,6 +64,7 @@ export default async function AccountOrderDetailPage({
   }
 
   const o = order.toObject() as IOrder;
+  const selfService = computeSelfService(o);
 
   const statusColor = STATUS_COLORS[o.status] ?? "var(--color-text-muted)";
 
@@ -188,6 +191,21 @@ export default async function AccountOrderDetailPage({
                       <span style={{ color: "var(--color-text-strong)" }}>
                         {localize(item.productSnapshot.name, loc)}
                       </span>
+                      {(item.productSnapshot.variantOptions?.length ?? 0) >
+                        0 && (
+                        <span
+                          style={{
+                            fontSize: "var(--fs-small)",
+                            color: "var(--color-text)",
+                          }}
+                        >
+                          {item.productSnapshot
+                            .variantOptions!.map(
+                              (opt) => `${opt.name}: ${opt.value}`,
+                            )
+                            .join(" · ")}
+                        </span>
+                      )}
                       <span
                         style={{
                           fontSize: "var(--fs-small)",
@@ -233,7 +251,11 @@ export default async function AccountOrderDetailPage({
                 />
                 <TotalRow
                   label="Shipping"
-                  value={formatBDT(o.shippingMinor, loc)}
+                  value={
+                    o.shippingMinor === 0
+                      ? "Free"
+                      : formatBDT(o.shippingMinor, loc)
+                  }
                 />
                 {o.discountMinor > 0 && (
                   <TotalRow
@@ -290,6 +312,20 @@ export default async function AccountOrderDetailPage({
                 </span>
               </address>
             </div>
+
+            {/* Self-service: cancel / refund request */}
+            {(selfService.canCancel ||
+              selfService.canRequestRefund ||
+              selfService.refundWindowClosed ||
+              selfService.refundRequestedAt) && (
+              <div style={cardStyle}>
+                <h2 style={sectionTitleStyle}>Need help with this order?</h2>
+                <OrderSelfService
+                  orderNumber={o.orderNumber}
+                  selfService={selfService}
+                />
+              </div>
+            )}
 
             {/* Timeline */}
             {o.timeline && o.timeline.length > 0 && (

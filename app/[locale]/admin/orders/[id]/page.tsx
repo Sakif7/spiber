@@ -19,7 +19,12 @@ type PlainItem = {
   lineTotalMinor: number;
 };
 
-type PlainTimeline = { status: string; at: string | Date; note?: string };
+type PlainTimeline = {
+  status: string;
+  at: string | Date;
+  note?: string;
+  internalNote?: string;
+};
 
 type PlainOrder = {
   _id: unknown;
@@ -42,6 +47,11 @@ type PlainOrder = {
   };
   payment: { provider: string; status: string; paidAt?: string | Date };
   trackingNumber?: string;
+  refundRequest?: {
+    reason: string;
+    requestedAt: string | Date;
+    status: "open" | "resolved";
+  } | null;
   timeline: PlainTimeline[];
   createdAt: string | Date;
 };
@@ -333,6 +343,50 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
           </div>
         </section>
 
+        {o.refundRequest ? (
+          <section
+            style={{
+              ...sectionCard,
+              borderColor:
+                o.refundRequest.status === "open"
+                  ? "var(--color-secondary)"
+                  : "var(--color-border)",
+            }}
+          >
+            <h2 style={headingStyle}>
+              Refund request{" "}
+              <span
+                style={{
+                  fontSize: "var(--fs-sm)",
+                  fontWeight: 600,
+                  color:
+                    o.refundRequest.status === "open"
+                      ? "var(--color-secondary)"
+                      : "var(--color-text-muted)",
+                }}
+              >
+                · {o.refundRequest.status}
+              </span>
+            </h2>
+            <p style={{ margin: 0, fontSize: "var(--fs-sm)" }}>
+              Requested {fmtDate(o.refundRequest.requestedAt)} —{" "}
+              {o.refundRequest.reason}
+            </p>
+            {o.refundRequest.status === "open" ? (
+              <p
+                style={{
+                  margin: "var(--s-2) 0 0",
+                  fontSize: "var(--fs-sm)",
+                  color: "var(--color-text-muted)",
+                }}
+              >
+                Settle it with the Cancel/Refund actions below — the request
+                resolves automatically.
+              </p>
+            ) : null}
+          </section>
+        ) : null}
+
         <section style={sectionCard}>
           <h2 style={headingStyle}>Timeline</h2>
           {o.timeline.length === 0 ? (
@@ -383,6 +437,17 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
                       }}
                     >
                       — {event.note}
+                    </span>
+                  ) : null}
+                  {event.internalNote ? (
+                    <span
+                      style={{
+                        fontSize: "var(--fs-sm)",
+                        color: "var(--color-text-muted)",
+                        fontStyle: "italic",
+                      }}
+                    >
+                      (internal: {event.internalNote})
                     </span>
                   ) : null}
                 </li>

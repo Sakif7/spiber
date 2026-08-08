@@ -15,6 +15,7 @@ import {
   createOrder,
   getOrderById,
   getOrderByIdempotencyKey,
+  getOrderByNumber,
 } from "@/lib/repositories/orders.repo";
 import {
   reserveCouponUsage,
@@ -40,6 +41,7 @@ import { formatBDT } from "@/lib/money";
 import { logger } from "@/lib/log";
 import {
   ORDER_TRANSITIONS,
+  RETURN_WINDOW_DAYS,
   type CheckoutInput,
   type OrderStatus,
 } from "@/lib/schemas/order";
@@ -306,7 +308,7 @@ export type TransitionResult =
 export async function transitionOrder(
   orderId: string,
   to: OrderStatus,
-  opts: { note?: string; trackingNumber?: string } = {},
+  opts: { note?: string; internalNote?: string; trackingNumber?: string } = {},
 ): Promise<TransitionResult> {
   const order = await getOrderById(orderId);
   if (!order) return { ok: false, code: "not_found" };
@@ -348,12 +350,31 @@ export async function transitionOrder(
     }
   }
 
+  // A customer's open refund request is settled by either outcome.
+  if (
+    (to === "cancelled" || to === "refunded") &&
+    order.refundRequest?.status === "open"
+  ) {
+    order.refundRequest.status = "resolved";
+  }
+
   if (opts.trackingNumber) order.trackingNumber = opts.trackingNumber;
   order.status = to;
-  order.timeline.push({ status: to, at: now, note: opts.note });
+  order.timeline.push({
+    status: to,
+    at: now,
+    note: opts.note,
+    internalNote: opts.internalNote,
+  });
   await order.save();
 
-  if (to === "paid" || to === "shipped") {
+  if (
+    to === "paid" ||
+    to === "shipped" ||
+    to === "delivered" ||
+    to === "cancelled" ||
+    to === "refunded"
+  ) {
     await sendOrderEmail(order, to).catch((e) =>
       logger.warn("order status email failed", e),
     );
@@ -374,34 +395,60 @@ export async function transitionOrder(
   return { ok: true, order: order.toObject() };
 }
 
+/** "Omron Monitor (L / Black) ×2" — variant options folded into the label. */
+function itemEmailLabel(i: IOrderItem): string {
+  const opts = i.productSnapshot.variantOptions ?? [];
+  const variant = opts.length
+    ? ` (${opts.map((o) => o.value).join(" / ")})`
+    : "";
+  return `${i.productSnapshot.name.en}${variant} ×${i.qty}`;
+}
+
 async function sendOrderEmail(
   order: IOrder,
-  event: "placed" | "paid" | "shipped",
+  event: "placed" | "paid" | "shipped" | "delivered" | "cancelled" | "refunded",
 ) {
+  const wasPaid = order.payment.status !== "unpaid";
   const subjectMap: Record<typeof event, string> = {
     placed: `Order ${order.orderNumber} received`,
     paid: `Payment confirmed for ${order.orderNumber}`,
     shipped: `Your order ${order.orderNumber} has shipped`,
+    delivered: `Your order ${order.orderNumber} has been delivered`,
+    cancelled: `Order ${order.orderNumber} has been cancelled`,
+    refunded: `Refund issued for order ${order.orderNumber}`,
   };
   const eyebrowMap: Record<typeof event, string> = {
     placed: "Order received",
     paid: "Payment confirmed",
     shipped: "On its way",
+    delivered: "Delivered",
+    cancelled: "Order cancelled",
+    refunded: "Refund issued",
   };
   const headingMap: Record<typeof event, string> = {
     placed: "Thanks — your order is in",
     paid: "Your payment is confirmed",
     shipped: "Your order has shipped",
+    delivered: "Your order has arrived",
+    cancelled: "Your order has been cancelled",
+    refunded: "Your refund is on its way",
   };
   const introMap: Record<typeof event, string> = {
     placed:
       "We've received your order and will confirm your offline payment shortly. Here's a summary for your records.",
     paid: "Your payment has been confirmed — we're now preparing your order for shipment.",
     shipped: "Good news — your order is on its way.",
+    delivered:
+      "Your order has been delivered. We hope everything arrived in perfect condition — if not, our returns policy has you covered.",
+    cancelled: wasPaid
+      ? "Your order has been cancelled. Since it was already paid, your payment will be refunded per our returns policy."
+      : "Your order has been cancelled. No payment was collected for it.",
+    refunded:
+      "We've issued your refund for this order. Depending on the payment method, it can take a few business days to reach you.",
   };
 
   const rows: EmailDetailRow[] = order.items.map((i) => ({
-    label: `${i.productSnapshot.name.en} ×${i.qty}`,
+    label: itemEmailLabel(i),
     value: formatBDT(i.lineTotalMinor),
   }));
   if (event === "shipped" && order.trackingNumber) {
@@ -428,4 +475,194 @@ async function sendOrderEmail(
     text,
     attachments,
   });
+}
+
+// ---- Customer self-service (cancel + refund request) ----
+
+export type SelfService = {
+  /** Unpaid pending orders can be cancelled by their owner directly. */
+  canCancel: boolean;
+  /** Paid orders (through delivery, within the return window) can request a refund. */
+  canRequestRefund: boolean;
+  /** Delivered, but the return window has passed. */
+  refundWindowClosed: boolean;
+  /** ISO date of an open refund request, if any. */
+  refundRequestedAt: string | null;
+};
+
+/** Pure eligibility rules — shared by the API routes and the account pages. */
+export function computeSelfService(
+  order: Pick<IOrder, "status" | "refundRequest" | "timeline" | "updatedAt">,
+  now: Date = new Date(),
+): SelfService {
+  const requested =
+    order.refundRequest?.status === "open"
+      ? new Date(order.refundRequest.requestedAt).toISOString()
+      : null;
+
+  if (requested) {
+    return {
+      canCancel: false,
+      canRequestRefund: false,
+      refundWindowClosed: false,
+      refundRequestedAt: requested,
+    };
+  }
+
+  if (order.status === "pending") {
+    return {
+      canCancel: true,
+      canRequestRefund: false,
+      refundWindowClosed: false,
+      refundRequestedAt: null,
+    };
+  }
+
+  if (["paid", "processing", "shipped"].includes(order.status)) {
+    return {
+      canCancel: false,
+      canRequestRefund: true,
+      refundWindowClosed: false,
+      refundRequestedAt: null,
+    };
+  }
+
+  if (order.status === "delivered") {
+    const deliveredEntry = [...order.timeline]
+      .reverse()
+      .find((e) => e.status === "delivered");
+    const deliveredAt = deliveredEntry
+      ? new Date(deliveredEntry.at)
+      : new Date(order.updatedAt);
+    const windowMs = RETURN_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+    const inWindow = now.getTime() - deliveredAt.getTime() <= windowMs;
+    return {
+      canCancel: false,
+      canRequestRefund: inWindow,
+      refundWindowClosed: !inWindow,
+      refundRequestedAt: null,
+    };
+  }
+
+  return {
+    canCancel: false,
+    canRequestRefund: false,
+    refundWindowClosed: false,
+    refundRequestedAt: null,
+  };
+}
+
+export type SelfServiceResult =
+  | { ok: true; order: IOrder }
+  | { ok: false; code: "not_found" | "not_allowed" };
+
+/**
+ * Customer cancels their own order. Only unpaid `pending` orders qualify (no
+ * money has moved); anything later goes through a refund REQUEST that an admin
+ * settles — money movements stay admin-controlled.
+ */
+export async function cancelOwnOrder(
+  orderNumber: string,
+  userId: string,
+): Promise<SelfServiceResult> {
+  const order = await getOrderByNumber(orderNumber);
+  if (!order || String(order.userId ?? "") !== userId) {
+    return { ok: false, code: "not_found" };
+  }
+  if (!computeSelfService(order).canCancel) {
+    return { ok: false, code: "not_allowed" };
+  }
+  const result = await transitionOrder(String(order._id), "cancelled", {
+    note: "Cancelled by customer",
+  });
+  if (!result.ok) return { ok: false, code: "not_allowed" };
+  return { ok: true, order: result.order };
+}
+
+/**
+ * Customer requests a refund on a paid/processing/shipped order, or a
+ * delivered one within the return window. Records the request on the order,
+ * notifies the team, and acknowledges the customer. An admin settles it with
+ * the existing cancel/refund transitions.
+ */
+export async function requestRefund(
+  orderNumber: string,
+  userId: string,
+  reason: string,
+): Promise<SelfServiceResult> {
+  const order = await getOrderByNumber(orderNumber);
+  if (!order || String(order.userId ?? "") !== userId) {
+    return { ok: false, code: "not_found" };
+  }
+  if (!computeSelfService(order).canRequestRefund) {
+    return { ok: false, code: "not_allowed" };
+  }
+
+  const now = new Date();
+  order.refundRequest = { reason, requestedAt: now, status: "open" };
+  order.timeline.push({
+    status: order.status,
+    at: now,
+    note: `Refund requested: ${reason}`,
+  });
+  await order.save();
+
+  const teamTo =
+    process.env.KART_TEAM_EMAIL ||
+    process.env.CONTACT_TEAM_EMAIL ||
+    "info@spibermed.com";
+  const teamEmail = renderEmail({
+    accent: "orange",
+    preheader: `Refund requested on ${order.orderNumber}`,
+    eyebrow: "Refund request",
+    heading: `Refund requested — ${order.orderNumber}`,
+    paragraphs: [
+      `${order.email} requested a refund on order ${order.orderNumber} (status: ${order.status}).`,
+      `Reason: ${reason}`,
+      "Review it in the admin and settle with the Cancel/Refund actions.",
+    ],
+    details: {
+      title: `Order ${order.orderNumber}`,
+      rows: [
+        ...order.items.map((i) => ({
+          label: itemEmailLabel(i),
+          value: formatBDT(i.lineTotalMinor),
+        })),
+        { label: "Total", value: formatBDT(order.totalMinor), strong: true },
+      ],
+    },
+  });
+  const ackEmail = renderEmail({
+    accent: "teal",
+    preheader: `We received your refund request for ${order.orderNumber}.`,
+    eyebrow: "Refund request received",
+    heading: "We're on it",
+    paragraphs: [
+      `We've received your refund request for order ${order.orderNumber} and our team will review it shortly.`,
+      "You'll get a confirmation email as soon as it is settled.",
+    ],
+  });
+  const results = await Promise.allSettled([
+    getMailer().send({
+      to: teamTo,
+      subject: `Refund request — ${order.orderNumber}`,
+      html: teamEmail.html,
+      text: teamEmail.text,
+      attachments: teamEmail.attachments,
+    }),
+    getMailer().send({
+      to: order.email,
+      subject: `We received your refund request for ${order.orderNumber}`,
+      html: ackEmail.html,
+      text: ackEmail.text,
+      attachments: ackEmail.attachments,
+    }),
+  ]);
+  for (const r of results) {
+    if (r.status === "rejected") {
+      logger.warn("refund request email failed", r.reason);
+    }
+  }
+
+  return { ok: true, order: order.toObject() };
 }

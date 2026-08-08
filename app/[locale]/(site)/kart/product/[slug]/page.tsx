@@ -286,6 +286,7 @@ export default async function MarketplaceProductDetail({
             <MarketplaceBuyBox
               productId={productId}
               basePriceMinor={product.priceMinor}
+              compareAtMinor={product.compareAtMinor ?? null}
               baseStockQty={product.stockQty}
               options={options}
               variants={variants}

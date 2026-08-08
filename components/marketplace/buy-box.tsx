@@ -25,6 +25,7 @@ export type ClientVariant = {
 export function MarketplaceBuyBox({
   productId,
   basePriceMinor,
+  compareAtMinor = null,
   baseStockQty,
   options,
   variants,
@@ -32,6 +33,8 @@ export function MarketplaceBuyBox({
 }: {
   productId: string;
   basePriceMinor: number | null;
+  /** Optional "was" price — rendered struck-through with a save badge. */
+  compareAtMinor?: number | null;
   baseStockQty: number;
   options: ClientVariantOption[];
   variants: ClientVariant[];
@@ -68,9 +71,13 @@ export function MarketplaceBuyBox({
 
   return (
     <div style={{ display: "grid", gap: "var(--s-4)" }}>
-      {/* Price */}
+      {/* Price (+ optional compare-at strike & save badge) */}
       <div
         style={{
+          display: "flex",
+          alignItems: "baseline",
+          gap: "var(--s-3)",
+          flexWrap: "wrap",
           fontFamily: "var(--font-display)",
           fontSize: "var(--fs-h2)",
           color: "var(--color-brand-deep)",
@@ -78,7 +85,36 @@ export function MarketplaceBuyBox({
         }}
       >
         {price != null ? (
-          formatBDT(price, locale)
+          <>
+            {formatBDT(price, locale)}
+            {compareAtMinor != null && compareAtMinor > price && (
+              <>
+                <s
+                  style={{
+                    fontSize: "var(--fs-h5)",
+                    fontWeight: 500,
+                    color: "var(--color-text-subtle)",
+                  }}
+                >
+                  {formatBDT(compareAtMinor, locale)}
+                </s>
+                <span
+                  style={{
+                    fontFamily: "var(--font-sans, inherit)",
+                    fontSize: "var(--fs-caption)",
+                    fontWeight: 700,
+                    color: "var(--color-secondary)",
+                    background:
+                      "color-mix(in oklab, var(--color-secondary) 12%, transparent)",
+                    borderRadius: "var(--r-pill)",
+                    padding: "3px 10px",
+                  }}
+                >
+                  −{Math.round((1 - price / compareAtMinor) * 100)}%
+                </span>
+              </>
+            )}
+          </>
         ) : hasVariants ? (
           <span
             style={{
@@ -138,30 +174,43 @@ export function MarketplaceBuyBox({
         </div>
       ))}
 
-      {/* Stock state */}
-      {!needsSelection && (
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            fontSize: "var(--fs-body-sm)",
-            fontWeight: 600,
-            color: out ? "var(--color-error)" : "var(--color-success)",
-          }}
-        >
-          <span
-            aria-hidden
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: 999,
-              background: out ? "var(--color-error)" : "var(--color-success)",
-            }}
-          />
-          {out ? t("outOfStock") : t("inStock")}
-        </span>
-      )}
+      {/* Stock state (low-stock urgency when ≤10 left) */}
+      {!needsSelection &&
+        (() => {
+          const low = !out && stock <= 10;
+          const color = out
+            ? "var(--color-error)"
+            : low
+              ? "var(--color-secondary)"
+              : "var(--color-success)";
+          return (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: "var(--fs-body-sm)",
+                fontWeight: 600,
+                color,
+              }}
+            >
+              <span
+                aria-hidden
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 999,
+                  background: color,
+                }}
+              />
+              {out
+                ? t("outOfStock")
+                : low
+                  ? t("lowStock", { count: stock })
+                  : t("inStock")}
+            </span>
+          );
+        })()}
 
       {/* Qty + actions */}
       <div style={{ display: "flex", alignItems: "center", gap: "var(--s-3)" }}>
@@ -178,6 +227,17 @@ export function MarketplaceBuyBox({
           onChange={setQty}
           max={Math.max(1, Math.min(stock || 1, 999))}
         />
+        {!needsSelection && !out && qty >= stock && (
+          <span
+            style={{
+              fontSize: "var(--fs-caption)",
+              color: "var(--color-secondary)",
+              fontWeight: 600,
+            }}
+          >
+            {t("lowStock", { count: stock })}
+          </span>
+        )}
       </div>
       <div
         style={{

@@ -5,7 +5,7 @@ import { getSessionUser } from "@/lib/auth/current-user";
 import { isAdmin } from "@/lib/auth/rbac";
 import { AdminThemeProvider } from "@/components/admin/theme/admin-theme-provider";
 import { AdminShell } from "@/components/admin/shell/admin-shell";
-import { SessionKeepAlive } from "@/components/admin/session-keep-alive";
+import { SessionKeepAlive } from "@/components/auth/session-keep-alive";
 
 // Admin depends on the auth cookie; never statically prerender it.
 export const dynamic = "force-dynamic";

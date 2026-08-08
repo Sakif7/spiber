@@ -2,6 +2,7 @@ import { setRequestLocale } from "next-intl/server";
 import { redirect } from "@/i18n/navigation";
 import { requireSeller } from "@/lib/auth/guard";
 import { SellerShell } from "@/components/seller/seller-shell";
+import { SessionKeepAlive } from "@/components/auth/session-keep-alive";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,7 @@ export default async function SellerLayout({
 
   return (
     <SellerShell sellerName={session!.seller.displayName}>
+      <SessionKeepAlive />
       {children}
     </SellerShell>
   );

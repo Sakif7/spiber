@@ -3,13 +3,17 @@
 import { useEffect } from "react";
 
 /**
- * Keeps the admin session warm. The access-token cookie lives only 15 minutes
- * (lib/auth/session.ts), so an admin who steps away gets bounced to login on
- * their next click. This silently calls the DB-checked refresh endpoint
- * (/api/auth/refresh — validates tokenVersion + disabled) on mount, on an
- * interval shorter than the access TTL, and whenever the tab regains focus,
- * rotating tokens before they expire. Best-effort: a failed refresh is ignored
- * and the next navigation falls back to the normal login flow.
+ * Keeps a logged-in session warm anywhere on the site. The access-token cookie
+ * lives only 15 minutes (lib/auth/session.ts), so without renewal a signed-in
+ * visitor gets bounced to login on their next guarded click. This silently
+ * calls the DB-checked refresh endpoint (/api/auth/refresh — validates
+ * tokenVersion + disabled) on mount, on an interval shorter than the access
+ * TTL, and whenever the tab becomes visible again, rotating tokens before they
+ * expire. Best-effort: a failed refresh is ignored and the next navigation
+ * falls back to the normal login flow (or the proxy's silent /api/auth/renew).
+ *
+ * Mount it ONLY when a session exists (the layouts check server-side) so
+ * anonymous visitors never fire pointless 401s.
  */
 const REFRESH_EVERY_MS = 10 * 60 * 1000; // 10m, < the 15m access-token TTL
 

@@ -152,7 +152,7 @@ export default async function AdminQuotationDetailPage({
               {q.quote.note && <p style={{ margin: 0 }}>{q.quote.note}</p>}
               {q.quote.fileKey && (
                 <a
-                  href={q.quote.fileKey as string}
+                  href={`/api/media/quotation/${String(q._id)}`}
                   target="_blank"
                   rel="noreferrer"
                   style={{ color: "var(--color-brand-deep)" }}

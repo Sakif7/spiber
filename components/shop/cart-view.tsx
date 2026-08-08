@@ -132,6 +132,17 @@ export function CartView() {
                   })
                 }
               />
+              {item.inStock && item.qty >= item.stockQty && (
+                <span
+                  style={{
+                    fontSize: "var(--fs-caption)",
+                    color: "var(--color-secondary)",
+                    fontWeight: 600,
+                  }}
+                >
+                  {t("maxStock", { count: item.stockQty })}
+                </span>
+              )}
             </div>
             <div
               style={{

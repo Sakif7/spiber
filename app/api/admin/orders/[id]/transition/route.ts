@@ -18,6 +18,7 @@ export async function POST(
 
   const result = await transitionOrder(id, parsed.data.to, {
     note: parsed.data.note,
+    internalNote: parsed.data.internalNote,
     trackingNumber: parsed.data.trackingNumber,
   });
   if (!result.ok) {

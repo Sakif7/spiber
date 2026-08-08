@@ -51,13 +51,25 @@ export const checkoutSchema = z.object({
 });
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 
-/** Admin order status transition input. */
+/** Admin order status transition input. `note` is CUSTOMER-VISIBLE (rendered
+ * on their order timeline); `internalNote` is admin-only. */
 export const orderTransitionSchema = z.object({
   to: orderStatusEnum,
   note: z.string().max(1000).optional(),
+  internalNote: z.string().max(1000).optional(),
   trackingNumber: z.string().max(120).optional(),
 });
 export type OrderTransitionInput = z.infer<typeof orderTransitionSchema>;
+
+/** Customer refund request (paid orders; delivered within the return window). */
+export const refundRequestSchema = z.object({
+  reason: z.string().trim().min(5).max(1000),
+});
+export type RefundRequestInput = z.infer<typeof refundRequestSchema>;
+
+/** Days after delivery during which a refund can still be requested. Keep in
+ * sync with the /kart/returns policy copy. */
+export const RETURN_WINDOW_DAYS = 7;
 
 /** Allowed status transitions enforced by the order service. */
 export const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {

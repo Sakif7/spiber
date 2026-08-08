@@ -1,5 +1,6 @@
 import mongoose, { Schema, type Model } from "mongoose";
 import { ROLES, type Role } from "@/lib/schemas/user";
+import type { Address } from "@/lib/schemas/order";
 
 export interface IUser {
   name: string;
@@ -8,6 +9,10 @@ export interface IUser {
   roles: Role[];
   emailVerified: boolean;
   locale: "en" | "bn" | "ja";
+  // Profile (optional): contact phone + default shipping address, used to
+  // prefill checkout and quotation forms.
+  phone?: string;
+  defaultAddress?: Address | null;
   // Bumped on password reset / forced logout; embedded in refresh + reset tokens
   // and checked on use, so outstanding tokens can be revoked ("log out everywhere"
   // and single-use reset links).
@@ -17,6 +22,19 @@ export interface IUser {
   createdAt: Date;
   updatedAt: Date;
 }
+
+const addressDef = new Schema(
+  {
+    label: { type: String, trim: true },
+    line1: { type: String, required: true, trim: true },
+    line2: { type: String, trim: true },
+    city: { type: String, required: true, trim: true },
+    district: { type: String, required: true, trim: true },
+    postalCode: { type: String, trim: true },
+    phone: { type: String, required: true, trim: true },
+  },
+  { _id: false },
+);
 
 const userSchema = new Schema<IUser>(
   {
@@ -32,6 +50,8 @@ const userSchema = new Schema<IUser>(
     roles: { type: [String], enum: ROLES, default: ["customer"] },
     emailVerified: { type: Boolean, default: false },
     locale: { type: String, enum: ["en", "bn", "ja"], default: "en" },
+    phone: { type: String, trim: true },
+    defaultAddress: { type: addressDef, default: null },
     tokenVersion: { type: Number, default: 0 },
     disabled: { type: Boolean, default: false },
   },

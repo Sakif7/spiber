@@ -128,6 +128,12 @@ export function ProductCard({
           </div>
         ) : undefined
       }
+      // NOTE: in dev, React 19 logs a spurious 'unique "key"' warning
+      // ("CatalogCard … child from ProductCard") on the medtrade detail rail.
+      // Empirically pinned to this client-component slot crossing the RSC
+      // boundary; every real list here is keyed, and no keying strategy
+      // (element key, host wrapper, keyed siblings) silences it. Dev-only —
+      // production builds strip key validation entirely.
       imageTopRight={
         <WishlistButton
           productId={String(product._id)}

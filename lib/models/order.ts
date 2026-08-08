@@ -37,7 +37,17 @@ export interface IPaymentRef {
 export interface ITimelineEntry {
   status: OrderStatus;
   at: Date;
+  /** Customer-visible note (rendered on the customer's order timeline). */
   note?: string;
+  /** Admin-only note — never serialized to customer/guest views. */
+  internalNote?: string;
+}
+
+export interface IRefundRequest {
+  reason: string;
+  requestedAt: Date;
+  /** open → resolved when an admin cancels or refunds the order. */
+  status: "open" | "resolved";
 }
 
 export interface IOrder {
@@ -57,6 +67,7 @@ export interface IOrder {
   couponCode?: string;
   note?: string;
   trackingNumber?: string;
+  refundRequest?: IRefundRequest | null;
   storefront: "instruments" | "marketplace";
   idempotencyKey: string;
   timeline: ITimelineEntry[];
@@ -160,6 +171,21 @@ const orderSchema = new Schema<IOrder>(
     couponCode: String,
     note: String,
     trackingNumber: String,
+    refundRequest: {
+      type: new Schema<IRefundRequest>(
+        {
+          reason: { type: String, required: true },
+          requestedAt: { type: Date, required: true },
+          status: {
+            type: String,
+            enum: ["open", "resolved"],
+            default: "open",
+          },
+        },
+        { _id: false },
+      ),
+      default: null,
+    },
     storefront: {
       type: String,
       enum: ["instruments", "marketplace"],
@@ -170,7 +196,7 @@ const orderSchema = new Schema<IOrder>(
     timeline: {
       type: [
         new Schema<ITimelineEntry>(
-          { status: String, at: Date, note: String },
+          { status: String, at: Date, note: String, internalNote: String },
           { _id: false },
         ),
       ],

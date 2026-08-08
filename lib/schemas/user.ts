@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { addressSchema } from "@/lib/schemas/order";
 
 export const ROLES = [
   "customer",
@@ -51,6 +52,26 @@ export const passwordResetConfirmSchema = z.object({
 export type PasswordResetConfirmInput = z.infer<
   typeof passwordResetConfirmSchema
 >;
+
+export const resendVerificationSchema = z.object({
+  email,
+  locale: localeField,
+});
+export type ResendVerificationInput = z.infer<typeof resendVerificationSchema>;
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: password,
+});
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
+/** Editable profile fields; `defaultAddress: null` clears the saved address. */
+export const profileUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  phone: z.string().trim().max(40).optional(),
+  defaultAddress: addressSchema.nullable().optional(),
+});
+export type ProfileUpdateInput = z.infer<typeof profileUpdateSchema>;
 
 /** Client form schemas (plain, no transforms) for react-hook-form. */
 export const loginFormSchema = z.object({
