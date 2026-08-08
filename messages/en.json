@@ -1774,7 +1774,7 @@
       "allBrands": "Brands",
       "allProducts": "Products",
       "categories": "Categories",
-      "allCategories": "Categories",
+      "allCategories": "All categories",
       "inStockOnly": "In stock only",
       "apply": "Apply",
       "clear": "Clear all",
@@ -1783,7 +1783,19 @@
       "next": "Next",
       "rating": "Rating",
       "anyRating": "Any rating",
-      "starsAndUp": "{n} stars & up"
+      "starsAndUp": "{n} stars & up",
+      "filterBy": "Filter by",
+      "reset": "Reset",
+      "availability": "Availability",
+      "excludeOutOfStock": "Exclude out-of-stock items",
+      "onSaleOnly": "On sale",
+      "sortTopRated": "Top rated",
+      "resultCount": "{count, plural, =0 {No products} one {# product} other {# products}}",
+      "showLess": "Show less",
+      "showAllBrands": "Show all {count} brands",
+      "view": "View",
+      "viewGrid": "Grid view",
+      "viewList": "List view"
     },
     "product": {
       "addToCart": "Add to cart",
@@ -1814,7 +1826,9 @@
       "payOffline": "Offline payment",
       "payOfflineNote": "Pay by bank transfer or cash on delivery. We confirm your order, then arrange payment, no online card needed.",
       "deliveryNote": "On orders across Bangladesh, 2–5 business days.",
-      "genuineNote": "Genuine products with manufacturer warranty."
+      "genuineNote": "Genuine products with manufacturer warranty.",
+      "bulletCategory": "Category",
+      "bulletAvailability": "Availability"
     },
     "wishlist": {
       "add": "Add to wishlist",

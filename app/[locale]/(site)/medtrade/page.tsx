@@ -2,16 +2,26 @@ import { setRequestLocale, getTranslations } from "next-intl/server";
 import { Container } from "@/components/ui/container";
 import { PageHeader } from "@/components/ui/page-header";
 import { ComingSoon } from "@/components/ui/coming-soon";
-import { CardGrid } from "@/components/ui/card-grid";
 import { LiveSearch } from "@/components/ui/live-search";
 import { Link } from "@/i18n/navigation";
 import { Filters } from "@/components/shop/filters";
+import { SortSelect } from "@/components/shop/sort-select";
+import { ViewToggle } from "@/components/shop/view-toggle";
+import { ListingGrid, ListingRows } from "@/components/shop/listing-grid";
 import { ProductCard } from "@/components/shop/product-card";
+import { ProductListRow } from "@/components/shop/product-list-row";
 import {
   listProducts,
+  getProductFacets,
+  type ProductFacets,
   type ProductSort,
 } from "@/lib/repositories/products.repo";
-import { listCategories, listBrands } from "@/lib/repositories/taxonomy.repo";
+import {
+  listCategories,
+  listBrands,
+  categoryWithDescendantIds,
+  rollupCategoryCounts,
+} from "@/lib/repositories/taxonomy.repo";
 import { listWishlistProductIds } from "@/lib/repositories/wishlist.repo";
 import { getSessionUser } from "@/lib/auth/current-user";
 import { localize } from "@/lib/schemas/localized";
@@ -60,8 +70,15 @@ export default async function InstrumentsHub({
   const page = Math.max(1, parseInt(str(sp.page) ?? "1", 10) || 1);
   const minMajor = str(sp.min) ? Number(str(sp.min)) : undefined;
   const maxMajor = str(sp.max) ? Number(str(sp.max)) : undefined;
+  const brandIds = (str(sp.brand) ?? "").split(",").filter(Boolean);
+  const categorySlug = str(sp.category);
   const hasFilter = Boolean(
-    str(sp.q) || str(sp.brand) || str(sp.min) || str(sp.max) || sp.inStock,
+    str(sp.q) ||
+    str(sp.brand) ||
+    str(sp.min) ||
+    str(sp.max) ||
+    sp.inStock ||
+    categorySlug,
   );
 
   let result: Awaited<ReturnType<typeof listProducts>> = {
@@ -73,24 +90,39 @@ export default async function InstrumentsHub({
   };
   let categories: Awaited<ReturnType<typeof listCategories>> = [];
   let brands: { id: string; name: string }[] = [];
+  let facets: ProductFacets | undefined;
+  let catTotals: Record<string, number> = {};
   try {
-    const [r, cs, bs] = await Promise.all([
-      listProducts({
-        storefront: "instruments",
-        status: "active",
-        search: str(sp.q),
-        brandId: str(sp.brand),
-        minPriceMinor: minMajor != null ? toMinor(minMajor) : undefined,
-        maxPriceMinor: maxMajor != null ? toMinor(maxMajor) : undefined,
-        inStockOnly: sp.inStock === "1",
-        sort: (str(sp.sort) as ProductSort) ?? "newest",
-        page,
-      }),
-      listCategories("instruments"),
+    // Categories first: the ?category= facet resolves slug → descendant ids.
+    const cs = await listCategories("instruments");
+    categories = cs;
+    const selectedCat = categorySlug
+      ? cs.find((c) => c.slug === categorySlug)
+      : undefined;
+    const categoryIds = selectedCat
+      ? await categoryWithDescendantIds(String(selectedCat._id), "instruments")
+      : undefined;
+
+    const listParams = {
+      storefront: "instruments" as const,
+      status: "active" as const,
+      categoryIds,
+      search: str(sp.q),
+      brandIds: brandIds.length ? brandIds : undefined,
+      minPriceMinor: minMajor != null ? toMinor(minMajor) : undefined,
+      maxPriceMinor: maxMajor != null ? toMinor(maxMajor) : undefined,
+      inStockOnly: sp.inStock === "1",
+      sort: (str(sp.sort) as ProductSort) ?? "newest",
+      pageSize: 24,
+    };
+    const [r, bs, fx] = await Promise.all([
+      listProducts({ ...listParams, page }),
       listBrands(),
+      getProductFacets(listParams),
     ]);
     result = r;
-    categories = cs;
+    facets = fx;
+    catTotals = rollupCategoryCounts(cs, fx.categoryCounts ?? {});
     brands = bs.map((b) => ({ id: String(b._id), name: localize(b.name, l) }));
   } catch (e) {
     logger.warn("instruments catalog load failed", e);
@@ -113,11 +145,30 @@ export default async function InstrumentsHub({
       if (v && !omit.includes(k)) p.set(k, v);
     };
     keep("q", str(sp.q));
+    keep("category", categorySlug);
     keep("brand", str(sp.brand));
     keep("min", str(sp.min));
     keep("max", str(sp.max));
     if (sp.inStock === "1" && !omit.includes("inStock")) p.set("inStock", "1");
     keep("sort", str(sp.sort));
+    keep("view", str(sp.view));
+    const qs = p.toString();
+    return qs ? `${base}?${qs}` : base;
+  };
+  /** Removing ONE brand chip keeps the remaining multi-selection. */
+  const hrefKeepingBrand = (rest: string[]) => {
+    const p = new URLSearchParams();
+    const keep = (k: string, v?: string) => {
+      if (v) p.set(k, v);
+    };
+    keep("q", str(sp.q));
+    keep("category", categorySlug);
+    if (rest.length) p.set("brand", rest.join(","));
+    keep("min", str(sp.min));
+    keep("max", str(sp.max));
+    if (sp.inStock === "1") p.set("inStock", "1");
+    keep("sort", str(sp.sort));
+    keep("view", str(sp.view));
     const qs = p.toString();
     return qs ? `${base}?${qs}` : base;
   };
@@ -127,11 +178,13 @@ export default async function InstrumentsHub({
       if (v) p.set(k, v);
     };
     keep("q", str(sp.q));
+    keep("category", categorySlug);
     keep("brand", str(sp.brand));
     keep("min", str(sp.min));
     keep("max", str(sp.max));
     if (sp.inStock === "1") p.set("inStock", "1");
     keep("sort", str(sp.sort));
+    keep("view", str(sp.view));
     if (n > 1) p.set("page", String(n));
     const qs = p.toString();
     return qs ? `${base}?${qs}` : base;
@@ -144,14 +197,24 @@ export default async function InstrumentsHub({
       label: `“${str(sp.q)}”`,
       href: hrefWithout("q", "page"),
     });
-  if (str(sp.brand)) {
-    const bn = brands.find((b) => b.id === str(sp.brand))?.name;
-    if (bn)
+  if (categorySlug) {
+    const catName = categories.find((c) => c.slug === categorySlug);
+    if (catName)
       chips.push({
-        key: "brand",
-        label: bn,
-        href: hrefWithout("brand", "page"),
+        key: "category",
+        label: localize(catName.name, l),
+        href: hrefWithout("category", "page"),
       });
+  }
+  for (const id of brandIds) {
+    const bn = brands.find((b) => b.id === id)?.name;
+    if (!bn) continue;
+    const rest = brandIds.filter((b) => b !== id);
+    chips.push({
+      key: `brand:${id}`,
+      label: bn,
+      href: hrefKeepingBrand(rest),
+    });
   }
   if (str(sp.min) || str(sp.max))
     chips.push({
@@ -192,7 +255,9 @@ export default async function InstrumentsHub({
         <ComingSoon />
       ) : (
         <section style={{ paddingBlock: "clamp(40px, 5vw, 80px)" }}>
-          <Container style={{ display: "grid", gap: "var(--s-8)" }}>
+          <Container
+            style={{ display: "grid", gap: "var(--s-8)", maxWidth: "none" }}
+          >
             <div
               className="equal-2col"
               style={{
@@ -204,13 +269,16 @@ export default async function InstrumentsHub({
             >
               <Filters
                 brands={brands}
+                facets={facets}
                 categories={categories
                   .filter((c) => !c.parentId)
                   .map((c) => ({
                     slug: c.slug,
                     name: localize(c.name, l),
+                    count: catTotals[String(c._id)] ?? 0,
                   }))}
                 categoryBasePath="/medtrade"
+                categoryMode="filter"
               />
 
               <div
@@ -225,6 +293,36 @@ export default async function InstrumentsHub({
                   placeholder={t("listing.searchPlaceholder")}
                   ariaLabel={t("listing.search")}
                 />
+
+                {/* Toolbar: result count + sort (sort moved out of the sidebar) */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: "var(--s-4)",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <span
+                    style={{
+                      color: "var(--color-text-muted)",
+                      fontSize: "var(--fs-body-sm)",
+                    }}
+                  >
+                    {t("listing.resultCount", { count: result.total })}
+                  </span>
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "var(--s-4)",
+                    }}
+                  >
+                    <SortSelect />
+                    <ViewToggle />
+                  </span>
+                </div>
 
                 <div
                   style={{
@@ -284,10 +382,10 @@ export default async function InstrumentsHub({
                   >
                     {t("listing.noResults")}
                   </div>
-                ) : (
-                  <CardGrid columns={3}>
+                ) : str(sp.view) === "list" ? (
+                  <ListingRows>
                     {result.items.map((p) => (
-                      <ProductCard
+                      <ProductListRow
                         key={String(p._id)}
                         product={p}
                         locale={l}
@@ -302,10 +400,32 @@ export default async function InstrumentsHub({
                             ? catMap.get(String(p.categoryId))
                             : undefined
                         }
+                      />
+                    ))}
+                  </ListingRows>
+                ) : (
+                  <ListingGrid>
+                    {result.items.map((p) => (
+                      <ProductCard
+                        key={String(p._id)}
+                        product={p}
+                        locale={l}
+                        mode="instruments"
+                        showSpecs
+                        brandName={
+                          p.brandId
+                            ? brandMap.get(String(p.brandId))
+                            : undefined
+                        }
+                        categoryName={
+                          p.categoryId
+                            ? catMap.get(String(p.categoryId))
+                            : undefined
+                        }
                         wishlisted={wish.has(String(p._id))}
                       />
                     ))}
-                  </CardGrid>
+                  </ListingGrid>
                 )}
 
                 {result.pages > 1 && (

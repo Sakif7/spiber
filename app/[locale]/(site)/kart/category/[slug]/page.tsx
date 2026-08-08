@@ -6,6 +6,8 @@ import { Section } from "@/components/ui/section";
 import { MarketplaceProductListing } from "@/components/marketplace/product-listing";
 import {
   listProducts,
+  getProductFacets,
+  type ProductFacets,
   type ProductSort,
 } from "@/lib/repositories/products.repo";
 import {
@@ -78,6 +80,7 @@ export default async function MarketplaceCategory({
   const page = Math.max(1, parseInt(str(sp.page) ?? "1", 10) || 1);
   const minMajor = str(sp.min) ? Number(str(sp.min)) : undefined;
   const maxMajor = str(sp.max) ? Number(str(sp.max)) : undefined;
+  const brandIds = (str(sp.brand) ?? "").split(",").filter(Boolean);
 
   let result: Awaited<ReturnType<typeof listProducts>> = {
     items: [],
@@ -92,6 +95,7 @@ export default async function MarketplaceCategory({
   // CATEGORY eyebrow: productId-category → name (delete to drop the eyebrow).
   let categoryNameById: Record<string, string> = {};
   let currentTopSlug = slug;
+  let facets: ProductFacets | undefined;
   try {
     const [ids, flat, bs] = await Promise.all([
       categoryWithDescendantIds(String(cat._id), "marketplace"),
@@ -110,19 +114,24 @@ export default async function MarketplaceCategory({
     const topId = cat.parentId ? String(cat.parentId) : String(cat._id);
     currentTopSlug = flat.find((c) => String(c._id) === topId)?.slug ?? slug;
     brands = bs.map((b) => ({ id: String(b._id), name: localize(b.name, l) }));
-    result = await listProducts({
-      storefront: "marketplace",
-      status: "active",
+    const listParams = {
+      storefront: "marketplace" as const,
+      status: "active" as const,
       categoryIds: ids,
       search: str(sp.q),
-      brandId: str(sp.brand),
+      brandIds: brandIds.length ? brandIds : undefined,
       minPriceMinor: minMajor != null ? toMinor(minMajor) : undefined,
       maxPriceMinor: maxMajor != null ? toMinor(maxMajor) : undefined,
       minRating: str(sp.rating) ? Number(str(sp.rating)) : undefined,
       inStockOnly: sp.inStock === "1",
+      onSale: sp.deal === "1",
       sort: (str(sp.sort) as ProductSort) ?? "newest",
-      page,
-    });
+      pageSize: 24,
+    };
+    [result, facets] = await Promise.all([
+      listProducts({ ...listParams, page }),
+      getProductFacets(listParams),
+    ]);
   } catch (e) {
     logger.warn("marketplace category load failed", e);
   }
@@ -139,8 +148,10 @@ export default async function MarketplaceCategory({
     min: str(sp.min),
     max: str(sp.max),
     inStock: sp.inStock === "1" ? "1" : undefined,
+    deal: sp.deal === "1" ? "1" : undefined,
     rating: str(sp.rating),
     sort: str(sp.sort),
+    view: sp.view === "list" ? "list" : undefined,
   };
 
   return (
@@ -157,13 +168,14 @@ export default async function MarketplaceCategory({
         ]}
       />
       <Section py="clamp(40px, 5vw, 80px)">
-        <Container>
+        <Container style={{ maxWidth: "none" }}>
           <MarketplaceProductListing
             locale={l}
             basePath={`/kart/category/${slug}`}
             sp={spFlat}
             result={result}
             brands={brands}
+            facets={facets}
             brandNameById={brandNameById}
             categoryNameById={categoryNameById}
             wishlistedIds={wishlistedIds}

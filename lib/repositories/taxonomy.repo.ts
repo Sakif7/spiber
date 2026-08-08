@@ -162,6 +162,30 @@ export async function resolveCategoryCommissionBp(
   return null;
 }
 
+/**
+ * Roll leaf-level product counts up the category tree (pure): each category's
+ * total = its own count + all descendants'. Products live on leaf categories,
+ * so the filter sidebar's top-level rows need the rolled-up number.
+ */
+export function rollupCategoryCounts(
+  flat: Pick<Lean<ICategory>, "_id" | "parentId">[],
+  leafCounts: Record<string, number>,
+): Record<string, number> {
+  const parentOf = new Map(
+    flat.map((c) => [String(c._id), c.parentId ? String(c.parentId) : null]),
+  );
+  const totals: Record<string, number> = {};
+  for (const [id, n] of Object.entries(leafCounts)) {
+    let cur: string | null = id;
+    // Bounded walk so a cyclic parentId can never hang.
+    for (let depth = 0; depth < 8 && cur; depth++) {
+      totals[cur] = (totals[cur] ?? 0) + n;
+      cur = parentOf.get(cur) ?? null;
+    }
+  }
+  return totals;
+}
+
 /** Admin bulk-set of per-category commission rates (null clears → inherit). */
 export async function setCategoryCommissionRates(
   rates: { categoryId: string; commissionBp: number | null }[],

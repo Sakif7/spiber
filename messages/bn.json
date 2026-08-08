@@ -1783,7 +1783,19 @@
       "next": "পরবর্তী",
       "rating": "রেটিং",
       "anyRating": "যেকোনো রেটিং",
-      "starsAndUp": "{n} তারা ও তার বেশি"
+      "starsAndUp": "{n} তারা ও তার বেশি",
+      "filterBy": "ফিল্টার",
+      "reset": "রিসেট",
+      "availability": "স্টক অবস্থা",
+      "excludeOutOfStock": "স্টক-আউট পণ্য বাদ দিন",
+      "onSaleOnly": "ছাড়ে আছে",
+      "sortTopRated": "সেরা রেটিং",
+      "resultCount": "{count, plural, =0 {কোনো পণ্য নেই} one {#টি পণ্য} other {#টি পণ্য}}",
+      "showLess": "কম দেখুন",
+      "showAllBrands": "সব {count}টি ব্র্যান্ড দেখুন",
+      "view": "ভিউ",
+      "viewGrid": "গ্রিড ভিউ",
+      "viewList": "তালিকা ভিউ"
     },
     "product": {
       "addToCart": "কার্টে যোগ করুন",
@@ -1814,7 +1826,9 @@
       "payOffline": "অফলাইন পেমেন্ট",
       "payOfflineNote": "ব্যাংক ট্রান্সফার বা ক্যাশ অন ডেলিভারিতে পরিশোধ করুন। আমরা অর্ডার নিশ্চিত করে পেমেন্টের ব্যবস্থা করি, কোনো অনলাইন কার্ড লাগে না।",
       "deliveryNote": "সারা বাংলাদেশে অর্ডারে, ২–৫ কর্মদিবস।",
-      "genuineNote": "প্রস্তুতকারকের ওয়ারেন্টিসহ আসল পণ্য।"
+      "genuineNote": "প্রস্তুতকারকের ওয়ারেন্টিসহ আসল পণ্য।",
+      "bulletCategory": "ক্যাটাগরি",
+      "bulletAvailability": "স্টক"
     },
     "wishlist": {
       "add": "উইশলিস্টে যোগ করুন",

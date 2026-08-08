@@ -3,6 +3,7 @@ import { localize } from "@/lib/schemas/localized";
 import { formatBDT } from "@/lib/money";
 import { PriceTag } from "./price-tag";
 import { WishlistButton } from "./wishlist-button";
+import { buildProductBullets, SpecBullets } from "./product-bullets";
 import { RatingStars } from "@/components/marketplace/rating-stars";
 import { CatalogCard } from "@/components/ui/catalog-card";
 import type { Locale } from "@/i18n/routing";
@@ -44,6 +45,7 @@ export function ProductCard({
   categoryName,
   wishlisted = false,
   mode = "marketplace",
+  showSpecs = false,
 }: {
   product: Lean<IProduct>;
   locale: Locale;
@@ -52,6 +54,8 @@ export function ProductCard({
   categoryName?: string;
   wishlisted?: boolean;
   mode?: CardMode;
+  /** Listing surfaces: render ~5 spec bullets under the title (Ryans-style). */
+  showSpecs?: boolean;
 }) {
   const t = useTranslations("shop.product");
   const tc = useTranslations("common");
@@ -73,6 +77,21 @@ export function ProductCard({
   const onSale =
     !isInstruments && price != null && compareAt != null && compareAt > price;
   const pct = onSale ? Math.round((1 - price / compareAt) * 100) : 0;
+
+  const bullets = showSpecs
+    ? buildProductBullets(product, locale, {
+        brandName,
+        categoryName,
+        labels: {
+          brand: t("brand"),
+          category: t("bulletCategory"),
+          sku: t("sku"),
+          availability: t("bulletAvailability"),
+          inStock: t("inStock"),
+          outOfStock: t("outOfStock"),
+        },
+      })
+    : [];
 
   return (
     <CatalogCard
@@ -158,6 +177,11 @@ export function ProductCard({
       belowTitle={
         showRating ? (
           <RatingStars value={product.ratingAvg} count={product.ratingCount} />
+        ) : undefined
+      }
+      details={
+        showSpecs && bullets.length > 0 ? (
+          <SpecBullets bullets={bullets} />
         ) : undefined
       }
       footerLeft={

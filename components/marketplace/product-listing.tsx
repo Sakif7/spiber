@@ -1,9 +1,12 @@
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
-import { CardGrid } from "@/components/ui/card-grid";
 import { LiveSearch } from "@/components/ui/live-search";
-import { Filters } from "@/components/shop/filters";
+import { Filters, type FilterFacets } from "@/components/shop/filters";
+import { SortSelect } from "@/components/shop/sort-select";
+import { ViewToggle } from "@/components/shop/view-toggle";
+import { ListingGrid, ListingRows } from "@/components/shop/listing-grid";
 import { ProductCard } from "@/components/shop/product-card";
+import { ProductListRow } from "@/components/shop/product-list-row";
 import type { Lean } from "@/lib/models/_shared";
 import type { IProduct } from "@/lib/models/product";
 import type { Locale } from "@/i18n/routing";
@@ -16,44 +19,54 @@ type Result = {
   pages: number;
 };
 
-/** Shared faceted listing layout for marketplace category + search pages. */
+/** Shared faceted listing layout for marketplace shop + category pages. */
 export async function MarketplaceProductListing({
   locale,
   basePath,
   sp,
   result,
   brands,
+  facets,
   wishlistedIds = [],
   brandNameById = {},
   categoryNameById = {},
   subcategories = [],
   categories = [],
   currentSlug,
+  categoryMode = "links",
 }: {
   locale: Locale;
   basePath: string;
   sp: SP;
   result: Result;
   brands: { id: string; name: string }[];
+  facets?: FilterFacets;
   wishlistedIds?: string[];
   brandNameById?: Record<string, string>;
   // CATEGORY eyebrow data (productId-category map); harmless if omitted.
   categoryNameById?: Record<string, string>;
   subcategories?: { slug: string; name: string }[];
-  categories?: { slug: string; name: string }[];
+  categories?: { slug: string; name: string; count?: number }[];
   currentSlug?: string;
+  /** "filter" on the all-products surface (?category= applies in place);
+   * "links" on dedicated category pages (rail navigates to #listing). */
+  categoryMode?: "links" | "filter";
 }) {
   const t = await getTranslations({ locale, namespace: "shop.listing" });
   const wish = new Set(wishlistedIds);
 
+  const view = sp.view === "list" ? "list" : "grid";
   const keepKeys = [
     "q",
+    "category",
     "brand",
     "min",
     "max",
     "inStock",
+    "deal",
     "rating",
     "sort",
+    "view",
   ] as const;
   const buildHref = (
     omit: string[] = [],
@@ -70,15 +83,33 @@ export async function MarketplaceProductListing({
     return qs ? `${basePath}?${qs}` : basePath;
   };
 
+  // One removable chip per active filter; multi-brand gets one chip per brand
+  // (removing one keeps the rest).
+  const selectedBrandIds = (sp.brand ?? "").split(",").filter(Boolean);
   const chips: { key: string; label: string; href: string }[] = [];
   if (sp.q)
     chips.push({ key: "q", label: `“${sp.q}”`, href: buildHref(["q"]) });
-  if (sp.brand && brandNameById[sp.brand])
+  if (sp.category) {
+    const catName = categories.find((c) => c.slug === sp.category)?.name;
+    if (catName)
+      chips.push({
+        key: "category",
+        label: catName,
+        href: buildHref(["category"]),
+      });
+  }
+  for (const id of selectedBrandIds) {
+    const name = brandNameById[id];
+    if (!name) continue;
+    const rest = selectedBrandIds.filter((b) => b !== id);
     chips.push({
-      key: "brand",
-      label: brandNameById[sp.brand],
-      href: buildHref(["brand"]),
+      key: `brand:${id}`,
+      label: name,
+      href: rest.length
+        ? buildHref(["brand"], { brand: rest.join(",") })
+        : buildHref(["brand"]),
     });
+  }
   if (sp.min || sp.max)
     chips.push({
       key: "price",
@@ -88,8 +119,14 @@ export async function MarketplaceProductListing({
   if (sp.inStock === "1")
     chips.push({
       key: "inStock",
-      label: t("inStockOnly"),
+      label: t("excludeOutOfStock"),
       href: buildHref(["inStock"]),
+    });
+  if (sp.deal === "1")
+    chips.push({
+      key: "deal",
+      label: t("onSaleOnly"),
+      href: buildHref(["deal"]),
     });
   if (sp.rating)
     chips.push({
@@ -101,20 +138,27 @@ export async function MarketplaceProductListing({
   return (
     <div
       className="equal-2col"
+      id="listing"
       style={{
         display: "grid",
         gridTemplateColumns: "minmax(0, 260px) 1fr",
         gap: "var(--s-8)",
         alignItems: "start",
+        // #listing anchor: land below the sticky header when a category-page
+        // rail link jumps here.
+        scrollMarginTop: 130,
       }}
     >
       <Filters
         brands={brands}
         showRating
+        showDeals
+        facets={facets}
         categories={categories}
         currentSlug={currentSlug}
         categoryBasePath="/kart/shop"
         categoryLinkPrefix="/kart/category"
+        categoryMode={categoryMode}
       />
 
       <div
@@ -149,40 +193,70 @@ export async function MarketplaceProductListing({
           </div>
         )}
 
-        {/* Count + active chips */}
+        {/* Toolbar: result count (left) + sort (right) */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "var(--s-3)",
+            justifyContent: "space-between",
+            gap: "var(--s-4)",
             flexWrap: "wrap",
           }}
         >
-          {chips.map((c) => (
-            <Link
-              key={c.key}
-              href={c.href}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "4px 10px 4px 12px",
-                borderRadius: "var(--r-pill)",
-                border: "1px solid var(--color-border)",
-                background: "var(--color-brand-soft)",
-                color: "var(--color-brand-deep)",
-                fontSize: "var(--fs-caption)",
-                fontWeight: 600,
-                textDecoration: "none",
-              }}
-            >
-              {c.label}
-              <span aria-hidden style={{ fontSize: 14, lineHeight: 1 }}>
-                ×
-              </span>
-            </Link>
-          ))}
-          {chips.length > 0 && (
+          <span
+            style={{
+              color: "var(--color-text-muted)",
+              fontSize: "var(--fs-body-sm)",
+            }}
+          >
+            {t("resultCount", { count: result.total })}
+          </span>
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "var(--s-4)",
+            }}
+          >
+            <SortSelect showRating />
+            <ViewToggle />
+          </span>
+        </div>
+
+        {/* Active filter chips */}
+        {chips.length > 0 && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--s-3)",
+              flexWrap: "wrap",
+            }}
+          >
+            {chips.map((c) => (
+              <Link
+                key={c.key}
+                href={c.href}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "4px 10px 4px 12px",
+                  borderRadius: "var(--r-pill)",
+                  border: "1px solid var(--color-border)",
+                  background: "var(--color-brand-soft)",
+                  color: "var(--color-brand-deep)",
+                  fontSize: "var(--fs-caption)",
+                  fontWeight: 600,
+                  textDecoration: "none",
+                }}
+              >
+                {c.label}
+                <span aria-hidden style={{ fontSize: 14, lineHeight: 1 }}>
+                  ×
+                </span>
+              </Link>
+            ))}
             <Link
               href={basePath}
               style={{
@@ -193,8 +267,8 @@ export async function MarketplaceProductListing({
             >
               {t("clear")}
             </Link>
-          )}
-        </div>
+          </div>
+        )}
 
         {result.items.length === 0 ? (
           <div
@@ -208,10 +282,10 @@ export async function MarketplaceProductListing({
           >
             {t("noResults")}
           </div>
-        ) : (
-          <CardGrid columns={3}>
+        ) : view === "list" ? (
+          <ListingRows>
             {result.items.map((p) => (
-              <ProductCard
+              <ProductListRow
                 key={String(p._id)}
                 product={p}
                 locale={locale}
@@ -224,10 +298,30 @@ export async function MarketplaceProductListing({
                     ? categoryNameById[String(p.categoryId)]
                     : undefined
                 }
+              />
+            ))}
+          </ListingRows>
+        ) : (
+          <ListingGrid>
+            {result.items.map((p) => (
+              <ProductCard
+                key={String(p._id)}
+                product={p}
+                locale={locale}
+                mode="marketplace"
+                showSpecs
+                brandName={
+                  p.brandId ? brandNameById[String(p.brandId)] : undefined
+                }
+                categoryName={
+                  p.categoryId
+                    ? categoryNameById[String(p.categoryId)]
+                    : undefined
+                }
                 wishlisted={wish.has(String(p._id))}
               />
             ))}
-          </CardGrid>
+          </ListingGrid>
         )}
 
         {result.pages > 1 && (

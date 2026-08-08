@@ -45,7 +45,9 @@ export function KartShopNav({ categories }: { categories: KartNavCategory[] }) {
     },
     { href: "/kart/shop?sort=newest", label: t("newArrivals"), Icon: Sparkles },
     {
-      href: "/kart/shop?sort=price_asc",
+      // Real deals: products with a genuine compare-at discount (deal=1),
+      // biggest catalog first — not the old price-asc stand-in.
+      href: "/kart/shop?deal=1",
       label: t("offerZone"),
       Icon: BadgePercent,
     },

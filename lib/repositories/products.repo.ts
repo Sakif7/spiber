@@ -16,12 +16,16 @@ export type ProductListParams = {
   categoryId?: string;
   categoryIds?: string[];
   brandId?: string;
+  /** Multi-select brand facet (OR within the facet). Wins over `brandId`. */
+  brandIds?: string[];
   sellerId?: string;
   search?: string;
   minPriceMinor?: number;
   maxPriceMinor?: number;
   minRating?: number;
   inStockOnly?: boolean;
+  /** Only genuinely discounted products (compareAtMinor > priceMinor). */
+  onSale?: boolean;
   featured?: boolean;
   /** Include seller listings awaiting/failing approval (admin/seller views only). */
   includeUnapproved?: boolean;
@@ -56,7 +60,13 @@ function buildQuery(params: ProductListParams): Record<string, unknown> {
   } else if (params.categoryId) {
     q.categoryId = params.categoryId;
   }
-  if (params.brandId) q.brandId = params.brandId;
+  if (params.brandIds && params.brandIds.length > 0) {
+    q.brandId = {
+      $in: params.brandIds.filter((id) => mongoose.isValidObjectId(id)),
+    };
+  } else if (params.brandId) {
+    q.brandId = params.brandId;
+  }
   if (params.sellerId) q.sellerId = params.sellerId;
   // Secure-by-default: public listings never show unapproved seller listings
   // or listings of a suspended seller.
@@ -68,6 +78,16 @@ function buildQuery(params: ProductListParams): Record<string, unknown> {
   if (params.inStockOnly) {
     // In stock if the base product has stock OR any variant does.
     q.$or = [{ stockQty: { $gt: 0 } }, { "variants.stockQty": { $gt: 0 } }];
+  }
+  if (params.onSale) {
+    // A genuine discount: an admin-entered compare-at above the current price.
+    q.$expr = {
+      $and: [
+        { $gt: ["$compareAtMinor", 0] },
+        { $gt: ["$priceMinor", 0] },
+        { $gt: ["$compareAtMinor", "$priceMinor"] },
+      ],
+    };
   }
   if (params.minPriceMinor != null || params.maxPriceMinor != null) {
     const price: Record<string, number> = {};
@@ -115,6 +135,103 @@ export async function listProducts(params: ProductListParams) {
     page,
     pageSize,
     pages: Math.max(1, Math.ceil(total / pageSize)),
+  };
+}
+
+/** Facet data for the filter sidebar. Each facet's numbers are computed with
+ * every OTHER active filter applied (standard faceted-search semantics), so a
+ * count always answers "how many results would I get if I picked this?". */
+export type ProductFacets = {
+  /** brandId → matching product count (with all non-brand filters applied). */
+  brandCounts: Record<string, number>;
+  /** categoryId → count (with the category filter itself removed). Callers
+   * roll leaf counts up to their top-level categories via the tree. */
+  categoryCounts: Record<string, number>;
+  /** Global price bounds (minor units) for the slider, ignoring the current
+   * price filter; null when nothing in the result set carries a price. */
+  priceMinMinor: number | null;
+  priceMaxMinor: number | null;
+  inStockCount: number;
+  onSaleCount: number;
+  /** "N stars & up" counts (with the rating filter itself removed). */
+  ratingCounts: { r2: number; r3: number; r4: number };
+};
+
+export async function getProductFacets(
+  params: ProductListParams,
+): Promise<ProductFacets> {
+  await connectToDatabase();
+  const base = (over: Partial<ProductListParams>) =>
+    buildQuery({ ...params, page: undefined, pageSize: undefined, ...over });
+
+  const [
+    brandRows,
+    categoryRows,
+    priceRows,
+    inStockCount,
+    onSaleCount,
+    ratingRows,
+  ] = await Promise.all([
+    Product.aggregate<{ _id: mongoose.Types.ObjectId | null; n: number }>([
+      { $match: base({ brandId: undefined, brandIds: undefined }) },
+      { $group: { _id: "$brandId", n: { $sum: 1 } } },
+    ]).exec(),
+    Product.aggregate<{ _id: mongoose.Types.ObjectId | null; n: number }>([
+      { $match: base({ categoryId: undefined, categoryIds: undefined }) },
+      { $group: { _id: "$categoryId", n: { $sum: 1 } } },
+    ]).exec(),
+    Product.aggregate<{ _id: null; lo: number; hi: number }>([
+      {
+        $match: {
+          ...base({ minPriceMinor: undefined, maxPriceMinor: undefined }),
+          priceMinor: { $ne: null },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          lo: { $min: "$priceMinor" },
+          hi: { $max: "$priceMinor" },
+        },
+      },
+    ]).exec(),
+    Product.countDocuments(
+      base({ inStockOnly: true }) as unknown as ProductFilter,
+    ),
+    Product.countDocuments(base({ onSale: true }) as unknown as ProductFilter),
+    Product.aggregate<{ _id: null; r2: number; r3: number; r4: number }>([
+      { $match: base({ minRating: undefined }) },
+      {
+        $group: {
+          _id: null,
+          r2: { $sum: { $cond: [{ $gte: ["$ratingAvg", 2] }, 1, 0] } },
+          r3: { $sum: { $cond: [{ $gte: ["$ratingAvg", 3] }, 1, 0] } },
+          r4: { $sum: { $cond: [{ $gte: ["$ratingAvg", 4] }, 1, 0] } },
+        },
+      },
+    ]).exec(),
+  ]);
+
+  const brandCounts: Record<string, number> = {};
+  for (const r of brandRows) {
+    if (r._id) brandCounts[String(r._id)] = r.n;
+  }
+  const categoryCounts: Record<string, number> = {};
+  for (const r of categoryRows) {
+    if (r._id) categoryCounts[String(r._id)] = r.n;
+  }
+  return {
+    brandCounts,
+    categoryCounts,
+    priceMinMinor: priceRows[0]?.lo ?? null,
+    priceMaxMinor: priceRows[0]?.hi ?? null,
+    inStockCount,
+    onSaleCount,
+    ratingCounts: {
+      r2: ratingRows[0]?.r2 ?? 0,
+      r3: ratingRows[0]?.r3 ?? 0,
+      r4: ratingRows[0]?.r4 ?? 0,
+    },
   };
 }
 

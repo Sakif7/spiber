@@ -26,6 +26,7 @@ export function CatalogCard({
   subLabel,
   title,
   belowTitle,
+  details,
   footerLeft,
   action,
 }: {
@@ -45,6 +46,8 @@ export function CatalogCard({
   title: ReactNode;
   /** Optional row between the title and footer (e.g. rating stars). */
   belowTitle?: ReactNode;
+  /** Optional detail block (e.g. spec bullets) rendered above the footer. */
+  details?: ReactNode;
   /** Footer's left cell (e.g. price or SKU). */
   footerLeft?: ReactNode;
   /** Footer's right cell — the call to action (e.g. "View"). Recolors on hover. */
@@ -164,6 +167,7 @@ export function CatalogCard({
           {title}
         </div>
         {belowTitle}
+        {details}
         <div
           className="cc-foot"
           style={{

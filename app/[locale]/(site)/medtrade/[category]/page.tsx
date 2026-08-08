@@ -2,13 +2,18 @@ import { notFound } from "next/navigation";
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { Container } from "@/components/ui/container";
 import { PageHeader } from "@/components/ui/page-header";
-import { CardGrid } from "@/components/ui/card-grid";
 import { LiveSearch } from "@/components/ui/live-search";
 import { Link } from "@/i18n/navigation";
 import { Filters } from "@/components/shop/filters";
+import { SortSelect } from "@/components/shop/sort-select";
+import { ViewToggle } from "@/components/shop/view-toggle";
+import { ListingGrid, ListingRows } from "@/components/shop/listing-grid";
 import { ProductCard } from "@/components/shop/product-card";
+import { ProductListRow } from "@/components/shop/product-list-row";
 import {
   listProducts,
+  getProductFacets,
+  type ProductFacets,
   type ProductSort,
 } from "@/lib/repositories/products.repo";
 import {
@@ -84,6 +89,7 @@ export default async function CategoryListing({
   const page = Math.max(1, parseInt(str(sp.page) ?? "1", 10) || 1);
   const minMajor = str(sp.min) ? Number(str(sp.min)) : undefined;
   const maxMajor = str(sp.max) ? Number(str(sp.max)) : undefined;
+  const brandIds = (str(sp.brand) ?? "").split(",").filter(Boolean);
 
   let result: Awaited<ReturnType<typeof listProducts>> = {
     items: [],
@@ -96,28 +102,32 @@ export default async function CategoryListing({
   let categoryNav: { slug: string; name: string }[] = [];
   // CATEGORY eyebrow: productId-category → name (delete to drop the eyebrow).
   let catMap = new Map<string, string>();
+  let facets: ProductFacets | undefined;
   const catIds = await categoryWithDescendantIds(
     String(cat._id),
     "instruments",
   ).catch(() => [String(cat._id)]);
   try {
-    const [r, bs, cs] = await Promise.all([
-      listProducts({
-        storefront: "instruments",
-        status: "active",
-        categoryIds: catIds,
-        search: str(sp.q),
-        brandId: str(sp.brand),
-        minPriceMinor: minMajor != null ? toMinor(minMajor) : undefined,
-        maxPriceMinor: maxMajor != null ? toMinor(maxMajor) : undefined,
-        inStockOnly: sp.inStock === "1",
-        sort: (str(sp.sort) as ProductSort) ?? "newest",
-        page,
-      }),
+    const listParams = {
+      storefront: "instruments" as const,
+      status: "active" as const,
+      categoryIds: catIds,
+      search: str(sp.q),
+      brandIds: brandIds.length ? brandIds : undefined,
+      minPriceMinor: minMajor != null ? toMinor(minMajor) : undefined,
+      maxPriceMinor: maxMajor != null ? toMinor(maxMajor) : undefined,
+      inStockOnly: sp.inStock === "1",
+      sort: (str(sp.sort) as ProductSort) ?? "newest",
+      pageSize: 24,
+    };
+    const [r, bs, cs, fx] = await Promise.all([
+      listProducts({ ...listParams, page }),
       listBrands(),
       listCategories("instruments"),
+      getProductFacets(listParams),
     ]);
     result = r;
+    facets = fx;
     brands = bs.map((b) => ({ id: String(b._id), name: localize(b.name, l) }));
     categoryNav = cs
       .filter((c) => !c.parentId)
@@ -146,6 +156,23 @@ export default async function CategoryListing({
     keep("max", str(sp.max));
     if (sp.inStock === "1" && !omit.includes("inStock")) p.set("inStock", "1");
     keep("sort", str(sp.sort));
+    keep("view", str(sp.view));
+    const qs = p.toString();
+    return qs ? `${base}?${qs}` : base;
+  };
+  /** Removing ONE brand chip keeps the remaining multi-selection. */
+  const hrefKeepingBrand = (rest: string[]) => {
+    const p = new URLSearchParams();
+    const keep = (k: string, v?: string) => {
+      if (v) p.set(k, v);
+    };
+    keep("q", str(sp.q));
+    if (rest.length) p.set("brand", rest.join(","));
+    keep("min", str(sp.min));
+    keep("max", str(sp.max));
+    if (sp.inStock === "1") p.set("inStock", "1");
+    keep("sort", str(sp.sort));
+    keep("view", str(sp.view));
     const qs = p.toString();
     return qs ? `${base}?${qs}` : base;
   };
@@ -157,14 +184,15 @@ export default async function CategoryListing({
       label: `“${str(sp.q)}”`,
       href: hrefWithout("q", "page"),
     });
-  if (str(sp.brand)) {
-    const bn = brands.find((b) => b.id === str(sp.brand))?.name;
-    if (bn)
-      chips.push({
-        key: "brand",
-        label: bn,
-        href: hrefWithout("brand", "page"),
-      });
+  for (const id of brandIds) {
+    const bn = brands.find((b) => b.id === id)?.name;
+    if (!bn) continue;
+    const rest = brandIds.filter((b) => b !== id);
+    chips.push({
+      key: `brand:${id}`,
+      label: bn,
+      href: hrefKeepingBrand(rest),
+    });
   }
   if (str(sp.min) || str(sp.max))
     chips.push({
@@ -190,6 +218,7 @@ export default async function CategoryListing({
     keep("max", str(sp.max));
     if (sp.inStock === "1") p.set("inStock", "1");
     keep("sort", str(sp.sort));
+    keep("view", str(sp.view));
     if (n > 1) p.set("page", String(n));
     const qs = p.toString();
     return qs ? `${base}?${qs}` : base;
@@ -207,18 +236,27 @@ export default async function CategoryListing({
           { label: localize(cat.name, l) },
         ]}
       />
-      <section style={{ paddingBlock: "clamp(40px, 5vw, 80px)" }}>
+      <section
+        id="listing"
+        style={{
+          paddingBlock: "clamp(40px, 5vw, 80px)",
+          // Rail links land here (below the sticky header), not on the hero.
+          scrollMarginTop: 120,
+        }}
+      >
         <Container
           style={{
             display: "grid",
             gridTemplateColumns: "minmax(0, 260px) 1fr",
             gap: "var(--s-8)",
             alignItems: "start",
+            maxWidth: "none",
           }}
           className="equal-2col"
         >
           <Filters
             brands={brands}
+            facets={facets}
             categories={categoryNav}
             currentSlug={category}
             categoryBasePath="/medtrade"
@@ -237,12 +275,13 @@ export default async function CategoryListing({
               ariaLabel={t("search")}
             />
 
-            {/* Result count + active chips */}
+            {/* Toolbar: result count + sort (sort moved out of the sidebar) */}
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: "var(--s-3)",
+                justifyContent: "space-between",
+                gap: "var(--s-4)",
                 flexWrap: "wrap",
               }}
             >
@@ -254,6 +293,27 @@ export default async function CategoryListing({
               >
                 {t("results", { count: result.total })}
               </span>
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "var(--s-4)",
+                }}
+              >
+                <SortSelect />
+                <ViewToggle />
+              </span>
+            </div>
+
+            {/* Active chips */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "var(--s-3)",
+                flexWrap: "wrap",
+              }}
+            >
               {chips.map((c) => (
                 <Link
                   key={c.key}
@@ -304,10 +364,10 @@ export default async function CategoryListing({
               >
                 {t("noResults")}
               </div>
-            ) : (
-              <CardGrid columns={3}>
+            ) : str(sp.view) === "list" ? (
+              <ListingRows>
                 {result.items.map((p) => (
-                  <ProductCard
+                  <ProductListRow
                     key={String(p._id)}
                     product={p}
                     locale={l}
@@ -320,10 +380,30 @@ export default async function CategoryListing({
                         ? catMap.get(String(p.categoryId))
                         : undefined
                     }
+                  />
+                ))}
+              </ListingRows>
+            ) : (
+              <ListingGrid>
+                {result.items.map((p) => (
+                  <ProductCard
+                    key={String(p._id)}
+                    product={p}
+                    locale={l}
+                    mode="instruments"
+                    showSpecs
+                    brandName={
+                      p.brandId ? brandMap.get(String(p.brandId)) : undefined
+                    }
+                    categoryName={
+                      p.categoryId
+                        ? catMap.get(String(p.categoryId))
+                        : undefined
+                    }
                     wishlisted={wish.has(String(p._id))}
                   />
                 ))}
-              </CardGrid>
+              </ListingGrid>
             )}
 
             {result.pages > 1 && (

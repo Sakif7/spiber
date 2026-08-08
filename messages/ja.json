@@ -1774,7 +1774,7 @@
       "allBrands": "ブランド",
       "allProducts": "製品",
       "categories": "カテゴリー",
-      "allCategories": "カテゴリー",
+      "allCategories": "すべてのカテゴリー",
       "inStockOnly": "在庫ありのみ",
       "apply": "適用",
       "clear": "すべてクリア",
@@ -1783,7 +1783,19 @@
       "next": "次へ",
       "rating": "評価",
       "anyRating": "すべての評価",
-      "starsAndUp": "星{n}以上"
+      "starsAndUp": "星{n}以上",
+      "filterBy": "絞り込み",
+      "reset": "リセット",
+      "availability": "在庫状況",
+      "excludeOutOfStock": "在庫切れを除外",
+      "onSaleOnly": "セール中",
+      "sortTopRated": "評価の高い順",
+      "resultCount": "{count, plural, =0 {該当する商品はありません} other {#件の商品}}",
+      "showLess": "表示を減らす",
+      "showAllBrands": "全{count}ブランドを表示",
+      "view": "表示",
+      "viewGrid": "グリッド表示",
+      "viewList": "リスト表示"
     },
     "product": {
       "addToCart": "カートに入れる",
@@ -1814,7 +1826,9 @@
       "payOffline": "オフライン決済",
       "payOfflineNote": "銀行振込または代金引換でお支払いいただけます。ご注文を確認のうえお支払いを手配しますので、オンラインでのカード決済は不要です。",
       "deliveryNote": "バングラデシュ全土へのご注文は2〜5営業日でお届けします。",
-      "genuineNote": "メーカー保証付きの正規品です。"
+      "genuineNote": "メーカー保証付きの正規品です。",
+      "bulletCategory": "カテゴリー",
+      "bulletAvailability": "在庫状況"
     },
     "wishlist": {
       "add": "お気に入りに追加",

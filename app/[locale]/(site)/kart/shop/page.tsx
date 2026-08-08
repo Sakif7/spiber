@@ -5,9 +5,16 @@ import { Section } from "@/components/ui/section";
 import { MarketplaceProductListing } from "@/components/marketplace/product-listing";
 import {
   listProducts,
+  getProductFacets,
+  type ProductFacets,
   type ProductSort,
 } from "@/lib/repositories/products.repo";
-import { listBrands, listCategories } from "@/lib/repositories/taxonomy.repo";
+import {
+  listBrands,
+  listCategories,
+  categoryWithDescendantIds,
+  rollupCategoryCounts,
+} from "@/lib/repositories/taxonomy.repo";
 import { listWishlistProductIds } from "@/lib/repositories/wishlist.repo";
 import { getSessionUser } from "@/lib/auth/current-user";
 import { localize } from "@/lib/schemas/localized";
@@ -56,6 +63,8 @@ export default async function KartShop({
   const page = Math.max(1, parseInt(str(sp.page) ?? "1", 10) || 1);
   const minMajor = str(sp.min) ? Number(str(sp.min)) : undefined;
   const maxMajor = str(sp.max) ? Number(str(sp.max)) : undefined;
+  const brandIds = (str(sp.brand) ?? "").split(",").filter(Boolean);
+  const categorySlug = str(sp.category);
 
   let result: Awaited<ReturnType<typeof listProducts>> = {
     items: [],
@@ -65,30 +74,51 @@ export default async function KartShop({
     pages: 1,
   };
   let brands: { id: string; name: string }[] = [];
-  let categoryNav: { slug: string; name: string }[] = [];
+  let categoryNav: { slug: string; name: string; count?: number }[] = [];
   let categoryNameById: Record<string, string> = {};
+  let facets: ProductFacets | undefined;
   try {
-    const [r, bs, cs] = await Promise.all([
-      listProducts({
-        storefront: "marketplace",
-        status: "active",
-        search: str(sp.q),
-        brandId: str(sp.brand),
-        minPriceMinor: minMajor != null ? toMinor(minMajor) : undefined,
-        maxPriceMinor: maxMajor != null ? toMinor(maxMajor) : undefined,
-        minRating: str(sp.rating) ? Number(str(sp.rating)) : undefined,
-        inStockOnly: sp.inStock === "1",
-        sort: (str(sp.sort) as ProductSort) ?? "newest",
-        page,
-      }),
+    // Categories first: the ?category= facet resolves slug → descendant ids.
+    const cs = await listCategories("marketplace");
+    const selectedCat = categorySlug
+      ? cs.find((c) => c.slug === categorySlug)
+      : undefined;
+    const categoryIds = selectedCat
+      ? await categoryWithDescendantIds(String(selectedCat._id), "marketplace")
+      : undefined;
+
+    const listParams = {
+      storefront: "marketplace" as const,
+      status: "active" as const,
+      categoryIds,
+      search: str(sp.q),
+      brandIds: brandIds.length ? brandIds : undefined,
+      minPriceMinor: minMajor != null ? toMinor(minMajor) : undefined,
+      maxPriceMinor: maxMajor != null ? toMinor(maxMajor) : undefined,
+      minRating: str(sp.rating) ? Number(str(sp.rating)) : undefined,
+      inStockOnly: sp.inStock === "1",
+      onSale: sp.deal === "1",
+      sort: (str(sp.sort) as ProductSort) ?? "newest",
+      // Full-width dense grid fits 4–6 per row — keep several rows per page.
+      pageSize: 24,
+    };
+
+    const [r, bs, fx] = await Promise.all([
+      listProducts({ ...listParams, page }),
       listBrands(),
-      listCategories("marketplace"),
+      getProductFacets(listParams),
     ]);
     result = r;
+    facets = fx;
     brands = bs.map((b) => ({ id: String(b._id), name: localize(b.name, l) }));
+    const catTotals = rollupCategoryCounts(cs, fx.categoryCounts ?? {});
     categoryNav = cs
       .filter((c) => !c.parentId)
-      .map((c) => ({ slug: c.slug, name: localize(c.name, l) }));
+      .map((c) => ({
+        slug: c.slug,
+        name: localize(c.name, l),
+        count: catTotals[String(c._id)] ?? 0,
+      }));
     categoryNameById = Object.fromEntries(
       cs.map((c) => [String(c._id), localize(c.name, l)]),
     );
@@ -104,12 +134,15 @@ export default async function KartShop({
 
   const spFlat: Record<string, string | undefined> = {
     q: str(sp.q),
+    category: categorySlug,
     brand: str(sp.brand),
     min: str(sp.min),
     max: str(sp.max),
     inStock: sp.inStock === "1" ? "1" : undefined,
+    deal: sp.deal === "1" ? "1" : undefined,
     rating: str(sp.rating),
     sort: str(sp.sort),
+    view: sp.view === "list" ? "list" : undefined,
   };
 
   return (
@@ -132,17 +165,21 @@ export default async function KartShop({
         ]}
       />
       <Section py="clamp(40px, 5vw, 80px)">
-        <Container>
+        {/* Full-bleed listing (Ryans-style): the dense grid uses the whole
+            viewport width; only the edge padding remains. */}
+        <Container style={{ maxWidth: "none" }}>
           <MarketplaceProductListing
             locale={l}
             basePath="/kart/shop"
             sp={spFlat}
             result={result}
             brands={brands}
+            facets={facets}
             brandNameById={brandNameById}
             categoryNameById={categoryNameById}
             wishlistedIds={wishlistedIds}
             categories={categoryNav}
+            categoryMode="filter"
           />
         </Container>
       </Section>
