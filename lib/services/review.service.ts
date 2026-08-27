@@ -10,6 +10,8 @@ import {
   userHasReviewed,
 } from "@/lib/repositories/reviews.repo";
 import type { ReviewCreateInput, ReviewStatus } from "@/lib/schemas/review";
+import { localize } from "@/lib/schemas/localized";
+import { notifyAdmins } from "./notification.service";
 
 export type SubmitReviewResult =
   | { ok: true }
@@ -74,6 +76,14 @@ export async function submitReview(
     }
     throw e;
   }
+  await notifyAdmins({
+    type: "review.submitted",
+    severity: "info",
+    title: "New review awaiting moderation",
+    body: `${"★".repeat(input.rating)} · ${localize(product.name, "en")} · ${authorName}`,
+    href: "/admin/marketplace/reviews",
+    entity: { kind: "Review", ref: localize(product.name, "en") },
+  });
   return { ok: true };
 }
 

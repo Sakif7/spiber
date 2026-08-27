@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/db/connect";
+import { notifyAdmins } from "./notification.service";
 import { type IPartnerApplication } from "@/lib/models/partnerApplication";
 import {
   createPartnerApplication as repoCreatePartnerApplication,
@@ -46,6 +47,18 @@ export async function createPartnerApplication(
   await Promise.allSettled([
     sendPartnerTeamNotification(record),
     sendPartnerAck(record, opts.locale),
+    notifyAdmins({
+      type: "tourism.partner_applied",
+      severity: "info",
+      title: `New partner application ${record.partnerApplicationNumber}`,
+      body: record.orgInfo.name,
+      href: `/admin/tourism/partners/${String(doc._id)}`,
+      entity: {
+        kind: "PartnerApplication",
+        id: String(doc._id),
+        ref: record.partnerApplicationNumber,
+      },
+    }),
   ]).then((results) => {
     for (const r of results) {
       if (r.status === "rejected")

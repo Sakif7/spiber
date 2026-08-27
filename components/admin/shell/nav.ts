@@ -38,21 +38,31 @@ import {
   PackageOpen,
   MessageSquareQuote,
   MessagesSquare,
+  FolderLock,
   type LucideIcon,
 } from "lucide-react";
+import { routing } from "@/i18n/routing";
 
 export type NavItem = { href: string; label: string; icon: LucideIcon };
 export type NavGroup = { label?: string; items: NavItem[] };
 
+/**
+ * The admin is split into two sections, switched from the topbar:
+ *  - "operations": the day-to-day store/division admin (default).
+ *  - "company":    internal company workspace — today the secure document
+ *    vault + the existing company-content tabs; the future HRM modules will
+ *    add their groups here without touching the operations tree.
+ */
+export type AdminSection = "operations" | "company";
+
 /** Admin UI is English-first (per project conventions), so labels are literal. */
-export const NAV_GROUPS: NavGroup[] = [
+export const OPERATIONS_NAV_GROUPS: NavGroup[] = [
   { items: [{ href: "/admin", label: "Dashboard", icon: LayoutDashboard }] },
   {
     label: "Medtrade (Quotes)",
     items: [
       { href: "/admin/products", label: "Products", icon: Package },
       { href: "/admin/categories", label: "Categories", icon: FolderTree },
-      { href: "/admin/brands", label: "Brands", icon: Tag },
       { href: "/admin/quotations", label: "Quotations", icon: FileText },
     ],
   },
@@ -65,7 +75,6 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Categories",
         icon: FolderTree,
       },
-      { href: "/admin/brands", label: "Brands", icon: Tag },
       { href: "/admin/marketplace/banners", label: "Banners", icon: ImageIcon },
       { href: "/admin/marketplace/reviews", label: "Reviews", icon: Star },
       {
@@ -74,6 +83,14 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: PackageSearch,
       },
     ],
+  },
+  {
+    // Brands are one cross-storefront collection (Medtrade + Spiber Kart read
+    // the same list), so the tab lives ONCE here instead of duplicated in both
+    // storefront groups (duplicate hrefs also double-rendered the active
+    // indicator, which shares a framer layoutId).
+    label: "Shared",
+    items: [{ href: "/admin/brands", label: "Brands", icon: Tag }],
   },
   {
     label: "Sellers",
@@ -162,9 +179,31 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "Company",
+    label: "System",
+    items: [{ href: "/admin/maintenance", label: "Maintenance", icon: Trash2 }],
+  },
+];
+
+export const COMPANY_NAV_GROUPS: NavGroup[] = [
+  {
+    items: [
+      {
+        href: "/admin/company/documents",
+        label: "Documents",
+        icon: FolderLock,
+      },
+    ],
+  },
+  {
+    label: "Inbox",
     items: [
       { href: "/admin/chat", label: "Chat inbox", icon: MessagesSquare },
+      { href: "/admin/messages", label: "Messages", icon: Inbox },
+    ],
+  },
+  {
+    label: "Content",
+    items: [
       {
         href: "/admin/testimonials",
         label: "Testimonials",
@@ -172,6 +211,11 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       { href: "/admin/gallery", label: "Gallery", icon: ImageIcon },
       { href: "/admin/events", label: "Events", icon: CalendarDays },
+    ],
+  },
+  {
+    label: "Careers",
+    items: [
       { href: "/admin/career", label: "Jobs", icon: Briefcase },
       {
         href: "/admin/career/applications",
@@ -180,18 +224,47 @@ export const NAV_GROUPS: NavGroup[] = [
       },
     ],
   },
-  {
-    label: "System",
-    items: [{ href: "/admin/maintenance", label: "Maintenance", icon: Trash2 }],
-  },
 ];
 
-/** All items flattened — used by the topbar to derive the current page title. */
-export const NAV_ITEMS_FLAT: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);
+export const NAV_SECTIONS: Record<
+  AdminSection,
+  { label: string; home: string; groups: NavGroup[] }
+> = {
+  operations: {
+    label: "Operations",
+    home: "/admin",
+    groups: OPERATIONS_NAV_GROUPS,
+  },
+  company: {
+    label: "Company",
+    home: "/admin/company/documents",
+    groups: COMPANY_NAV_GROUPS,
+  },
+};
+
+/** All items flattened — topbar title derivation + the Ctrl+K palette. */
+export const NAV_ITEMS_FLAT: NavItem[] = [
+  ...OPERATIONS_NAV_GROUPS,
+  ...COMPANY_NAV_GROUPS,
+].flatMap((g) => g.items);
+
+const LOCALE_PREFIX = new RegExp(`^\\/(${routing.locales.join("|")})(?=\\/|$)`);
+
+/** Strip a leading locale segment (/en, /bn, /ja) — matching is locale-agnostic. */
+export function stripLocalePrefix(pathname: string): string {
+  return pathname.replace(LOCALE_PREFIX, "") || "/";
+}
 
 export function isNavItemActive(pathname: string, href: string): boolean {
-  // Strip a leading locale segment (/en, /bn) so matching is locale-agnostic.
-  const path = pathname.replace(/^\/(en|bn)(?=\/|$)/, "") || "/";
+  const path = stripLocalePrefix(pathname);
   if (href === "/admin") return path === "/admin";
   return path === href || path.startsWith(`${href}/`);
+}
+
+/** Which section the current page belongs to (drives the topbar switcher). */
+export function sectionForPath(pathname: string): AdminSection {
+  for (const item of COMPANY_NAV_GROUPS.flatMap((g) => g.items)) {
+    if (isNavItemActive(pathname, item.href)) return "company";
+  }
+  return "operations";
 }

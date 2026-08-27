@@ -15,6 +15,7 @@ import {
 import { siteConfig } from "@/lib/site-config";
 import { logger } from "@/lib/log";
 import { inquiryNumber } from "@/lib/ids";
+import { notifyAdmins } from "./notification.service";
 import {
   INQUIRY_TRANSITIONS,
   type InquiryCreateInput,
@@ -48,6 +49,14 @@ export async function createInquiry(
   await sendInquiryAck(doc.toObject()).catch((e) =>
     logger.warn("inquiry ack email failed", e),
   );
+  await notifyAdmins({
+    type: "inquiry.created",
+    severity: "info",
+    title: `New inquiry ${doc.inquiryNumber}`,
+    body: `${input.subject} · ${input.name}`,
+    href: `/admin/inquiries/${String(doc._id)}`,
+    entity: { kind: "Inquiry", id: String(doc._id), ref: doc.inquiryNumber },
+  });
   return doc.toObject();
 }
 

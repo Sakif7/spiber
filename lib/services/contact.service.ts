@@ -1,4 +1,5 @@
 import { connectToDatabase } from "@/lib/db/connect";
+import { notifyAdmins } from "./notification.service";
 import type { IContactMessage } from "@/lib/models/contact-message";
 import { createContactMessage as repoCreateContactMessage } from "@/lib/repositories/contact-messages.repo";
 import { getMailer } from "@/lib/mailer";
@@ -77,6 +78,18 @@ export async function createContactMessage(
   await Promise.allSettled([
     sendTeamNotification(record),
     sendContactAck(record),
+    notifyAdmins({
+      type: "contact.message",
+      severity: "info",
+      title: `New contact message ${record.contactNumber}`,
+      body: `${record.name} · ${TYPE_LABEL[record.inquiryType]}`,
+      href: "/admin/messages",
+      entity: {
+        kind: "ContactMessage",
+        id: String(doc._id),
+        ref: record.contactNumber,
+      },
+    }),
   ]).then((results) => {
     for (const r of results) {
       if (r.status === "rejected") {

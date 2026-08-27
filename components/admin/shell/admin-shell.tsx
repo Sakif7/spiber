@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
-import { usePathname, Link } from "@/i18n/navigation";
+import { usePathname, useRouter, Link } from "@/i18n/navigation";
 import { motion, MotionConfig } from "framer-motion";
-import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Menu, PanelLeftClose, PanelLeftOpen, Search } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -19,7 +19,15 @@ import { ThemeToggle } from "@/components/admin/theme/theme-toggle";
 import { useAdminTheme } from "@/components/admin/theme/admin-theme-provider";
 import { SidebarNav } from "./sidebar-nav";
 import { AdminUserMenu } from "./admin-user-menu";
-import { NAV_ITEMS_FLAT } from "./nav";
+import { CommandPalette } from "./command-palette";
+import { NotificationBell } from "./notification-bell";
+import {
+  NAV_ITEMS_FLAT,
+  NAV_SECTIONS,
+  sectionForPath,
+  stripLocalePrefix,
+  type AdminSection,
+} from "./nav";
 
 const COLLAPSE_KEY = "spiber-admin-sidebar-collapsed";
 const COLLAPSE_EVENT = "spiber-admin-sidebar";
@@ -39,7 +47,7 @@ function readCollapse() {
 }
 
 function pageTitle(pathname: string): string {
-  const path = pathname.replace(/^\/(en|bn)(?=\/|$)/, "") || "/";
+  const path = stripLocalePrefix(pathname);
   let best = "";
   let label = "Admin";
   for (const it of NAV_ITEMS_FLAT) {
@@ -77,6 +85,46 @@ function Brand({ collapsed }: { collapsed: boolean }) {
   );
 }
 
+/** Operations ⇄ Company segmented switcher (the future HRM lives on the
+ *  Company side — its modules will just add groups to that nav tree). */
+function SectionSwitcher({
+  section,
+  onSwitch,
+  className,
+}: {
+  section: AdminSection;
+  onSwitch: (s: AdminSection) => void;
+  className?: string;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label="Admin section"
+      className={cn(
+        "bg-muted flex shrink-0 items-center gap-0.5 rounded-full p-0.5",
+        className,
+      )}
+    >
+      {(Object.keys(NAV_SECTIONS) as AdminSection[]).map((key) => (
+        <button
+          key={key}
+          type="button"
+          aria-pressed={section === key}
+          onClick={() => onSwitch(key)}
+          className={cn(
+            "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+            section === key
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {NAV_SECTIONS[key].label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function AdminShell({
   email,
   role,
@@ -87,6 +135,7 @@ export function AdminShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { theme } = useAdminTheme();
   // Read the persisted collapse preference without a hydration mismatch or a
   // setState-in-effect (the SSR snapshot is always "expanded").
@@ -96,11 +145,31 @@ export function AdminShell({
     () => false,
   );
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  // The active section is derived from the route — no separate state to drift.
+  const section = sectionForPath(pathname);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((o) => !o);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   function toggleCollapsed() {
     const next = !readCollapse();
     localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0");
     window.dispatchEvent(new Event(COLLAPSE_EVENT));
+  }
+
+  function switchSection(target: AdminSection) {
+    if (target !== section) router.push(NAV_SECTIONS[target].home);
+    setMobileOpen(false);
   }
 
   const title = pageTitle(pathname);
@@ -125,7 +194,7 @@ export function AdminShell({
               <Brand collapsed={collapsed} />
             </div>
             <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
-              <SidebarNav collapsed={collapsed} />
+              <SidebarNav section={section} collapsed={collapsed} />
             </div>
             <div
               className={cn(
@@ -177,8 +246,17 @@ export function AdminShell({
                   <div className="border-sidebar-border flex h-16 items-center justify-center border-b px-4">
                     <Brand collapsed={false} />
                   </div>
+                  <div className="border-sidebar-border flex justify-center border-b px-4 py-2.5">
+                    <SectionSwitcher
+                      section={section}
+                      onSwitch={switchSection}
+                    />
+                  </div>
                   <div className="min-h-0 flex-1 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
-                    <SidebarNav onNavigate={() => setMobileOpen(false)} />
+                    <SidebarNav
+                      section={section}
+                      onNavigate={() => setMobileOpen(false)}
+                    />
                   </div>
                 </SheetContent>
               </Sheet>
@@ -195,6 +273,35 @@ export function AdminShell({
                 </motion.h1>
               </div>
 
+              <SectionSwitcher
+                section={section}
+                onSwitch={switchSection}
+                className="hidden md:flex"
+              />
+
+              <Button
+                variant="outline"
+                onClick={() => setPaletteOpen(true)}
+                aria-label="Search admin pages (Ctrl+K)"
+                className="text-muted-foreground hidden h-9 items-center gap-2 px-3 text-sm font-normal sm:flex"
+              >
+                <Search className="size-4" />
+                <span className="hidden lg:inline">Search…</span>
+                <kbd className="border-border bg-muted rounded border px-1.5 py-0.5 font-mono text-[0.625rem]">
+                  Ctrl K
+                </kbd>
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setPaletteOpen(true)}
+                aria-label="Search admin pages"
+                className="sm:hidden"
+              >
+                <Search className="size-5" />
+              </Button>
+
+              <NotificationBell />
               <ThemeToggle />
               <AdminUserMenu email={email} role={role} />
             </header>
@@ -202,6 +309,7 @@ export function AdminShell({
             <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
           </div>
         </div>
+        <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
         <Toaster position="top-right" theme={theme} richColors closeButton />
       </TooltipProvider>
     </MotionConfig>

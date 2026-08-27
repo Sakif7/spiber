@@ -17,6 +17,7 @@ import {
 import { siteConfig } from "@/lib/site-config";
 import { CONTACT } from "@/lib/contact";
 import { logger } from "@/lib/log";
+import { notifyAdmins } from "./notification.service";
 
 // ───────────────────────── Jobs ─────────────────────────
 export type SaveJobResult =
@@ -116,6 +117,18 @@ export async function createApplication(
   await Promise.allSettled([
     sendTeamNotification(record, job.title.en, id),
     sendApplicantAck(record, job.title.en),
+    notifyAdmins({
+      type: "career.application",
+      severity: "info",
+      title: `New job application — ${job.title.en}`,
+      body: `${record.name} · ${record.applicationNumber}`,
+      href: `/admin/career/applications/${id}`,
+      entity: {
+        kind: "JobApplication",
+        id,
+        ref: record.applicationNumber,
+      },
+    }),
   ]).then((results) => {
     for (const r of results) {
       if (r.status === "rejected") {

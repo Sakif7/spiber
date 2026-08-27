@@ -27,6 +27,7 @@ import { applyMovement, InsufficientStockError } from "./inventory.service";
 import { priceCart, type PricingCoupon } from "./pricing.service";
 import { getShippingSettings } from "./shop-settings.service";
 import { validateCoupon } from "./coupon.service";
+import { notifyAdmins } from "./notification.service";
 import {
   accrueSellerCommissions,
   voidSellerCommissions,
@@ -274,6 +275,14 @@ export async function placeOrder(
   await sendOrderEmail(order, "placed").catch((e) =>
     logger.warn("order confirmation email failed", e),
   );
+  await notifyAdmins({
+    type: "order.placed",
+    severity: "success",
+    title: `New order ${order.orderNumber}`,
+    body: `${order.items.reduce((n, it) => n + it.qty, 0)} item(s) · ${formatBDT(order.totalMinor)} · ${order.email}`,
+    href: `/admin/orders/${String(order._id)}`,
+    entity: { kind: "Order", id: String(order._id), ref: order.orderNumber },
+  });
 
   return { ok: true, order: order.toObject() };
 }
@@ -672,6 +681,14 @@ export async function requestRefund(
       logger.warn("refund request email failed", r.reason);
     }
   }
+  await notifyAdmins({
+    type: "order.refund_requested",
+    severity: "warning",
+    title: `Refund requested — ${order.orderNumber}`,
+    body: `${formatBDT(order.totalMinor)} · ${order.email}`,
+    href: `/admin/orders/${String(order._id)}`,
+    entity: { kind: "Order", id: String(order._id), ref: order.orderNumber },
+  });
 
   return { ok: true, order: order.toObject() };
 }

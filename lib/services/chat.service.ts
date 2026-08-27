@@ -1,4 +1,5 @@
 import { connectToDatabase } from "@/lib/db/connect";
+import { notifyAdmins } from "./notification.service";
 import { getChatProvider } from "@/lib/chat";
 import type { ChatReply, ChatState } from "@/lib/chat/types";
 import {
@@ -144,9 +145,18 @@ export async function captureChatLead(
     conversation = created.toObject();
   }
 
+  const convId = (conversation as { _id?: unknown } | null)?._id;
   await Promise.allSettled([
     notifyTeam(lead, conversation),
     ackVisitor(lead, input.locale),
+    notifyAdmins({
+      type: "chat.lead",
+      severity: "info",
+      title: `New chat lead ${lead.leadNumber}`,
+      body: `${lead.name} · ${lead.email}`,
+      href: convId ? `/admin/chat/${String(convId)}` : "/admin/chat",
+      entity: { kind: "ChatConversation", ref: lead.leadNumber },
+    }),
   ]).then((results) => {
     for (const r of results) {
       if (r.status === "rejected")

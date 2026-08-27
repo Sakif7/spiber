@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/db/connect";
+import { notifyAdmins } from "./notification.service";
 import { type IMedicalCase } from "@/lib/models/medicalCase";
 import {
   createMedicalCase as repoCreateMedicalCase,
@@ -71,6 +72,18 @@ export async function createMedicalCase(
   await Promise.allSettled([
     sendCaseTeamNotification(record),
     sendCaseAck(record, opts.locale),
+    notifyAdmins({
+      type: "tourism.case_created",
+      severity: "info",
+      title: `New medical case ${record.caseNumber}`,
+      body: record.patient.name,
+      href: `/admin/tourism/cases/${String(doc._id)}`,
+      entity: {
+        kind: "MedicalCase",
+        id: String(doc._id),
+        ref: record.caseNumber,
+      },
+    }),
   ]).then((results) => {
     for (const r of results) {
       if (r.status === "rejected")

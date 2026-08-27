@@ -8,6 +8,7 @@ import {
 import { getSellerById } from "@/lib/repositories/sellers.repo";
 import { applyMovement } from "./inventory.service";
 import { notifySellerProductModeration } from "./seller-notifications.service";
+import { notifyAdmins } from "./notification.service";
 import { slugify } from "@/lib/slug";
 import { makeId } from "@/lib/ids";
 import { logger } from "@/lib/log";
@@ -58,6 +59,14 @@ export async function createSellerProduct(
       createdBy: actorUserId,
     });
   }
+  await notifyAdmins({
+    type: "seller.product_pending",
+    severity: "info",
+    title: "Seller listing awaiting review",
+    body: input.name.en,
+    href: "/admin/sellers/products",
+    entity: { kind: "Product", id: String(product._id) },
+  });
   return String(product._id);
 }
 
@@ -147,6 +156,18 @@ export async function updateSellerProduct(
       createdBy: actorUserId,
     });
     doc.stockQty = input.stockQty;
+  }
+  if (doc.approvalStatus === "pending" || doc.pendingDraft) {
+    await notifyAdmins({
+      type: "seller.product_pending",
+      severity: "info",
+      title: isLive
+        ? "Seller listing update awaiting review"
+        : "Seller listing awaiting review",
+      body: input.name.en,
+      href: "/admin/sellers/products",
+      entity: { kind: "Product", id },
+    });
   }
   return { ok: true, product: doc.toObject() };
 }

@@ -15,6 +15,7 @@ import {
 import { siteConfig } from "@/lib/site-config";
 import { logger } from "@/lib/log";
 import { quotationNumber } from "@/lib/ids";
+import { notifyAdmins } from "./notification.service";
 import {
   QUOTATION_TRANSITIONS,
   type QuotationCreateInput,
@@ -91,6 +92,18 @@ export async function createQuotation(
   await sendQuotationAck(doc.toObject()).catch((e) =>
     logger.warn("quotation ack email failed", e),
   );
+  await notifyAdmins({
+    type: "quotation.submitted",
+    severity: "info",
+    title: `New quotation request ${doc.quotationNumber}`,
+    body: `${items.length} item(s) · ${input.contact.name}`,
+    href: `/admin/quotations/${String(doc._id)}`,
+    entity: {
+      kind: "QuotationRequest",
+      id: String(doc._id),
+      ref: doc.quotationNumber,
+    },
+  });
   return { ok: true, quotation: doc.toObject() };
 }
 

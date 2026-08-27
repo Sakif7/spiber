@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/db/connect";
+import { notifyAdmins } from "./notification.service";
 import { type ITravelRequest } from "@/lib/models/travelRequest";
 import {
   createTravelRequest as repoCreateTravelRequest,
@@ -68,6 +69,18 @@ export async function createTravelRequest(
   await Promise.allSettled([
     sendTravelTeamNotification(record),
     sendTravelAck(record, opts.locale),
+    notifyAdmins({
+      type: "tourism.travel_requested",
+      severity: "info",
+      title: `New travel request ${record.travelRequestNumber}`,
+      body: `${record.type} · ${record.contact.name}`,
+      href: `/admin/tourism/travel/${String(doc._id)}`,
+      entity: {
+        kind: "TravelRequest",
+        id: String(doc._id),
+        ref: record.travelRequestNumber,
+      },
+    }),
   ]).then((results) => {
     for (const r of results) {
       if (r.status === "rejected") logger.warn("travel email failed", r.reason);

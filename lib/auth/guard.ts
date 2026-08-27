@@ -1,5 +1,5 @@
 import { getSessionUser } from "./current-user";
-import { isAdmin } from "./rbac";
+import { isAdmin, isSuperAdmin } from "./rbac";
 import { findUserById } from "@/lib/repositories/users.repo";
 import { getSellerByUserId } from "@/lib/repositories/sellers.repo";
 import type { Lean } from "@/lib/models/_shared";
@@ -19,6 +19,19 @@ export async function requireAdmin(): Promise<AccessClaims | null> {
   if (!isAdmin(user)) return null;
   const doc = await findUserById(user!.sub).catch(() => null);
   if (!doc || doc.disabled || !isAdmin({ roles: doc.roles })) return null;
+  return user;
+}
+
+/**
+ * Super-admin only (company document vault, …). Same DB re-validation as
+ * `requireAdmin` — a demoted/disabled super-admin can't ride a still-valid
+ * access token.
+ */
+export async function requireSuperAdmin(): Promise<AccessClaims | null> {
+  const user = await getSessionUser();
+  if (!isSuperAdmin(user)) return null;
+  const doc = await findUserById(user!.sub).catch(() => null);
+  if (!doc || doc.disabled || !isSuperAdmin({ roles: doc.roles })) return null;
   return user;
 }
 

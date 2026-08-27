@@ -15,6 +15,7 @@ import {
   releaseCouponUsageByCode,
 } from "@/lib/repositories/coupons.repo";
 import { validateCoupon } from "./coupon.service";
+import { notifyAdmins } from "./notification.service";
 import { getPaymentProvider } from "@/lib/payments";
 import { getFulfillmentProvider } from "@/lib/fulfillment";
 import { getMailer } from "@/lib/mailer";
@@ -231,6 +232,18 @@ export async function buySoftware(args: {
     localize(product.name, "en"),
     free ? "paid" : "pending",
   ).catch((e) => logger.warn("purchase email failed", e));
+  await notifyAdmins({
+    type: "software.purchased",
+    severity: "success",
+    title: `New software purchase ${purchase.purchaseNumber}`,
+    body: `${localize(product.name, "en")} · ${formatBDT(purchase.totalMinor)}`,
+    href: `/admin/software-purchases/${String(purchase._id)}`,
+    entity: {
+      kind: "SoftwarePurchase",
+      id: String(purchase._id),
+      ref: purchase.purchaseNumber,
+    },
+  });
 
   return { ok: true, purchase: purchase.toObject() };
 }

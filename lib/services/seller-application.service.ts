@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/db/connect";
+import { notifyAdmins } from "./notification.service";
 import { type ISellerApplication } from "@/lib/models/seller-application";
 import {
   createSellerApplication as repoCreate,
@@ -74,6 +75,18 @@ export async function createSellerApplication(
   await Promise.allSettled([
     sendTeamNotification(record),
     sendApplicantAck(record),
+    notifyAdmins({
+      type: "seller.application",
+      severity: "info",
+      title: `New seller application ${record.applicationNumber}`,
+      body: record.businessName,
+      href: `/admin/sellers/applications/${String(doc._id)}`,
+      entity: {
+        kind: "SellerApplication",
+        id: String(doc._id),
+        ref: record.applicationNumber,
+      },
+    }),
   ]).then((results) => {
     for (const r of results)
       if (r.status === "rejected")

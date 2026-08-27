@@ -16,6 +16,7 @@ import {
 } from "@/lib/repositories/coupons.repo";
 import { makeId } from "@/lib/ids";
 import { validateCoupon } from "./coupon.service";
+import { notifyAdmins } from "./notification.service";
 import { getPaymentProvider } from "@/lib/payments";
 import { getMailer } from "@/lib/mailer";
 import { renderEmail } from "@/lib/mailer/templates/email-layout";
@@ -225,6 +226,20 @@ export async function enrollCourse(args: {
     localize(course.title, "en"),
     status === "active" ? "active" : "pending",
   ).catch((e) => logger.warn("enrollment email failed", e));
+  if (!args.grant) {
+    await notifyAdmins({
+      type: "enrollment.created",
+      severity: "success",
+      title: `New enrollment ${enrollment.enrollmentNumber}`,
+      body: `${localize(course.title, "en")} · ${formatBDT(totals.totalMinor)} · ${args.email}`,
+      href: `/admin/enrollments/${String(enrollment._id)}`,
+      entity: {
+        kind: "Enrollment",
+        id: String(enrollment._id),
+        ref: enrollment.enrollmentNumber,
+      },
+    });
+  }
 
   return { ok: true, enrollment: enrollment.toObject() };
 }

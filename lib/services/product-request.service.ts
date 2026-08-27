@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/db/connect";
+import { notifyAdmins } from "./notification.service";
 import { type IProductRequest } from "@/lib/models/product-request";
 import {
   createProductRequest as repoCreate,
@@ -59,6 +60,18 @@ export async function createProductRequest(
   await Promise.allSettled([
     sendTeamNotification(record),
     sendRequestAck(record),
+    notifyAdmins({
+      type: "kart.product_requested",
+      severity: "info",
+      title: `New product request ${record.requestNumber}`,
+      body: `${record.productName} · ${record.name}`,
+      href: `/admin/product-requests/${String(doc._id)}`,
+      entity: {
+        kind: "ProductRequest",
+        id: String(doc._id),
+        ref: record.requestNumber,
+      },
+    }),
   ]).then((results) => {
     for (const r of results) {
       if (r.status === "rejected") {

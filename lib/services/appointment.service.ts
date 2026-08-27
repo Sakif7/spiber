@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/db/connect";
+import { notifyAdmins } from "./notification.service";
 import { type IAppointment } from "@/lib/models/appointment";
 import {
   createAppointment as repoCreateAppointment,
@@ -46,6 +47,18 @@ export async function createAppointment(
   await Promise.allSettled([
     sendAppointmentTeamNotification(record),
     sendAppointmentAck(record, opts.locale),
+    notifyAdmins({
+      type: "tourism.appointment_requested",
+      severity: "info",
+      title: `New appointment request ${record.appointmentNumber}`,
+      body: record.patient.name,
+      href: `/admin/tourism/appointments/${String(doc._id)}`,
+      entity: {
+        kind: "Appointment",
+        id: String(doc._id),
+        ref: record.appointmentNumber,
+      },
+    }),
   ]).then((results) => {
     for (const r of results) {
       if (r.status === "rejected")

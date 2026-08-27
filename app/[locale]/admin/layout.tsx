@@ -16,11 +16,15 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-// Pre-paint, no-flash dark mode for the admin area. Rendered ONLY here (in the
-// admin server layout, dynamic) — not in the public locale layout — so a public
-// client-side locale switch never re-reconciles a <script> (which would trip
-// React 19's "script tag while rendering" warning). It applies the stored
-// preference (or system) before the shell paints; the public site stays light.
+// Pre-paint, no-flash dark mode for the admin area. The script is NOT a React
+// <script> element — React 19 warns on ANY reconciled <script> ("script tag
+// while rendering"), which fired on every client-side nav into /admin. Instead
+// it rides inside a hidden div's dangerouslySetInnerHTML: on a hard load the
+// SERVER serializes the raw <script> into the HTML and the browser parser
+// executes it pre-paint (exactly as before); on a client-side render, browsers
+// never execute innerHTML-inserted scripts (client-rendered React scripts never
+// ran either — AdminThemeProvider's effect covers that path), and with no
+// script element in the React tree there is nothing for React to warn about.
 const ADMIN_THEME_SCRIPT = `(function(){try{var p=localStorage.getItem('spiber-admin-theme');var d=p==='dark'||((p===null||p==='system')&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');}catch(e){}})();`;
 
 export default async function AdminLayout({
@@ -43,7 +47,12 @@ export default async function AdminLayout({
 
   return (
     <>
-      <script dangerouslySetInnerHTML={{ __html: ADMIN_THEME_SCRIPT }} />
+      <div
+        hidden
+        dangerouslySetInnerHTML={{
+          __html: `<script>${ADMIN_THEME_SCRIPT}</script>`,
+        }}
+      />
       <AdminThemeProvider>
         <SessionKeepAlive />
         <AdminShell email={user!.email} role={role}>

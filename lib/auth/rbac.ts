@@ -16,6 +16,12 @@ export function isAdmin(user: Pick<AccessClaims, "roles"> | null): boolean {
   return hasAnyRole(user, ADMIN_ROLES);
 }
 
+export function isSuperAdmin(
+  user: Pick<AccessClaims, "roles"> | null,
+): boolean {
+  return hasAnyRole(user, ["super_admin"]);
+}
+
 export function isSeller(user: Pick<AccessClaims, "roles"> | null): boolean {
   return hasAnyRole(user, SELLER_ROLES);
 }
