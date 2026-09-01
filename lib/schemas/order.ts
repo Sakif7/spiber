@@ -27,6 +27,21 @@ export const paymentProviderEnum = z.enum([
 ]);
 export type PaymentProviderName = z.infer<typeof paymentProviderEnum>;
 
+/**
+ * HOW the order is paid — the commercial arrangement, distinct from
+ * `paymentProviderEnum` (which is the gateway seam).
+ *
+ *  - offline: legacy/Spiber Kart. Paid by arrangement; admin marks paid.
+ *  - cod:     cash on delivery. Ships unpaid, money arrives at the door.
+ *  - credit:  enlisted client billed on account (Net N); ships unpaid, invoice
+ *             falls due later.
+ *
+ * Legacy orders have no `method` at all, so every read path uses
+ * `payment.method ?? "offline"` (`.lean()` does not apply Mongoose defaults).
+ */
+export const paymentMethodEnum = z.enum(["offline", "cod", "credit"]);
+export type PaymentMethod = z.infer<typeof paymentMethodEnum>;
+
 export const addressSchema = z.object({
   label: z.string().max(60).optional(),
   line1: z.string().min(1).max(200),
@@ -48,6 +63,19 @@ export const checkoutSchema = z.object({
   couponCode: z.string().trim().max(64).optional(),
   note: z.string().max(2000).optional(),
   idempotencyKey: z.string().min(8).max(128),
+  /**
+   * Which of the caller's OWN carts to check out (defaults to marketplace at
+   * the route). Safe from the client: it only selects between carts they
+   * already own, and every price, tax rate and eligibility check is derived
+   * server-side from this value.
+   */
+  storefront: z.enum(["instruments", "marketplace"]).optional(),
+  /**
+   * Medtrade only. Ignored on Spiber Kart (always "offline"). "credit" is
+   * re-checked against an ACTIVE CreditAccount server-side before any stock
+   * moves — a client can't grant itself terms.
+   */
+  paymentMethod: z.enum(["cod", "credit"]).optional(),
 });
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 
@@ -81,3 +109,26 @@ export const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   cancelled: [],
   refunded: [],
 };
+
+/**
+ * Transitions allowed for THIS order, given how it is paid.
+ *
+ * The base table assumes payment precedes fulfilment, which is true for
+ * prepaid/offline orders but wrong for the two Medtrade methods: a COD order is
+ * paid at the door and a credit order is paid weeks after delivery. Both must
+ * therefore be able to move `pending → processing` while still unpaid.
+ *
+ * Payment itself is recorded separately (`recordOrderPayment`), which never
+ * changes `status` — that is what lets a credit order reach "delivered" unpaid
+ * and be settled afterwards.
+ */
+export function allowedOrderTransitions(
+  status: OrderStatus,
+  method: PaymentMethod = "offline",
+): OrderStatus[] {
+  const base = ORDER_TRANSITIONS[status];
+  const shipsBeforePayment = method === "cod" || method === "credit";
+  return status === "pending" && shipsBeforePayment
+    ? [...base, "processing"]
+    : base;
+}

@@ -1877,7 +1877,16 @@
       "paymentNote": "お支払いはオフラインで手配します（銀行振込／代金引換）。ご注文はメールで確認いたします。",
       "error": "ご注文を確定できませんでした。もう一度お試しください。",
       "outOfStock": "一部の商品が在庫切れになりました。",
-      "returnsPolicy": "返品・返金ポリシー"
+      "returnsPolicy": "返品・返金ポリシー",
+      "paymentMethod": "お支払い方法",
+      "cod": "代金引換",
+      "codNote": "商品のお届け時に現金でお支払いください。",
+      "credit": "クレジット口座",
+      "creditNote": "承認済みのクレジット口座に請求され、{days}日以内にお支払いいただきます。",
+      "creditUnavailable": "掛売でのご購入は、登録済みの病院・クリニック様がご利用いただけます。",
+      "applyCredit": "クレジット口座を申し込む",
+      "vat": "VAT（付加価値税）",
+      "creditNotAvailable": "クレジット口座が有効ではありません。代金引換をお選びいただくか、お問い合わせください。"
     },
     "confirmation": {
       "title": "ご注文を承りました",
@@ -1900,7 +1909,10 @@
       "noteRefunded": "このご注文は返金処理されました。",
       "tracking": "追跡番号",
       "needHelp": "このご注文についてお困りですか？こちらをご覧ください：",
-      "policyLink": "返品・返金ポリシー"
+      "policyLink": "返品・返金ポリシー",
+      "paymentMethod": "お支払い方法",
+      "dueDate": "お支払い期限",
+      "vat": "VAT（付加価値税）"
     },
     "common": {
       "from": "～から",

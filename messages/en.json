@@ -1877,7 +1877,16 @@
       "paymentNote": "Payment is arranged offline (bank transfer / cash on delivery). We'll confirm your order by email.",
       "error": "We couldn't place your order. Please try again.",
       "outOfStock": "Some items are no longer in stock.",
-      "returnsPolicy": "Returns & refund policy"
+      "returnsPolicy": "Returns & refund policy",
+      "paymentMethod": "Payment method",
+      "cod": "Cash on delivery",
+      "codNote": "Pay in cash when your order is delivered.",
+      "credit": "Credit account",
+      "creditNote": "Billed to your approved credit account, payable within {days} days.",
+      "creditUnavailable": "Buying on credit is available to enlisted hospitals and clinics.",
+      "applyCredit": "Apply for a credit account",
+      "vat": "VAT",
+      "creditNotAvailable": "Your credit account is not active. Choose cash on delivery, or contact us."
     },
     "confirmation": {
       "title": "Order confirmed",
@@ -1900,7 +1909,10 @@
       "noteRefunded": "This order has been refunded.",
       "tracking": "Tracking",
       "needHelp": "Need help with this order? See our",
-      "policyLink": "returns & refund policy"
+      "policyLink": "returns & refund policy",
+      "paymentMethod": "Payment method",
+      "dueDate": "Payment due",
+      "vat": "VAT"
     },
     "common": {
       "from": "From",

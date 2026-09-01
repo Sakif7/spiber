@@ -36,7 +36,13 @@ export async function GET(req: Request) {
       subtotalMinor: order.subtotalMinor,
       shippingMinor: order.shippingMinor,
       discountMinor: order.discountMinor,
+      taxMinor: order.taxMinor ?? 0,
+      taxRateBp: order.taxRateBp ?? null,
       totalMinor: order.totalMinor,
+      // How it's paid + when it falls due (credit). No provider/txn internals.
+      paymentMethod: order.payment?.method ?? "offline",
+      paymentStatus: order.payment?.status ?? "unpaid",
+      dueAt: order.payment?.dueAt ?? null,
       trackingNumber: order.trackingNumber ?? null,
       createdAt: order.createdAt,
       items: order.items.map((i) => ({

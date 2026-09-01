@@ -8,12 +8,19 @@ import { Input } from "@/components/ui/input";
 import { CtaButton } from "@/components/ui/cta-button";
 import { formatBDT } from "@/lib/money";
 import { localize } from "@/lib/schemas/localized";
+import { bcp47 } from "@/lib/i18n/intl-locale";
 import type { Locale } from "@/i18n/routing";
 
 type LookedUpOrder = {
   orderNumber: string;
   status: string;
   totalMinor: number;
+  taxMinor?: number;
+  taxRateBp?: number | null;
+  /** offline | cod | credit — legacy orders report "offline". */
+  paymentMethod?: string;
+  /** Credit orders only: when the invoice falls due. */
+  dueAt?: string | null;
   email: string;
   trackingNumber?: string | null;
   items: {
@@ -43,6 +50,8 @@ export function OrderLookup({
   initialEmail?: string;
 }) {
   const t = useTranslations("shop.confirmation");
+  // Payment-method labels live in the checkout namespace (single source).
+  const tc = useTranslations("shop.checkout");
   const locale = useLocale() as Locale;
   const [orderNumber, setOrderNumber] = useState(initialOrderNumber ?? "");
   const [email, setEmail] = useState(initialEmail ?? "");
@@ -105,6 +114,36 @@ export function OrderLookup({
               <dd style={{ margin: 0, fontFamily: "var(--font-mono)" }}>
                 {order.trackingNumber}
               </dd>
+            </>
+          )}
+          {order.paymentMethod && order.paymentMethod !== "offline" && (
+            <>
+              <dt style={{ color: "var(--color-text-muted)" }}>
+                {t("paymentMethod")}
+              </dt>
+              <dd style={{ margin: 0 }}>
+                {order.paymentMethod === "cod" ? tc("cod") : tc("credit")}
+              </dd>
+            </>
+          )}
+          {order.dueAt && (
+            <>
+              <dt style={{ color: "var(--color-text-muted)" }}>
+                {t("dueDate")}
+              </dt>
+              <dd style={{ margin: 0 }}>
+                {new Date(order.dueAt).toLocaleDateString(bcp47(locale))}
+              </dd>
+            </>
+          )}
+          {!!order.taxMinor && order.taxMinor > 0 && (
+            <>
+              <dt style={{ color: "var(--color-text-muted)" }}>
+                {order.taxRateBp
+                  ? `${t("vat")} (${order.taxRateBp / 100}%)`
+                  : t("vat")}
+              </dt>
+              <dd style={{ margin: 0 }}>{formatBDT(order.taxMinor, locale)}</dd>
             </>
           )}
           <dt style={{ color: "var(--color-text-muted)" }}>{t("total")}</dt>

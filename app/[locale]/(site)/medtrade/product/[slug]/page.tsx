@@ -9,6 +9,7 @@ import { RecentlyViewed } from "@/components/ui/recently-viewed";
 import { Link } from "@/i18n/navigation";
 import { ProductGallery } from "@/components/shop/product-gallery";
 import { AddToQuoteBox } from "@/components/shop/add-to-quote-box";
+import { MedtradeBuyBox } from "@/components/shop/medtrade-buy-box";
 import { PriceTag } from "@/components/shop/price-tag";
 import { WishlistButton } from "@/components/shop/wishlist-button";
 import { ProductCard } from "@/components/shop/product-card";
@@ -250,7 +251,16 @@ export default async function ProductDetail({
               }}
             />
 
-            <AddToQuoteBox productId={productId} />
+            {/* Priced → buyable (cart/buy-now, plus a negotiate CTA into the
+                RFQ pipeline). Price-less → quotation-only, unchanged. */}
+            {product.priceMinor != null ? (
+              <MedtradeBuyBox
+                productId={productId}
+                stockQty={product.stockQty}
+              />
+            ) : (
+              <AddToQuoteBox productId={productId} />
+            )}
 
             <div
               style={{

@@ -25,7 +25,12 @@ import {
 import { makeId } from "@/lib/ids";
 import { applyMovement, InsufficientStockError } from "./inventory.service";
 import { priceCart, type PricingCoupon } from "./pricing.service";
-import { getShippingSettings } from "./shop-settings.service";
+import {
+  getShippingSettings,
+  getMedtradeCommerceSettings,
+  taxSettingsFor,
+} from "./shop-settings.service";
+import { getActiveCreditAccount } from "@/lib/repositories/credit-accounts.repo";
 import { validateCoupon } from "./coupon.service";
 import { notifyAdmins } from "./notification.service";
 import {
@@ -41,10 +46,11 @@ import {
 import { formatBDT } from "@/lib/money";
 import { logger } from "@/lib/log";
 import {
-  ORDER_TRANSITIONS,
+  allowedOrderTransitions,
   RETURN_WINDOW_DAYS,
   type CheckoutInput,
   type OrderStatus,
+  type PaymentMethod,
 } from "@/lib/schemas/order";
 import type { IOrder, IOrderItem } from "@/lib/models/order";
 
@@ -52,7 +58,14 @@ const genOrderNumber = (): string => makeId("SPM");
 
 export type PlaceOrderResult =
   | { ok: true; order: IOrder }
-  | { ok: false; code: "empty_cart" | "out_of_stock" | "product_unavailable" };
+  | {
+      ok: false;
+      code:
+        | "empty_cart"
+        | "out_of_stock"
+        | "product_unavailable"
+        | "credit_not_available";
+    };
 
 /**
  * Place an order from the owner's cart. Idempotent on `idempotencyKey`.
@@ -71,7 +84,22 @@ export async function placeOrder(
   const existing = await getOrderByIdempotencyKey(input.idempotencyKey);
   if (existing) return { ok: true, order: existing.toObject() };
 
-  const cart = await findCart(owner);
+  // How this order is paid. Spiber Kart is always "offline" — a smuggled
+  // paymentMethod in the body is ignored there.
+  const method: PaymentMethod =
+    storefront === "instruments" ? (input.paymentMethod ?? "cod") : "offline";
+
+  // Credit is DB-authoritative and checked BEFORE any stock moves, so a
+  // rejected credit order leaves no compensation to unwind.
+  let creditTermsDays: number | null = null;
+  if (method === "credit") {
+    if (!userId) return { ok: false, code: "credit_not_available" };
+    const account = await getActiveCreditAccount(userId);
+    if (!account) return { ok: false, code: "credit_not_available" };
+    creditTermsDays = account.termsDays;
+  }
+
+  const cart = await findCart(owner, storefront);
   if (!cart || cart.items.length === 0)
     return { ok: false, code: "empty_cart" };
 
@@ -148,10 +176,15 @@ export async function placeOrder(
     }
   }
   const shipping = await getShippingSettings();
+  // VAT applies to Medtrade only; Spiber Kart passes null and stays tax-free.
+  const commerce =
+    storefront === "instruments" ? await getMedtradeCommerceSettings() : null;
+  const tax = taxSettingsFor(commerce);
   let totals = priceCart(
     lines.map((l) => ({ priceMinor: l.priceMinor, qty: l.qty })),
     pricingCoupon,
     shipping,
+    tax,
   );
 
   // Pre-generate the order id so stock movements can reference it.
@@ -200,10 +233,13 @@ export async function placeOrder(
       pricingCoupon = null;
       couponId = undefined;
       couponCode = undefined;
+      // Re-price WITH the same tax settings — dropping them here would
+      // silently zero the VAT on a coupon race.
       totals = priceCart(
         lines.map((l) => ({ priceMinor: l.priceMinor, qty: l.qty })),
         null,
         shipping,
+        tax,
       );
     }
   }
@@ -240,11 +276,24 @@ export async function placeOrder(
         subtotalMinor: totals.subtotalMinor,
         shippingMinor: totals.shippingMinor,
         taxMinor: totals.taxMinor,
+        taxRateBp: tax?.rateBp ?? null,
+        // Snapshotted for the invoice note; AIT is never charged.
+        aitRateBp:
+          commerce && commerce.aitRateBp > 0 ? commerce.aitRateBp : null,
         discountMinor: totals.discountMinor,
         totalMinor: totals.totalMinor,
         currency: "BDT",
         status: "pending",
-        payment: { provider: getPaymentProvider().name, status: "unpaid" },
+        payment: {
+          provider: getPaymentProvider().name,
+          status: "unpaid",
+          method,
+          termsDays: creditTermsDays,
+          dueAt:
+            creditTermsDays != null
+              ? new Date(now.getTime() + creditTermsDays * 86_400_000)
+              : null,
+        },
         shippingAddress: input.shippingAddress,
         couponCode,
         note: input.note,
@@ -271,7 +320,8 @@ export async function placeOrder(
   if (!createdOrder) throw new Error("order creation failed after retries");
   const order = createdOrder;
 
-  await deleteCart(owner).catch(() => {});
+  // Scoped: checking out Medtrade must not empty the shopper's Kart cart.
+  await deleteCart(owner, storefront).catch(() => {});
   await sendOrderEmail(order, "placed").catch((e) =>
     logger.warn("order confirmation email failed", e),
   );
@@ -330,7 +380,10 @@ export async function transitionOrder(
 ): Promise<TransitionResult> {
   const order = await getOrderById(orderId);
   if (!order) return { ok: false, code: "not_found" };
-  if (!ORDER_TRANSITIONS[order.status].includes(to)) {
+  // Method-aware: COD and credit orders ship BEFORE they are paid, so they may
+  // go pending → processing. Offline/Kart orders keep the original table.
+  const method = order.payment.method ?? "offline";
+  if (!allowedOrderTransitions(order.status, method).includes(to)) {
     return { ok: false, code: "invalid_transition" };
   }
 
@@ -451,9 +504,24 @@ async function sendOrderEmail(
     cancelled: "Your order has been cancelled",
     refunded: "Your refund is on its way",
   };
+  // How this order is paid changes what "placed" should promise. Legacy orders
+  // have no method and keep the original offline wording.
+  const method = order.payment.method ?? "offline";
+  const placedIntro =
+    method === "cod"
+      ? "We've received your order. Pay in cash when it's delivered — here's a summary for your records."
+      : method === "credit"
+        ? `We've received your order and billed it to your credit account${
+            order.payment.termsDays ? ` (Net ${order.payment.termsDays})` : ""
+          }${
+            order.payment.dueAt
+              ? `, due ${order.payment.dueAt.toISOString().slice(0, 10)}`
+              : ""
+          }. Here's a summary for your records.`
+        : "We've received your order and will confirm your offline payment shortly. Here's a summary for your records.";
+
   const introMap: Record<typeof event, string> = {
-    placed:
-      "We've received your order and will confirm your offline payment shortly. Here's a summary for your records.",
+    placed: placedIntro,
     paid: "Your payment has been confirmed — we're now preparing your order for shipment.",
     shipped: "Good news — your order is on its way.",
     delivered:
@@ -472,11 +540,23 @@ async function sendOrderEmail(
   if (event === "shipped" && order.trackingNumber) {
     rows.push({ label: "Tracking", value: order.trackingNumber });
   }
+  if (order.taxMinor > 0) {
+    rows.push({
+      label: order.taxRateBp ? `VAT (${order.taxRateBp / 100}%)` : "VAT",
+      value: formatBDT(order.taxMinor),
+    });
+  }
   rows.push({
     label: "Total",
     value: formatBDT(order.totalMinor),
     strong: true,
   });
+  if (method === "credit" && order.payment.dueAt) {
+    rows.push({
+      label: "Payment due",
+      value: order.payment.dueAt.toISOString().slice(0, 10),
+    });
+  }
 
   const { html, text, attachments } = renderEmail({
     accent: "teal",

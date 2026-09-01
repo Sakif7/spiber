@@ -36,19 +36,37 @@ type Totals = {
 
 export function CheckoutForm({
   initial,
+  storefront = "marketplace",
+  basePath = "/kart",
+  creditEligible = false,
+  creditTermsDays = 30,
+  creditApplyHref,
 }: {
   /** Prefill (logged-in users: profile name/phone + default address). */
   initial?: Partial<FormValues>;
+  /** Which cart is being checked out; also selects the tax rules. */
+  storefront?: "instruments" | "marketplace";
+  /** Keeps every link inside the storefront the shopper is in. */
+  basePath?: string;
+  /** Medtrade: the signed-in user has an ACTIVE credit account. */
+  creditEligible?: boolean;
+  creditTermsDays?: number;
+  /** Where a non-enlisted shopper can apply (omit to hide the prompt). */
+  creditApplyHref?: string;
 }) {
   const t = useTranslations("shop.checkout");
   const locale = useLocale() as Locale;
   const router = useRouter();
   const qc = useQueryClient();
+  const isMedtrade = storefront === "instruments";
 
   const [idempotencyKey] = useState(() => crypto.randomUUID());
   const [coupon, setCoupon] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // Medtrade only. COD is the default; credit needs an approved account, and
+  // the server re-checks it regardless of what the client sends.
+  const [paymentMethod, setPaymentMethod] = useState<"cod" | "credit">("cod");
 
   const {
     register,
@@ -61,16 +79,23 @@ export function CheckoutForm({
 
   // Server-priced summary; refetches automatically when the applied coupon changes.
   const quoteQuery = useQuery({
-    queryKey: ["checkout-quote", appliedCoupon],
+    queryKey: ["checkout-quote", storefront, appliedCoupon],
     queryFn: async () => {
       const res = await fetch("/api/checkout/quote", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ couponCode: appliedCoupon ?? undefined }),
+        body: JSON.stringify({
+          couponCode: appliedCoupon ?? undefined,
+          storefront,
+        }),
       });
       const json = await res.json();
       return json.ok
-        ? (json.data as { totals: Totals; couponValid?: boolean })
+        ? (json.data as {
+            totals: Totals;
+            couponValid?: boolean;
+            taxRateBp?: number;
+          })
         : null;
     },
   });
@@ -101,22 +126,46 @@ export function CheckoutForm({
           couponStatus === "applied" ? (appliedCoupon ?? undefined) : undefined,
         note: values.note,
         idempotencyKey,
+        storefront,
+        paymentMethod: isMedtrade ? paymentMethod : undefined,
       }),
     });
     const json = await res.json();
     if (res.ok && json.ok) {
-      qc.setQueryData(["cart"], { items: [], subtotalMinor: 0, count: 0 });
+      qc.setQueryData(["cart", storefront], {
+        items: [],
+        subtotalMinor: 0,
+        count: 0,
+      });
       router.push(
-        `/kart/order/${json.data.orderNumber}?email=${encodeURIComponent(json.data.email)}`,
+        `${basePath}/order/${json.data.orderNumber}?email=${encodeURIComponent(json.data.email)}`,
       );
       return;
     }
+    const code = json?.error?.code;
     setSubmitError(
-      json?.error?.code === "out_of_stock" ? t("outOfStock") : t("error"),
+      code === "out_of_stock"
+        ? t("outOfStock")
+        : code === "credit_not_available"
+          ? t("creditNotAvailable")
+          : t("error"),
     );
   }
 
   const field = { display: "grid", gap: 6 } as const;
+  const payOption: React.CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "auto 1fr",
+    gap: 10,
+    alignItems: "start",
+    cursor: "pointer",
+  };
+  const payHint: React.CSSProperties = {
+    display: "block",
+    fontSize: "var(--fs-caption)",
+    color: "var(--color-text-muted)",
+    marginTop: 2,
+  };
   const row = {
     display: "grid",
     gap: "var(--s-4)",
@@ -205,6 +254,80 @@ export function CheckoutForm({
           <Label htmlFor="note">{t("note")}</Label>
           <Input id="note" {...register("note")} />
         </div>
+
+        {/* Medtrade only. Kart stays on the implicit offline arrangement. */}
+        {isMedtrade && (
+          <fieldset
+            style={{
+              display: "grid",
+              gap: 10,
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--r-lg)",
+              padding: "var(--s-4)",
+              margin: 0,
+            }}
+          >
+            <legend
+              style={{
+                fontWeight: 600,
+                padding: "0 6px",
+                color: "var(--color-text-strong)",
+              }}
+            >
+              {t("paymentMethod")}
+            </legend>
+
+            <label style={payOption}>
+              <input
+                type="radio"
+                name="paymentMethod"
+                value="cod"
+                checked={paymentMethod === "cod"}
+                onChange={() => setPaymentMethod("cod")}
+              />
+              <span>
+                <strong>{t("cod")}</strong>
+                <span style={payHint}>{t("codNote")}</span>
+              </span>
+            </label>
+
+            {creditEligible ? (
+              <label style={payOption}>
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="credit"
+                  checked={paymentMethod === "credit"}
+                  onChange={() => setPaymentMethod("credit")}
+                />
+                <span>
+                  <strong>{t("credit")}</strong>
+                  <span style={payHint}>
+                    {t("creditNote", { days: creditTermsDays })}
+                  </span>
+                </span>
+              </label>
+            ) : (
+              <p style={{ ...payHint, margin: 0 }}>
+                {t("creditUnavailable")}
+                {creditApplyHref ? (
+                  <>
+                    {" "}
+                    <Link
+                      href={creditApplyHref}
+                      style={{
+                        color: "var(--color-brand-deep)",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {t("applyCredit")}
+                    </Link>
+                  </>
+                ) : null}
+              </p>
+            )}
+          </fieldset>
+        )}
       </div>
 
       <aside
@@ -287,6 +410,16 @@ export function CheckoutForm({
                   : formatBDT(totals.shippingMinor, locale)
               }
             />
+            {totals.taxMinor > 0 && (
+              <Row
+                label={
+                  quoteQuery.data?.taxRateBp
+                    ? `${t("vat")} (${quoteQuery.data.taxRateBp / 100}%)`
+                    : t("vat")
+                }
+                value={formatBDT(totals.taxMinor, locale)}
+              />
+            )}
             <div
               style={{
                 borderTop: "1px solid var(--color-hairline)",
@@ -308,7 +441,11 @@ export function CheckoutForm({
             color: "var(--color-text-muted)",
           }}
         >
-          {t("paymentNote")}{" "}
+          {isMedtrade
+            ? paymentMethod === "credit"
+              ? t("creditNote", { days: creditTermsDays })
+              : t("codNote")
+            : t("paymentNote")}{" "}
           <Link
             href="/kart/returns"
             style={{ color: "var(--color-brand-deep)", fontWeight: 600 }}
@@ -327,7 +464,7 @@ export function CheckoutForm({
           {isSubmitting ? t("placing") : t("placeOrder")}
         </CtaButton>
         <Link
-          href="/kart/cart"
+          href={`${basePath}/cart`}
           style={{
             textAlign: "center",
             fontSize: "var(--fs-small)",

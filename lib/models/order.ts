@@ -4,6 +4,7 @@ import type {
   OrderStatus,
   PaymentStatus,
   PaymentProviderName,
+  PaymentMethod,
   Address,
 } from "@/lib/schemas/order";
 
@@ -32,6 +33,16 @@ export interface IPaymentRef {
   raw?: unknown;
   paidAt?: Date | null;
   refundedAt?: Date | null;
+  /**
+   * Commercial arrangement (offline | cod | credit). Legacy orders predate the
+   * field, so ALWAYS read it as `payment.method ?? "offline"` — `.lean()`
+   * reads do not apply Mongoose defaults.
+   */
+  method?: PaymentMethod;
+  /** Credit only: agreed net terms, snapshotted from the account. */
+  termsDays?: number | null;
+  /** Credit only: when the invoice falls due (placedAt + termsDays). */
+  dueAt?: Date | null;
 }
 
 export interface ITimelineEntry {
@@ -58,6 +69,10 @@ export interface IOrder {
   subtotalMinor: number;
   shippingMinor: number;
   taxMinor: number;
+  /** VAT rate actually applied, in basis points (null = no VAT charged). */
+  taxRateBp?: number | null;
+  /** AIT rate to DISPLAY on the invoice, in basis points. Never charged. */
+  aitRateBp?: number | null;
   discountMinor: number;
   totalMinor: number;
   currency: "BDT";
@@ -134,6 +149,10 @@ const orderSchema = new Schema<IOrder>(
     subtotalMinor: { type: Number, required: true },
     shippingMinor: { type: Number, default: 0 },
     taxMinor: { type: Number, default: 0 },
+    // Snapshotted at placement so an invoice always reprints the rates that
+    // were in force, even after an admin changes the settings.
+    taxRateBp: { type: Number, default: null },
+    aitRateBp: { type: Number, default: null },
     discountMinor: { type: Number, default: 0 },
     totalMinor: { type: Number, required: true },
     currency: { type: String, default: "BDT" },
@@ -166,6 +185,13 @@ const orderSchema = new Schema<IOrder>(
       raw: Schema.Types.Mixed,
       paidAt: { type: Date, default: null },
       refundedAt: { type: Date, default: null },
+      method: {
+        type: String,
+        enum: ["offline", "cod", "credit"],
+        default: "offline",
+      },
+      termsDays: { type: Number, default: null },
+      dueAt: { type: Date, default: null },
     },
     shippingAddress: { type: addressSchema, required: true },
     couponCode: String,

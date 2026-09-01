@@ -16,7 +16,10 @@ export async function POST(req: Request) {
   }
   const owner = await resolveCartOwner();
   const user = await getSessionUser();
-  const result = await placeOrder(parsed.data, owner, user?.sub, "marketplace");
+  // The body only selects which of the caller's own carts to check out; every
+  // price, tax rate and credit check is derived server-side from it.
+  const storefront = parsed.data.storefront ?? "marketplace";
+  const result = await placeOrder(parsed.data, owner, user?.sub, storefront);
   if (!result.ok) return fail({ code: result.code }, 409);
   return ok({
     orderNumber: result.order.orderNumber,
