@@ -20,6 +20,7 @@ export type ProductFormInitial = {
   categoryId?: string;
   brandId?: string;
   priceMinor?: number;
+  floorPriceMinor?: number | null;
   lowStockThreshold?: number;
   status?: "draft" | "active" | "archived";
   specs?: SpecRow[];
@@ -58,6 +59,11 @@ export function ProductForm({
   const [price, setPrice] = useState(
     initial?.priceMinor != null ? String(fromMinor(initial.priceMinor)) : "",
   );
+  const [floorPrice, setFloorPrice] = useState(
+    initial?.floorPriceMinor != null
+      ? String(fromMinor(initial.floorPriceMinor))
+      : "",
+  );
   const [lowStock, setLowStock] = useState(
     String(initial?.lowStockThreshold ?? 5),
   );
@@ -83,6 +89,11 @@ export function ProductForm({
       brandId: brandId || undefined,
       // Optional — blank means "Price on request".
       priceMinor: price.trim() ? toMinor(Number(price) || 0) : null,
+      // Optional negotiation floor. Blank clears it (null), so Medtrade falls
+      // back to a single price instead of a range.
+      floorPriceMinor: floorPrice.trim()
+        ? toMinor(Number(floorPrice) || 0)
+        : null,
       lowStockThreshold: Number(lowStock) || 0,
       status,
       specs: specs.filter((s) => s.key.en && s.value.en),
@@ -117,6 +128,11 @@ export function ProductForm({
     gridTemplateColumns: "1fr 1fr 1fr",
     gap: "var(--s-4)",
   } as const;
+  const hint: React.CSSProperties = {
+    fontSize: "var(--fs-xs)",
+    color: "var(--color-text-muted)",
+    lineHeight: 1.45,
+  };
   const sel: React.CSSProperties = {
     height: 40,
     padding: "0 10px",
@@ -222,7 +238,26 @@ export function ProductForm({
             placeholder="Leave blank for “Price on request”"
             onChange={(e) => setPrice(e.target.value)}
           />
+          <p style={hint}>
+            Set a price to make this product buyable on Medtrade. Leave blank to
+            keep it quotation-only.
+          </p>
         </div>
+        <div style={field}>
+          <Label>Floor price (BDT, optional)</Label>
+          <Input
+            type="number"
+            value={floorPrice}
+            placeholder="Lowest negotiable price"
+            onChange={(e) => setFloorPrice(e.target.value)}
+          />
+          <p style={hint}>
+            Medtrade shows ৳floor – ৳price as a negotiable range. Checkout
+            always bills the list price; the floor guides quotations.
+          </p>
+        </div>
+      </div>
+      <div style={row}>
         <div style={field}>
           <Label>Low-stock threshold</Label>
           <Input
@@ -231,6 +266,7 @@ export function ProductForm({
             onChange={(e) => setLowStock(e.target.value)}
           />
         </div>
+        <div style={field} />
       </div>
       <div style={field}>
         <Label>Status</Label>

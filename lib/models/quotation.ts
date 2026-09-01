@@ -11,6 +11,10 @@ export interface IQuotationItem {
     slug: string;
     image?: string;
     variantOptions?: { name: string; value: string }[];
+    /** List price at request time — admin negotiation reference, not a charge. */
+    priceMinor?: number | null;
+    /** Lowest price the admin may quote (see Product.floorPriceMinor). */
+    floorPriceMinor?: number | null;
   };
   quantity: number;
 }
@@ -69,6 +73,10 @@ const quotationItemSchema = new Schema<IQuotationItem>(
         ],
         default: [],
       },
+      // Pricing reference captured at request time so the admin can see how far
+      // they may discount. Legacy quotations simply have neither.
+      priceMinor: { type: Number, default: null },
+      floorPriceMinor: { type: Number, default: null },
     },
     quantity: { type: Number, required: true, min: 1 },
   },

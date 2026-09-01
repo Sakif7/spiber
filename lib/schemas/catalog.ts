@@ -133,6 +133,11 @@ export const productSchema = z.object({
   // Optional "was"/RRP price. When set above `priceMinor`, storefronts show a
   // strikethrough + "Sale" badge (the saving = compareAt − price).
   compareAtMinor: z.number().int().nonnegative().nullable().optional(),
+  // Optional negotiation floor (Medtrade). When set below `priceMinor` the
+  // storefront shows "৳floor – ৳list" as a negotiable range and the RFQ pipeline
+  // tells admins how far they may discount. Never charged automatically —
+  // checkout always bills the list price.
+  floorPriceMinor: z.number().int().nonnegative().nullable().optional(),
   stockQty: z.number().int().default(0),
   lowStockThreshold: z.number().int().nonnegative().default(5),
   status: productStatusEnum.default("draft"),
@@ -152,10 +157,30 @@ export function refineProduct(
   p: {
     storefront?: Storefront;
     priceMinor?: number | null;
+    floorPriceMinor?: number | null;
     variants?: { priceMinorOverride?: number | null }[];
   },
   ctx: z.RefinementCtx,
 ): void {
+  // Floor-price rules apply to EVERY storefront, so they sit ABOVE the
+  // marketplace-only early-out below (the floor is a Medtrade feature, and
+  // instruments would otherwise skip validation entirely).
+  if (p.floorPriceMinor != null) {
+    if (p.priceMinor == null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["floorPriceMinor"],
+        message: "a floor price requires a list price",
+      });
+    } else if (p.floorPriceMinor > p.priceMinor) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["floorPriceMinor"],
+        message: "floor price must not exceed the list price",
+      });
+    }
+  }
+
   if (p.storefront !== "marketplace") return; // instruments: price optional
   const variants = p.variants ?? [];
   if (variants.length === 0) {

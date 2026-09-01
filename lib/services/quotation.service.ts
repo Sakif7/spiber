@@ -60,6 +60,8 @@ async function buildItems(
         slug: p.slug,
         image: variant?.image ?? p.images[0],
         variantOptions: variant?.options ?? [],
+        priceMinor: variant?.priceMinorOverride ?? p.priceMinor ?? null,
+        floorPriceMinor: p.floorPriceMinor ?? null,
       },
       quantity: it.quantity,
     });

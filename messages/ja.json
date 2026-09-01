@@ -2167,7 +2167,12 @@
       "negotiating": "交渉中",
       "won": "成約",
       "lost": "失注"
-    }
+    },
+    "negotiableNote": "この範囲内で価格交渉が可能です。数量・契約価格についてはお見積りをご依頼ください。",
+    "negotiatePrice": "価格を交渉する",
+    "medtradeDeliveryNote": "ご注文確定後、24〜36時間以内に配送いたします。",
+    "listPrice": "定価",
+    "floorPrice": "下限価格"
   },
   "marketplace": {
     "home": {

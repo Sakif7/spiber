@@ -186,14 +186,25 @@ export function ProductCard({
       }
       footerLeft={
         isInstruments ? (
+          // Priced Medtrade products show a price (a negotiable range when a
+          // floor is set); price-less ones stay "Price on request".
           <span
             style={{
-              fontSize: "var(--fs-caption)",
-              color: "var(--color-text-muted)",
-              fontWeight: 600,
+              fontSize: price == null ? "var(--fs-caption)" : "var(--fs-h5)",
+              color:
+                price == null
+                  ? "var(--color-text-muted)"
+                  : "var(--color-brand-deep)",
+              fontWeight: price == null ? 600 : 700,
             }}
           >
-            {tq("priceOnRequest")}
+            <PriceTag
+              minor={price}
+              floorMinor={product.floorPriceMinor}
+              locale={locale}
+              prefix={from ? tc("from") : undefined}
+              fallback={tq("priceOnRequest")}
+            />
           </span>
         ) : (
           <span
@@ -230,7 +241,11 @@ export function ProductCard({
           </span>
         )
       }
-      action={isInstruments ? tq("requestQuotationShort") : tc("view")}
+      action={
+        isInstruments && price == null
+          ? tq("requestQuotationShort")
+          : tc("view")
+      }
     />
   );
 }

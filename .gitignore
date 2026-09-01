@@ -82,3 +82,4 @@ Thumbs.db
 /.claude/
 # Local dev server log (from manual restarts)
 .next-dev.log
+.patchtmp/

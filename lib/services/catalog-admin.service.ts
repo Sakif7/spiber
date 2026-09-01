@@ -56,6 +56,7 @@ export async function createCatalogProduct(
     ...input,
     slug: slugify(input.slug || input.name.en),
     priceMinor: input.priceMinor ?? null,
+    floorPriceMinor: input.floorPriceMinor ?? null,
     stockQty: 0,
     variants,
   };
@@ -118,6 +119,8 @@ export async function updateCatalogProduct(
     priceMinor: input.priceMinor ?? null,
     variants,
   };
+  // `floorPriceMinor` rides the spread above: sending `null` clears it, omitting
+  // the key preserves it (so the marketplace form can't wipe a Medtrade floor).
   // Base stockQty is managed via Inventory, never clobbered by the product form.
   delete (data as { stockQty?: number }).stockQty;
 

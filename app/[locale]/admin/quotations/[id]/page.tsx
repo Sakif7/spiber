@@ -114,6 +114,16 @@ export default async function AdminQuotationDetailPage({
                   >
                     {it.productSnapshot.sku}
                   </span>
+                  {/* Negotiation reference captured when the RFQ was raised:
+                      how far below list this item may be quoted. */}
+                  {it.productSnapshot.priceMinor != null && (
+                    <span style={{ ...muted, display: "block", marginTop: 2 }}>
+                      List {formatBDT(it.productSnapshot.priceMinor)}
+                      {it.productSnapshot.floorPriceMinor != null
+                        ? ` · Floor ${formatBDT(it.productSnapshot.floorPriceMinor)}`
+                        : ""}
+                    </span>
+                  )}
                 </span>
                 <strong>× {it.quantity}</strong>
               </div>

@@ -60,6 +60,8 @@ export interface IProduct {
   priceMinor: number | null;
   /** Optional "was"/RRP price; when > priceMinor the storefront shows a sale. */
   compareAtMinor?: number | null;
+  /** Optional negotiation floor; when < priceMinor Medtrade shows a range. */
+  floorPriceMinor?: number | null;
   stockQty: number;
   lowStockThreshold: number;
   status: ProductStatus;
@@ -148,6 +150,8 @@ const productSchema = new Schema<IProduct>(
     priceMinor: { type: Number, default: null, min: 0 },
     // Optional "was"/RRP price; when > priceMinor the storefront shows a sale.
     compareAtMinor: { type: Number, default: null, min: 0 },
+    // Optional negotiation floor; when < priceMinor Medtrade shows a range.
+    floorPriceMinor: { type: Number, default: null, min: 0 },
     stockQty: { type: Number, default: 0 },
     lowStockThreshold: { type: Number, default: 5, min: 0 },
     status: {

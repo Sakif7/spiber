@@ -160,15 +160,26 @@ export function ProductListRow({
         }}
       >
         {isInstruments ? (
+          // Priced Medtrade products show a price (a negotiable range when a
+          // floor is set); price-less ones stay "Price on request".
           <span
             style={{
-              fontSize: "var(--fs-body-sm)",
-              color: "var(--color-text-muted)",
-              fontWeight: 600,
+              fontSize: price == null ? "var(--fs-body-sm)" : "var(--fs-h4)",
+              color:
+                price == null
+                  ? "var(--color-text-muted)"
+                  : "var(--color-brand-deep)",
+              fontWeight: price == null ? 600 : 700,
               textAlign: "right",
             }}
           >
-            {tq("priceOnRequest")}
+            <PriceTag
+              minor={price}
+              floorMinor={product.floorPriceMinor}
+              locale={locale}
+              prefix={from ? tc("from") : undefined}
+              fallback={tq("priceOnRequest")}
+            />
           </span>
         ) : (
           <span
@@ -215,7 +226,9 @@ export function ProductListRow({
             whiteSpace: "nowrap",
           }}
         >
-          {isInstruments ? tq("requestQuotationShort") : tc("view")}
+          {isInstruments && price == null
+            ? tq("requestQuotationShort")
+            : tc("view")}
         </span>
       </div>
     </Link>

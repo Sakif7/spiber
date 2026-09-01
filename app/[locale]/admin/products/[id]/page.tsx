@@ -60,6 +60,7 @@ export default async function EditProductPage({
     categoryId: String(p.categoryId),
     brandId: p.brandId ? String(p.brandId) : undefined,
     priceMinor: p.priceMinor ?? undefined,
+    floorPriceMinor: p.floorPriceMinor ?? null,
     lowStockThreshold: p.lowStockThreshold,
     status: p.status,
     specs: (p.specs ?? []).map(

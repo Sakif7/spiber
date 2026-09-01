@@ -9,6 +9,7 @@ import { RecentlyViewed } from "@/components/ui/recently-viewed";
 import { Link } from "@/i18n/navigation";
 import { ProductGallery } from "@/components/shop/product-gallery";
 import { AddToQuoteBox } from "@/components/shop/add-to-quote-box";
+import { PriceTag } from "@/components/shop/price-tag";
 import { WishlistButton } from "@/components/shop/wishlist-button";
 import { ProductCard } from "@/components/shop/product-card";
 import { ShareButtons } from "@/components/blog/share-buttons";
@@ -205,6 +206,8 @@ export default async function ProductDetail({
               {name}
             </h1>
 
+            {/* Priced products are buyable (a range when a negotiation floor is
+                set); price-less ones stay quotation-only. */}
             <div
               style={{
                 display: "inline-flex",
@@ -216,7 +219,12 @@ export default async function ProductDetail({
                 fontWeight: 700,
               }}
             >
-              {tq("priceOnRequest")}
+              <PriceTag
+                minor={product.priceMinor}
+                floorMinor={product.floorPriceMinor}
+                locale={l}
+                fallback={tq("priceOnRequest")}
+              />
             </div>
             <p
               style={{
@@ -226,7 +234,12 @@ export default async function ProductDetail({
                 maxWidth: "46ch",
               }}
             >
-              {tq("priceOnRequestNote")}
+              {product.priceMinor == null
+                ? tq("priceOnRequestNote")
+                : product.floorPriceMinor != null &&
+                    product.floorPriceMinor < product.priceMinor
+                  ? tq("negotiableNote")
+                  : tq("medtradeDeliveryNote")}
             </p>
 
             <hr
