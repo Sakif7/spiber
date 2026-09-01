@@ -25,7 +25,8 @@
     "apply-brand-logos": "node scripts/apply-brand-logos.mjs",
     "prepare": "husky",
     "migrate-cart-storefront": "node scripts/migrate-cart-storefront.mjs",
-    "qa-medtrade": "node scripts/qa-medtrade-fixture.mjs"
+    "qa-medtrade": "node scripts/qa-medtrade-fixture.mjs",
+    "audit-medtrade": "node scripts/audit-medtrade-readiness.mjs"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,mjs,cjs}": [
