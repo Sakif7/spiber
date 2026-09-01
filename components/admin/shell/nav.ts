@@ -39,6 +39,8 @@ import {
   MessageSquareQuote,
   MessagesSquare,
   FolderLock,
+  CreditCard,
+  Landmark,
   type LucideIcon,
 } from "lucide-react";
 import { routing } from "@/i18n/routing";
@@ -59,11 +61,21 @@ export type AdminSection = "operations" | "company";
 export const OPERATIONS_NAV_GROUPS: NavGroup[] = [
   { items: [{ href: "/admin", label: "Dashboard", icon: LayoutDashboard }] },
   {
-    label: "Medtrade (Quotes)",
+    label: "Medtrade",
     items: [
       { href: "/admin/products", label: "Products", icon: Package },
       { href: "/admin/categories", label: "Categories", icon: FolderTree },
       { href: "/admin/quotations", label: "Quotations", icon: FileText },
+      {
+        href: "/admin/credit/applications",
+        label: "Credit Applications",
+        icon: CreditCard,
+      },
+      {
+        href: "/admin/credit/accounts",
+        label: "Credit Accounts",
+        icon: Landmark,
+      },
     ],
   },
   {

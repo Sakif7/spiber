@@ -56,6 +56,7 @@ export const publicRoutes = [
   "/kart/request-product",
   "/become-a-seller",
   "/medtrade",
+  "/medtrade/credit-facility",
   "/medacademy",
   "/digihealth",
   "/tourism",

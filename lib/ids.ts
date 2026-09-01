@@ -55,3 +55,5 @@ export const variantId = (): string => makeId("VAR", 6);
 export const chatConversationRef = (): string => makeId("SPM-CHAT");
 /** SPM-LEAD-… — a chatbot-captured lead reference. */
 export const chatLeadNumber = (): string => makeId("SPM-LEAD");
+/** SPM-CRD-… — a Medtrade credit-facility application reference. */
+export const creditApplicationNumber = (): string => makeId("SPM-CRD");

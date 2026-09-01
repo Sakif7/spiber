@@ -22,6 +22,7 @@ import { formatBDT } from "@/lib/money";
 import { getSessionUser } from "@/lib/auth/current-user";
 import { findUserById } from "@/lib/repositories/users.repo";
 import { listOrdersByUser } from "@/lib/repositories/orders.repo";
+import { getCreditAccountByUserId } from "@/lib/repositories/credit-accounts.repo";
 import { bcp47 } from "@/lib/i18n/intl-locale";
 
 export const dynamic = "force-dynamic";
@@ -100,6 +101,11 @@ export default async function AccountPage({
     recent = [];
   }
 
+  // Medtrade credit facility (null when they've never applied).
+  const creditAccount = await getCreditAccountByUserId(session!.sub).catch(
+    () => null,
+  );
+
   const dateFmt = new Intl.DateTimeFormat(bcp47(activeLocale), {
     month: "short",
     day: "numeric",
@@ -123,6 +129,36 @@ export default async function AccountPage({
             </div>
 
             <div style={{ display: "grid", gap: "var(--s-5)" }}>
+              {/* Medtrade credit facility — status, or a way in. */}
+              <div style={card}>
+                <h2 style={cardTitle}>Medtrade credit</h2>
+                {creditAccount && creditAccount.status === "active" ? (
+                  <p style={{ margin: 0, color: "var(--color-text-muted)" }}>
+                    Active — you can pay on terms (Net {creditAccount.termsDays}
+                    ) at Medtrade checkout.
+                  </p>
+                ) : creditAccount ? (
+                  <p style={{ margin: 0, color: "var(--color-text-muted)" }}>
+                    Your credit facility is on hold. Please contact us; cash on
+                    delivery is still available.
+                  </p>
+                ) : (
+                  <p style={{ margin: 0, color: "var(--color-text-muted)" }}>
+                    Buy equipment now and settle on agreed terms.{" "}
+                    <Link
+                      href="/medtrade/credit-facility"
+                      style={{
+                        color: "var(--color-brand-deep)",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Apply for a credit facility
+                    </Link>
+                    .
+                  </p>
+                )}
+              </div>
+
               <div style={card}>
                 <h2 style={cardTitle}>Your account</h2>
                 <div
