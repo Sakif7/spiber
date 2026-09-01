@@ -11,18 +11,43 @@ export function StatusFilterPills({
   basePath,
   param = "status",
   allValue = "all",
+  keep,
+  label,
 }: {
   statuses: readonly string[];
   active: string;
   basePath: string;
   param?: string;
   allValue?: string;
+  /**
+   * Other query params to carry across, so two pill rows on the same page
+   * (e.g. status + storefront) don't clear each other.
+   */
+  keep?: Record<string, string | undefined>;
+  /** Optional row caption, useful once a page has more than one filter. */
+  label?: string;
 }) {
+  const hrefFor = (value: string) => {
+    const qs = new URLSearchParams();
+    for (const [k, v] of Object.entries(keep ?? {})) {
+      if (v) qs.set(k, v);
+    }
+    if (value !== allValue) qs.set(param, value);
+    else qs.delete(param);
+    const s = qs.toString();
+    return s ? `${basePath}?${s}` : basePath;
+  };
+
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap items-center gap-2">
+      {label ? (
+        <span className="text-muted-foreground mr-1 text-xs font-medium">
+          {label}
+        </span>
+      ) : null}
       {statuses.map((s) => {
         const isActive = (active || allValue) === s;
-        const href = s === allValue ? basePath : `${basePath}?${param}=${s}`;
+        const href = hrefFor(s);
         return (
           <Link
             key={s}

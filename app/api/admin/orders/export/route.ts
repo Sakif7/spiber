@@ -13,15 +13,31 @@ export async function GET() {
 
   const { items } = await listOrders({ pageSize: 100 });
   const rows: string[][] = [
-    ["Order", "Date", "Email", "Status", "Payment", "Total (BDT)", "Items"],
+    [
+      "Order",
+      "Date",
+      "Store",
+      "Email",
+      "Status",
+      "Payment",
+      "Method",
+      "Due",
+      "VAT (BDT)",
+      "Total (BDT)",
+      "Items",
+    ],
   ];
   for (const o of items) {
     rows.push([
       o.orderNumber,
       new Date(o.createdAt).toISOString(),
+      o.storefront === "instruments" ? "Medtrade" : "Spiber Kart",
       o.email,
       o.status,
       o.payment.status,
+      o.payment.method ?? "offline",
+      o.payment.dueAt ? new Date(o.payment.dueAt).toISOString() : "",
+      String(fromMinor(o.taxMinor ?? 0)),
       String(fromMinor(o.totalMinor)),
       String(o.items.length),
     ]);

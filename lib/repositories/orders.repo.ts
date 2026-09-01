@@ -43,6 +43,8 @@ export async function listOrdersByUser(userId: string) {
 
 export type OrderListParams = {
   status?: OrderStatus;
+  /** Filter the admin list to one storefront (Medtrade vs Spiber Kart). */
+  storefront?: "instruments" | "marketplace";
   search?: string;
   page?: number;
   pageSize?: number;
@@ -52,6 +54,14 @@ export async function listOrders(params: OrderListParams) {
   await connectToDatabase();
   const q: Record<string, unknown> = {};
   if (params.status) q.status = params.status;
+  if (params.storefront) {
+    // `null` in `$in` also matches docs missing the field, so any order that
+    // predates the storefront column still counts as a marketplace order.
+    q.storefront =
+      params.storefront === "marketplace"
+        ? { $in: ["marketplace", null] }
+        : params.storefront;
+  }
   if (params.search) {
     q.$or = [
       { orderNumber: { $regex: params.search, $options: "i" } },

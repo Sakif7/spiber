@@ -5,6 +5,13 @@ import { Link } from "@/i18n/navigation";
 import { formatBDT } from "@/lib/money";
 import { OrderActions } from "@/components/admin/order-actions";
 
+/** How the order is paid, in plain words for the admin summary. */
+const PAYMENT_METHOD_LABEL: Record<string, string> = {
+  offline: "Offline (bank transfer / arranged)",
+  cod: "Cash on delivery",
+  credit: "Credit account",
+};
+
 export const dynamic = "force-dynamic";
 
 type PageProps = {
@@ -34,7 +41,11 @@ type PlainOrder = {
   subtotalMinor: number;
   shippingMinor: number;
   discountMinor: number;
+  taxMinor: number;
+  /** VAT rate actually charged, in basis points (null = none). */
+  taxRateBp?: number | null;
   totalMinor: number;
+  storefront?: "instruments" | "marketplace";
   items: PlainItem[];
   shippingAddress: {
     label?: string;
@@ -45,7 +56,15 @@ type PlainOrder = {
     postalCode?: string;
     phone: string;
   };
-  payment: { provider: string; status: string; paidAt?: string | Date };
+  payment: {
+    provider: string;
+    status: string;
+    paidAt?: string | Date;
+    /** offline | cod | credit — absent on legacy orders. */
+    method?: string;
+    termsDays?: number | null;
+    dueAt?: string | Date | null;
+  };
   trackingNumber?: string;
   refundRequest?: {
     reason: string;
@@ -209,6 +228,12 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
           >
             <Field label="Order number" value={o.orderNumber} />
             <Field label="Placed" value={fmtDate(o.createdAt)} />
+            <Field
+              label="Store"
+              value={
+                o.storefront === "instruments" ? "Medtrade" : "Spiber Kart"
+              }
+            />
             <Field label="Status" value={<StatusPill>{o.status}</StatusPill>} />
             <Field
               label="Payment"
@@ -219,6 +244,18 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
                 </span>
               }
             />
+            <Field
+              label="Method"
+              value={PAYMENT_METHOD_LABEL[o.payment?.method ?? "offline"]}
+            />
+            {o.payment?.dueAt ? (
+              <Field
+                label={`Payment due${
+                  o.payment.termsDays ? ` (Net ${o.payment.termsDays})` : ""
+                }`}
+                value={fmtDate(o.payment.dueAt)}
+              />
+            ) : null}
             {o.payment?.paidAt ? (
               <Field label="Paid at" value={fmtDate(o.payment.paidAt)} />
             ) : null}
@@ -326,6 +363,12 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
                   : formatBDT(0)
               }
             />
+            {o.taxMinor > 0 ? (
+              <TotalRow
+                label={o.taxRateBp ? `VAT (${o.taxRateBp / 100}%)` : "VAT"}
+                value={formatBDT(o.taxMinor)}
+              />
+            ) : null}
             <div
               style={{
                 display: "flex",
@@ -457,7 +500,12 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
         </section>
       </div>
 
-      <OrderActions orderId={String(o._id)} status={o.status} />
+      <OrderActions
+        orderId={String(o._id)}
+        status={o.status}
+        paymentMethod={o.payment?.method ?? "offline"}
+        paymentStatus={o.payment?.status ?? "unpaid"}
+      />
     </div>
   );
 }

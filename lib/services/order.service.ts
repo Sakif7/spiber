@@ -477,12 +477,20 @@ function itemEmailLabel(i: IOrderItem): string {
 
 async function sendOrderEmail(
   order: IOrder,
-  event: "placed" | "paid" | "shipped" | "delivered" | "cancelled" | "refunded",
+  event:
+    | "placed"
+    | "paid"
+    | "payment_recorded"
+    | "shipped"
+    | "delivered"
+    | "cancelled"
+    | "refunded",
 ) {
   const wasPaid = order.payment.status !== "unpaid";
   const subjectMap: Record<typeof event, string> = {
     placed: `Order ${order.orderNumber} received`,
     paid: `Payment confirmed for ${order.orderNumber}`,
+    payment_recorded: `Payment received for ${order.orderNumber}`,
     shipped: `Your order ${order.orderNumber} has shipped`,
     delivered: `Your order ${order.orderNumber} has been delivered`,
     cancelled: `Order ${order.orderNumber} has been cancelled`,
@@ -491,6 +499,7 @@ async function sendOrderEmail(
   const eyebrowMap: Record<typeof event, string> = {
     placed: "Order received",
     paid: "Payment confirmed",
+    payment_recorded: "Payment received",
     shipped: "On its way",
     delivered: "Delivered",
     cancelled: "Order cancelled",
@@ -499,6 +508,7 @@ async function sendOrderEmail(
   const headingMap: Record<typeof event, string> = {
     placed: "Thanks — your order is in",
     paid: "Your payment is confirmed",
+    payment_recorded: "Thanks — we've received your payment",
     shipped: "Your order has shipped",
     delivered: "Your order has arrived",
     cancelled: "Your order has been cancelled",
@@ -523,6 +533,10 @@ async function sendOrderEmail(
   const introMap: Record<typeof event, string> = {
     placed: placedIntro,
     paid: "Your payment has been confirmed — we're now preparing your order for shipment.",
+    payment_recorded:
+      method === "credit"
+        ? "We've recorded your payment against your credit account. This invoice is now settled."
+        : "We've recorded the payment for this order. Thank you.",
     shipped: "Good news — your order is on its way.",
     delivered:
       "Your order has been delivered. We hope everything arrived in perfect condition — if not, our returns policy has you covered.",
@@ -675,6 +689,61 @@ export async function cancelOwnOrder(
   });
   if (!result.ok) return { ok: false, code: "not_allowed" };
   return { ok: true, order: result.order };
+}
+
+export type RecordPaymentResult =
+  | { ok: true; order: IOrder }
+  | { ok: false; code: "not_found" | "not_recordable" };
+
+/**
+ * Record that a COD or credit order has been paid, WITHOUT moving its status.
+ *
+ * These two methods invert the usual order: the goods ship first and the money
+ * arrives later (at the door for COD, on terms for credit). The status machine
+ * therefore can't carry payment — a delivered order has nowhere left to go but
+ * "refunded". So payment is recorded here as its own fact: payment.status flips
+ * to "paid", a timeline entry appears at the CURRENT status, and fulfilment is
+ * untouched.
+ *
+ * Offline/Kart orders are deliberately excluded: they're paid via the normal
+ * pending → paid transition, and allowing both paths would let an admin mark
+ * one paid in two different ways.
+ */
+export async function recordOrderPayment(
+  orderId: string,
+  opts: { txnId?: string; note?: string } = {},
+): Promise<RecordPaymentResult> {
+  const order = await getOrderById(orderId);
+  if (!order) return { ok: false, code: "not_found" };
+
+  const method = order.payment.method ?? "offline";
+  const recordable =
+    (method === "cod" || method === "credit") &&
+    order.payment.status === "unpaid" &&
+    order.status !== "cancelled" &&
+    order.status !== "refunded";
+  if (!recordable) return { ok: false, code: "not_recordable" };
+
+  const now = new Date();
+  order.payment.status = "paid";
+  order.payment.paidAt = now;
+  if (opts.txnId) order.payment.txnId = opts.txnId;
+  order.timeline.push({
+    status: order.status, // unchanged — this is a payment fact, not a move
+    at: now,
+    note: opts.note ?? "Payment received",
+  });
+  await order.save();
+
+  await sendOrderEmail(order, "payment_recorded").catch((e) =>
+    logger.warn("payment recorded email failed", e),
+  );
+  // Idempotent (unique index on order+seller); a no-op for house products.
+  await accrueSellerCommissions(order.toObject(), String(order._id)).catch(
+    (e) => logger.warn("accrue seller commissions failed", e),
+  );
+
+  return { ok: true, order: order.toObject() };
 }
 
 /**
