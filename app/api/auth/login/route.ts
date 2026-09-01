@@ -4,6 +4,7 @@ import { loginInputSchema } from "@/lib/schemas/user";
 import { login } from "@/lib/services/auth.service";
 import { setAuthCookies } from "@/lib/auth/session";
 import { rateLimit, clientIp } from "@/lib/auth/rate-limit";
+import { mergeGuestSessionInto } from "@/lib/shop/merge-guest-session";
 
 export async function POST(req: Request) {
   if (!rateLimit(`login:${clientIp(req)}`, 10, 60_000).ok) {
@@ -21,5 +22,8 @@ export async function POST(req: Request) {
     );
   }
   await setAuthCookies(result.tokens.accessToken, result.tokens.refreshToken);
+  // Adopt whatever this person collected while browsing as a guest (carts +
+  // quote list). Best-effort — never blocks the sign-in.
+  await mergeGuestSessionInto(result.user.id);
   return ok({ user: result.user });
 }
