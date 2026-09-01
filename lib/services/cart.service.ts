@@ -13,6 +13,7 @@ import {
   type CartOwner,
 } from "@/lib/repositories/cart.repo";
 import { localize } from "@/lib/schemas/localized";
+import type { Storefront } from "@/lib/schemas/catalog";
 import type { Locale } from "@/i18n/routing";
 
 export type CartLineView = {
@@ -77,8 +78,9 @@ function variantLabel(
 export async function getCartView(
   owner: CartOwner,
   locale: Locale,
+  storefront: Storefront = "marketplace",
 ): Promise<CartView> {
-  const cart = await findCart(owner);
+  const cart = await findCart(owner, storefront);
   if (!cart || cart.items.length === 0) return EMPTY;
 
   await connectToDatabase();
@@ -133,10 +135,13 @@ export async function addToCart(
   productId: string,
   qty: number,
   variantId: string | null = null,
+  storefront: Storefront = "marketplace",
 ) {
   await connectToDatabase();
   const product = await Product.findOne({
     _id: productId,
+    // Scoped: a Medtrade instrument can never land in a Spiber Kart cart.
+    storefront,
     status: "active",
     approvalStatus: { $nin: ["pending", "rejected"] },
     sellerSuspended: { $ne: true },
@@ -151,7 +156,7 @@ export async function addToCart(
   const price = resolvePrice(product, variant);
   if (price == null) throw new Error("product_unavailable");
 
-  const cart = await getOrCreateCart(owner);
+  const cart = await getOrCreateCart(owner, storefront);
   const existing = cart.items.find((i) => sameLine(i, productId, variantId));
   if (existing) {
     existing.qty = Math.min(999, existing.qty + qty);
@@ -171,8 +176,9 @@ export async function updateCartItem(
   productId: string,
   qty: number,
   variantId: string | null = null,
+  storefront: Storefront = "marketplace",
 ) {
-  const cart = await findCart(owner);
+  const cart = await findCart(owner, storefront);
   if (!cart) return;
   if (qty <= 0) {
     cart.items = cart.items.filter((i) => !sameLine(i, productId, variantId));
@@ -187,21 +193,36 @@ export async function removeCartItem(
   owner: CartOwner,
   productId: string,
   variantId: string | null = null,
+  storefront: Storefront = "marketplace",
 ) {
-  const cart = await findCart(owner);
+  const cart = await findCart(owner, storefront);
   if (!cart) return;
   cart.items = cart.items.filter((i) => !sameLine(i, productId, variantId));
   await cart.save();
 }
 
-/** Merge a guest cart into the user's cart on login, then drop the guest cart. */
+/**
+ * Merge a guest's carts into the user's on login, then drop the guest ones.
+ * Runs per storefront, so a guest holding both a Medtrade and a Spiber Kart
+ * cart keeps both. Never throws — a merge failure must not block a login.
+ */
 export async function mergeGuestCart(guestId: string, userId: string) {
-  const guest = await findCart({ guestId });
+  for (const storefront of ["marketplace", "instruments"] as const) {
+    await mergeGuestCartFor(guestId, userId, storefront);
+  }
+}
+
+async function mergeGuestCartFor(
+  guestId: string,
+  userId: string,
+  storefront: Storefront,
+) {
+  const guest = await findCart({ guestId }, storefront);
   if (!guest || guest.items.length === 0) {
-    if (guest) await deleteCart({ guestId });
+    if (guest) await deleteCart({ guestId }, storefront);
     return;
   }
-  const userCart = await getOrCreateCart({ userId });
+  const userCart = await getOrCreateCart({ userId }, storefront);
   for (const gi of guest.items) {
     const existing = userCart.items.find((i) =>
       sameLine(i, String(gi.productId), gi.variantId ?? null),
@@ -210,5 +231,5 @@ export async function mergeGuestCart(guestId: string, userId: string) {
     else userCart.items.push(gi);
   }
   await userCart.save();
-  await deleteCart({ guestId });
+  await deleteCart({ guestId }, storefront);
 }

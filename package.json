@@ -23,7 +23,8 @@
     "import-catalog": "node scripts/import-catalog-xlsx.mjs",
     "fetch-brand-logos": "node scripts/fetch-brand-logos.mjs",
     "apply-brand-logos": "node scripts/apply-brand-logos.mjs",
-    "prepare": "husky"
+    "prepare": "husky",
+    "migrate-cart-storefront": "node scripts/migrate-cart-storefront.mjs"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,mjs,cjs}": [

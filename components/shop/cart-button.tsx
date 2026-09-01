@@ -3,23 +3,27 @@
 import { motion } from "framer-motion";
 import { ShoppingBag } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { useCart } from "./use-cart";
+import { useCart, type CartStorefront } from "./use-cart";
 
 const MotionLink = motion.create(Link);
 
 /**
  * Cart icon for the marketing navbar. Shows a live item-count badge from the
- * shared ["cart"] query. Count is 0 on the server/first paint (no badge), then
- * hydrates after the cart fetch — so there's no hydration mismatch.
+ * ["cart", storefront] query. Count is 0 on the server/first paint (no badge),
+ * then hydrates after the cart fetch — so there's no hydration mismatch.
  */
-export function CartButton() {
-  const { count } = useCart();
+export function CartButton({
+  storefront = "marketplace",
+}: {
+  storefront?: CartStorefront;
+} = {}) {
+  const { count } = useCart(storefront);
   const label =
     count > 0 ? `Cart, ${count} item${count === 1 ? "" : "s"}` : "Cart";
 
   return (
     <MotionLink
-      href="/kart/cart"
+      href={storefront === "instruments" ? "/medtrade/cart" : "/kart/cart"}
       aria-label={label}
       whileHover={{ y: -2 }}
       whileTap={{ scale: 0.96 }}

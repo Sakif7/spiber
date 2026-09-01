@@ -1,4 +1,5 @@
 import mongoose, { Schema, type Model } from "mongoose";
+import type { Storefront } from "@/lib/schemas/catalog";
 
 export interface ICartItem {
   productId: mongoose.Types.ObjectId;
@@ -11,6 +12,12 @@ export interface ICartItem {
 export interface ICart {
   userId?: mongoose.Types.ObjectId | null;
   guestId?: string | null;
+  /**
+   * Which storefront this cart belongs to. Absent = a legacy (pre-Medtrade)
+   * cart, which is always a marketplace one — reads match it with
+   * `$in: ["marketplace", null]` and `getOrCreateCart` back-fills it.
+   */
+  storefront?: Storefront | null;
   items: ICartItem[];
   createdAt: Date;
   updatedAt: Date;
@@ -33,20 +40,28 @@ const cartSchema = new Schema<ICart>(
     // userIds would collide; absent fields are what we want.
     userId: { type: Schema.Types.ObjectId, ref: "User" },
     guestId: { type: String },
+    // No `default` either: an absent value must stay absent so it keeps
+    // reading as a legacy marketplace cart until it is normalized on write.
+    storefront: { type: String, enum: ["instruments", "marketplace"] },
     items: { type: [cartItemSchema], default: [] },
   },
   { collection: "carts", timestamps: true },
 );
 
-// One cart per user / per guest. Partial indexes only cover docs where the
-// field is actually present with the right type, so guest carts (no userId)
-// and user carts (no guestId) never collide on a null value.
+// One cart per user / per guest PER STOREFRONT — a buyer can hold a Medtrade
+// cart and a Spiber Kart cart at the same time. Partial indexes only cover docs
+// where the owning field is actually present with the right type, so guest
+// carts (no userId) and user carts (no guestId) never collide on a null value.
+//
+// ⚠ MIGRATION: the old single-field unique indexes (`userId_1`, `guestId_1`)
+// must be dropped once per database, or they still forbid a second cart per
+// owner. See scripts/migrate-cart-storefront.mjs.
 cartSchema.index(
-  { userId: 1 },
+  { userId: 1, storefront: 1 },
   { unique: true, partialFilterExpression: { userId: { $type: "objectId" } } },
 );
 cartSchema.index(
-  { guestId: 1 },
+  { guestId: 1, storefront: 1 },
   { unique: true, partialFilterExpression: { guestId: { $type: "string" } } },
 );
 

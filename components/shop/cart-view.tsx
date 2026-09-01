@@ -7,13 +7,24 @@ import { CtaButton } from "@/components/ui/cta-button";
 import { Placeholder } from "@/components/ui/placeholder";
 import { formatBDT } from "@/lib/money";
 import { QtyStepper } from "./qty-stepper";
-import { useCart } from "./use-cart";
+import { useCart, type CartStorefront } from "./use-cart";
 import type { Locale } from "@/i18n/routing";
 
-export function CartView() {
+/**
+ * Shared cart view. `storefront` picks which server cart to read (Medtrade and
+ * Spiber Kart each have their own) and `basePath` keeps every link inside the
+ * storefront the shopper is actually in.
+ */
+export function CartView({
+  storefront = "marketplace",
+  basePath = "/kart",
+}: {
+  storefront?: CartStorefront;
+  basePath?: string;
+} = {}) {
   const t = useTranslations("shop.cart");
   const locale = useLocale() as Locale;
-  const { cart, isLoading, update, remove } = useCart();
+  const { cart, isLoading, update, remove } = useCart(storefront);
 
   if (isLoading) return <p style={{ color: "var(--color-text-muted)" }}>…</p>;
 
@@ -28,7 +39,7 @@ export function CartView() {
         }}
       >
         <p style={{ color: "var(--color-text-muted)" }}>{t("empty")}</p>
-        <CtaButton href="/kart">{t("emptyCta")}</CtaButton>
+        <CtaButton href={basePath}>{t("emptyCta")}</CtaButton>
       </div>
     );
   }
@@ -93,7 +104,7 @@ export function CartView() {
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <Link
-                href={`/kart/product/${item.slug}`}
+                href={`${basePath}/product/${item.slug}`}
                 style={{ fontWeight: 600, color: "var(--color-text-strong)" }}
               >
                 {item.name}
@@ -195,8 +206,8 @@ export function CartView() {
       </div>
 
       <div style={{ display: "flex", gap: "var(--s-4)", flexWrap: "wrap" }}>
-        <CtaButton href="/kart/checkout">{t("checkout")}</CtaButton>
-        <CtaButton href="/kart" variant="secondary">
+        <CtaButton href={`${basePath}/checkout`}>{t("checkout")}</CtaButton>
+        <CtaButton href={basePath} variant="secondary">
           {t("continue")}
         </CtaButton>
       </div>
