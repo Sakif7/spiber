@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "@/i18n/navigation";
+import { useRouter, Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -140,6 +140,12 @@ export function OrderActions({
         <h2 className="text-foreground font-[family-name:var(--font-display)] text-lg">
           Actions
         </h2>
+        <Link
+          href={`/admin/orders/${orderId}/invoice`}
+          className="text-primary text-sm font-medium hover:underline"
+        >
+          View invoice
+        </Link>
       </div>
 
       {error ? (

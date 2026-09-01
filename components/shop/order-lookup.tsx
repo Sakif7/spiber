@@ -52,6 +52,7 @@ export function OrderLookup({
   const t = useTranslations("shop.confirmation");
   // Payment-method labels live in the checkout namespace (single source).
   const tc = useTranslations("shop.checkout");
+  const ti = useTranslations("invoice");
   const locale = useLocale() as Locale;
   const [orderNumber, setOrderNumber] = useState(initialOrderNumber ?? "");
   const [email, setEmail] = useState(initialEmail ?? "");
@@ -201,6 +202,13 @@ export function OrderLookup({
         >
           {t("emailedTo")} {order.email}
         </p>
+        {/* The email is carried so a guest can open their own invoice. */}
+        <Link
+          href={`/invoice/${order.orderNumber}?email=${encodeURIComponent(order.email)}`}
+          style={{ color: "var(--color-brand-deep)", fontWeight: 600 }}
+        >
+          {ti("viewInvoice")}
+        </Link>
         <p
           style={{
             fontSize: "var(--fs-small)",

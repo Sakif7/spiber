@@ -1,5 +1,6 @@
 import { setRequestLocale } from "next-intl/server";
 import { redirect, notFound } from "next/navigation";
+import { Link } from "@/i18n/navigation";
 import { Container } from "@/components/ui/container";
 import { PageHeader } from "@/components/ui/page-header";
 import { getSessionUser } from "@/lib/auth/current-user";
@@ -311,6 +312,17 @@ export default async function AccountOrderDetailPage({
                   {o.shippingAddress.phone}
                 </span>
               </address>
+            </div>
+
+            {/* Printable invoice (owner-gated by the invoice route). */}
+            <div style={cardStyle}>
+              <h2 style={sectionTitleStyle}>Invoice</h2>
+              <Link
+                href={`/invoice/${encodeURIComponent(o.orderNumber)}`}
+                style={{ color: "var(--color-brand-deep)", fontWeight: 600 }}
+              >
+                View invoice
+              </Link>
             </div>
 
             {/* Self-service: cancel / refund request */}

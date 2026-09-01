@@ -44,6 +44,7 @@ import {
   type EmailDetailRow,
 } from "@/lib/mailer/templates/email-layout";
 import { formatBDT } from "@/lib/money";
+import { siteConfig } from "@/lib/site-config";
 import { logger } from "@/lib/log";
 import {
   allowedOrderTransitions,
@@ -572,6 +573,10 @@ async function sendOrderEmail(
     });
   }
 
+  // Self-serve invoice: the recipient owns this email address, and the route
+  // re-checks the number + email pair before rendering anything.
+  const invoiceUrl = `${siteConfig.url}/en/invoice/${order.orderNumber}?email=${encodeURIComponent(order.email)}`;
+
   const { html, text, attachments } = renderEmail({
     accent: "teal",
     preheader: introMap[event],
@@ -579,6 +584,7 @@ async function sendOrderEmail(
     heading: headingMap[event],
     paragraphs: [introMap[event]],
     details: { title: `Order ${order.orderNumber}`, rows },
+    outro: [`View or print your invoice: ${invoiceUrl}`],
   });
   await getMailer().send({
     to: order.email,

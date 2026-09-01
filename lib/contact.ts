@@ -106,6 +106,19 @@ export const OFFICES: Office[] = [
   },
 ];
 
+/**
+ * Registered identity used on printed documents (invoices). Kept beside the
+ * office data so there is one source of truth for "who is billing you".
+ *
+ * TODO(client): confirm the VAT registration (BIN) and taxpayer (TIN) numbers.
+ * Until they are filled in the invoice prints an em dash rather than a guess.
+ */
+export const LEGAL = {
+  name: "SPIBER MED LIMITED",
+  bin: "",
+  tin: "",
+} as const;
+
 /** Shared contact channels for the "quicker way to reach us" strip + emails. */
 export const CONTACT = {
   /** Primary public inbox (from the footer / utility bar). */
