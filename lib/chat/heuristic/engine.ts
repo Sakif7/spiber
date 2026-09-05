@@ -33,6 +33,8 @@ import {
   looksLikeSearch,
   matchIntent,
   normalize,
+  searchAttempts,
+  searchPhrase,
 } from "./intents";
 import { lookupCase, lookupOrder, searchCatalog } from "./tools";
 
@@ -60,19 +62,6 @@ const leadAction = (locale: Locale) =>
 
 function say(key: keyof typeof SAY, locale: Locale): string {
   return pick(SAY[key], locale);
-}
-
-/* ── Search-trigger stripping (turn "find a thermometer" → "thermometer") ─── */
-
-const SEARCH_WORD_RE =
-  /\b(search( for)?|find( me)?|look(ing)? for|show me|do you (have|sell)|i (want|need)|browse|got any|buy|price of)\b/gi;
-
-function searchQueryFrom(raw: string): string {
-  return raw
-    .replace(SEARCH_WORD_RE, " ")
-    .replace(/[?!.]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 /* ── Intent handlers ─────────────────────────────────────────────────────── */
@@ -292,11 +281,44 @@ async function handleCaseSlot(
 
 /* ── Product search ──────────────────────────────────────────────────────── */
 
+/**
+ * Intents that often arrive with a product named in the same breath. For these
+ * a matching product is a better answer than the intent's canned reply.
+ */
+const PRODUCT_SEEKING_INTENTS = new Set(["how_to_order"]);
+
+/**
+ * Find what the message is actually asking about. The conversational wrapper
+ * is stripped first, because the catalogue matcher requires every term to
+ * appear in a product, then progressively relaxed until something matches.
+ */
+async function findProducts(text: string, locale: Locale) {
+  const phrase = searchPhrase(normalize(text));
+  for (const query of searchAttempts(phrase)) {
+    const found = await searchCatalog(query, locale);
+    if (found.cards.length > 0) return { ...found, query };
+  }
+  return { cards: [], total: 0, query: phrase };
+}
+
+/**
+ * Answer with catalogue results, or null when nothing matched so the caller
+ * can fall through to its own reply.
+ */
+async function productSearch(
+  text: string,
+  locale: Locale,
+): Promise<ChatTurnResult | null> {
+  if (!looksLikeSearch(searchPhrase(normalize(text)))) return null;
+  const res = await runSearch(text, locale);
+  return res.reply.cards && res.reply.cards.length > 0 ? res : null;
+}
+
 async function runSearch(
-  query: string,
+  text: string,
   locale: Locale,
 ): Promise<ChatTurnResult> {
-  const { cards, total } = await searchCatalog(query, locale);
+  const { cards, total, query } = await findProducts(text, locale);
   if (cards.length === 0) {
     return {
       reply: reply(
@@ -587,8 +609,9 @@ async function dispatch(
     case "human":
       return handleHuman(locale);
     case "product_search": {
-      const q = searchQueryFrom(raw);
-      if (q.length >= 3) return runSearch(q, locale);
+      if (searchPhrase(normalize(raw)).length >= 3) {
+        return runSearch(raw, locale);
+      }
       return {
         reply: reply({ text: say("searchAsk", locale) }, "product_search"),
         state: { pendingIntent: "product_search" },
@@ -643,21 +666,28 @@ async function respond(
     return handleCaseSlot(raw, locale, ctx.state);
   }
   if (pending === "product_search" && !pivots) {
-    return runSearch(searchQueryFrom(raw) || raw, locale);
+    return runSearch(raw, locale);
   }
 
   // 2) A clicked quick-reply chip maps exactly to its intent.
   const chip = chipIntent(normalized);
   if (chip) return dispatch(chip, raw, normalized, locale);
 
-  // 3) Keyword intent match.
-  if (strong) return dispatch(strong.intent, raw, normalized, locale);
+  // 3) Keyword intent match. "How do I buy a blood pressure monitor" is a
+  //    product question wearing an ordering wrapper, so when an ordering intent
+  //    matches AND the message names something we stock, show the product
+  //    rather than a generic explanation of how checkout works.
+  if (strong) {
+    if (PRODUCT_SEEKING_INTENTS.has(strong.intent)) {
+      const found = await productSearch(raw, locale);
+      if (found) return found;
+    }
+    return dispatch(strong.intent, raw, normalized, locale);
+  }
 
   // 4) No intent — if it reads like a product noun-phrase, try a catalog search.
-  if (looksLikeSearch(normalized)) {
-    const res = await runSearch(raw, locale);
-    if (res.reply.cards && res.reply.cards.length > 0) return res;
-  }
+  const found = await productSearch(raw, locale);
+  if (found) return found;
 
   // 5) Fallback with helpful chips.
   return handleFallback(locale);

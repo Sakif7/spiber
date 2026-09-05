@@ -443,6 +443,11 @@ const INTENTS: IntentDef[] = [
       "ordering",
       "checkout",
       "how to buy",
+      "how do i buy",
+      "how can i buy",
+      "where can i buy",
+      "how do i purchase",
+      "how to purchase",
       "কীভাবে অর্ডার",
       "কিভাবে অর্ডার",
       "অর্ডার করব",
@@ -463,10 +468,12 @@ const INTENTS: IntentDef[] = [
       "get a price",
       "কোটেশন",
       "দর",
+      "দাম",
       "মূল্য জানতে",
       "見積",
       "見積もり",
       "価格",
+      "いくら",
     ],
     strong: ["quotation", "quote", "rfq", "কোটেশন", "見積もり"],
   },
@@ -574,6 +581,11 @@ const INTENTS: IntentDef[] = [
       "do you sell",
       "show me",
       "browse products",
+      "how much is",
+      "how much are",
+      "how much does",
+      "price of",
+      "cost of",
       "খুঁজ",
       "খুঁজছি",
       "আছে কি",
@@ -655,14 +667,80 @@ export function chipIntent(normalized: string): string | null {
   return null;
 }
 
-/** Does the message read like a product noun-phrase worth auto-searching? */
-export function looksLikeSearch(normalized: string): boolean {
+/**
+ * Words that carry no product meaning in a spoken question. The catalogue
+ * matcher requires every term to appear in a product, so "do you sell
+ * oximeters" only finds anything once the wrapper is stripped off.
+ */
+const SEARCH_STOP_WORDS = new Set(
+  (
+    "a an the any some please hi hello " +
+    "i we you my me us your " +
+    "do does did can could would will is are am have has there " +
+    "want wanted need needed looking look " +
+    "for to of in on at with about and or " +
+    "how what where which who when much " +
+    "buy purchase order sell sells selling get find search searching browse " +
+    "got show give tell help price prices cost costs"
+  ).split(" "),
+);
+
+/**
+ * Reduce a message to the part worth searching the catalogue for: "how do i
+ * buy a blood pressure monitor" becomes "blood pressure monitor". Returns ""
+ * when the message names nothing.
+ */
+export function searchPhrase(normalized: string): string {
   const words = normalized.split(" ").filter(Boolean);
+  return words.filter((w) => !SEARCH_STOP_WORDS.has(w)).join(" ");
+}
+
+/**
+ * The queries to try for one phrase, most specific first. A shopper's words
+ * for a product often differ from the catalogue's ("blood pressure monitor"
+ * vs "Omron Digital BP Monitor"), so if the full phrase finds nothing we fall
+ * back to the head noun, which is the product type.
+ */
+export function searchAttempts(phrase: string): string[] {
+  const out: string[] = [];
+  const add = (q: string) => {
+    if (q.length >= 3 && !out.includes(q)) out.push(q);
+  };
+  add(phrase);
+  add(singularise(phrase));
+  const words = phrase.split(" ").filter(Boolean);
+  const head = singularise(words[words.length - 1] ?? "");
+  if (words.length > 1 && head.length >= 4) add(head);
+  return out;
+}
+
+/**
+ * A naive singular form, used only as a second attempt when the plural found
+ * nothing: catalogue names are singular ("Oximeter"), and the matcher works on
+ * substrings, so "oximeters" would otherwise miss.
+ */
+export function singularise(phrase: string): string {
+  return phrase.split(" ").map(singulariseWord).join(" ");
+}
+
+function singulariseWord(word: string): string {
+  if (word.length <= 3 || !word.endsWith("s") || word.endsWith("ss")) {
+    return word;
+  }
+  // Only a sibilant takes "-es": "boxes" is a box, but "gloves" is a glove.
+  return /(?:s|x|z|ch|sh)es$/.test(word)
+    ? word.slice(0, -2)
+    : word.slice(0, -1);
+}
+
+/** Does a phrase read like a product noun-phrase worth auto-searching? */
+export function looksLikeSearch(phrase: string): boolean {
+  const words = phrase.split(" ").filter(Boolean);
   return (
-    normalized.length >= 3 &&
-    normalized.length <= 60 &&
+    phrase.length >= 3 &&
+    phrase.length <= 60 &&
     words.length >= 1 &&
     words.length <= 6 &&
-    !normalized.includes("@")
+    !phrase.includes("@")
   );
 }
