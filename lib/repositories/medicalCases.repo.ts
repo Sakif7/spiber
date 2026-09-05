@@ -11,6 +11,13 @@ import type {
   ChecklistKey,
   MedicalCaseStatus,
 } from "@/lib/schemas/medical-case";
+import {
+  applyDateRange,
+  applyPartialSearch,
+  paginate,
+  sortSpec,
+  type RepoListQuery,
+} from "./list-query";
 
 type Filter = NonNullable<Parameters<typeof MedicalCase.countDocuments>[0]>;
 
@@ -49,11 +56,18 @@ export async function getMedicalCaseByNumber(
     .exec();
 }
 
-export type MedicalCaseListParams = {
+/** Sort keys the admin list exposes → stored fields. */
+const CASE_SORT: Record<string, string> = {
+  date: "createdAt",
+  number: "caseNumber",
+  patient: "patient.name",
+  status: "status",
+  quoted: "quotation.amountMinor",
+};
+
+export type MedicalCaseListParams = RepoListQuery & {
   status?: MedicalCaseStatus;
   assignedTo?: string;
-  page?: number;
-  pageSize?: number;
 };
 
 export async function listMedicalCases(params: MedicalCaseListParams = {}) {
@@ -63,25 +77,19 @@ export async function listMedicalCases(params: MedicalCaseListParams = {}) {
   if (params.assignedTo && mongoose.isValidObjectId(params.assignedTo)) {
     q.assignedTo = params.assignedTo;
   }
-  const page = Math.max(1, params.page ?? 1);
-  const pageSize = Math.min(200, Math.max(1, params.pageSize ?? 50));
-  const filter = q as unknown as Filter;
-  const [items, total] = await Promise.all([
-    MedicalCase.find(filter)
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * pageSize)
-      .limit(pageSize)
-      .lean<Lean<IMedicalCase>[]>()
-      .exec(),
-    MedicalCase.countDocuments(filter),
+  applyPartialSearch(q, params.search, [
+    "caseNumber",
+    "patient.name",
+    "patient.email",
+    "patient.country",
   ]);
-  return {
-    items,
-    total,
-    page,
-    pageSize,
-    pages: Math.max(1, Math.ceil(total / pageSize)),
-  };
+  applyDateRange(q, params.from, params.to);
+  return paginate<IMedicalCase>(MedicalCase, q, {
+    sort: sortSpec(params.sort, params.dir, CASE_SORT),
+    page: params.page,
+    pageSize: params.pageSize ?? 50,
+    maxPageSize: 200,
+  });
 }
 
 export async function listMedicalCasesByUser(userId: string) {

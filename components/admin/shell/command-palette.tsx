@@ -2,31 +2,78 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "@/i18n/navigation";
-import { Search, CornerDownLeft } from "lucide-react";
+import {
+  Search,
+  CornerDownLeft,
+  Loader2,
+  ShoppingCart,
+  FileText,
+  Package,
+  User,
+  ShoppingBag,
+  ClipboardList,
+  CalendarClock,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { NAV_SECTIONS, type AdminSection, type NavItem } from "./nav";
+import { StatusBadge } from "@/components/admin/ui/status-badge";
+import { useDebouncedCallback } from "@/lib/use-debounced-callback";
+import type {
+  AdminSearchGroupKey,
+  AdminSearchHit,
+  AdminSearchResponse,
+} from "@/lib/search/admin-dto";
+import {
+  NAV_BY_ID,
+  NAV_ITEMS_FLAT,
+  NAV_SECTIONS,
+  navContextFor,
+  type NavItem,
+} from "./nav";
+import { useAdminPrefs } from "./admin-prefs";
 
-type PaletteEntry = NavItem & { section: AdminSection; group?: string };
+type PageEntry = { kind: "page"; key: string; item: NavItem; caption: string };
+type RecordEntry = { kind: "record"; key: string; hit: AdminSearchHit };
+type Entry = PageEntry | RecordEntry;
+type Section = { label: string; entries: Entry[] };
 
-const ENTRIES: PaletteEntry[] = (
-  Object.keys(NAV_SECTIONS) as AdminSection[]
-).flatMap((section) =>
-  NAV_SECTIONS[section].groups.flatMap((g) =>
-    g.items.map((item) => ({ ...item, section, group: g.label })),
-  ),
-);
+const GROUP_ICON: Record<AdminSearchGroupKey, LucideIcon> = {
+  orders: ShoppingCart,
+  quotations: FileText,
+  products: Package,
+  customers: User,
+  sellers: ShoppingBag,
+  cases: ClipboardList,
+  appointments: CalendarClock,
+};
 
-function matches(entry: PaletteEntry, terms: string[]): boolean {
-  const hay =
-    `${entry.label} ${entry.group ?? ""} ${NAV_SECTIONS[entry.section].label}`.toLowerCase();
+function captionFor(item: NavItem): string {
+  const ctx = navContextFor(item.id);
+  return [ctx ? NAV_SECTIONS[ctx.section].label : null, ctx?.group]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+const PAGE_ENTRIES: PageEntry[] = NAV_ITEMS_FLAT.map((item) => ({
+  kind: "page",
+  key: `page:${item.id}`,
+  item,
+  caption: captionFor(item),
+}));
+
+function pageMatches(e: PageEntry, terms: string[]): boolean {
+  const hay = `${e.item.title} ${e.item.label} ${e.caption}`.toLowerCase();
   return terms.every((t) => hay.includes(t));
 }
 
 /**
- * Ctrl+K quick-jump palette over every admin page (both the Operations and
- * Company sections). Deliberately dependency-free: a Dialog + substring filter
- * — ~45 destinations don't need fuzzy ranking.
+ * Ctrl+K palette. With an empty query it lists the admin's recent pages and
+ * every admin page; with two or more characters it ALSO searches records
+ * (orders, quotations, products, customers, sellers, cases, appointments)
+ * through GET /api/admin/search — debounced, with the previous request
+ * aborted — and lists those groups first. Pages stay a substring filter
+ * (~45 destinations don't need fuzzy ranking).
  */
 export function CommandPalette({
   open,
@@ -36,14 +83,79 @@ export function CommandPalette({
   onOpenChange: (open: boolean) => void;
 }) {
   const router = useRouter();
+  const { prefs } = useAdminPrefs();
   const [query, setQuery] = useState("");
   const [index, setIndex] = useState(0);
+  const [records, setRecords] = useState<AdminSearchResponse | null>(null);
+  const [loading, setLoading] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
-  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
-  const results = terms.length
-    ? ENTRIES.filter((e) => matches(e, terms))
-    : ENTRIES;
+  const trimmed = query.trim();
+  const terms = trimmed.toLowerCase().split(/\s+/).filter(Boolean);
+
+  const fetchRecords = useDebouncedCallback((q: string) => {
+    abortRef.current?.abort();
+    if (q.length < 2) {
+      setRecords(null);
+      setLoading(false);
+      return;
+    }
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    setLoading(true);
+    fetch(`/api/admin/search?q=${encodeURIComponent(q)}`, {
+      signal: ctrl.signal,
+      headers: { Accept: "application/json" },
+    })
+      .then((r) => r.json())
+      .then((json) => {
+        if (ctrl.signal.aborted) return;
+        const data = (json?.data ?? json) as AdminSearchResponse | undefined;
+        if (data && typeof data.query === "string") setRecords(data);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!ctrl.signal.aborted) setLoading(false);
+      });
+  }, 180);
+
+  // Build the visible sections.
+  const sections: Section[] = [];
+  if (terms.length === 0) {
+    const recent = prefs.recents
+      .map((r) => NAV_BY_ID.get(r.id))
+      .filter((it): it is NavItem => Boolean(it) && it!.id !== "dashboard")
+      .slice(0, 5);
+    if (recent.length > 0) {
+      sections.push({
+        label: "Recent",
+        entries: recent.map((item) => ({
+          kind: "page",
+          key: `recent:${item.id}`,
+          item,
+          caption: captionFor(item),
+        })),
+      });
+    }
+    sections.push({ label: "Pages", entries: PAGE_ENTRIES });
+  } else {
+    if (records && records.query === trimmed) {
+      for (const g of records.groups) {
+        sections.push({
+          label: g.label,
+          entries: g.hits.map((hit) => ({
+            kind: "record",
+            key: `rec:${g.key}:${hit.id}`,
+            hit,
+          })),
+        });
+      }
+    }
+    const pages = PAGE_ENTRIES.filter((e) => pageMatches(e, terms));
+    if (pages.length > 0) sections.push({ label: "Pages", entries: pages });
+  }
+  const flat = sections.flatMap((s) => s.entries);
 
   // Reset the highlight when the query changes (adjust-during-render pattern).
   const [lastQuery, setLastQuery] = useState(query);
@@ -51,7 +163,7 @@ export function CommandPalette({
     setLastQuery(query);
     setIndex(0);
   }
-  const selected = Math.min(index, Math.max(0, results.length - 1));
+  const selected = Math.min(index, Math.max(0, flat.length - 1));
 
   // Keep the highlighted row visible while arrowing (DOM-only effect).
   useEffect(() => {
@@ -60,59 +172,84 @@ export function CommandPalette({
       ?.scrollIntoView({ block: "nearest" });
   }, [selected]);
 
-  function go(entry: PaletteEntry) {
-    onOpenChange(false);
+  function reset() {
+    fetchRecords.cancel();
+    abortRef.current?.abort();
     setQuery("");
-    router.push(entry.href);
+    setRecords(null);
+    setLoading(false);
+  }
+
+  function go(entry: Entry) {
+    onOpenChange(false);
+    reset();
+    router.push(entry.kind === "page" ? entry.item.href : entry.hit.href);
   }
 
   function onKeyDown(e: React.KeyboardEvent) {
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setIndex(Math.min(selected + 1, results.length - 1));
+      setIndex(Math.min(selected + 1, flat.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setIndex(Math.max(selected - 1, 0));
     } else if (e.key === "Enter") {
       e.preventDefault();
-      const entry = results[selected];
+      const entry = flat[selected];
       if (entry) go(entry);
     }
   }
+
+  const searching = terms.length > 0 && trimmed.length >= 2;
+  const noMatches = terms.length > 0 && flat.length === 0 && !loading;
+
+  let flatIndex = -1;
 
   return (
     <Dialog
       open={open}
       onOpenChange={(o) => {
         onOpenChange(o);
-        if (!o) setQuery("");
+        if (!o) reset();
       }}
     >
       <DialogContent
-        className="top-24 max-w-lg translate-y-0 gap-0 overflow-hidden p-0"
+        className="top-20 max-w-xl translate-y-0 gap-0 overflow-hidden p-0"
         showCloseButton={false}
         aria-describedby={undefined}
       >
-        <DialogTitle className="sr-only">Jump to an admin page</DialogTitle>
+        <DialogTitle className="sr-only">
+          Search records and admin pages
+        </DialogTitle>
         <div className="border-border flex items-center gap-2 border-b px-3">
-          <Search
-            className="text-muted-foreground size-4 shrink-0"
-            aria-hidden
-          />
+          {loading ? (
+            <Loader2
+              className="text-muted-foreground size-4 shrink-0 animate-spin"
+              aria-hidden
+            />
+          ) : (
+            <Search
+              className="text-muted-foreground size-4 shrink-0"
+              aria-hidden
+            />
+          )}
           <input
             autoFocus
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              fetchRecords(e.target.value.trim());
+            }}
             onKeyDown={onKeyDown}
-            placeholder="Search admin pages…"
-            aria-label="Search admin pages"
+            placeholder="Search orders, products, customers, cases… or jump to a page"
+            aria-label="Search records and admin pages"
             role="combobox"
             aria-expanded
             aria-controls="admin-palette-list"
             aria-activedescendant={
-              results[selected] ? `palette-opt-${selected}` : undefined
+              flat[selected] ? `palette-opt-${selected}` : undefined
             }
-            className="text-foreground placeholder:text-muted-foreground h-12 w-full bg-transparent text-sm outline-none"
+            className="text-foreground placeholder:text-muted-foreground h-11 w-full bg-transparent text-sm outline-none"
           />
           <kbd
             aria-hidden
@@ -125,54 +262,101 @@ export function CommandPalette({
           ref={listRef}
           id="admin-palette-list"
           role="listbox"
-          className="max-h-[min(60vh,22rem)] overflow-y-auto overscroll-contain p-1.5"
+          className="max-h-[min(64vh,26rem)] overflow-y-auto overscroll-contain p-1.5"
         >
-          {results.length === 0 && (
+          {noMatches && (
             <p className="text-muted-foreground px-3 py-6 text-center text-sm">
-              No pages match &ldquo;{query}&rdquo;
+              No matches for &ldquo;{trimmed}&rdquo;
             </p>
           )}
-          {results.map((entry, i) => {
-            const Icon = entry.icon;
-            return (
-              <button
-                key={`${entry.section}-${entry.href}-${entry.label}`}
-                type="button"
-                id={`palette-opt-${i}`}
-                data-index={i}
-                role="option"
-                aria-selected={i === selected}
-                onClick={() => go(entry)}
-                onMouseMove={() => setIndex(i)}
-                className={cn(
-                  "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm",
-                  i === selected
-                    ? "bg-accent text-accent-foreground"
-                    : "text-foreground",
-                )}
-              >
-                <Icon
-                  size={16}
-                  strokeWidth={2}
-                  aria-hidden
-                  className="text-muted-foreground shrink-0"
-                />
-                <span className="truncate">{entry.label}</span>
-                <span className="text-muted-foreground ml-auto flex shrink-0 items-center gap-1.5 text-xs">
-                  {[NAV_SECTIONS[entry.section].label, entry.group]
-                    .filter(Boolean)
-                    .join(" · ")}
-                  {i === selected && (
-                    <CornerDownLeft
-                      size={12}
+          {searching && loading && flat.length === 0 && (
+            <p className="text-muted-foreground px-3 py-6 text-center text-sm">
+              Searching…
+            </p>
+          )}
+          {sections.map((section) => (
+            <div key={section.label} role="group" aria-label={section.label}>
+              <div className="text-muted-foreground px-2.5 pt-2 pb-1 font-mono text-[0.625rem] font-semibold tracking-[0.12em] uppercase">
+                {section.label}
+              </div>
+              {section.entries.map((entry) => {
+                flatIndex += 1;
+                const i = flatIndex;
+                const isSelected = i === selected;
+                const Icon =
+                  entry.kind === "page"
+                    ? entry.item.icon
+                    : GROUP_ICON[entry.hit.group];
+                return (
+                  <button
+                    key={entry.key}
+                    type="button"
+                    id={`palette-opt-${i}`}
+                    data-index={i}
+                    role="option"
+                    aria-selected={isSelected}
+                    onClick={() => go(entry)}
+                    onMouseMove={() => setIndex(i)}
+                    className={cn(
+                      "flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-[13px]",
+                      isSelected
+                        ? "bg-accent text-accent-foreground"
+                        : "text-foreground",
+                    )}
+                  >
+                    <Icon
+                      size={15}
+                      strokeWidth={2}
                       aria-hidden
-                      className="opacity-60"
+                      className="text-muted-foreground shrink-0"
                     />
-                  )}
-                </span>
-              </button>
-            );
-          })}
+                    {entry.kind === "page" ? (
+                      <>
+                        <span className="truncate">{entry.item.title}</span>
+                        <span className="text-muted-foreground ml-auto flex shrink-0 items-center gap-1.5 text-xs">
+                          {entry.caption}
+                          {isSelected && (
+                            <CornerDownLeft
+                              size={12}
+                              aria-hidden
+                              className="opacity-60"
+                            />
+                          )}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="flex min-w-0 flex-col">
+                          <span className="truncate font-medium">
+                            {entry.hit.title}
+                          </span>
+                          {entry.hit.subtitle && (
+                            <span className="text-muted-foreground truncate text-xs">
+                              {entry.hit.subtitle}
+                            </span>
+                          )}
+                        </span>
+                        <span className="ml-auto flex shrink-0 items-center gap-1.5">
+                          {entry.hit.badge && (
+                            <StatusBadge dot={false}>
+                              {entry.hit.badge}
+                            </StatusBadge>
+                          )}
+                          {isSelected && (
+                            <CornerDownLeft
+                              size={12}
+                              aria-hidden
+                              className="text-muted-foreground opacity-60"
+                            />
+                          )}
+                        </span>
+                      </>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </div>
       </DialogContent>
     </Dialog>

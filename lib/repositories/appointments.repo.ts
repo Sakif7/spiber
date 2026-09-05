@@ -2,7 +2,17 @@ import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/db/connect";
 import { Appointment, type IAppointment } from "@/lib/models/appointment";
 import type { Lean } from "@/lib/models/_shared";
-import type { AppointmentStatus } from "@/lib/schemas/appointment";
+import type {
+  AppointmentStatus,
+  AppointmentType,
+} from "@/lib/schemas/appointment";
+import {
+  applyDateRange,
+  applyPartialSearch,
+  paginate,
+  sortSpec,
+  type RepoListQuery,
+} from "./list-query";
 
 type Filter = NonNullable<Parameters<typeof Appointment.countDocuments>[0]>;
 
@@ -39,39 +49,41 @@ export async function getAppointmentByNumber(
     .exec();
 }
 
-export type AppointmentListParams = {
+/** Sort keys the admin list exposes → stored fields. */
+const APPOINTMENT_SORT: Record<string, string> = {
+  date: "createdAt",
+  number: "appointmentNumber",
+  patient: "patient.name",
+  status: "status",
+  type: "type",
+};
+
+export type AppointmentListParams = RepoListQuery & {
   status?: AppointmentStatus;
+  type?: AppointmentType;
   assignedTo?: string;
-  page?: number;
-  pageSize?: number;
 };
 
 export async function listAppointments(params: AppointmentListParams = {}) {
   await connectToDatabase();
   const q: Record<string, unknown> = { deletedAt: null };
   if (params.status) q.status = params.status;
+  if (params.type) q.type = params.type;
   if (params.assignedTo && mongoose.isValidObjectId(params.assignedTo)) {
     q.assignedTo = params.assignedTo;
   }
-  const page = Math.max(1, params.page ?? 1);
-  const pageSize = Math.min(200, Math.max(1, params.pageSize ?? 50));
-  const filter = q as unknown as Filter;
-  const [items, total] = await Promise.all([
-    Appointment.find(filter)
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * pageSize)
-      .limit(pageSize)
-      .lean<Lean<IAppointment>[]>()
-      .exec(),
-    Appointment.countDocuments(filter),
+  applyPartialSearch(q, params.search, [
+    "appointmentNumber",
+    "patient.name",
+    "patient.email",
   ]);
-  return {
-    items,
-    total,
-    page,
-    pageSize,
-    pages: Math.max(1, Math.ceil(total / pageSize)),
-  };
+  applyDateRange(q, params.from, params.to);
+  return paginate<IAppointment>(Appointment, q, {
+    sort: sortSpec(params.sort, params.dir, APPOINTMENT_SORT),
+    page: params.page,
+    pageSize: params.pageSize ?? 50,
+    maxPageSize: 200,
+  });
 }
 
 export async function listAppointmentsByUser(userId: string) {

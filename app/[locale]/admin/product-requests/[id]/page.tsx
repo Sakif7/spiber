@@ -3,6 +3,15 @@ import { notFound } from "next/navigation";
 import { ProductRequestActions } from "@/components/admin/product-request-actions";
 import { getProductRequestByIdLean } from "@/lib/repositories/product-requests.repo";
 import { getSessionUser } from "@/lib/auth/current-user";
+import { EditorHeader } from "@/components/admin/ui/form-shell";
+import {
+  DetailCard,
+  DetailLayout,
+  DetailMeta,
+  DetailProse,
+  DetailRow,
+} from "@/components/admin/ui/detail";
+import { StatusBadge } from "@/components/admin/ui/status-badge";
 
 export const dynamic = "force-dynamic";
 
@@ -21,144 +30,68 @@ export default async function AdminProductRequestDetailPage({
     user && r.assignedTo && String(r.assignedTo) === user.sub,
   );
 
-  const card: React.CSSProperties = {
-    border: "1px solid var(--color-border)",
-    background: "var(--color-surface)",
-    borderRadius: "var(--r-lg)",
-    padding: "var(--s-5)",
-    display: "grid",
-    gap: "var(--s-3)",
-  };
-  const muted: React.CSSProperties = {
-    color: "var(--color-text-muted)",
-    fontSize: "var(--fs-body-sm)",
-  };
-
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
-      <div style={{ display: "grid", gap: 4 }}>
-        <h1
-          style={{
-            margin: 0,
-            fontFamily: "var(--font-display)",
-            fontSize: "var(--fs-2xl)",
-            color: "var(--color-text-strong)",
-          }}
-        >
-          {r.productName}
-        </h1>
-        <span style={{ ...muted, fontFamily: "var(--font-mono)" }}>
-          {r.requestNumber} · {r.status}
-        </span>
-      </div>
-
-      <div
-        className="equal-2col"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)",
-          gap: "var(--s-5)",
-          alignItems: "start",
-        }}
-      >
-        <div style={{ display: "grid", gap: "var(--s-5)" }}>
-          <section style={card}>
-            <Row label="Product" value={r.productName} />
-            {r.category && <Row label="Category" value={r.category} />}
-            {r.brand && <Row label="Brand" value={r.brand} />}
-            {r.quantity != null && (
-              <Row label="Quantity" value={String(r.quantity)} />
-            )}
-            {r.budget && <Row label="Budget" value={r.budget} />}
-            {r.referenceUrl && (
-              <Row label="Reference URL" value={r.referenceUrl} mono />
-            )}
-          </section>
-
-          <section style={card}>
-            <Row label="Requested by" value={r.name} />
-            <Row label="Email" value={r.email} />
-            {r.phone && <Row label="Phone" value={r.phone} />}
-          </section>
-
-          {r.details && (
-            <section style={card}>
-              <strong style={{ color: "var(--color-text-strong)" }}>
-                Details
-              </strong>
-              <p
-                style={{
-                  margin: 0,
-                  whiteSpace: "pre-line",
-                  color: "var(--color-text)",
-                }}
-              >
-                {r.details}
-              </p>
-            </section>
-          )}
-
-          {r.notes.length > 0 && (
-            <section style={card}>
-              <strong style={{ color: "var(--color-text-strong)" }}>
-                Notes
-              </strong>
-              {r.notes.map((n, i) => (
-                <div key={i} style={{ display: "grid", gap: 2 }}>
-                  <span style={{ color: "var(--color-text)" }}>{n.body}</span>
-                  <span style={muted}>{new Date(n.at).toLocaleString()}</span>
-                </div>
-              ))}
-            </section>
-          )}
-        </div>
-
-        <ProductRequestActions
-          requestId={String(r._id)}
-          status={r.status}
-          currentUserId={user?.sub ?? ""}
-          assignedToMe={assignedToMe}
+    <div className="space-y-4">
+      <div className="space-y-1">
+        <EditorHeader
+          backHref="/admin/product-requests"
+          backLabel="Product requests"
+          title={r.productName}
+          action={<StatusBadge>{r.status}</StatusBadge>}
         />
+        <DetailMeta>{r.requestNumber}</DetailMeta>
       </div>
-    </div>
-  );
-}
 
-function Row({
-  label,
-  value,
-  mono,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-}) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        gap: "var(--s-4)",
-      }}
-    >
-      <span
-        style={{
-          color: "var(--color-text-muted)",
-          fontSize: "var(--fs-body-sm)",
-        }}
+      <DetailLayout
+        aside={
+          <ProductRequestActions
+            requestId={String(r._id)}
+            status={r.status}
+            currentUserId={user?.sub ?? ""}
+            assignedToMe={assignedToMe}
+          />
+        }
       >
-        {label}
-      </span>
-      <strong
-        style={{
-          color: "var(--color-text-strong)",
-          fontFamily: mono ? "var(--font-mono)" : "inherit",
-          wordBreak: "break-all",
-          textAlign: "right",
-        }}
-      >
-        {value}
-      </strong>
+        <DetailCard>
+          <DetailRow label="Product">{r.productName}</DetailRow>
+          {r.category && <DetailRow label="Category">{r.category}</DetailRow>}
+          {r.brand && <DetailRow label="Brand">{r.brand}</DetailRow>}
+          {r.quantity != null && (
+            <DetailRow label="Quantity">{String(r.quantity)}</DetailRow>
+          )}
+          {r.budget && <DetailRow label="Budget">{r.budget}</DetailRow>}
+          {r.referenceUrl && (
+            <DetailRow label="Reference URL" mono>
+              {r.referenceUrl}
+            </DetailRow>
+          )}
+        </DetailCard>
+
+        <DetailCard>
+          <DetailRow label="Requested by">{r.name}</DetailRow>
+          <DetailRow label="Email">{r.email}</DetailRow>
+          {r.phone && <DetailRow label="Phone">{r.phone}</DetailRow>}
+        </DetailCard>
+
+        {r.details && (
+          <DetailCard title="Details">
+            <DetailProse>{r.details}</DetailProse>
+          </DetailCard>
+        )}
+
+        {r.notes.length > 0 && (
+          <DetailCard title="Notes">
+            {r.notes.map((n, i) => (
+              <div key={i} className="grid gap-0.5">
+                <span className="text-foreground">{n.body}</span>
+                <span className="text-muted-foreground text-xs">
+                  {new Date(n.at).toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </DetailCard>
+        )}
+      </DetailLayout>
     </div>
   );
 }

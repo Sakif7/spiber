@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronUp, ChevronDown } from "lucide-react";
+import { ChevronUp, ChevronDown, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/cn";
 import { formatApiError } from "@/lib/http/form-error";
 
 export type TreeNode = {
@@ -108,65 +110,66 @@ export function CategoryTree({
     return siblings.map((node, index) => (
       <div key={node.id}>
         <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "var(--s-3)",
-            padding: "10px 12px",
-            paddingLeft: 12 + depth * 22,
-            borderBottom: "1px solid var(--color-border)",
-            opacity: busy === node.id ? 0.5 : 1,
-          }}
+          className={cn(
+            "border-border/60 flex items-center gap-3 border-b py-2.5 pr-3",
+            busy === node.id && "opacity-50",
+          )}
+          // Indent grows with the nesting depth, so it stays inline.
+          style={{ paddingLeft: 12 + depth * 22 }}
         >
           <span
-            style={{
-              flex: 1,
-              color: "var(--color-text-strong)",
-              fontWeight: depth === 0 ? 600 : 400,
-            }}
+            className={cn(
+              "text-foreground min-w-0 flex-1 text-[13px]",
+              depth === 0 ? "font-semibold" : "font-normal",
+            )}
           >
             {node.nameEn}
-            <span
-              style={{
-                marginLeft: 8,
-                fontFamily: "var(--font-mono)",
-                fontSize: "var(--fs-caption)",
-                color: "var(--color-text-muted)",
-              }}
-            >
+            <span className="text-muted-foreground ml-2 font-mono text-xs">
               {node.slug}
             </span>
           </span>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-sm"
             onClick={() => move(siblings, index, -1)}
             disabled={index === 0}
-            style={iconBtn(index === 0)}
             aria-label={`Move ${node.nameEn} up`}
             title="Move up"
           >
-            <ChevronUp size={15} aria-hidden />
-          </button>
-          <button
+            <ChevronUp />
+          </Button>
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-sm"
             onClick={() => move(siblings, index, 1)}
             disabled={index === siblings.length - 1}
-            style={iconBtn(index === siblings.length - 1)}
             aria-label={`Move ${node.nameEn} down`}
             title="Move down"
           >
-            <ChevronDown size={15} aria-hidden />
-          </button>
-          <button type="button" onClick={() => rename(node)} style={textBtn}>
-            Rename
-          </button>
-          <button
+            <ChevronDown />
+          </Button>
+          <Button
             type="button"
-            onClick={() => remove(node)}
-            style={{ ...textBtn, color: "var(--color-error)" }}
+            variant="ghost"
+            size="sm"
+            onClick={() => rename(node)}
           >
-            Delete
-          </button>
+            <Pencil />
+            Rename
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="text-destructive hover:text-destructive"
+            onClick={() => remove(node)}
+            aria-label={`Delete ${node.nameEn}`}
+            title="Delete"
+          >
+            <Trash2 />
+          </Button>
         </div>
         {node.children.length > 0 && renderLevel(node.children, depth + 1)}
       </div>
@@ -175,13 +178,7 @@ export function CategoryTree({
 
   if (nodes.length === 0) {
     return (
-      <p
-        style={{
-          padding: "var(--s-6)",
-          color: "var(--color-text-muted)",
-          margin: 0,
-        }}
-      >
+      <p className="text-muted-foreground p-6 text-[13px]">
         No categories yet.
       </p>
     );
@@ -189,24 +186,3 @@ export function CategoryTree({
 
   return <div>{renderLevel(nodes, 0)}</div>;
 }
-
-const iconBtn = (disabled: boolean): React.CSSProperties => ({
-  display: "inline-grid",
-  placeItems: "center",
-  width: 28,
-  height: 28,
-  border: "1px solid var(--color-border)",
-  borderRadius: "var(--r-sm)",
-  background: "transparent",
-  cursor: disabled ? "default" : "pointer",
-  color: disabled ? "var(--color-text-subtle)" : "var(--color-text)",
-  opacity: disabled ? 0.45 : 1,
-});
-const textBtn: React.CSSProperties = {
-  border: "none",
-  background: "none",
-  cursor: "pointer",
-  color: "var(--color-text-muted)",
-  fontSize: "var(--fs-small)",
-  fontFamily: "inherit",
-};

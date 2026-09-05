@@ -16,6 +16,8 @@ export interface ITestimonial {
   /** Visible on the public site when true; false hides without deleting. */
   published: boolean;
   deletedAt?: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const testimonialSchema = new Schema<ITestimonial>(

@@ -12,21 +12,16 @@ import { getSessionUser } from "@/lib/auth/current-user";
 import { localize } from "@/lib/schemas/localized";
 import { formatBDT } from "@/lib/money";
 import { asLocale } from "@/lib/i18n/intl-locale";
+import { EditorHeader } from "@/components/admin/ui/form-shell";
+import {
+  DetailCard,
+  DetailLayout,
+  DetailProse,
+  DetailRow,
+} from "@/components/admin/ui/detail";
+import { StatusBadge } from "@/components/admin/ui/status-badge";
 
 export const dynamic = "force-dynamic";
-
-const card: React.CSSProperties = {
-  border: "1px solid var(--color-border)",
-  background: "var(--color-surface)",
-  borderRadius: "var(--r-lg)",
-  padding: "var(--s-5)",
-  display: "grid",
-  gap: "var(--s-3)",
-};
-const muted: React.CSSProperties = {
-  color: "var(--color-text-muted)",
-  fontSize: "var(--fs-body-sm)",
-};
 
 export default async function AdminCaseDetailPage({
   params,
@@ -51,173 +46,110 @@ export default async function AdminCaseDetailPage({
   ]);
 
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
-      <div style={{ display: "grid", gap: 4 }}>
-        <h1
-          style={{
-            margin: 0,
-            fontFamily: "var(--font-display)",
-            fontSize: "var(--fs-2xl)",
-            color: "var(--color-text-strong)",
-          }}
-        >
-          {c.caseNumber}
-        </h1>
-        <span style={{ ...muted, fontFamily: "var(--font-mono)" }}>
-          {c.status.replace(/_/g, " ")} ·{" "}
-          {new Date(c.createdAt).toLocaleString()}
-        </span>
-      </div>
+    <div className="space-y-4">
+      <EditorHeader
+        backHref="/admin/tourism/cases"
+        backLabel="Cases"
+        title={c.caseNumber}
+        subtitle={
+          <span className="flex flex-wrap items-center gap-2">
+            <StatusBadge>{c.status}</StatusBadge>
+            <span className="font-mono text-xs">
+              {new Date(c.createdAt).toLocaleString()}
+            </span>
+          </span>
+        }
+      />
 
-      <div
-        className="equal-2col"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)",
-          gap: "var(--s-5)",
-          alignItems: "start",
-        }}
+      <DetailLayout
+        aside={
+          <CaseActions
+            caseId={String(c._id)}
+            status={c.status}
+            currentUserId={user?.sub ?? ""}
+            assignedToMe={assignedToMe}
+          />
+        }
       >
-        <div style={{ display: "grid", gap: "var(--s-5)" }}>
-          <section style={card}>
-            <Row label="Patient" value={c.patient.name} />
-            <Row label="Country" value={c.patient.country} />
-            <Row label="Email" value={c.patient.email} />
-            <Row label="Phone" value={c.patient.phone} />
-            {c.requestedService && (
-              <Row label="Requested" value={c.requestedService} />
-            )}
-            {hospital && (
-              <Row label="Hospital" value={localize(hospital.name, l)} />
-            )}
-            {doctor && <Row label="Doctor" value={doctor.name} />}
-            {pkg && <Row label="Package" value={localize(pkg.name, l)} />}
-          </section>
-
-          {c.diagnosis && (
-            <section style={card}>
-              <strong style={{ color: "var(--color-text-strong)" }}>
-                Diagnosis / notes
-              </strong>
-              <p style={{ margin: 0, whiteSpace: "pre-line" }}>{c.diagnosis}</p>
-            </section>
+        <DetailCard>
+          <DetailRow label="Patient">{c.patient.name}</DetailRow>
+          <DetailRow label="Country">{c.patient.country}</DetailRow>
+          <DetailRow label="Email">{c.patient.email}</DetailRow>
+          <DetailRow label="Phone">{c.patient.phone}</DetailRow>
+          {c.requestedService && (
+            <DetailRow label="Requested">{c.requestedService}</DetailRow>
           )}
+          {hospital && (
+            <DetailRow label="Hospital">{localize(hospital.name, l)}</DetailRow>
+          )}
+          {doctor && <DetailRow label="Doctor">{doctor.name}</DetailRow>}
+          {pkg && (
+            <DetailRow label="Package">{localize(pkg.name, l)}</DetailRow>
+          )}
+        </DetailCard>
 
-          <section style={card}>
-            <strong style={{ color: "var(--color-text-strong)" }}>
-              Medical documents
-            </strong>
-            <CaseDocumentViewer
-              caseId={String(c._id)}
-              documents={(c.documents ?? []).map((d) => ({ name: d.name }))}
-            />
-          </section>
+        {c.diagnosis && (
+          <DetailCard title="Diagnosis / notes">
+            <DetailProse>{c.diagnosis}</DetailProse>
+          </DetailCard>
+        )}
 
-          <section style={card}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <strong style={{ color: "var(--color-text-strong)" }}>
-                Arrangement checklist
-              </strong>
-            </div>
-            <CaseChecklist
-              caseId={String(c._id)}
-              initial={c.arrangementChecklist}
-            />
-          </section>
+        <DetailCard title="Medical documents">
+          <CaseDocumentViewer
+            caseId={String(c._id)}
+            documents={(c.documents ?? []).map((d) => ({ name: d.name }))}
+          />
+        </DetailCard>
 
-          {c.quotation?.amountMinor != null && (
-            <section style={card}>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
+        <DetailCard title="Arrangement checklist">
+          <CaseChecklist
+            caseId={String(c._id)}
+            initial={c.arrangementChecklist}
+          />
+        </DetailCard>
+
+        {c.quotation?.amountMinor != null && (
+          <DetailCard
+            title="Current quotation"
+            action={
+              <Link
+                href={`/admin/tourism/cases/${String(c._id)}/quotation`}
+                className="text-primary text-[13px] font-medium hover:underline"
               >
-                <strong style={{ color: "var(--color-text-strong)" }}>
-                  Current quotation
-                </strong>
-                <Link
-                  href={`/admin/tourism/cases/${String(c._id)}/quotation`}
-                  style={{
-                    color: "var(--color-brand-deep)",
-                    fontSize: "var(--fs-body-sm)",
-                  }}
-                >
-                  Printable view →
-                </Link>
+                Printable view →
+              </Link>
+            }
+          >
+            <DetailRow label="Amount">
+              {formatBDT(c.quotation.amountMinor)}
+            </DetailRow>
+            {c.quotation.validUntil && (
+              <DetailRow label="Valid until">
+                {new Date(c.quotation.validUntil).toLocaleDateString()}
+              </DetailRow>
+            )}
+            {c.quotation.notes && (
+              <DetailProse>{c.quotation.notes}</DetailProse>
+            )}
+          </DetailCard>
+        )}
+
+        {c.activity.length > 0 && (
+          <DetailCard
+            title="Activity"
+            bodyClassName="divide-border/60 gap-0 divide-y py-0"
+          >
+            {c.activity.map((n, i) => (
+              <div key={i} className="grid gap-0.5 py-2.5">
+                <span className="text-foreground">{n.body}</span>
+                <span className="text-muted-foreground text-xs">
+                  {new Date(n.at).toLocaleString()}
+                </span>
               </div>
-              <Row label="Amount" value={formatBDT(c.quotation.amountMinor)} />
-              {c.quotation.validUntil && (
-                <Row
-                  label="Valid until"
-                  value={new Date(c.quotation.validUntil).toLocaleDateString()}
-                />
-              )}
-              {c.quotation.notes && (
-                <p style={{ margin: 0 }}>{c.quotation.notes}</p>
-              )}
-            </section>
-          )}
-
-          {c.activity.length > 0 && (
-            <section style={card}>
-              <strong style={{ color: "var(--color-text-strong)" }}>
-                Activity
-              </strong>
-              {c.activity.map((n, i) => (
-                <div key={i} style={{ display: "grid", gap: 2 }}>
-                  <span style={{ color: "var(--color-text)" }}>{n.body}</span>
-                  <span style={muted}>{new Date(n.at).toLocaleString()}</span>
-                </div>
-              ))}
-            </section>
-          )}
-        </div>
-
-        <CaseActions
-          caseId={String(c._id)}
-          status={c.status}
-          currentUserId={user?.sub ?? ""}
-          assignedToMe={assignedToMe}
-        />
-      </div>
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        gap: "var(--s-4)",
-      }}
-    >
-      <span
-        style={{
-          color: "var(--color-text-muted)",
-          fontSize: "var(--fs-body-sm)",
-        }}
-      >
-        {label}
-      </span>
-      <strong
-        style={{
-          color: "var(--color-text-strong)",
-          wordBreak: "break-all",
-          textAlign: "right",
-        }}
-      >
-        {value}
-      </strong>
+            ))}
+          </DetailCard>
+        )}
+      </DetailLayout>
     </div>
   );
 }

@@ -3,6 +3,13 @@ import { connectToDatabase } from "@/lib/db/connect";
 import { Seller, type ISeller } from "@/lib/models/seller";
 import type { Lean } from "@/lib/models/_shared";
 import type { SellerStatus } from "@/lib/schemas/seller";
+import {
+  applyDateRange,
+  applyPartialSearch,
+  paginate,
+  sortSpec,
+  type RepoListQuery,
+} from "./list-query";
 
 type SellerFilter = NonNullable<Parameters<typeof Seller.countDocuments>[0]>;
 
@@ -40,6 +47,31 @@ export async function listSellers(params: { status?: SellerStatus } = {}) {
     .sort({ createdAt: -1 })
     .lean<Lean<ISeller>[]>()
     .exec();
+}
+
+/** Sort keys the admin list exposes → stored fields. */
+const SELLER_SORT: Record<string, string> = {
+  date: "createdAt",
+  name: "displayName",
+  status: "status",
+};
+
+export type SellerAdminListParams = RepoListQuery & {
+  status?: SellerStatus;
+};
+
+/** Searchable, sortable, paged list for the admin (list kit). */
+export async function listSellersForAdmin(params: SellerAdminListParams = {}) {
+  await connectToDatabase();
+  const q: Record<string, unknown> = { deletedAt: null };
+  if (params.status) q.status = params.status;
+  applyPartialSearch(q, params.search, ["displayName", "slug"]);
+  applyDateRange(q, params.from, params.to);
+  return paginate<ISeller>(Seller, q, {
+    sort: sortSpec(params.sort, params.dir, SELLER_SORT),
+    page: params.page,
+    pageSize: params.pageSize,
+  });
 }
 
 export async function listActiveSellers() {

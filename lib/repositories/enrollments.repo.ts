@@ -3,10 +3,13 @@ import { connectToDatabase } from "@/lib/db/connect";
 import { Enrollment, type IEnrollment } from "@/lib/models/enrollment";
 import type { Lean } from "@/lib/models/_shared";
 import type { EnrollmentStatus } from "@/lib/schemas/enrollment";
-
-type EnrollmentFilter = NonNullable<
-  Parameters<typeof Enrollment.countDocuments>[0]
->;
+import {
+  applyDateRange,
+  applyPartialSearch,
+  paginate,
+  sortSpec,
+  type RepoListQuery,
+} from "./list-query";
 
 export async function getEnrollmentByIdempotencyKey(key: string) {
   await connectToDatabase();
@@ -58,37 +61,34 @@ export async function listEnrollmentsByUser(userId: string) {
     .exec();
 }
 
-export type EnrollmentListParams = {
+/** Sort keys the admin enrollments list exposes → stored fields. */
+const ENROLLMENT_SORT: Record<string, string> = {
+  date: "createdAt",
+  number: "enrollmentNumber",
+  email: "email",
+  status: "status",
+  total: "totalMinor",
+};
+
+export type EnrollmentListParams = RepoListQuery & {
   courseId?: string;
   status?: EnrollmentStatus;
-  page?: number;
-  pageSize?: number;
 };
 
 export async function listEnrollments(params: EnrollmentListParams = {}) {
   await connectToDatabase();
   const q: Record<string, unknown> = {};
-  if (params.courseId) q.courseId = params.courseId;
+  if (params.courseId && mongoose.isValidObjectId(params.courseId)) {
+    q.courseId = params.courseId;
+  }
   if (params.status) q.status = params.status;
-  const page = Math.max(1, params.page ?? 1);
-  const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 50));
-  const filter = q as unknown as EnrollmentFilter;
-  const [items, total] = await Promise.all([
-    Enrollment.find(filter)
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * pageSize)
-      .limit(pageSize)
-      .lean<Lean<IEnrollment>[]>()
-      .exec(),
-    Enrollment.countDocuments(filter),
-  ]);
-  return {
-    items,
-    total,
-    page,
-    pageSize,
-    pages: Math.max(1, Math.ceil(total / pageSize)),
-  };
+  applyPartialSearch(q, params.search, ["enrollmentNumber", "email"]);
+  applyDateRange(q, params.from, params.to);
+  return paginate<IEnrollment>(Enrollment, q, {
+    sort: sortSpec(params.sort, params.dir, ENROLLMENT_SORT),
+    page: params.page,
+    pageSize: params.pageSize ?? 50,
+  });
 }
 
 export async function createEnrollment(data: Partial<IEnrollment>) {

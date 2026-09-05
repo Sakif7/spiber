@@ -1,8 +1,10 @@
 import { setRequestLocale } from "next-intl/server";
-import { Link } from "@/i18n/navigation";
+import { MessageSquare } from "lucide-react";
 import { ReviewModeration } from "@/components/admin/review-moderation";
 import { RatingStars } from "@/components/marketplace/rating-stars";
 import { AdminPageHeader } from "@/components/admin/ui/page-header";
+import { StatusFilterPills } from "@/components/admin/ui/status-filter";
+import { Card, CardContent } from "@/components/ui/card";
 import { listReviewsForModeration } from "@/lib/repositories/reviews.repo";
 import { getProductById } from "@/lib/repositories/products.repo";
 import { localize } from "@/lib/schemas/localized";
@@ -43,105 +45,74 @@ export default async function AdminReviewsPage({
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <AdminPageHeader
         title="Reviews"
-        description="Moderate Spiber Kart product reviews."
+        description="Moderate Spiber Kart product reviews. Approved reviews count towards the product rating."
       />
 
-      <div style={{ display: "flex", gap: 8 }}>
-        {STATUSES.map((s) => (
-          <Link
-            key={s}
-            href={`/admin/marketplace/reviews?status=${s}`}
-            style={{
-              padding: "6px 14px",
-              borderRadius: "var(--r-pill)",
-              border: "1px solid var(--color-border)",
-              background:
-                active === s ? "var(--color-brand)" : "var(--color-surface)",
-              color: active === s ? "#fff" : "var(--color-text)",
-              fontSize: "var(--fs-caption)",
-              textTransform: "capitalize",
-              fontWeight: 600,
-            }}
-          >
-            {s}
-          </Link>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <StatusFilterPills
+          statuses={STATUSES}
+          active={active}
+          basePath="/admin/marketplace/reviews"
+          allValue="pending"
+          label="Status"
+        />
+        <span className="text-muted-foreground text-xs tabular-nums">
+          {reviews.length} {active} review{reviews.length === 1 ? "" : "s"}
+        </span>
       </div>
 
       {reviews.length === 0 ? (
-        <p style={{ color: "var(--color-text-muted)" }}>No {active} reviews.</p>
+        <Card className="items-center py-10 text-center">
+          <MessageSquare className="text-muted-foreground size-6" />
+          <p className="text-foreground text-sm font-medium">
+            No {active} reviews.
+          </p>
+          <p className="text-muted-foreground text-[13px]">
+            {active === "pending"
+              ? "New customer reviews wait here until you approve or reject them."
+              : "Switch the status filter to see other reviews."}
+          </p>
+        </Card>
       ) : (
-        <div style={{ display: "grid", gap: "var(--s-4)" }}>
+        <div className="grid gap-3">
           {reviews.map((r) => (
-            <div
-              key={String(r._id)}
-              style={{
-                boxShadow: "var(--shadow-sm)",
-                borderRadius: "var(--r-lg)",
-                background: "var(--color-surface)",
-                padding: "var(--s-4)",
-                display: "grid",
-                gap: 8,
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "var(--s-3)",
-                  flexWrap: "wrap",
-                }}
-              >
-                <RatingStars value={r.rating} showCount={false} />
-                <strong style={{ color: "var(--color-text-strong)" }}>
-                  {r.authorName}
-                </strong>
-                {r.verifiedPurchase && (
-                  <span
-                    style={{
-                      fontSize: "var(--fs-caption)",
-                      color: "var(--color-success)",
-                      fontWeight: 600,
-                    }}
-                  >
-                    ✓ Verified
+            <Card key={String(r._id)} className="gap-0 py-4">
+              <CardContent className="space-y-2 px-4">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <RatingStars value={r.rating} showCount={false} />
+                  <span className="text-foreground font-semibold">
+                    {r.authorName}
                   </span>
+                  {r.verifiedPurchase && (
+                    <span className="text-xs font-semibold text-[var(--color-success)]">
+                      ✓ Verified purchase
+                    </span>
+                  )}
+                  <span className="text-muted-foreground text-xs">
+                    · {names.get(String(r.productId)) ?? "Product"}
+                  </span>
+                  <span className="text-muted-foreground ml-auto text-xs whitespace-nowrap">
+                    {new Date(r.createdAt).toLocaleDateString("en-GB")}
+                  </span>
+                </div>
+                {r.title && (
+                  <p className="text-foreground text-sm font-semibold">
+                    {r.title}
+                  </p>
                 )}
-                <span
-                  style={{
-                    color: "var(--color-text-muted)",
-                    fontSize: "var(--fs-caption)",
-                  }}
-                >
-                  · {names.get(String(r.productId)) ?? "Product"}
-                </span>
-                <span
-                  style={{
-                    marginLeft: "auto",
-                    fontSize: "var(--fs-caption)",
-                    color: "var(--color-text-muted)",
-                  }}
-                >
-                  {new Date(r.createdAt).toLocaleDateString()}
-                </span>
-              </div>
-              {r.title && <strong>{r.title}</strong>}
-              <p
-                style={{
-                  margin: 0,
-                  color: "var(--color-text)",
-                  whiteSpace: "pre-line",
-                }}
-              >
-                {r.body}
-              </p>
-              {active === "pending" && (
-                <ReviewModeration reviewId={String(r._id)} />
-              )}
-            </div>
+                <p className="text-foreground text-[13px] whitespace-pre-line">
+                  {r.body}
+                </p>
+                {active === "pending" && (
+                  <div className="pt-1">
+                    <ReviewModeration reviewId={String(r._id)} />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}

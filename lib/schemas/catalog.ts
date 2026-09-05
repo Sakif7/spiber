@@ -140,6 +140,9 @@ export const productSchema = z.object({
   floorPriceMinor: z.number().int().nonnegative().nullable().optional(),
   stockQty: z.number().int().default(0),
   lowStockThreshold: z.number().int().nonnegative().default(5),
+  // Stock-tracking override: null/absent = default rule (Kart always tracked,
+  // Medtrade tracked once priced); true/false forces it either way.
+  trackStock: z.boolean().nullable().optional(),
   status: productStatusEnum.default("draft"),
   featured: z.boolean().default(false),
   variantOptions: z.array(variantOptionSchema).default([]),

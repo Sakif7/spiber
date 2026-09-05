@@ -1,8 +1,8 @@
 import { setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
-import { Link } from "@/i18n/navigation";
 import { DestinationForm } from "@/components/admin/tourism/catalog-form";
 import { getDestinationByIdLean } from "@/lib/repositories/destinations.repo";
+import { EditorHeader } from "@/components/admin/ui/form-shell";
 
 export const dynamic = "force-dynamic";
 
@@ -18,28 +18,12 @@ export default async function EditDestinationPage({
   const initial = JSON.parse(JSON.stringify(doc)) as Record<string, unknown>;
 
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
-      <div style={{ display: "grid", gap: "var(--s-2)" }}>
-        <Link
-          href="/admin/tourism/destinations"
-          style={{
-            fontSize: "var(--fs-small)",
-            color: "var(--color-text-muted)",
-          }}
-        >
-          ← Destinations
-        </Link>
-        <h1
-          style={{
-            margin: 0,
-            fontFamily: "var(--font-display)",
-            fontSize: "var(--fs-2xl)",
-            color: "var(--color-text-strong)",
-          }}
-        >
-          Edit destination
-        </h1>
-      </div>
+    <div className="space-y-4">
+      <EditorHeader
+        backHref="/admin/tourism/destinations"
+        backLabel="Destinations"
+        title="Edit destination"
+      />
       <DestinationForm id={id} initial={initial} />
     </div>
   );

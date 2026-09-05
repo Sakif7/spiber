@@ -10,6 +10,7 @@ import type {
   TourismStatus,
   TreatmentCategory,
 } from "@/lib/schemas/tourism-catalog";
+import { applyDateRange, sortSpec, type RepoListQuery } from "./list-query";
 
 type Filter = NonNullable<
   Parameters<typeof TreatmentPackage.countDocuments>[0]
@@ -35,12 +36,17 @@ export async function getActivePackageBySlug(slug: string) {
     .exec();
 }
 
-export type PackageListParams = {
+/** Sort keys the admin list exposes → stored fields. */
+const PACKAGE_SORT: Record<string, string> = {
+  date: "createdAt",
+  name: "name.en",
+  status: "status",
+  category: "category",
+};
+
+export type PackageListParams = RepoListQuery & {
   status?: TourismStatus;
-  search?: string;
   category?: TreatmentCategory;
-  page?: number;
-  pageSize?: number;
 };
 
 export async function listPackages(params: PackageListParams = {}) {
@@ -54,12 +60,17 @@ export async function listPackages(params: PackageListParams = {}) {
     "description.en",
     "description.bn",
   ]);
+  applyDateRange(q, params.from, params.to);
   const page = Math.max(1, params.page ?? 1);
   const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 24));
   const filter = q as unknown as Filter;
   const [items, total] = await Promise.all([
     TreatmentPackage.find(filter)
-      .sort({ createdAt: -1 })
+      .sort(
+        params.sort
+          ? sortSpec(params.sort, params.dir, PACKAGE_SORT)
+          : { createdAt: -1 },
+      )
       .skip((page - 1) * pageSize)
       .limit(pageSize)
       .lean<Lean<ITreatmentPackage>[]>()

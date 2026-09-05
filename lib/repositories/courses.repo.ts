@@ -3,6 +3,12 @@ import { Course, type ICourse, type ILesson } from "@/lib/models/course";
 import type { Lean } from "@/lib/models/_shared";
 import type { CourseLevel, CourseStatus } from "@/lib/schemas/academy";
 import { applyPartialSearch } from "@/lib/repositories/search-filter";
+import {
+  applyDateRange,
+  paginate,
+  sortSpec,
+  type RepoListQuery,
+} from "./list-query";
 
 // Version-agnostic Mongoose filter type (Mongoose 9 renamed FilterQuery).
 type CourseFilter = NonNullable<Parameters<typeof Course.countDocuments>[0]>;
@@ -68,6 +74,37 @@ export async function listCourses(params: CourseListParams) {
     pageSize,
     pages: Math.max(1, Math.ceil(total / pageSize)),
   };
+}
+
+/** Sort keys the admin courses list exposes → stored fields. */
+const COURSE_ADMIN_SORT: Record<string, string> = {
+  date: "createdAt",
+  title: "title.en",
+  price: "priceMinor",
+  status: "status",
+  level: "level",
+};
+
+export type CourseAdminListParams = RepoListQuery & {
+  status?: CourseStatus;
+  level?: CourseLevel;
+};
+
+/** Searchable, sortable, paged course list for the admin (list kit). Reuses
+ * the public query builder so search semantics match the storefront. */
+export async function listCoursesForAdmin(params: CourseAdminListParams = {}) {
+  await connectToDatabase();
+  const q = buildQuery({
+    status: params.status,
+    level: params.level,
+    search: params.search,
+  });
+  applyDateRange(q, params.from, params.to);
+  return paginate<ICourse>(Course, q, {
+    sort: sortSpec(params.sort, params.dir, COURSE_ADMIN_SORT),
+    page: params.page,
+    pageSize: params.pageSize,
+  });
 }
 
 export async function getCourseBySlug(slug: string) {

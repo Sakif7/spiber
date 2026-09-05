@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { setRequestLocale } from "next-intl/server";
-import { Link } from "@/i18n/navigation";
 import { getProductById } from "@/lib/repositories/products.repo";
 import { listCategories, listBrands } from "@/lib/repositories/taxonomy.repo";
 import { localize } from "@/lib/schemas/localized";
@@ -8,6 +7,7 @@ import {
   MarketplaceProductForm,
   type MarketplaceProductInitial,
 } from "@/components/admin/marketplace-product-form";
+import { EditorHeader } from "@/components/admin/ui/form-shell";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +60,7 @@ export default async function EditMarketplaceProductPage({
     priceMinor: p.priceMinor,
     compareAtMinor: p.compareAtMinor ?? null,
     lowStockThreshold: p.lowStockThreshold,
+    stockQty: p.stockQty ?? 0,
     status: p.status,
     featured: p.featured,
     specs: (p.specs ?? []).map((s) => ({
@@ -81,37 +82,13 @@ export default async function EditMarketplaceProductPage({
   };
 
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
-      <div style={{ display: "grid", gap: "var(--s-2)" }}>
-        <Link
-          href="/admin/marketplace/products"
-          style={{
-            fontSize: "var(--fs-small)",
-            color: "var(--color-text-muted)",
-          }}
-        >
-          ← Spiber Kart products
-        </Link>
-        <h1
-          style={{
-            margin: 0,
-            fontFamily: "var(--font-display)",
-            fontSize: "var(--fs-h2)",
-            color: "var(--color-text-strong)",
-          }}
-        >
-          {localize(p.name, "en") || p.sku}
-        </h1>
-        <p
-          style={{
-            margin: 0,
-            fontSize: "var(--fs-small)",
-            color: "var(--color-text-muted)",
-          }}
-        >
-          SKU {p.sku}
-        </p>
-      </div>
+    <div className="space-y-4">
+      <EditorHeader
+        backHref="/admin/marketplace/products"
+        backLabel="Spiber Kart products"
+        title={localize(p.name, "en") || p.sku}
+        subtitle={<>SKU {p.sku}</>}
+      />
       <MarketplaceProductForm
         initial={initial}
         categories={categories}

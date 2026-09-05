@@ -6,6 +6,13 @@ import type {
   TravelRequestStatus,
   TravelRequestType,
 } from "@/lib/schemas/travel-request";
+import {
+  applyDateRange,
+  applyPartialSearch,
+  paginate,
+  sortSpec,
+  type RepoListQuery,
+} from "./list-query";
 
 type Filter = NonNullable<Parameters<typeof TravelRequest.countDocuments>[0]>;
 
@@ -42,12 +49,20 @@ export async function getTravelRequestByNumber(
     .exec();
 }
 
-export type TravelRequestListParams = {
+/** Sort keys the admin list exposes → stored fields. */
+const TRAVEL_SORT: Record<string, string> = {
+  date: "createdAt",
+  number: "travelRequestNumber",
+  contact: "contact.name",
+  status: "status",
+  type: "type",
+  quoted: "quote.amountMinor",
+};
+
+export type TravelRequestListParams = RepoListQuery & {
   status?: TravelRequestStatus;
   type?: TravelRequestType;
   assignedTo?: string;
-  page?: number;
-  pageSize?: number;
 };
 
 export async function listTravelRequests(params: TravelRequestListParams = {}) {
@@ -58,25 +73,18 @@ export async function listTravelRequests(params: TravelRequestListParams = {}) {
   if (params.assignedTo && mongoose.isValidObjectId(params.assignedTo)) {
     q.assignedTo = params.assignedTo;
   }
-  const page = Math.max(1, params.page ?? 1);
-  const pageSize = Math.min(200, Math.max(1, params.pageSize ?? 50));
-  const filter = q as unknown as Filter;
-  const [items, total] = await Promise.all([
-    TravelRequest.find(filter)
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * pageSize)
-      .limit(pageSize)
-      .lean<Lean<ITravelRequest>[]>()
-      .exec(),
-    TravelRequest.countDocuments(filter),
+  applyPartialSearch(q, params.search, [
+    "travelRequestNumber",
+    "contact.name",
+    "contact.email",
   ]);
-  return {
-    items,
-    total,
-    page,
-    pageSize,
-    pages: Math.max(1, Math.ceil(total / pageSize)),
-  };
+  applyDateRange(q, params.from, params.to);
+  return paginate<ITravelRequest>(TravelRequest, q, {
+    sort: sortSpec(params.sort, params.dir, TRAVEL_SORT),
+    page: params.page,
+    pageSize: params.pageSize ?? 50,
+    maxPageSize: 200,
+  });
 }
 
 export async function countOpenTravelRequests(): Promise<number> {

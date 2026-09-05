@@ -6,6 +6,13 @@ import {
 } from "@/lib/models/seller-application";
 import type { Lean } from "@/lib/models/_shared";
 import type { SellerApplicationStatus } from "@/lib/schemas/seller-application";
+import {
+  applyDateRange,
+  applyPartialSearch,
+  paginate,
+  sortSpec,
+  type RepoListQuery,
+} from "./list-query";
 
 type Filter = NonNullable<
   Parameters<typeof SellerApplication.countDocuments>[0]
@@ -55,6 +62,39 @@ export async function listSellerApplications(
     .sort({ createdAt: -1 })
     .lean<Lean<ISellerApplication>[]>()
     .exec();
+}
+
+/** Sort keys the admin list exposes → stored fields. */
+const SELLER_APPLICATION_SORT: Record<string, string> = {
+  date: "createdAt",
+  number: "applicationNumber",
+  business: "businessName",
+  status: "status",
+};
+
+export type SellerApplicationAdminListParams = RepoListQuery & {
+  status?: SellerApplicationStatus;
+};
+
+/** Searchable, sortable, paged list for the admin (list kit). */
+export async function listSellerApplicationsForAdmin(
+  params: SellerApplicationAdminListParams = {},
+) {
+  await connectToDatabase();
+  const q: Record<string, unknown> = { deletedAt: null };
+  if (params.status) q.status = params.status;
+  applyPartialSearch(q, params.search, [
+    "applicationNumber",
+    "businessName",
+    "contactName",
+    "email",
+  ]);
+  applyDateRange(q, params.from, params.to);
+  return paginate<ISellerApplication>(SellerApplication, q, {
+    sort: sortSpec(params.sort, params.dir, SELLER_APPLICATION_SORT),
+    page: params.page,
+    pageSize: params.pageSize,
+  });
 }
 
 export async function countOpenSellerApplications(): Promise<number> {

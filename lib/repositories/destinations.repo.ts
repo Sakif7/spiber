@@ -4,6 +4,7 @@ import { Destination, type IDestination } from "@/lib/models/destination";
 import type { Lean } from "@/lib/models/_shared";
 import { applyPartialSearch } from "./search-filter";
 import type { TourismStatus } from "@/lib/schemas/tourism-catalog";
+import { applyDateRange, sortSpec, type RepoListQuery } from "./list-query";
 
 type Filter = NonNullable<Parameters<typeof Destination.countDocuments>[0]>;
 
@@ -38,12 +39,16 @@ export async function getDestinationsByIds(
     .exec();
 }
 
-export type DestinationListParams = {
+/** Sort keys the admin list exposes → stored fields. */
+const DESTINATION_SORT: Record<string, string> = {
+  date: "createdAt",
+  name: "name.en",
+  status: "status",
+};
+
+export type DestinationListParams = RepoListQuery & {
   status?: TourismStatus;
-  search?: string;
   featured?: boolean;
-  page?: number;
-  pageSize?: number;
 };
 
 export async function listDestinations(params: DestinationListParams = {}) {
@@ -57,12 +62,17 @@ export async function listDestinations(params: DestinationListParams = {}) {
     "overview.en",
     "overview.bn",
   ]);
+  applyDateRange(q, params.from, params.to);
   const page = Math.max(1, params.page ?? 1);
   const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 24));
   const filter = q as unknown as Filter;
   const [items, total] = await Promise.all([
     Destination.find(filter)
-      .sort({ featured: -1, createdAt: -1 })
+      .sort(
+        params.sort
+          ? sortSpec(params.sort, params.dir, DESTINATION_SORT)
+          : { featured: -1, createdAt: -1 },
+      )
       .skip((page - 1) * pageSize)
       .limit(pageSize)
       .lean<Lean<IDestination>[]>()

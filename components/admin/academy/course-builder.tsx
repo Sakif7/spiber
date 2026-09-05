@@ -26,16 +26,29 @@ import {
   ChevronUp,
   ChevronDown,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CtaButton } from "@/components/ui/cta-button";
+import { Switch } from "@/components/ui/switch";
+import { Card } from "@/components/ui/card";
 import { fromMinor, toMinor } from "@/lib/money";
 import { formatApiError } from "@/lib/http/form-error";
+import { cn } from "@/lib/cn";
 import type {
   CourseLevel,
   CourseStatus,
   LessonType,
 } from "@/lib/schemas/academy";
+import { LocalizedInput, type LocalizedValue } from "../ui/localized-input";
+import { SelectField } from "../ui/select-field";
+import {
+  EditorForm,
+  FormField,
+  FormGrid,
+  FormSection,
+  SaveBar,
+} from "../ui/form-shell";
+import { SingleImageField, UploadButton } from "../upload-fields";
 
 // ---- Builder-local shapes (every field present, edited freely) ----
 type L = { en: string; bn: string; ja: string };
@@ -82,6 +95,12 @@ const cid = () =>
     : Math.random().toString(36).slice(2);
 
 const emptyL = (): L => ({ en: "", bn: "", ja: "" });
+/** LocalizedInput hands back a partial value; the builder keeps all three. */
+const fromLV = (v: LocalizedValue): L => ({
+  en: v.en ?? "",
+  bn: v.bn ?? "",
+  ja: v.ja ?? "",
+});
 const newOption = (): BOption => ({ id: cid(), text: emptyL() });
 const newQuestion = (): BQuestion => {
   const o1 = newOption();
@@ -106,109 +125,36 @@ const newLesson = (type: LessonType): BLesson => ({
 });
 const newModule = (): BModule => ({ id: cid(), title: emptyL(), lessons: [] });
 
-const card: CSSProperties = {
-  border: "1px solid var(--color-border)",
-  background: "var(--color-surface)",
-  borderRadius: "var(--r-lg)",
-  padding: "var(--s-5)",
-};
-const sub: CSSProperties = {
-  fontFamily: "var(--font-mono)",
-  fontSize: "var(--fs-caption)",
-  textTransform: "uppercase",
-  letterSpacing: "var(--tracking-eyebrow)",
-  color: "var(--color-text-muted)",
-};
-const iconBtn: CSSProperties = {
-  display: "grid",
-  placeItems: "center",
-  width: 30,
-  height: 30,
-  borderRadius: "var(--r-sm)",
-  border: "1px solid var(--color-border)",
-  background: "var(--color-surface)",
-  color: "var(--color-text-muted)",
-  cursor: "pointer",
-};
+const LEVEL_OPTIONS = [
+  { value: "beginner", label: "Beginner" },
+  { value: "intermediate", label: "Intermediate" },
+  { value: "advanced", label: "Advanced" },
+];
+const STATUS_OPTIONS = [
+  { value: "draft", label: "Draft" },
+  { value: "published", label: "Published" },
+  { value: "archived", label: "Archived" },
+];
 
-function BilingualField({
-  label,
-  value,
-  onChange,
-  textarea,
+/** Small uppercase caption used for "Module 1" / lesson type chips. */
+function Eyebrow({
+  children,
+  className,
 }: {
-  label: string;
-  value: L;
-  onChange: (v: L) => void;
-  textarea?: boolean;
+  children: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <div style={{ display: "grid", gap: 6 }}>
-      <Label>{label}</Label>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr",
-          gap: "var(--s-3)",
-        }}
-      >
-        {textarea ? (
-          <>
-            <textarea
-              placeholder="EN"
-              value={value.en}
-              onChange={(e) => onChange({ ...value, en: e.target.value })}
-              rows={3}
-              style={taStyle}
-            />
-            <textarea
-              placeholder="বাংলা"
-              value={value.bn}
-              onChange={(e) => onChange({ ...value, bn: e.target.value })}
-              rows={3}
-              style={taStyle}
-            />
-            <textarea
-              placeholder="日本語"
-              value={value.ja}
-              onChange={(e) => onChange({ ...value, ja: e.target.value })}
-              rows={3}
-              style={taStyle}
-            />
-          </>
-        ) : (
-          <>
-            <Input
-              placeholder="EN"
-              value={value.en}
-              onChange={(e) => onChange({ ...value, en: e.target.value })}
-            />
-            <Input
-              placeholder="বাংলা"
-              value={value.bn}
-              onChange={(e) => onChange({ ...value, bn: e.target.value })}
-            />
-            <Input
-              placeholder="日本語"
-              value={value.ja}
-              onChange={(e) => onChange({ ...value, ja: e.target.value })}
-            />
-          </>
-        )}
-      </div>
-    </div>
+    <span
+      className={cn(
+        "text-muted-foreground font-mono text-[11px] tracking-[0.12em] uppercase",
+        className,
+      )}
+    >
+      {children}
+    </span>
   );
 }
-
-const taStyle: CSSProperties = {
-  font: "inherit",
-  padding: "8px 10px",
-  border: "1px solid var(--color-border-field)",
-  borderRadius: "var(--r-sm)",
-  background: "var(--color-surface)",
-  width: "100%",
-  resize: "vertical",
-};
 
 function Sortable({
   id,
@@ -408,232 +354,213 @@ export function CourseBuilder({ initial }: { initial?: CourseBuilderInitial }) {
     }
   }
 
+  const lessonCount = modules.reduce((n, m) => n + m.lessons.length, 0);
+
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)", maxWidth: 920 }}>
-      {/* Details */}
-      <section style={{ ...card, display: "grid", gap: "var(--s-5)" }}>
-        <BilingualField label="Title" value={title} onChange={setTitle} />
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "var(--s-4)",
-          }}
-        >
-          <div style={{ display: "grid", gap: 6 }}>
-            <Label>Slug (optional)</Label>
+    <EditorForm className="max-w-5xl">
+      <FormSection
+        title="Course details"
+        description="How the course is presented in the MedAcademy catalog."
+      >
+        <LocalizedInput
+          label="Title"
+          required
+          value={title}
+          onChange={(v) => setTitle(fromLV(v))}
+          placeholder="e.g. Patient Monitoring Fundamentals"
+        />
+        <FormGrid>
+          <FormField
+            label="Slug (optional)"
+            htmlFor="course-slug"
+            hint="Leave blank to derive it from the English title."
+          >
             <Input
+              id="course-slug"
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
               placeholder="auto from title"
             />
-          </div>
-          <div style={{ display: "grid", gap: 6 }}>
-            <Label>Price (BDT)</Label>
+          </FormField>
+          <FormField
+            label="Price (BDT)"
+            htmlFor="course-price"
+            hint="Zero enrols instantly; a paid course waits for an admin to mark it paid."
+          >
             <Input
+              id="course-price"
               type="number"
               value={priceMajor}
               onChange={(e) => setPriceMajor(e.target.value)}
             />
-          </div>
-        </div>
-        <BilingualField label="Summary" value={summary} onChange={setSummary} />
-        <BilingualField
-          label="Description"
-          value={description}
-          onChange={setDescription}
-          textarea
+          </FormField>
+        </FormGrid>
+        <LocalizedInput
+          label="Summary"
+          value={summary}
+          onChange={(v) => setSummary(fromLV(v))}
         />
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "var(--s-4)",
-          }}
-        >
-          <div style={{ display: "grid", gap: 6 }}>
-            <Label>Level</Label>
-            <select
+        <LocalizedInput
+          label="Description"
+          textarea
+          value={description}
+          onChange={(v) => setDescription(fromLV(v))}
+        />
+        <FormGrid>
+          <FormField label="Level">
+            <SelectField
               value={level}
-              onChange={(e) => setLevel(e.target.value as CourseLevel)}
-              style={selStyle}
-            >
-              <option value="beginner">Beginner</option>
-              <option value="intermediate">Intermediate</option>
-              <option value="advanced">Advanced</option>
-            </select>
-          </div>
-          <div style={{ display: "grid", gap: 6 }}>
-            <Label>Status</Label>
-            <select
+              onChange={(v) => setLevel(v as CourseLevel)}
+              ariaLabel="Level"
+              options={LEVEL_OPTIONS}
+            />
+          </FormField>
+          <FormField label="Status">
+            <SelectField
               value={status}
-              onChange={(e) => setStatus(e.target.value as CourseStatus)}
-              style={selStyle}
+              onChange={(v) => setStatus(v as CourseStatus)}
+              ariaLabel="Status"
+              options={STATUS_OPTIONS}
+            />
+          </FormField>
+        </FormGrid>
+        <FormField label="Thumbnail">
+          <SingleImageField value={thumbnail} onChange={setThumbnail} />
+        </FormField>
+      </FormSection>
+
+      <FormSection
+        title="Curriculum"
+        description={
+          modules.length === 0
+            ? "Add a module to start building the curriculum."
+            : `${modules.length} module${modules.length === 1 ? "" : "s"} · ${lessonCount} lesson${lessonCount === 1 ? "" : "s"} — drag to reorder.`
+        }
+        action={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setModules((m) => [...m, newModule()])}
+          >
+            <Plus className="size-4" />
+            Add module
+          </Button>
+        }
+      >
+        {modules.length === 0 ? (
+          <p className="text-muted-foreground py-2 text-[13px]">
+            No modules yet. A course can be saved as a draft without them.
+          </p>
+        ) : (
+          <DndContext
+            id="course-modules"
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={onModuleDragEnd}
+          >
+            <SortableContext
+              items={modules.map((m) => m.id)}
+              strategy={verticalListSortingStrategy}
             >
-              <option value="draft">Draft</option>
-              <option value="published">Published</option>
-              <option value="archived">Archived</option>
-            </select>
-          </div>
-        </div>
-        <div style={{ display: "grid", gap: 6 }}>
-          <Label>Thumbnail</Label>
-          <ImageField value={thumbnail} onChange={setThumbnail} />
-        </div>
-      </section>
+              <div className="grid gap-3">
+                {modules.map((m, mi) => (
+                  <Sortable key={m.id} id={m.id}>
+                    {(handle) => (
+                      <Card className="gap-0 p-0">
+                        <div className="flex items-center gap-2 border-b px-3 py-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            className="text-muted-foreground cursor-grab"
+                            aria-label="Drag module"
+                            {...handle}
+                          >
+                            <GripVertical className="size-4" />
+                          </Button>
+                          <Eyebrow>Module {mi + 1}</Eyebrow>
+                          <span className="text-foreground min-w-0 truncate text-[13px] font-medium">
+                            {m.title.en || "Untitled module"}
+                          </span>
+                          <div className="ml-auto flex items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-xs"
+                              className="text-muted-foreground"
+                              onClick={() => moveModule(mi, mi - 1)}
+                              disabled={mi === 0}
+                              aria-label="Move up"
+                            >
+                              <ChevronUp className="size-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-xs"
+                              className="text-muted-foreground"
+                              onClick={() => moveModule(mi, mi + 1)}
+                              disabled={mi === modules.length - 1}
+                              aria-label="Move down"
+                            >
+                              <ChevronDown className="size-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-xs"
+                              className="text-muted-foreground hover:text-destructive"
+                              onClick={() =>
+                                setModules((ms) =>
+                                  ms.filter((x) => x.id !== m.id),
+                                )
+                              }
+                              aria-label="Delete module"
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="grid gap-3 px-3 py-3">
+                          <LocalizedInput
+                            label="Module title"
+                            required
+                            value={m.title}
+                            onChange={(v) =>
+                              patchModule(m.id, { title: fromLV(v) })
+                            }
+                          />
+                          <LessonList
+                            module={m}
+                            sensors={sensors}
+                            onChange={(lessons) =>
+                              patchModule(m.id, { lessons })
+                            }
+                            patchLesson={(lid, patch) =>
+                              patchLesson(m.id, lid, patch)
+                            }
+                          />
+                        </div>
+                      </Card>
+                    )}
+                  </Sortable>
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        )}
+      </FormSection>
 
-      {/* Curriculum */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <h2
-          style={{
-            fontSize: "var(--fs-h4)",
-            color: "var(--color-text-strong)",
-            margin: 0,
-          }}
-        >
-          Curriculum
-        </h2>
-        <button
-          type="button"
-          onClick={() => setModules((m) => [...m, newModule()])}
-          style={addBtn}
-        >
-          <Plus size={15} /> Add module
-        </button>
-      </div>
-
-      {modules.length === 0 && (
-        <p
-          style={{ color: "var(--color-text-muted)", fontSize: "var(--fs-sm)" }}
-        >
-          No modules yet. Add one to start building the curriculum.
-        </p>
-      )}
-
-      <DndContext
-        id="course-modules"
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={onModuleDragEnd}
-      >
-        <SortableContext
-          items={modules.map((m) => m.id)}
-          strategy={verticalListSortingStrategy}
-        >
-          <div style={{ display: "grid", gap: "var(--s-4)" }}>
-            {modules.map((m, mi) => (
-              <Sortable key={m.id} id={m.id}>
-                {(handle) => (
-                  <div style={{ ...card, display: "grid", gap: "var(--s-4)" }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "var(--s-3)",
-                      }}
-                    >
-                      <button
-                        type="button"
-                        style={{ ...iconBtn, cursor: "grab" }}
-                        {...handle}
-                        aria-label="Drag module"
-                      >
-                        <GripVertical size={15} />
-                      </button>
-                      <span style={sub}>Module {mi + 1}</span>
-                      <div
-                        style={{ marginLeft: "auto", display: "flex", gap: 6 }}
-                      >
-                        <button
-                          type="button"
-                          style={iconBtn}
-                          onClick={() => moveModule(mi, mi - 1)}
-                          aria-label="Move up"
-                        >
-                          <ChevronUp size={15} />
-                        </button>
-                        <button
-                          type="button"
-                          style={iconBtn}
-                          onClick={() => moveModule(mi, mi + 1)}
-                          aria-label="Move down"
-                        >
-                          <ChevronDown size={15} />
-                        </button>
-                        <button
-                          type="button"
-                          style={{ ...iconBtn, color: "var(--color-error)" }}
-                          onClick={() =>
-                            setModules((ms) => ms.filter((x) => x.id !== m.id))
-                          }
-                          aria-label="Delete module"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </div>
-                    <BilingualField
-                      label="Module title"
-                      value={m.title}
-                      onChange={(v) => patchModule(m.id, { title: v })}
-                    />
-                    <LessonList
-                      module={m}
-                      sensors={sensors}
-                      onChange={(lessons) => patchModule(m.id, { lessons })}
-                      patchLesson={(lid, patch) =>
-                        patchLesson(m.id, lid, patch)
-                      }
-                    />
-                  </div>
-                )}
-              </Sortable>
-            ))}
-          </div>
-        </SortableContext>
-      </DndContext>
-
-      {error && (
-        <p style={{ color: "var(--color-error)", fontSize: "var(--fs-sm)" }}>
-          {error}
-        </p>
-      )}
-      <div>
-        <CtaButton onClick={submit}>
-          {saving ? "Saving…" : isEdit ? "Save course" : "Create course"}
-        </CtaButton>
-      </div>
-    </div>
+      <SaveBar
+        saving={saving}
+        onSave={submit}
+        error={error}
+        saveLabel={isEdit ? "Save course" : "Create course"}
+      />
+    </EditorForm>
   );
 }
-
-const selStyle: CSSProperties = {
-  height: 40,
-  padding: "0 10px",
-  border: "1px solid var(--color-border-field)",
-  borderRadius: "var(--r-sm)",
-  font: "inherit",
-  background: "var(--color-surface)",
-};
-const addBtn: CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 6,
-  padding: "8px 14px",
-  borderRadius: "var(--r-sm)",
-  border: "1px solid var(--color-border)",
-  background: "var(--color-surface)",
-  color: "var(--color-brand-deep)",
-  fontWeight: 600,
-  fontSize: "var(--fs-sm)",
-  cursor: "pointer",
-};
 
 // ---- Lessons within a module ----
 function LessonList({
@@ -660,9 +587,7 @@ function LessonList({
   }
 
   return (
-    <div
-      style={{ display: "grid", gap: "var(--s-3)", paddingLeft: "var(--s-5)" }}
-    >
+    <div className="border-border/70 grid gap-2 border-l pl-3">
       <DndContext
         id={`lessons-${module.id}`}
         sensors={sensors}
@@ -673,7 +598,7 @@ function LessonList({
           items={lessons.map((l) => l.id)}
           strategy={verticalListSortingStrategy}
         >
-          <div style={{ display: "grid", gap: "var(--s-3)" }}>
+          <div className="grid gap-2">
             {lessons.map((l) => (
               <Sortable key={l.id} id={l.id}>
                 {(handle) => (
@@ -691,20 +616,20 @@ function LessonList({
           </div>
         </SortableContext>
       </DndContext>
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-muted-foreground mr-1 text-xs">Add lesson:</span>
         {(["video", "text", "quiz", "resource"] as LessonType[]).map((t) => (
-          <button
+          <Button
             key={t}
             type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs capitalize"
             onClick={() => addLesson(t)}
-            style={{
-              ...addBtn,
-              padding: "6px 10px",
-              textTransform: "capitalize",
-            }}
           >
-            <Plus size={13} /> {t}
-          </button>
+            <Plus className="size-3.5" />
+            {t}
+          </Button>
         ))}
       </div>
     </div>
@@ -724,104 +649,78 @@ function LessonCard({
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <div
-      style={{
-        border: "1px solid var(--color-border)",
-        borderRadius: "var(--r-md)",
-        background: "var(--color-bg)",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "var(--s-3)",
-          padding: "var(--s-3)",
-        }}
-      >
-        <button
+    <div className="bg-muted/40 overflow-hidden rounded-md">
+      <div className="flex items-center gap-2 px-2 py-1.5">
+        <Button
           type="button"
-          style={{ ...iconBtn, cursor: "grab" }}
-          {...handle}
+          variant="ghost"
+          size="icon-xs"
+          className="text-muted-foreground cursor-grab"
           aria-label="Drag lesson"
+          {...handle}
         >
-          <GripVertical size={14} />
-        </button>
-        <span style={{ ...sub, color: "var(--color-brand-deep)" }}>
-          {lesson.type}
-        </span>
-        <span
-          style={{
-            fontSize: "var(--fs-sm)",
-            color: "var(--color-text)",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
+          <GripVertical className="size-3.5" />
+        </Button>
+        <Eyebrow className="text-primary">{lesson.type}</Eyebrow>
+        <span className="text-foreground min-w-0 truncate text-[13px]">
           {lesson.title.en || "Untitled lesson"}
         </span>
         {lesson.isFreePreview && (
-          <span style={{ ...sub, color: "var(--color-secondary-deep)" }}>
+          <Eyebrow className="text-[var(--color-secondary-deep)]">
             · preview
-          </span>
+          </Eyebrow>
         )}
-        <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
-          <button
+        <div className="ml-auto flex items-center gap-1">
+          <Button
             type="button"
-            style={iconBtn}
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            aria-expanded={open}
             onClick={() => setOpen((o) => !o)}
           >
-            {open ? "−" : "Edit"}
-          </button>
-          <button
+            {open ? "Close" : "Edit"}
+          </Button>
+          <Button
             type="button"
-            style={{ ...iconBtn, color: "var(--color-error)" }}
+            variant="ghost"
+            size="icon-xs"
+            className="text-muted-foreground hover:text-destructive"
             onClick={onDelete}
             aria-label="Delete lesson"
           >
-            <Trash2 size={14} />
-          </button>
+            <Trash2 className="size-3.5" />
+          </Button>
         </div>
       </div>
       {open && (
-        <div
-          style={{
-            display: "grid",
-            gap: "var(--s-4)",
-            padding: "var(--s-4)",
-            borderTop: "1px solid var(--color-border)",
-          }}
-        >
-          <BilingualField
+        <div className="bg-card grid gap-4 border-t px-3 py-3">
+          <LocalizedInput
             label="Lesson title"
+            required
             value={lesson.title}
-            onChange={(v) => patch({ title: v })}
+            onChange={(v) => patch({ title: fromLV(v) })}
           />
-          <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              fontSize: "var(--fs-sm)",
-            }}
-          >
-            <input
-              type="checkbox"
+          <div className="flex items-center gap-2.5">
+            <Switch
+              id={`preview-${lesson.id}`}
               checked={lesson.isFreePreview}
-              onChange={(e) => patch({ isFreePreview: e.target.checked })}
+              onCheckedChange={(v) => patch({ isFreePreview: v })}
             />
-            Free preview (viewable without enrolling)
-          </label>
+            <Label htmlFor={`preview-${lesson.id}`} className="font-normal">
+              Free preview (viewable without enrolling)
+            </Label>
+          </div>
           {lesson.type === "video" && (
             <VideoField lesson={lesson} patch={patch} />
           )}
           {lesson.type === "text" && (
-            <BilingualField
+            <LocalizedInput
               label="Body"
-              value={lesson.body}
-              onChange={(v) => patch({ body: v })}
               textarea
+              rows={5}
+              value={lesson.body}
+              onChange={(v) => patch({ body: fromLV(v) })}
             />
           )}
           {lesson.type === "resource" && (
@@ -870,57 +769,37 @@ function VideoField({
     }
   }
   return (
-    <div style={{ display: "grid", gap: 6 }}>
-      <Label>Media (video / audio)</Label>
+    <FormField
+      label="Media (video / audio)"
+      hint="Streamed through the enrollment-gated media route — never a public URL."
+    >
       {lesson.videoUid ? (
-        <div
-          style={{ fontSize: "var(--fs-sm)", color: "var(--color-text-muted)" }}
-        >
-          Uploaded · status: <strong>{lesson.videoStatus || "ready"}</strong>
-          <button
+        <div className="flex flex-wrap items-center gap-3 text-[13px]">
+          <span className="text-muted-foreground">
+            Uploaded · status:{" "}
+            <strong className="text-foreground">
+              {lesson.videoStatus || "ready"}
+            </strong>
+          </span>
+          <Button
             type="button"
-            style={{
-              ...iconBtn,
-              display: "inline-grid",
-              marginLeft: 10,
-              width: "auto",
-              padding: "0 10px",
-            }}
+            variant="outline"
+            size="sm"
             onClick={() => patch({ videoUid: "", videoStatus: "" })}
           >
             Replace
-          </button>
+          </Button>
         </div>
       ) : (
-        <label
-          style={{
-            ...addBtn,
-            justifySelf: "start",
-            cursor: busy ? "default" : "pointer",
-          }}
-        >
-          {busy ? "Uploading…" : "Upload media"}
-          <input
-            type="file"
-            accept="video/*,audio/*"
-            hidden
-            disabled={busy}
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) upload(f);
-              e.target.value = "";
-            }}
-          />
-        </label>
+        <UploadButton
+          onFile={upload}
+          busy={busy}
+          label="Upload media"
+          accept="video/*,audio/*"
+        />
       )}
-      {err && (
-        <span
-          style={{ color: "var(--color-error)", fontSize: "var(--fs-caption)" }}
-        >
-          {err}
-        </span>
-      )}
-    </div>
+      {err && <p className="text-destructive text-xs">{err}</p>}
+    </FormField>
   );
 }
 
@@ -953,52 +832,45 @@ function ResourceEditor({
     }
   }
   return (
-    <div style={{ display: "grid", gap: 8 }}>
-      <Label>Resources</Label>
-      {lesson.resources.map((r, i) => (
-        <div key={i} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <Input
-            value={r.name}
-            onChange={(e) =>
-              patch({
-                resources: lesson.resources.map((x, j) =>
-                  j === i ? { ...x, name: e.target.value } : x,
-                ),
-              })
-            }
-          />
-          <button
-            type="button"
-            style={{ ...iconBtn, color: "var(--color-error)" }}
-            onClick={() =>
-              patch({ resources: lesson.resources.filter((_, j) => j !== i) })
-            }
-          >
-            <Trash2 size={14} />
-          </button>
-        </div>
-      ))}
-      <label
-        style={{
-          ...addBtn,
-          justifySelf: "start",
-          cursor: busy ? "default" : "pointer",
-        }}
-      >
-        {busy ? "Uploading…" : "+ Add file"}
-        <input
-          type="file"
+    <FormField label="Resources">
+      <div className="grid gap-2">
+        {lesson.resources.map((r, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <Input
+              aria-label={`Resource ${i + 1} name`}
+              value={r.name}
+              onChange={(e) =>
+                patch({
+                  resources: lesson.resources.map((x, j) =>
+                    j === i ? { ...x, name: e.target.value } : x,
+                  ),
+                })
+              }
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={`Remove resource ${i + 1}`}
+              className="text-muted-foreground hover:text-destructive shrink-0"
+              onClick={() =>
+                patch({
+                  resources: lesson.resources.filter((_, j) => j !== i),
+                })
+              }
+            >
+              <Trash2 className="size-4" />
+            </Button>
+          </div>
+        ))}
+        <UploadButton
+          onFile={upload}
+          busy={busy}
+          label="Add file"
           accept="application/pdf,image/*"
-          hidden
-          disabled={busy}
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) upload(f);
-            e.target.value = "";
-          }}
         />
-      </label>
-    </div>
+      </div>
+    </FormField>
   );
 }
 
@@ -1018,37 +890,31 @@ function QuizEditor({
     });
   }
   return (
-    <div style={{ display: "grid", gap: "var(--s-4)" }}>
-      <div style={{ display: "grid", gap: 6, maxWidth: 200 }}>
-        <Label>Pass mark (%)</Label>
+    <div className="grid gap-3">
+      <FormField
+        label="Pass mark (%)"
+        htmlFor="quiz-pass"
+        className="max-w-[12rem]"
+      >
         <Input
+          id="quiz-pass"
           type="number"
           value={quiz.passPercent}
           onChange={(e) =>
             onChange({ ...quiz, passPercent: Number(e.target.value) || 0 })
           }
         />
-      </div>
+      </FormField>
       {quiz.questions.map((q, qi) => (
-        <div
-          key={q.id}
-          style={{
-            ...card,
-            padding: "var(--s-4)",
-            display: "grid",
-            gap: "var(--s-3)",
-            background: "var(--color-surface)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <span style={sub}>Question {qi + 1}</span>
-            <button
+        <Card key={q.id} className="gap-0 p-0">
+          <div className="flex items-center gap-2 border-b px-3 py-2">
+            <Eyebrow>Question {qi + 1}</Eyebrow>
+            <Button
               type="button"
-              style={{
-                ...iconBtn,
-                marginLeft: "auto",
-                color: "var(--color-error)",
-              }}
+              variant="ghost"
+              size="icon-xs"
+              className="text-muted-foreground hover:text-destructive ml-auto"
+              aria-label={`Delete question ${qi + 1}`}
               onClick={() =>
                 onChange({
                   ...quiz,
@@ -1056,163 +922,93 @@ function QuizEditor({
                 })
               }
             >
-              <Trash2 size={14} />
-            </button>
+              <Trash2 className="size-4" />
+            </Button>
           </div>
-          <BilingualField
-            label="Prompt"
-            value={q.prompt}
-            onChange={(v) => patchQ(q.id, { prompt: v })}
-          />
-          <div style={{ display: "grid", gap: 8 }}>
-            <Label>Options (select the correct one)</Label>
-            {q.options.map((o, oi) => (
-              <div
-                key={o.id}
-                style={{ display: "flex", gap: 8, alignItems: "center" }}
-              >
-                <input
-                  type="radio"
-                  name={`correct-${q.id}`}
-                  checked={q.correctOptionId === o.id}
-                  onChange={() => patchQ(q.id, { correctOptionId: o.id })}
-                  aria-label={`Option ${oi + 1} correct`}
-                />
-                <Input
-                  placeholder="EN"
-                  value={o.text.en}
-                  onChange={(e) =>
-                    patchQ(q.id, {
-                      options: q.options.map((x) =>
-                        x.id === o.id
-                          ? { ...x, text: { ...x.text, en: e.target.value } }
-                          : x,
-                      ),
-                    })
-                  }
-                />
-                <Input
-                  placeholder="বাংলা"
-                  value={o.text.bn}
-                  onChange={(e) =>
-                    patchQ(q.id, {
-                      options: q.options.map((x) =>
-                        x.id === o.id
-                          ? { ...x, text: { ...x.text, bn: e.target.value } }
-                          : x,
-                      ),
-                    })
-                  }
-                />
-                <Input
-                  placeholder="日本語"
-                  value={o.text.ja}
-                  onChange={(e) =>
-                    patchQ(q.id, {
-                      options: q.options.map((x) =>
-                        x.id === o.id
-                          ? { ...x, text: { ...x.text, ja: e.target.value } }
-                          : x,
-                      ),
-                    })
-                  }
-                />
-                <button
+          <div className="grid gap-3 px-3 py-3">
+            <LocalizedInput
+              label="Prompt"
+              required
+              value={q.prompt}
+              onChange={(v) => patchQ(q.id, { prompt: fromLV(v) })}
+            />
+            <FormField label="Options (select the correct one)">
+              <div className="grid gap-2">
+                {q.options.map((o, oi) => (
+                  <div key={o.id} className="flex items-end gap-2">
+                    <input
+                      type="radio"
+                      name={`correct-${q.id}`}
+                      checked={q.correctOptionId === o.id}
+                      onChange={() => patchQ(q.id, { correctOptionId: o.id })}
+                      aria-label={`Option ${oi + 1} is correct`}
+                      className="mb-2.5 size-4 shrink-0 accent-[var(--color-brand)]"
+                    />
+                    <LocalizedInput
+                      className="min-w-0 flex-1"
+                      ariaLabel={`Option ${oi + 1}`}
+                      value={o.text}
+                      placeholder={`Option ${oi + 1}`}
+                      onChange={(v) =>
+                        patchQ(q.id, {
+                          options: q.options.map((x) =>
+                            x.id === o.id ? { ...x, text: fromLV(v) } : x,
+                          ),
+                        })
+                      }
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-destructive shrink-0"
+                      aria-label={`Remove option ${oi + 1}`}
+                      disabled={q.options.length <= 2}
+                      onClick={() =>
+                        patchQ(q.id, {
+                          options: q.options.filter((x) => x.id !== o.id),
+                        })
+                      }
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
                   type="button"
-                  style={{ ...iconBtn, color: "var(--color-error)" }}
-                  disabled={q.options.length <= 2}
+                  variant="ghost"
+                  size="sm"
+                  className="w-fit"
                   onClick={() =>
-                    patchQ(q.id, {
-                      options: q.options.filter((x) => x.id !== o.id),
-                    })
+                    patchQ(q.id, { options: [...q.options, newOption()] })
                   }
                 >
-                  <Trash2 size={13} />
-                </button>
+                  <Plus className="size-4" />
+                  Option
+                </Button>
               </div>
-            ))}
-            <button
-              type="button"
-              style={{ ...addBtn, padding: "6px 10px", justifySelf: "start" }}
-              onClick={() =>
-                patchQ(q.id, { options: [...q.options, newOption()] })
-              }
-            >
-              <Plus size={13} /> Option
-            </button>
+            </FormField>
+            <LocalizedInput
+              label="Explanation (optional)"
+              value={q.explanation}
+              onChange={(v) => patchQ(q.id, { explanation: fromLV(v) })}
+              hint="Shown after the learner answers."
+            />
           </div>
-        </div>
+        </Card>
       ))}
-      <button
+      <Button
         type="button"
-        style={{ ...addBtn, justifySelf: "start" }}
+        variant="outline"
+        size="sm"
+        className="w-fit"
         onClick={() =>
           onChange({ ...quiz, questions: [...quiz.questions, newQuestion()] })
         }
       >
-        <Plus size={14} /> Add question
-      </button>
-    </div>
-  );
-}
-
-function ImageField({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (url: string) => void;
-}) {
-  const [busy, setBusy] = useState(false);
-  async function upload(file: File) {
-    setBusy(true);
-    const fd = new FormData();
-    fd.append("file", file);
-    const res = await fetch("/api/admin/uploads", { method: "POST", body: fd });
-    const json = await res.json().catch(() => null);
-    setBusy(false);
-    if (res.ok && json?.ok) onChange(json.data.url);
-  }
-  return (
-    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-      {value && (
-        // eslint-disable-next-line @next/next/no-img-element -- admin preview only
-        <img
-          src={value}
-          alt=""
-          style={{
-            width: 96,
-            height: 64,
-            objectFit: "cover",
-            borderRadius: "var(--r-sm)",
-            border: "1px solid var(--color-border)",
-          }}
-        />
-      )}
-      <label style={{ ...addBtn, cursor: busy ? "default" : "pointer" }}>
-        {busy ? "Uploading…" : value ? "Replace" : "Upload"}
-        <input
-          type="file"
-          accept="image/*"
-          hidden
-          disabled={busy}
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) upload(f);
-            e.target.value = "";
-          }}
-        />
-      </label>
-      {value && (
-        <button
-          type="button"
-          style={iconBtn}
-          onClick={() => onChange("")}
-          aria-label="Remove"
-        >
-          <Trash2 size={14} />
-        </button>
-      )}
+        <Plus className="size-4" />
+        Add question
+      </Button>
     </div>
   );
 }

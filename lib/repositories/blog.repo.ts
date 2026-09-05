@@ -3,6 +3,12 @@ import { BlogPost, type IBlogPost } from "@/lib/models/blogPost";
 import type { Lean } from "@/lib/models/_shared";
 import type { BlogStatus } from "@/lib/schemas/blog";
 import { applyPartialSearch } from "@/lib/repositories/search-filter";
+import {
+  applyDateRange,
+  paginate,
+  sortSpec,
+  type RepoListQuery,
+} from "./list-query";
 
 type BlogFilter = NonNullable<Parameters<typeof BlogPost.countDocuments>[0]>;
 
@@ -91,31 +97,30 @@ export async function listVisiblePostsForFeed(limit = 50) {
 }
 
 // ---- Admin ----
-export async function listAdminPosts(
-  params: { status?: BlogStatus; page?: number; pageSize?: number } = {},
-) {
+/** Sort keys the admin list exposes → stored fields. */
+const ADMIN_POST_SORT: Record<string, string> = {
+  date: "createdAt",
+  title: "title.en",
+  status: "status",
+  published: "publishedAt",
+  views: "viewCount",
+};
+
+export type AdminPostListParams = RepoListQuery & {
+  status?: BlogStatus;
+};
+
+export async function listAdminPosts(params: AdminPostListParams = {}) {
   await connectToDatabase();
   const q: Record<string, unknown> = { deletedAt: null };
   if (params.status) q.status = params.status;
-  const page = Math.max(1, params.page ?? 1);
-  const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 50));
-  const filter = q as unknown as BlogFilter;
-  const [items, total] = await Promise.all([
-    BlogPost.find(filter)
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * pageSize)
-      .limit(pageSize)
-      .lean<Lean<IBlogPost>[]>()
-      .exec(),
-    BlogPost.countDocuments(filter),
-  ]);
-  return {
-    items,
-    total,
-    page,
-    pageSize,
-    pages: Math.max(1, Math.ceil(total / pageSize)),
-  };
+  applyPartialSearch(q, params.search, ["title.en", "title.bn", "excerpt.en"]);
+  applyDateRange(q, params.from, params.to);
+  return paginate<IBlogPost>(BlogPost, q, {
+    sort: sortSpec(params.sort, params.dir, ADMIN_POST_SORT),
+    page: params.page,
+    pageSize: params.pageSize ?? 50,
+  });
 }
 
 export async function getPostById(id: string) {

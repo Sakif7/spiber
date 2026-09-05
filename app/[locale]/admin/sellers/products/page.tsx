@@ -1,55 +1,98 @@
 import { setRequestLocale } from "next-intl/server";
-import type { Locale } from "@/i18n/routing";
-import { listPendingSellerProducts } from "@/lib/repositories/products.repo";
+import { Link } from "@/i18n/navigation";
+import { listPendingSellerProductsForAdmin } from "@/lib/repositories/products.repo";
 import { sellerNamesByIds } from "@/lib/repositories/sellers.repo";
-import { localize } from "@/lib/schemas/localized";
 import { formatBDT } from "@/lib/money";
+import { asLocale } from "@/lib/i18n/intl-locale";
+import { localize } from "@/lib/schemas/localized";
+import {
+  parseListQuery,
+  type ListConfig,
+  type SearchParamsInput,
+} from "@/lib/admin/list-params";
 import { ProductApprovalActions } from "@/components/admin/product-approval-actions";
 import { AdminPageHeader } from "@/components/admin/ui/page-header";
+import { ListToolbar } from "@/components/admin/ui/list-toolbar";
+import { Pagination } from "@/components/admin/ui/pagination";
 import { DataTable, type Column } from "@/components/admin/ui/data-table";
 
 export const dynamic = "force-dynamic";
 
-type Row = Awaited<ReturnType<typeof listPendingSellerProducts>>[number];
+const LIST: ListConfig = {
+  sortable: ["date", "name", "price"],
+  defaultSort: "date",
+  defaultDir: "asc",
+  filters: ["kind", "from", "to"],
+};
+
+type Row = Awaited<
+  ReturnType<typeof listPendingSellerProductsForAdmin>
+>["items"][number];
 
 export default async function AdminSellerProductsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<SearchParamsInput>;
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
+  const l = asLocale(locale);
+
+  const query = parseListQuery(await searchParams, LIST);
+  const kind =
+    query.filters.kind === "new" || query.filters.kind === "update"
+      ? query.filters.kind
+      : undefined;
+  const filtered = Boolean(query.q || kind || query.filters.from);
 
   let rows: Row[] = [];
-  try {
-    rows = await listPendingSellerProducts();
-  } catch {
-    rows = [];
-  }
-
+  let total = 0;
+  let pages = 1;
   let names: Record<string, string> = {};
   try {
+    const res = await listPendingSellerProductsForAdmin({
+      kind,
+      search: query.q || undefined,
+      sort: query.sort,
+      dir: query.dir,
+      from: query.filters.from,
+      to: query.filters.to,
+      page: query.page,
+      pageSize: query.pageSize,
+    });
+    rows = res.items;
+    total = res.total;
+    pages = res.pages;
     names = await sellerNamesByIds(
       rows.map((r) => (r.sellerId ? String(r.sellerId) : "")).filter(Boolean),
-    );
+    ).catch(() => ({}));
   } catch {
-    names = {};
+    rows = [];
   }
 
   const columns: Column<Row>[] = [
     {
       key: "product",
       header: "Product",
+      sortKey: "name",
+      sortDir: "asc",
       cell: (r) => {
         const isUpdate = r.approvalStatus === "approved" && !!r.pendingDraft;
         const draftName = r.pendingDraft
-          ? localize(r.pendingDraft.name, locale as Locale)
+          ? localize(r.pendingDraft.name, l)
           : null;
-        const liveName = localize(r.name, locale as Locale);
+        const liveName = localize(r.name, l);
         return (
           <div className="flex min-w-0 flex-col gap-0.5">
             <span className="flex items-center gap-2">
-              <span className="truncate">{draftName ?? liveName}</span>
+              <Link
+                href={`/admin/marketplace/products/${String(r._id)}`}
+                className="text-primary truncate font-medium hover:underline"
+              >
+                {draftName ?? liveName}
+              </Link>
               <span
                 className={
                   isUpdate
@@ -70,6 +113,13 @@ export default async function AdminSellerProductsPage({
       },
     },
     {
+      key: "sku",
+      header: "SKU",
+      cell: (r) => (
+        <span className="text-muted-foreground font-mono text-xs">{r.sku}</span>
+      ),
+    },
+    {
       key: "seller",
       header: "Seller",
       cell: (r) => (
@@ -81,40 +131,90 @@ export default async function AdminSellerProductsPage({
     {
       key: "price",
       header: "Price",
+      align: "right",
+      sortKey: "price",
       className: "font-mono whitespace-nowrap",
-      cell: (r) => (r.priceMinor != null ? formatBDT(r.priceMinor) : "—"),
+      cell: (r) => (r.priceMinor != null ? formatBDT(r.priceMinor, "en") : "—"),
     },
     {
       key: "submitted",
       header: "Submitted",
+      sortKey: "date",
+      sortDir: "asc",
       cell: (r) => (
         <span className="text-muted-foreground whitespace-nowrap">
           {new Date(
             r.pendingDraft?.submittedAt ?? r.createdAt,
-          ).toLocaleDateString()}
+          ).toLocaleDateString("en-GB")}
         </span>
       ),
     },
     {
       key: "actions",
-      header: "Actions",
+      header: "Review",
       align: "right",
+      mobile: "actions",
       cell: (r) => <ProductApprovalActions productId={String(r._id)} />,
     },
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <AdminPageHeader
-        title="Pending products"
-        description="Seller listings awaiting approval."
+        title="Pending seller products"
+        description="Seller listings awaiting approval — new listings and edits to live ones."
       />
+
+      <ListToolbar
+        search={{ placeholder: "Search product name or SKU…" }}
+        filters={[
+          {
+            param: "kind",
+            label: "Kind",
+            kind: "pills",
+            options: [
+              { value: "new", label: "New listings" },
+              { value: "update", label: "Updates" },
+            ],
+          },
+        ]}
+        dateRange
+        sort={{
+          options: [
+            { value: "date", label: "Submitted", defaultDir: "asc" },
+            { value: "name", label: "Name", defaultDir: "asc" },
+            { value: "price", label: "Price" },
+          ],
+        }}
+        currentSort={{ key: query.sort, dir: query.dir }}
+        total={total}
+        countLabel={`${total} awaiting review`}
+      />
+
       <DataTable
         columns={columns}
         rows={rows}
         getRowKey={(r) => String(r._id)}
-        empty="No products awaiting approval."
-        minWidth={760}
+        sort={{ key: query.sort, dir: query.dir }}
+        empty={
+          filtered
+            ? "No pending products match these filters."
+            : "No products awaiting approval."
+        }
+        emptyDescription={
+          filtered
+            ? "Try clearing the search or a filter."
+            : "Seller listings land here when they are created, and again when an approved listing's content is edited."
+        }
+        minWidth={820}
+      />
+
+      <Pagination
+        page={query.page}
+        pages={pages}
+        total={total}
+        pageSize={query.pageSize}
+        noun="products"
       />
     </div>
   );

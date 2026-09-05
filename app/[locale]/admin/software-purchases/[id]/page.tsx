@@ -4,6 +4,13 @@ import { PurchaseActions } from "@/components/admin/purchase-actions";
 import { getPurchaseById } from "@/lib/repositories/purchases.repo";
 import { localize } from "@/lib/schemas/localized";
 import { formatBDT } from "@/lib/money";
+import {
+  DetailCard,
+  DetailLayout,
+  DetailRow,
+} from "@/components/admin/ui/detail";
+import { EditorHeader } from "@/components/admin/ui/form-shell";
+import { StatusBadge } from "@/components/admin/ui/status-badge";
 
 export const dynamic = "force-dynamic";
 
@@ -19,148 +26,77 @@ export default async function AdminPurchaseDetailPage({
   if (!doc) notFound();
   const p = doc.toObject();
 
-  const card: React.CSSProperties = {
-    border: "1px solid var(--color-border)",
-    background: "var(--color-surface)",
-    borderRadius: "var(--r-lg)",
-    padding: "var(--s-5)",
-    display: "grid",
-    gap: "var(--s-3)",
-  };
-  const rowS: React.CSSProperties = {
-    display: "flex",
-    justifyContent: "space-between",
-    gap: "var(--s-4)",
-  };
-  const muted: React.CSSProperties = {
-    color: "var(--color-text-muted)",
-    fontSize: "var(--fs-body-sm)",
-  };
-
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
-      <h1
-        style={{
-          margin: 0,
-          fontFamily: "var(--font-display)",
-          fontSize: "var(--fs-2xl)",
-          color: "var(--color-text-strong)",
-        }}
+    <div className="space-y-4">
+      <EditorHeader
+        backHref="/admin/software-purchases"
+        backLabel="Software purchases"
+        title={p.purchaseNumber}
+      />
+
+      <DetailLayout
+        aside={
+          <PurchaseActions
+            purchaseId={String(p._id)}
+            status={p.status}
+            fulfillmentStatus={p.fulfillment.status}
+          />
+        }
       >
-        {p.purchaseNumber}
-      </h1>
+        <DetailCard>
+          <DetailRow label="Product">
+            {localize(p.productSnapshot.name, "en")}
+          </DetailRow>
+          <DetailRow label="Email">{p.email}</DetailRow>
+          <DetailRow label="Status">
+            <StatusBadge>{p.status}</StatusBadge>
+          </DetailRow>
+          <DetailRow label="Payment">
+            <StatusBadge>{p.payment.status}</StatusBadge>
+          </DetailRow>
+          <DetailRow label="Delivery">
+            {p.productSnapshot.deliveryType}
+          </DetailRow>
+          <DetailRow label="Total">
+            <span className="tabular-nums">
+              {formatBDT(p.totalMinor, "en")}
+            </span>
+          </DetailRow>
+        </DetailCard>
 
-      <div
-        className="equal-2col"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)",
-          gap: "var(--s-5)",
-          alignItems: "start",
-        }}
-      >
-        <div style={{ display: "grid", gap: "var(--s-5)" }}>
-          <section style={card}>
-            <Row
-              label="Product"
-              value={localize(p.productSnapshot.name, "en")}
-            />
-            <Row label="Email" value={p.email} />
-            <Row label="Status" value={p.status} />
-            <Row label="Payment" value={p.payment.status} />
-            <Row label="Delivery" value={p.productSnapshot.deliveryType} />
-            <Row label="Total" value={formatBDT(p.totalMinor, "en")} />
-          </section>
+        <DetailCard title="Fulfillment">
+          <DetailRow label="Status">
+            <StatusBadge>{p.fulfillment.status}</StatusBadge>
+          </DetailRow>
+          {p.fulfillment.licenseId && (
+            <DetailRow label="License" mono>
+              {String(p.fulfillment.licenseId)}
+            </DetailRow>
+          )}
+          {p.fulfillment.provisioningTaskId && (
+            <DetailRow label="Provisioning task" mono>
+              {String(p.fulfillment.provisioningTaskId)}
+            </DetailRow>
+          )}
+          {p.fulfillment.commissionId && (
+            <DetailRow label="Commission" mono>
+              {String(p.fulfillment.commissionId)}
+            </DetailRow>
+          )}
+        </DetailCard>
 
-          <section style={card}>
-            <strong style={{ color: "var(--color-text-strong)" }}>
-              Fulfillment
-            </strong>
-            <Row label="Status" value={p.fulfillment.status} />
-            {p.fulfillment.licenseId && (
-              <Row
-                label="License"
-                value={String(p.fulfillment.licenseId)}
-                mono
-              />
-            )}
-            {p.fulfillment.provisioningTaskId && (
-              <Row
-                label="Provisioning task"
-                value={String(p.fulfillment.provisioningTaskId)}
-                mono
-              />
-            )}
-            {p.fulfillment.commissionId && (
-              <Row
-                label="Commission"
-                value={String(p.fulfillment.commissionId)}
-                mono
-              />
-            )}
-          </section>
-
-          <section style={card}>
-            <strong style={{ color: "var(--color-text-strong)" }}>
-              Timeline
-            </strong>
-            {p.timeline.map((tl, i) => (
-              <div key={i} style={rowS}>
-                <span>{tl.status}</span>
-                <span style={muted}>
-                  {new Date(tl.at).toLocaleString()}
-                  {tl.note ? ` — ${tl.note}` : ""}
-                </span>
-              </div>
-            ))}
-          </section>
-        </div>
-
-        <PurchaseActions
-          purchaseId={String(p._id)}
-          status={p.status}
-          fulfillmentStatus={p.fulfillment.status}
-        />
-      </div>
-    </div>
-  );
-}
-
-function Row({
-  label,
-  value,
-  mono,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-}) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        gap: "var(--s-4)",
-      }}
-    >
-      <span
-        style={{
-          color: "var(--color-text-muted)",
-          fontSize: "var(--fs-body-sm)",
-        }}
-      >
-        {label}
-      </span>
-      <strong
-        style={{
-          color: "var(--color-text-strong)",
-          fontFamily: mono ? "var(--font-mono)" : "inherit",
-          wordBreak: "break-all",
-          textAlign: "right",
-        }}
-      >
-        {value}
-      </strong>
+        <DetailCard title="Timeline">
+          {p.timeline.map((tl, i) => (
+            <div key={i} className="flex justify-between gap-4 text-[13px]">
+              <span className="text-foreground">{tl.status}</span>
+              <span className="text-muted-foreground min-w-0 text-right">
+                {new Date(tl.at).toLocaleString()}
+                {tl.note ? ` — ${tl.note}` : ""}
+              </span>
+            </div>
+          ))}
+        </DetailCard>
+      </DetailLayout>
     </div>
   );
 }

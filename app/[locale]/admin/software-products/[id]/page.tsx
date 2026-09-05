@@ -5,6 +5,7 @@ import {
   type SoftwareFormInitial,
 } from "@/components/admin/software-product-form";
 import { getSoftwareProductByIdLean } from "@/lib/repositories/software.repo";
+import { EditorHeader } from "@/components/admin/ui/form-shell";
 
 export const dynamic = "force-dynamic";
 
@@ -47,17 +48,12 @@ export default async function EditSoftwareProductPage({
   };
 
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
-      <h1
-        style={{
-          margin: 0,
-          fontFamily: "var(--font-display)",
-          fontSize: "var(--fs-2xl)",
-          color: "var(--color-text-strong)",
-        }}
-      >
-        Edit software product
-      </h1>
+    <div className="space-y-4">
+      <EditorHeader
+        backHref="/admin/software-products"
+        backLabel="Software products"
+        title="Edit software product"
+      />
       <SoftwareProductForm initial={initial} />
     </div>
   );

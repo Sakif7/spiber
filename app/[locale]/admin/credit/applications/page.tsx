@@ -1,35 +1,71 @@
 import { setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
-import { listCreditApplications } from "@/lib/repositories/credit-applications.repo";
+import { listCreditApplicationsForAdmin } from "@/lib/repositories/credit-applications.repo";
+import {
+  creditApplicationStatusEnum,
+  type CreditApplicationStatus,
+} from "@/lib/schemas/credit";
+import {
+  parseListQuery,
+  type ListConfig,
+  type SearchParamsInput,
+} from "@/lib/admin/list-params";
 import { AdminPageHeader } from "@/components/admin/ui/page-header";
+import { ListToolbar } from "@/components/admin/ui/list-toolbar";
+import { Pagination } from "@/components/admin/ui/pagination";
+import { RowActions } from "@/components/admin/ui/row-actions";
 import { StatusBadge } from "@/components/admin/ui/status-badge";
-import { StatusFilterPills } from "@/components/admin/ui/status-filter";
 import { DataTable, type Column } from "@/components/admin/ui/data-table";
-import type { CreditApplicationStatus } from "@/lib/schemas/credit";
 
 export const dynamic = "force-dynamic";
 
-const STATUSES = ["all", "new", "reviewing", "approved", "rejected"] as const;
-const VALID = new Set(["new", "reviewing", "approved", "rejected"]);
+const STATUSES = creditApplicationStatusEnum.options;
 
-type Row = Awaited<ReturnType<typeof listCreditApplications>>[number];
+const LIST: ListConfig = {
+  sortable: ["date", "number", "organization", "status"],
+  defaultSort: "date",
+  filters: ["status", "from", "to"],
+};
+
+type Row = Awaited<
+  ReturnType<typeof listCreditApplicationsForAdmin>
+>["items"][number];
 
 export default async function AdminCreditApplicationsPage({
   params,
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<SearchParamsInput>;
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const { status: raw } = await searchParams;
-  const status =
-    raw && VALID.has(raw) ? (raw as CreditApplicationStatus) : undefined;
+
+  const query = parseListQuery(await searchParams, LIST);
+  const status = STATUSES.includes(
+    query.filters.status as CreditApplicationStatus,
+  )
+    ? (query.filters.status as CreditApplicationStatus)
+    : undefined;
+  const filtered = Boolean(query.q || status || query.filters.from);
 
   let rows: Row[] = [];
+  let total = 0;
+  let pages = 1;
   try {
-    rows = await listCreditApplications({ status });
+    const res = await listCreditApplicationsForAdmin({
+      status,
+      search: query.q || undefined,
+      sort: query.sort,
+      dir: query.dir,
+      from: query.filters.from,
+      to: query.filters.to,
+      page: query.page,
+      pageSize: query.pageSize,
+    });
+    rows = res.items;
+    total = res.total;
+    pages = res.pages;
   } catch {
     rows = [];
   }
@@ -38,6 +74,8 @@ export default async function AdminCreditApplicationsPage({
     {
       key: "ref",
       header: "Reference",
+      sortKey: "number",
+      sortDir: "asc",
       cell: (a) => (
         <Link
           href={`/admin/credit/applications/${String(a._id)}`}
@@ -50,12 +88,21 @@ export default async function AdminCreditApplicationsPage({
     {
       key: "organization",
       header: "Organisation",
+      sortKey: "organization",
+      sortDir: "asc",
       cell: (a) => a.organization,
     },
-    { key: "contactName", header: "Contact", cell: (a) => a.contactName },
+    {
+      key: "contactName",
+      header: "Contact",
+      cell: (a) => (
+        <span className="text-muted-foreground">{a.contactName}</span>
+      ),
+    },
     {
       key: "docs",
       header: "Docs",
+      align: "right",
       cell: (a) => (
         <span className="text-muted-foreground">{a.documents.length}</span>
       ),
@@ -63,37 +110,97 @@ export default async function AdminCreditApplicationsPage({
     {
       key: "status",
       header: "Status",
+      sortKey: "status",
+      sortDir: "asc",
       cell: (a) => <StatusBadge>{a.status}</StatusBadge>,
     },
     {
       key: "date",
       header: "Date",
       align: "right",
+      sortKey: "date",
       cell: (a) => (
         <span className="text-muted-foreground whitespace-nowrap">
-          {new Date(a.createdAt).toLocaleDateString()}
+          {new Date(a.createdAt).toLocaleDateString("en-GB")}
         </span>
+      ),
+    },
+    {
+      key: "actions",
+      header: "",
+      align: "right",
+      mobile: "actions",
+      className: "w-10",
+      cell: (a) => (
+        <RowActions
+          label={`Actions for ${a.applicationNumber}`}
+          actions={[
+            {
+              label: "Open application",
+              href: `/admin/credit/applications/${String(a._id)}`,
+              icon: "view",
+            },
+          ]}
+        />
       ),
     },
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <AdminPageHeader
         title="Credit applications"
         description="Hospitals and clinics applying to buy on Medtrade credit terms."
       />
-      <StatusFilterPills
-        statuses={STATUSES}
-        active={status ?? "all"}
-        basePath="/admin/credit/applications"
+
+      <ListToolbar
+        search={{ placeholder: "Search application #, organisation, contact…" }}
+        filters={[
+          {
+            param: "status",
+            label: "Status",
+            kind: "pills",
+            options: STATUSES.map((s) => ({ value: s, label: s })),
+          },
+        ]}
+        dateRange
+        sort={{
+          options: [
+            { value: "date", label: "Date" },
+            { value: "organization", label: "Organisation", defaultDir: "asc" },
+            { value: "status", label: "Status", defaultDir: "asc" },
+            { value: "number", label: "Reference", defaultDir: "asc" },
+          ],
+        }}
+        currentSort={{ key: query.sort, dir: query.dir }}
+        total={total}
+        countLabel={`${total} application${total === 1 ? "" : "s"}`}
       />
+
       <DataTable
         columns={columns}
         rows={rows}
         getRowKey={(a) => String(a._id)}
-        empty="No credit applications yet."
-        minWidth={720}
+        sort={{ key: query.sort, dir: query.dir }}
+        empty={
+          filtered
+            ? "No credit applications match these filters."
+            : "No credit applications yet."
+        }
+        emptyDescription={
+          filtered
+            ? "Try clearing the search or a filter."
+            : "Applications arrive from the Medtrade credit facility page."
+        }
+        minWidth={760}
+      />
+
+      <Pagination
+        page={query.page}
+        pages={pages}
+        total={total}
+        pageSize={query.pageSize}
+        noun="applications"
       />
     </div>
   );

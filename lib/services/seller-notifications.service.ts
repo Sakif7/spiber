@@ -274,3 +274,107 @@ export async function notifySellerPayoutPaid(
     logger.warn("seller payout email failed", e);
   }
 }
+
+/**
+ * "An admin changed your stock" — sent when a Spiber admin overrides the
+ * balance of a seller-managed unit from the inventory hub. Sellers manage
+ * their own stock in the portal, so an override must never be silent.
+ */
+export async function notifySellerStockOverride(
+  seller: SellerLike,
+  change: {
+    productName: string;
+    variantLabel: string | null;
+    sku: string;
+    before: number;
+    after: number;
+    reason?: string;
+  },
+): Promise<void> {
+  try {
+    const to = await sellerRecipient(seller);
+    if (!to) return;
+    const brand = siteConfig.brand;
+    const unit =
+      change.productName +
+      (change.variantLabel ? ` · ${change.variantLabel}` : "");
+    const portal = `${siteConfig.url}/seller/products`;
+
+    const c =
+      to.locale === "ja"
+        ? {
+            subject: `在庫が更新されました — ${unit}`,
+            eyebrow: "在庫の変更",
+            heading: "管理者が在庫数を更新しました",
+            paragraph: `${to.name} 様、${brand} の管理者が「${unit}」（SKU ${change.sku}）の在庫数を更新しました。`,
+            rows: [
+              { label: "商品", value: unit },
+              { label: "SKU", value: change.sku },
+              { label: "変更前", value: String(change.before) },
+              { label: "変更後", value: String(change.after), strong: true },
+              ...(change.reason
+                ? [{ label: "理由", value: change.reason }]
+                : []),
+            ],
+            button: "出品商品を確認する",
+            outro:
+              "この変更に心当たりがない場合は、出品者サポートまでご連絡ください。",
+          }
+        : to.locale === "bn"
+          ? {
+              subject: `স্টক আপডেট হয়েছে — ${unit}`,
+              eyebrow: "স্টক পরিবর্তন",
+              heading: "একজন অ্যাডমিন আপনার স্টক আপডেট করেছেন",
+              paragraph: `${to.name}, ${brand}-এর একজন অ্যাডমিন "${unit}" (SKU ${change.sku})-এর স্টক পরিমাণ পরিবর্তন করেছেন।`,
+              rows: [
+                { label: "পণ্য", value: unit },
+                { label: "SKU", value: change.sku },
+                { label: "আগে", value: String(change.before) },
+                { label: "এখন", value: String(change.after), strong: true },
+                ...(change.reason
+                  ? [{ label: "কারণ", value: change.reason }]
+                  : []),
+              ],
+              button: "আমার পণ্য দেখুন",
+              outro:
+                "এই পরিবর্তনটি প্রত্যাশিত না হলে বিক্রেতা সহায়তায় যোগাযোগ করুন।",
+            }
+          : {
+              subject: `Stock updated — ${unit}`,
+              eyebrow: "Stock change",
+              heading: "An admin updated your stock",
+              paragraph: `Hi ${to.name}, a ${brand} admin changed the stock balance of "${unit}" (SKU ${change.sku}).`,
+              rows: [
+                { label: "Product", value: unit },
+                { label: "SKU", value: change.sku },
+                { label: "Before", value: String(change.before) },
+                { label: "Now", value: String(change.after), strong: true },
+                ...(change.reason
+                  ? [{ label: "Reason", value: change.reason }]
+                  : []),
+              ],
+              button: "Review my products",
+              outro:
+                "If you did not expect this change, reply to this email or contact seller support.",
+            };
+
+    const built = renderEmail({
+      preheader: c.heading,
+      eyebrow: c.eyebrow,
+      heading: c.heading,
+      paragraphs: [c.paragraph],
+      details: { rows: c.rows },
+      button: { label: c.button, url: portal },
+      outro: [c.outro],
+    });
+    await getMailer().send({
+      to: to.email,
+      subject: c.subject,
+      html: built.html,
+      text: built.text,
+      attachments: built.attachments,
+    });
+  } catch (e) {
+    logger.warn("seller stock-override email failed", e);
+  }
+}

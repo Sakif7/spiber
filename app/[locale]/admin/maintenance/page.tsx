@@ -1,6 +1,8 @@
 import { setRequestLocale } from "next-intl/server";
+import { TriangleAlert } from "lucide-react";
 import { MaintenancePanel } from "@/components/admin/maintenance-panel";
 import { countDeletable } from "@/lib/services/hard-delete.service";
+import { AdminPageHeader } from "@/components/admin/ui/page-header";
 
 export const dynamic = "force-dynamic";
 
@@ -20,62 +22,39 @@ export default async function AdminMaintenancePage({
   }
 
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
-      <div style={{ display: "grid", gap: "var(--s-2)" }}>
-        <h1
-          style={{
-            margin: 0,
-            fontFamily: "var(--font-display)",
-            fontSize: "var(--fs-2xl)",
-            color: "var(--color-text-strong)",
-          }}
-        >
-          Maintenance
-        </h1>
-        <p
-          style={{
-            margin: 0,
-            color: "var(--color-text-muted)",
-            maxWidth: "70ch",
-          }}
-        >
-          Permanently delete records to clean up test data. Everywhere else the
-          app uses recoverable soft-delete — actions here are{" "}
-          <strong style={{ color: "var(--color-error)" }}>irreversible</strong>.
-          Expand a collection to browse and delete individual records, or purge
-          a whole collection (type its name to confirm).
-        </p>
-      </div>
+    <div className="space-y-4">
+      <AdminPageHeader
+        title="Maintenance"
+        description={
+          <>
+            Permanently delete records to clean up test data. Everywhere else
+            the app uses recoverable soft-delete — actions here are{" "}
+            <strong className="text-destructive">irreversible</strong>. Expand a
+            collection to browse and delete individual records, or purge a whole
+            collection (type its name to confirm).
+          </>
+        }
+      />
 
-      <div
-        style={{
-          display: "flex",
-          gap: "var(--s-3)",
-          alignItems: "flex-start",
-          padding: "var(--s-4)",
-          border: "1px solid var(--color-error)",
-          borderRadius: "var(--r-lg)",
-          background: "color-mix(in srgb, var(--color-error) 6%, transparent)",
-        }}
-      >
-        <span aria-hidden style={{ fontSize: 18 }}>
-          ⚠️
-        </span>
-        <div
-          style={{ fontSize: "var(--fs-body-sm)", color: "var(--color-text)" }}
-        >
-          <strong>Danger zone.</strong> Deletes are not cascaded — removing a
-          product won’t remove its orders/reviews/inventory movements.
-          Hard-delete those collections too if you’re cleaning a full test
-          scenario. User accounts and audit logs are protected here; use{" "}
-          <code style={{ fontFamily: "var(--font-mono)" }}>
+      <div className="border-destructive/50 bg-destructive/5 flex items-start gap-3 rounded-lg border p-4">
+        <TriangleAlert
+          aria-hidden
+          className="text-destructive mt-0.5 size-4 shrink-0"
+        />
+        <div className="text-foreground text-[13px]">
+          <strong className="font-medium">Danger zone.</strong> Deletes are not
+          cascaded — removing a product won’t remove its
+          orders/reviews/inventory movements. Hard-delete those collections too
+          if you’re cleaning a full test scenario. User accounts and audit logs
+          are protected here; use{" "}
+          <code className="bg-muted rounded px-1 py-0.5 font-mono text-xs">
             npm run reset-seed
           </code>{" "}
           for a full wipe.
         </div>
       </div>
 
-      <div style={{ display: "grid", gap: "var(--s-3)" }}>
+      <div className="grid gap-3">
         {collections.map((c) => (
           <MaintenancePanel
             key={c.name}

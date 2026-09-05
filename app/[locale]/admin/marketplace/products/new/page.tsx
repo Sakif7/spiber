@@ -1,8 +1,8 @@
 import { setRequestLocale } from "next-intl/server";
-import { Link } from "@/i18n/navigation";
 import { MarketplaceProductForm } from "@/components/admin/marketplace-product-form";
 import { listBrands, listCategories } from "@/lib/repositories/taxonomy.repo";
 import { localize } from "@/lib/schemas/localized";
+import { EditorHeader } from "@/components/admin/ui/form-shell";
 
 export const dynamic = "force-dynamic";
 
@@ -39,28 +39,12 @@ export default async function NewMarketplaceProductPage({
   }
 
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
-      <div style={{ display: "grid", gap: "var(--s-2)" }}>
-        <Link
-          href="/admin/marketplace/products"
-          style={{
-            fontSize: "var(--fs-small)",
-            color: "var(--color-text-muted)",
-          }}
-        >
-          ← Spiber Kart products
-        </Link>
-        <h1
-          style={{
-            margin: 0,
-            fontFamily: "var(--font-display)",
-            fontSize: "var(--fs-2xl)",
-            color: "var(--color-text-strong)",
-          }}
-        >
-          New product
-        </h1>
-      </div>
+    <div className="space-y-4">
+      <EditorHeader
+        backHref="/admin/marketplace/products"
+        backLabel="Spiber Kart products"
+        title="New product"
+      />
       <MarketplaceProductForm categories={categories} brands={brands} />
     </div>
   );

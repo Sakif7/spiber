@@ -8,7 +8,9 @@ import {
 } from "@/components/ui/table";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
+import type { SortDir } from "@/lib/admin/list-params";
 import { EmptyState } from "./empty-state";
+import { SortHeader } from "./sort-header";
 
 export type Column<T> = {
   /** Stable identifier for the column. */
@@ -20,6 +22,14 @@ export type Column<T> = {
   /** Extra classes for the header cell. */
   headClassName?: string;
   cell: (row: T, index: number) => React.ReactNode;
+  /**
+   * Make the header clickable: sorts the list by this key through the URL
+   * (`?sort=&dir=`). The page must declare the key in its `sortable` config
+   * and pass the resolved sort to the table via `sort`.
+   */
+  sortKey?: string;
+  /** Direction used when the column is first clicked (default "desc"). */
+  sortDir?: SortDir;
   /**
    * Placement of this column in the MOBILE card layout (below `md`):
    * - "primary" — the card's title line (rendered prominently, no label)
@@ -45,16 +55,19 @@ const alignClass = {
  * page). Below `md` it reflows into a **stacked card layout** built from the
  * same `Column` metadata — one card per row, each column a labelled line —
  * because a horizontally-scrolling data table is a poor phone experience.
- * A branded empty state is shown at every width.
+ * A branded empty state is shown at every width. Columns with a `sortKey`
+ * get a clickable header when the page passes the resolved `sort`.
  */
 export function DataTable<T>({
   columns,
   rows,
   getRowKey,
   rowClassName,
+  sort,
   empty,
   emptyIcon,
   emptyDescription,
+  emptyAction,
   minWidth = 640,
   className,
 }: {
@@ -63,9 +76,13 @@ export function DataTable<T>({
   getRowKey: (row: T, index: number) => string;
   /** Optional per-row class (e.g. a selected-row tint). */
   rowClassName?: (row: T, index: number) => string | undefined;
+  /** The server-resolved sort (from `parseListQuery`) for sortable headers. */
+  sort?: { key: string; dir: SortDir };
   empty: string;
   emptyIcon?: LucideIcon;
   emptyDescription?: string;
+  /** e.g. a "New X" button — tells the admin how rows get created. */
+  emptyAction?: React.ReactNode;
   minWidth?: number;
   className?: string;
 }) {
@@ -73,7 +90,7 @@ export function DataTable<T>({
     return (
       <div
         className={cn(
-          "bg-card overflow-hidden rounded-xl shadow-[var(--shadow-sm)]",
+          "bg-card overflow-hidden rounded-lg shadow-[var(--shadow-sm)]",
           className,
         )}
       >
@@ -81,6 +98,7 @@ export function DataTable<T>({
           icon={emptyIcon}
           title={empty}
           description={emptyDescription}
+          action={emptyAction}
         />
       </div>
     );
@@ -100,6 +118,20 @@ export function DataTable<T>({
           ? "actions"
           : "meta");
 
+  const headerContent = (c: Column<T>) =>
+    c.sortKey && sort ? (
+      <SortHeader
+        sortKey={c.sortKey}
+        label={c.header}
+        defaultDir={c.sortDir}
+        active={sort.key === c.sortKey}
+        dir={sort.dir}
+        align={c.align}
+      />
+    ) : (
+      c.header
+    );
+
   return (
     <>
       {/* Mobile (<md): stacked cards built from the column metadata. */}
@@ -112,7 +144,7 @@ export function DataTable<T>({
             <div
               key={getRowKey(row, i)}
               className={cn(
-                "bg-card flex flex-col gap-3 rounded-xl p-4 shadow-[var(--shadow-sm)]",
+                "bg-card flex flex-col gap-3 rounded-lg p-4 shadow-[var(--shadow-sm)]",
                 rowClassName?.(row, i),
               )}
             >
@@ -162,7 +194,7 @@ export function DataTable<T>({
       {/* md+ : the data table (its container scrolls if columns are wide). */}
       <div
         className={cn(
-          "bg-card hidden overflow-hidden rounded-xl shadow-[var(--shadow-sm)] md:block",
+          "bg-card hidden overflow-hidden rounded-lg shadow-[var(--shadow-sm)] md:block",
           className,
         )}
       >
@@ -172,13 +204,20 @@ export function DataTable<T>({
               {columns.map((c) => (
                 <TableHead
                   key={c.key}
+                  aria-sort={
+                    c.sortKey && sort && sort.key === c.sortKey
+                      ? sort.dir === "asc"
+                        ? "ascending"
+                        : "descending"
+                      : undefined
+                  }
                   className={cn(
-                    "text-muted-foreground h-11 px-4 text-sm font-semibold",
+                    "text-muted-foreground h-9 px-3 text-[13px] font-semibold",
                     alignClass[c.align ?? "left"],
                     c.headClassName,
                   )}
                 >
-                  {c.header}
+                  {headerContent(c)}
                 </TableHead>
               ))}
             </TableRow>
@@ -193,7 +232,7 @@ export function DataTable<T>({
                   <TableCell
                     key={c.key}
                     className={cn(
-                      "px-4 py-3 align-middle",
+                      "px-3 py-2 align-middle text-[13px]",
                       alignClass[c.align ?? "left"],
                       c.className,
                     )}

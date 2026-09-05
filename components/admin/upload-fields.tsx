@@ -1,14 +1,66 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import Image from "next/image";
-import { uploadErrorMessage } from "./image-uploader";
+import { Upload } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/cn";
+import { uploadErrorMessage } from "./upload-error";
+
+/**
+ * The file-picker button every admin uploader shares: a shadcn Button wrapping
+ * a hidden `<input type="file">`, so a click anywhere on it opens the picker
+ * and the control still looks like the rest of the admin.
+ */
+export function UploadButton({
+  onFile,
+  busy,
+  label = "Upload",
+  busyLabel = "Uploading…",
+  accept = "image/*",
+  variant = "outline",
+  size = "sm",
+  className,
+}: {
+  onFile: (file: File) => void;
+  busy?: boolean;
+  label?: string;
+  busyLabel?: string;
+  accept?: string;
+  variant?: React.ComponentProps<typeof Button>["variant"];
+  size?: React.ComponentProps<typeof Button>["size"];
+  className?: string;
+}) {
+  return (
+    <Button
+      asChild
+      variant={variant}
+      size={size}
+      className={cn("w-fit", className)}
+    >
+      <label className={busy ? "" : "cursor-pointer"}>
+        <Upload className="size-4" />
+        {busy ? busyLabel : label}
+        <input
+          type="file"
+          accept={accept}
+          hidden
+          disabled={busy}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) onFile(f);
+            e.target.value = "";
+          }}
+        />
+      </label>
+    </Button>
+  );
+}
 
 /**
  * Reusable single public-image upload control for admin forms (gallery cover,
- * event cover, …). Posts to /api/admin/uploads and stores the returned public
- * `url`. Mirrors the blog post-editor's SingleImage, shared here so the Company
- * forms stay consistent.
+ * event cover, course thumbnail, …). Posts to /api/admin/uploads and stores the
+ * returned public `url`.
  */
 export function SingleImageField({
   value,
@@ -38,35 +90,11 @@ export function SingleImageField({
     else setError(uploadErrorMessage(json?.error?.code));
   }
 
-  const btn: CSSProperties = {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 6,
-    padding: "8px 14px",
-    borderRadius: "var(--r-sm)",
-    border: "1px solid var(--color-border)",
-    background: "var(--color-surface)",
-    color: "var(--color-brand-deep)",
-    fontWeight: 600,
-    fontSize: "var(--fs-sm)",
-    cursor: busy ? "default" : "pointer",
-  };
-
   return (
-    <div style={{ display: "grid", gap: 6 }}>
-      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+    <div className="grid gap-1.5">
+      <div className="flex flex-wrap items-center gap-3">
         {value && (
-          <div
-            style={{
-              position: "relative",
-              width: 120,
-              height: 68,
-              borderRadius: "var(--r-sm)",
-              overflow: "hidden",
-              border: "1px solid var(--color-border)",
-              flexShrink: 0,
-            }}
-          >
+          <div className="border-border relative h-[68px] w-[120px] shrink-0 overflow-hidden rounded-md border">
             <Image
               src={value}
               alt=""
@@ -76,42 +104,24 @@ export function SingleImageField({
             />
           </div>
         )}
-        <label style={btn}>
-          {busy ? "Uploading…" : value ? "Replace" : label}
-          <input
-            type="file"
-            accept="image/*"
-            hidden
-            disabled={busy}
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) upload(f);
-              e.target.value = "";
-            }}
-          />
-        </label>
+        <UploadButton
+          onFile={upload}
+          busy={busy}
+          label={value ? "Replace" : label}
+        />
         {value && (
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
+            className="text-destructive hover:text-destructive"
             onClick={() => onChange("")}
-            style={{
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--r-sm)",
-              background: "var(--color-surface)",
-              color: "var(--color-error)",
-              padding: "6px 10px",
-              cursor: "pointer",
-            }}
           >
             Remove
-          </button>
+          </Button>
         )}
       </div>
-      {error && (
-        <span style={{ color: "var(--color-error)", fontSize: "var(--fs-sm)" }}>
-          {error}
-        </span>
-      )}
+      {error && <p className="text-destructive text-[13px]">{error}</p>}
     </div>
   );
 }

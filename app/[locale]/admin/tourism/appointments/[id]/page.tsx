@@ -4,21 +4,16 @@ import { AppointmentActions } from "@/components/admin/appointment-actions";
 import { getAppointmentByIdLean } from "@/lib/repositories/appointments.repo";
 import { getDoctorByIdLean } from "@/lib/repositories/doctors.repo";
 import { getSessionUser } from "@/lib/auth/current-user";
+import { EditorHeader } from "@/components/admin/ui/form-shell";
+import {
+  DetailCard,
+  DetailLayout,
+  DetailProse,
+  DetailRow,
+} from "@/components/admin/ui/detail";
+import { StatusBadge } from "@/components/admin/ui/status-badge";
 
 export const dynamic = "force-dynamic";
-
-const card: React.CSSProperties = {
-  border: "1px solid var(--color-border)",
-  background: "var(--color-surface)",
-  borderRadius: "var(--r-lg)",
-  padding: "var(--s-5)",
-  display: "grid",
-  gap: "var(--s-3)",
-};
-const muted: React.CSSProperties = {
-  color: "var(--color-text-muted)",
-  fontSize: "var(--fs-body-sm)",
-};
 
 export default async function AdminAppointmentDetailPage({
   params,
@@ -39,131 +34,87 @@ export default async function AdminAppointmentDetailPage({
     : null;
 
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
-      <div style={{ display: "grid", gap: 4 }}>
-        <h1
-          style={{
-            margin: 0,
-            fontFamily: "var(--font-display)",
-            fontSize: "var(--fs-2xl)",
-            color: "var(--color-text-strong)",
-          }}
-        >
-          {a.appointmentNumber}
-        </h1>
-        <span style={{ ...muted, fontFamily: "var(--font-mono)" }}>
-          {a.type.replace(/_/g, " ")} · {a.status} ·{" "}
-          {new Date(a.createdAt).toLocaleString()}
-        </span>
-      </div>
+    <div className="space-y-4">
+      <EditorHeader
+        backHref="/admin/tourism/appointments"
+        backLabel="Appointments"
+        title={a.appointmentNumber}
+        subtitle={
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="font-mono text-xs">
+              {a.type.replace(/_/g, " ")}
+            </span>
+            <StatusBadge>{a.status}</StatusBadge>
+            <span className="font-mono text-xs">
+              {new Date(a.createdAt).toLocaleString()}
+            </span>
+          </span>
+        }
+      />
 
-      <div
-        className="equal-2col"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)",
-          gap: "var(--s-5)",
-          alignItems: "start",
-        }}
+      <DetailLayout
+        aside={
+          <AppointmentActions
+            appointmentId={String(a._id)}
+            status={a.status}
+            type={a.type}
+            currentUserId={user?.sub ?? ""}
+            assignedToMe={assignedToMe}
+          />
+        }
       >
-        <div style={{ display: "grid", gap: "var(--s-5)" }}>
-          <section style={card}>
-            <Row label="Patient" value={a.patient.name} />
-            <Row label="Email" value={a.patient.email} />
-            <Row label="Phone" value={a.patient.phone} />
-            {doctor && <Row label="Doctor" value={doctor.name} />}
-            {a.preferredTimes.length > 0 && (
-              <Row
-                label="Preferred times"
-                value={a.preferredTimes.join(", ")}
-              />
-            )}
-            {a.scheduledFor && (
-              <Row
-                label="Scheduled for"
-                value={new Date(a.scheduledFor).toLocaleString()}
-              />
-            )}
-            {a.meetingLink && (
-              <div style={{ display: "grid", gap: 4 }}>
-                <span style={muted}>Meeting link</span>
-                <a
-                  href={a.meetingLink}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    color: "var(--color-brand-deep)",
-                    wordBreak: "break-all",
-                  }}
-                >
-                  {a.meetingLink}
-                </a>
+        <DetailCard>
+          <DetailRow label="Patient">{a.patient.name}</DetailRow>
+          <DetailRow label="Email">{a.patient.email}</DetailRow>
+          <DetailRow label="Phone">{a.patient.phone}</DetailRow>
+          {doctor && <DetailRow label="Doctor">{doctor.name}</DetailRow>}
+          {a.preferredTimes.length > 0 && (
+            <DetailRow label="Preferred times">
+              {a.preferredTimes.join(", ")}
+            </DetailRow>
+          )}
+          {a.scheduledFor && (
+            <DetailRow label="Scheduled for">
+              {new Date(a.scheduledFor).toLocaleString()}
+            </DetailRow>
+          )}
+          {a.meetingLink && (
+            <div className="grid gap-1">
+              <span className="text-muted-foreground">Meeting link</span>
+              <a
+                href={a.meetingLink}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary break-all hover:underline"
+              >
+                {a.meetingLink}
+              </a>
+            </div>
+          )}
+        </DetailCard>
+
+        {a.notes && (
+          <DetailCard title="Notes">
+            <DetailProse>{a.notes}</DetailProse>
+          </DetailCard>
+        )}
+
+        {a.activity.length > 0 && (
+          <DetailCard
+            title="Activity"
+            bodyClassName="divide-border/60 gap-0 divide-y py-0"
+          >
+            {a.activity.map((n, i) => (
+              <div key={i} className="grid gap-0.5 py-2.5">
+                <span className="text-foreground">{n.body}</span>
+                <span className="text-muted-foreground text-xs">
+                  {new Date(n.at).toLocaleString()}
+                </span>
               </div>
-            )}
-          </section>
-
-          {a.notes && (
-            <section style={card}>
-              <strong style={{ color: "var(--color-text-strong)" }}>
-                Notes
-              </strong>
-              <p style={{ margin: 0, whiteSpace: "pre-line" }}>{a.notes}</p>
-            </section>
-          )}
-
-          {a.activity.length > 0 && (
-            <section style={card}>
-              <strong style={{ color: "var(--color-text-strong)" }}>
-                Activity
-              </strong>
-              {a.activity.map((n, i) => (
-                <div key={i} style={{ display: "grid", gap: 2 }}>
-                  <span style={{ color: "var(--color-text)" }}>{n.body}</span>
-                  <span style={muted}>{new Date(n.at).toLocaleString()}</span>
-                </div>
-              ))}
-            </section>
-          )}
-        </div>
-
-        <AppointmentActions
-          appointmentId={String(a._id)}
-          status={a.status}
-          type={a.type}
-          currentUserId={user?.sub ?? ""}
-          assignedToMe={assignedToMe}
-        />
-      </div>
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        gap: "var(--s-4)",
-      }}
-    >
-      <span
-        style={{
-          color: "var(--color-text-muted)",
-          fontSize: "var(--fs-body-sm)",
-        }}
-      >
-        {label}
-      </span>
-      <strong
-        style={{
-          color: "var(--color-text-strong)",
-          wordBreak: "break-all",
-          textAlign: "right",
-        }}
-      >
-        {value}
-      </strong>
+            ))}
+          </DetailCard>
+        )}
+      </DetailLayout>
     </div>
   );
 }

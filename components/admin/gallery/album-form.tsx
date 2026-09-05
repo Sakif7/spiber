@@ -2,18 +2,23 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { ChevronDown, ChevronUp, Upload, X } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  EditorForm,
+  FormField,
+  FormGrid,
+  FormSection,
+  SaveBar,
+} from "@/components/admin/ui/form-shell";
+import {
+  LocalizedInput,
+  type LocalizedValue,
+} from "@/components/admin/ui/localized-input";
+import { SelectField } from "@/components/admin/ui/select-field";
 import { SingleImageField } from "@/components/admin/upload-fields";
 import { formatApiError } from "@/lib/http/form-error";
 import type { GalleryStatus } from "@/lib/schemas/gallery";
@@ -33,6 +38,19 @@ export type AlbumFormInitial = {
 };
 
 const emptyL = (): L => ({ en: "", bn: "", ja: "" });
+
+/** Fold a LocalizedInput patch back into the { en, bn, ja? } shape used here. */
+const mergeL = (cur: L, v: LocalizedValue): L => ({
+  ...cur,
+  ...v,
+  en: v.en ?? "",
+  bn: v.bn ?? "",
+});
+
+const STATUS_OPTIONS = [
+  { value: "draft", label: "Draft" },
+  { value: "published", label: "Published" },
+];
 
 export function AlbumForm({ initial }: { initial?: AlbumFormInitial }) {
   const router = useRouter();
@@ -140,71 +158,80 @@ export function AlbumForm({ initial }: { initial?: AlbumFormInitial }) {
   }
 
   return (
-    <div className="grid max-w-[860px] gap-5">
-      <section className="bg-card grid gap-4 rounded-lg p-5 shadow-[var(--shadow-sm)]">
-        <BilingualField label="Title" value={title} onChange={setTitle} />
-        <div className="grid grid-cols-2 gap-4">
-          <div className="grid gap-1.5">
-            <Label>Slug (optional)</Label>
+    <EditorForm>
+      <FormSection title="Album">
+        <LocalizedInput
+          label="Title"
+          required
+          value={title}
+          onChange={(v) => setTitle(mergeL(title, v))}
+        />
+        <FormGrid>
+          <FormField label="Slug (optional)" htmlFor="album-slug">
             <Input
+              id="album-slug"
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
               placeholder="auto from title"
             />
-          </div>
-          <div className="grid gap-1.5">
-            <Label>Date (optional)</Label>
+          </FormField>
+          <FormField label="Date (optional)" htmlFor="album-date">
             <Input
+              id="album-date"
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
             />
-          </div>
-        </div>
-        <BilingualField
+          </FormField>
+        </FormGrid>
+        <LocalizedInput
           label="Description (optional)"
-          value={description}
-          onChange={setDescription}
           textarea
+          rows={2}
+          value={description}
+          onChange={(v) => setDescription(mergeL(description, v))}
         />
-        <div className="grid gap-1.5">
-          <Label>Cover image (optional — defaults to the first photo)</Label>
+        <FormField
+          label="Cover image (optional)"
+          hint="Defaults to the first photo."
+        >
           <SingleImageField value={coverImage} onChange={setCoverImage} />
-        </div>
-      </section>
+        </FormField>
+      </FormSection>
 
-      <section className="bg-card grid gap-4 rounded-lg p-5 shadow-[var(--shadow-sm)]">
-        <div className="flex items-center justify-between">
-          <Label>Photos ({images.length})</Label>
-          <label
-            className="border-border bg-card text-primary inline-flex items-center gap-1.5 rounded-md border px-3.5 py-2 text-sm font-semibold"
-            style={{ cursor: uploading ? "default" : "pointer" }}
-          >
-            {uploading ? "Uploading…" : "+ Add photos"}
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              hidden
-              disabled={uploading}
-              onChange={(e) => {
-                if (e.target.files?.length) addFiles(e.target.files);
-                e.target.value = "";
-              }}
-            />
-          </label>
-        </div>
-
+      <FormSection
+        title="Photos"
+        description={`${images.length} photo${images.length === 1 ? "" : "s"} in this album.`}
+        action={
+          <Button asChild variant="outline" size="sm" className="w-fit">
+            <label className={uploading ? "" : "cursor-pointer"}>
+              <Upload className="size-4" />
+              {uploading ? "Uploading…" : "Add photos"}
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                hidden
+                disabled={uploading}
+                onChange={(e) => {
+                  if (e.target.files?.length) addFiles(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+          </Button>
+        }
+      >
         {images.length === 0 ? (
-          <p className="text-muted-foreground m-0 text-sm">
+          <p className="text-muted-foreground text-[13px]">
             No photos yet — add some above.
           </p>
         ) : (
-          <div className="grid gap-3">
+          <div className="divide-border/60 divide-y">
             {images.map((im, i) => (
               <div
                 key={im.url}
-                className="border-border grid grid-cols-[96px_1fr_auto] items-center gap-3 rounded-md border p-2"
+                className="grid grid-cols-[96px_minmax(0,1fr)_auto] items-center gap-3 py-3 first:pt-0 last:pb-0"
               >
                 <div className="bg-muted relative h-16 w-24 overflow-hidden rounded-md">
                   <Image
@@ -215,42 +242,27 @@ export function AlbumForm({ initial }: { initial?: AlbumFormInitial }) {
                     style={{ objectFit: "cover" }}
                   />
                 </div>
-                <div className="grid gap-1.5">
-                  <Input
-                    placeholder="Caption (EN, optional)"
-                    value={im.caption.en}
-                    onChange={(e) =>
-                      setCaption(i, { ...im.caption, en: e.target.value })
-                    }
-                  />
-                  <Input
-                    placeholder="ক্যাপশন (বাংলা, optional)"
-                    value={im.caption.bn}
-                    onChange={(e) =>
-                      setCaption(i, { ...im.caption, bn: e.target.value })
-                    }
-                  />
-                  <Input
-                    placeholder="キャプション (日本語, optional)"
-                    value={im.caption.ja ?? ""}
-                    onChange={(e) =>
-                      setCaption(i, { ...im.caption, ja: e.target.value })
-                    }
-                  />
-                </div>
+                <LocalizedInput
+                  value={im.caption}
+                  placeholder="Caption (optional)"
+                  onChange={(v) => setCaption(i, mergeL(im.caption, v))}
+                />
                 <div className="grid gap-1">
                   <MiniBtn
-                    label="▲"
+                    label={`Move photo ${i + 1} up`}
+                    icon={ChevronUp}
                     onClick={() => move(i, -1)}
                     disabled={i === 0}
                   />
                   <MiniBtn
-                    label="▼"
+                    label={`Move photo ${i + 1} down`}
+                    icon={ChevronDown}
                     onClick={() => move(i, 1)}
                     disabled={i === images.length - 1}
                   />
                   <MiniBtn
-                    label="✕"
+                    label={`Remove photo ${i + 1}`}
+                    icon={X}
                     danger
                     onClick={() =>
                       setImages((prev) => prev.filter((_, j) => j !== i))
@@ -261,43 +273,39 @@ export function AlbumForm({ initial }: { initial?: AlbumFormInitial }) {
             ))}
           </div>
         )}
-      </section>
+      </FormSection>
 
-      <section className="bg-card grid gap-4 rounded-lg p-5 shadow-[var(--shadow-sm)]">
-        <div className="grid gap-1.5">
-          <Label>Status</Label>
-          <Select
+      <FormSection title="Publishing">
+        <FormField label="Status" htmlFor="album-status">
+          <SelectField
+            id="album-status"
             value={status}
-            onValueChange={(v) => setStatus(v as GalleryStatus)}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="draft">Draft</SelectItem>
-              <SelectItem value="published">Published</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </section>
+            onChange={(v) => setStatus(v as GalleryStatus)}
+            options={STATUS_OPTIONS}
+            className="sm:max-w-xs"
+          />
+        </FormField>
+      </FormSection>
 
-      {error && <p className="text-destructive text-sm">{error}</p>}
-      <div>
-        <Button type="button" onClick={submit} disabled={saving}>
-          {saving ? "Saving…" : isEdit ? "Save album" : "Create album"}
-        </Button>
-      </div>
-    </div>
+      <SaveBar
+        saving={saving}
+        onSave={submit}
+        error={error}
+        saveLabel={isEdit ? "Save album" : "Create album"}
+      />
+    </EditorForm>
   );
 }
 
 function MiniBtn({
   label,
+  icon: Icon,
   onClick,
   disabled,
   danger,
 }: {
   label: string;
+  icon: LucideIcon;
   onClick: () => void;
   disabled?: boolean;
   danger?: boolean;
@@ -305,78 +313,19 @@ function MiniBtn({
   return (
     <Button
       type="button"
-      variant="outline"
-      size="icon-sm"
+      variant="ghost"
+      size="icon-xs"
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
+      title={label}
       className={
         danger
-          ? "text-destructive hover:text-destructive h-6 w-[30px]"
-          : "text-muted-foreground h-6 w-[30px]"
+          ? "text-destructive hover:text-destructive"
+          : "text-muted-foreground hover:text-foreground"
       }
     >
-      {label}
+      <Icon aria-hidden />
     </Button>
-  );
-}
-
-function BilingualField({
-  label,
-  value,
-  onChange,
-  textarea,
-}: {
-  label: string;
-  value: L;
-  onChange: (v: L) => void;
-  textarea?: boolean;
-}) {
-  return (
-    <div className="grid gap-1.5">
-      <Label>{label}</Label>
-      <div className="grid grid-cols-3 gap-4">
-        {textarea ? (
-          <>
-            <Textarea
-              placeholder="EN"
-              value={value.en}
-              onChange={(e) => onChange({ ...value, en: e.target.value })}
-              rows={2}
-            />
-            <Textarea
-              placeholder="বাংলা"
-              value={value.bn}
-              onChange={(e) => onChange({ ...value, bn: e.target.value })}
-              rows={2}
-            />
-            <Textarea
-              placeholder="日本語"
-              value={value.ja ?? ""}
-              onChange={(e) => onChange({ ...value, ja: e.target.value })}
-              rows={2}
-            />
-          </>
-        ) : (
-          <>
-            <Input
-              placeholder="EN"
-              value={value.en}
-              onChange={(e) => onChange({ ...value, en: e.target.value })}
-            />
-            <Input
-              placeholder="বাংলা"
-              value={value.bn}
-              onChange={(e) => onChange({ ...value, bn: e.target.value })}
-            />
-            <Input
-              placeholder="日本語"
-              value={value.ja ?? ""}
-              onChange={(e) => onChange({ ...value, ja: e.target.value })}
-            />
-          </>
-        )}
-      </div>
-    </div>
   );
 }

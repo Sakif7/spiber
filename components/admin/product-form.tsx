@@ -3,13 +3,21 @@
 import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { CtaButton } from "@/components/ui/cta-button";
 import { fromMinor, toMinor } from "@/lib/money";
 import { formatApiError } from "@/lib/http/form-error";
 import { ImageUploader } from "./image-uploader";
 import { SpecsEditor, type SpecRow } from "./specs-editor";
 import { CategorySelect, type CategoryOption } from "./category-select";
+import { ProductStockCard } from "./inventory/product-stock-card";
+import { LocalizedInput, type LocalizedValue } from "./ui/localized-input";
+import { SelectField } from "./ui/select-field";
+import {
+  EditorForm,
+  FormField,
+  FormGrid,
+  FormSection,
+  SaveBar,
+} from "./ui/form-shell";
 
 export type ProductFormInitial = {
   id?: string;
@@ -22,12 +30,27 @@ export type ProductFormInitial = {
   priceMinor?: number;
   floorPriceMinor?: number | null;
   lowStockThreshold?: number;
+  /** Read-only here — stock is changed in Inventory. */
+  stockQty?: number;
+  trackStock?: boolean | null;
   status?: "draft" | "active" | "archived";
   specs?: SpecRow[];
   images?: string[];
 };
 
 type Option = { id: string; name: string };
+
+const STATUS_OPTIONS = [
+  { value: "draft", label: "Draft" },
+  { value: "active", label: "Active" },
+  { value: "archived", label: "Archived" },
+];
+
+const TRACKING_OPTIONS = [
+  { value: "default", label: "Default — tracked once priced" },
+  { value: "on", label: "Track stock" },
+  { value: "off", label: "Don’t track (quotation-only)" },
+];
 
 export function ProductForm({
   initial,
@@ -43,12 +66,16 @@ export function ProductForm({
 
   const [sku, setSku] = useState(initial?.sku ?? "");
   const [slug, setSlug] = useState(initial?.slug ?? "");
-  const [nameEn, setNameEn] = useState(initial?.name?.en ?? "");
-  const [nameBn, setNameBn] = useState(initial?.name?.bn ?? "");
-  const [nameJa, setNameJa] = useState(initial?.name?.ja ?? "");
-  const [descEn, setDescEn] = useState(initial?.description?.en ?? "");
-  const [descBn, setDescBn] = useState(initial?.description?.bn ?? "");
-  const [descJa, setDescJa] = useState(initial?.description?.ja ?? "");
+  const [name, setName] = useState<LocalizedValue>({
+    en: initial?.name?.en ?? "",
+    bn: initial?.name?.bn ?? "",
+    ja: initial?.name?.ja ?? "",
+  });
+  const [description, setDescription] = useState<LocalizedValue>({
+    en: initial?.description?.en ?? "",
+    bn: initial?.description?.bn ?? "",
+    ja: initial?.description?.ja ?? "",
+  });
   const [categoryId, setCategoryId] = useState(
     initial?.categoryId ??
       categories.find((c) => !c.parentId)?.id ??
@@ -67,6 +94,13 @@ export function ProductForm({
   const [lowStock, setLowStock] = useState(
     String(initial?.lowStockThreshold ?? 5),
   );
+  const [trackStock, setTrackStock] = useState<"default" | "on" | "off">(
+    initial?.trackStock === true
+      ? "on"
+      : initial?.trackStock === false
+        ? "off"
+        : "default",
+  );
   const [status, setStatus] = useState(initial?.status ?? "draft");
   const [specs, setSpecs] = useState<SpecRow[]>(initial?.specs ?? []);
   const [images, setImages] = useState<string[]>(initial?.images ?? []);
@@ -81,9 +115,17 @@ export function ProductForm({
       storefront: "instruments" as const,
       sku,
       slug,
-      name: { en: nameEn, bn: nameBn || undefined, ja: nameJa || undefined },
-      description: descEn
-        ? { en: descEn, bn: descBn || undefined, ja: descJa || undefined }
+      name: {
+        en: name.en ?? "",
+        bn: name.bn || undefined,
+        ja: name.ja || undefined,
+      },
+      description: description.en
+        ? {
+            en: description.en,
+            bn: description.bn || undefined,
+            ja: description.ja || undefined,
+          }
         : undefined,
       categoryId,
       brandId: brandId || undefined,
@@ -95,6 +137,9 @@ export function ProductForm({
         ? toMinor(Number(floorPrice) || 0)
         : null,
       lowStockThreshold: Number(lowStock) || 0,
+      // null = default rule (tracked once priced); true/false force it.
+      trackStock:
+        trackStock === "on" ? true : trackStock === "off" ? false : null,
       status,
       specs: specs.filter((s) => s.key.en && s.value.en),
       images,
@@ -117,192 +162,161 @@ export function ProductForm({
     }
   }
 
-  const field = { display: "grid", gap: 6 } as const;
-  const row = {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "var(--s-4)",
-  } as const;
-  const row3 = {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr 1fr",
-    gap: "var(--s-4)",
-  } as const;
-  const hint: React.CSSProperties = {
-    fontSize: "var(--fs-xs)",
-    color: "var(--color-text-muted)",
-    lineHeight: 1.45,
-  };
-  const sel: React.CSSProperties = {
-    height: 40,
-    padding: "0 10px",
-    border: "1px solid var(--color-border-field)",
-    borderRadius: "var(--r-sm)",
-    font: "inherit",
-    background: "var(--color-surface)",
-  };
-
   return (
-    <div style={{ display: "grid", gap: "var(--s-5)", maxWidth: 760 }}>
-      <div style={field}>
-        <Label>Name</Label>
-        <div style={row3}>
-          <Input
-            placeholder="EN"
-            value={nameEn}
-            onChange={(e) => setNameEn(e.target.value)}
-          />
-          <Input
-            placeholder="বাংলা"
-            value={nameBn}
-            onChange={(e) => setNameBn(e.target.value)}
-          />
-          <Input
-            placeholder="日本語"
-            value={nameJa}
-            onChange={(e) => setNameJa(e.target.value)}
-          />
-        </div>
-      </div>
-      <div style={row}>
-        <div style={field}>
-          <Label>SKU</Label>
-          <Input value={sku} onChange={(e) => setSku(e.target.value)} />
-        </div>
-        <div style={field}>
-          <Label>Slug</Label>
-          <Input
-            value={slug}
-            placeholder="auto from name"
-            onChange={(e) => setSlug(e.target.value)}
-          />
-        </div>
-      </div>
-      <div style={field}>
-        <Label>Description</Label>
-        <div style={row3}>
-          <textarea
-            rows={3}
-            placeholder="EN"
-            value={descEn}
-            onChange={(e) => setDescEn(e.target.value)}
-            style={{ ...sel, height: "auto", padding: 10 }}
-          />
-          <textarea
-            rows={3}
-            placeholder="বাংলা"
-            value={descBn}
-            onChange={(e) => setDescBn(e.target.value)}
-            style={{ ...sel, height: "auto", padding: 10 }}
-          />
-          <textarea
-            rows={3}
-            placeholder="日本語"
-            value={descJa}
-            onChange={(e) => setDescJa(e.target.value)}
-            style={{ ...sel, height: "auto", padding: 10 }}
-          />
-        </div>
-      </div>
-      <div style={row}>
-        <div style={field}>
-          <Label>Category</Label>
-          <CategorySelect
-            categories={categories}
-            value={categoryId}
-            onChange={setCategoryId}
-          />
-        </div>
-        <div style={field}>
-          <Label>Brand</Label>
-          <select
-            style={sel}
-            value={brandId}
-            onChange={(e) => setBrandId(e.target.value)}
+    <EditorForm>
+      <FormSection
+        title="Basics"
+        description="What the product is called and where it sits in the catalog."
+      >
+        <LocalizedInput
+          label="Name"
+          required
+          value={name}
+          onChange={setName}
+          placeholder="e.g. 12-Channel ECG Machine"
+        />
+        <FormGrid>
+          <FormField label="SKU" htmlFor="product-sku" required>
+            <Input
+              id="product-sku"
+              value={sku}
+              onChange={(e) => setSku(e.target.value)}
+            />
+          </FormField>
+          <FormField
+            label="Slug"
+            htmlFor="product-slug"
+            hint="Leave blank to derive it from the English name."
           >
-            <option value="">— none —</option>
-            {brands.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-      <div style={row}>
-        <div style={field}>
-          <Label>Price (BDT, optional)</Label>
-          <Input
-            type="number"
-            value={price}
-            placeholder="Leave blank for “Price on request”"
-            onChange={(e) => setPrice(e.target.value)}
+            <Input
+              id="product-slug"
+              value={slug}
+              placeholder="auto from name"
+              onChange={(e) => setSlug(e.target.value)}
+            />
+          </FormField>
+        </FormGrid>
+        <LocalizedInput
+          label="Description"
+          textarea
+          value={description}
+          onChange={setDescription}
+        />
+        <FormGrid>
+          <FormField label="Category">
+            <CategorySelect
+              categories={categories}
+              value={categoryId}
+              onChange={setCategoryId}
+            />
+          </FormField>
+          <FormField label="Brand">
+            <SelectField
+              value={brandId}
+              onChange={setBrandId}
+              ariaLabel="Brand"
+              emptyLabel="— none —"
+              options={brands.map((b) => ({ value: b.id, label: b.name }))}
+            />
+          </FormField>
+        </FormGrid>
+        <FormField label="Status">
+          <SelectField
+            value={status}
+            onChange={(v) => setStatus(v as typeof status)}
+            ariaLabel="Status"
+            options={STATUS_OPTIONS}
+            className="sm:max-w-xs"
           />
-          <p style={hint}>
-            Set a price to make this product buyable on Medtrade. Leave blank to
-            keep it quotation-only.
-          </p>
-        </div>
-        <div style={field}>
-          <Label>Floor price (BDT, optional)</Label>
-          <Input
-            type="number"
-            value={floorPrice}
-            placeholder="Lowest negotiable price"
-            onChange={(e) => setFloorPrice(e.target.value)}
-          />
-          <p style={hint}>
-            Medtrade shows ৳floor – ৳price as a negotiable range. Checkout
-            always bills the list price; the floor guides quotations.
-          </p>
-        </div>
-      </div>
-      <div style={row}>
-        <div style={field}>
-          <Label>Low-stock threshold</Label>
-          <Input
-            type="number"
-            value={lowStock}
-            onChange={(e) => setLowStock(e.target.value)}
-          />
-        </div>
-        <div style={field} />
-      </div>
-      <div style={field}>
-        <Label>Status</Label>
-        <select
-          style={sel}
-          value={status}
-          onChange={(e) => setStatus(e.target.value as typeof status)}
-        >
-          <option value="draft">Draft</option>
-          <option value="active">Active</option>
-          <option value="archived">Archived</option>
-        </select>
-      </div>
-      <div style={field}>
-        <Label>Images</Label>
-        <ImageUploader value={images} onChange={setImages} />
-      </div>
-      <div style={field}>
-        <Label>Specifications</Label>
-        <SpecsEditor value={specs} onChange={setSpecs} />
-      </div>
+        </FormField>
+      </FormSection>
 
-      {error && <p style={{ color: "var(--color-error)" }}>{error}</p>}
-      {isEdit && (
-        <p
-          style={{
-            fontSize: "var(--fs-small)",
-            color: "var(--color-text-muted)",
-          }}
-        >
-          Stock is managed under Inventory.
-        </p>
-      )}
-      <CtaButton onClick={submit}>
-        {saving ? "Saving…" : isEdit ? "Save changes" : "Create product"}
-      </CtaButton>
-    </div>
+      <FormSection
+        title="Pricing & stock"
+        description="Medtrade products are quotation-only until they carry a price."
+      >
+        <FormGrid>
+          <FormField
+            label="Price (BDT, optional)"
+            htmlFor="product-price"
+            hint="Set a price to make this product buyable on Medtrade. Leave blank to keep it quotation-only."
+          >
+            <Input
+              id="product-price"
+              type="number"
+              value={price}
+              placeholder="Leave blank for “Price on request”"
+              onChange={(e) => setPrice(e.target.value)}
+            />
+          </FormField>
+          <FormField
+            label="Floor price (BDT, optional)"
+            htmlFor="product-floor"
+            hint="Medtrade shows ৳floor – ৳price as a negotiable range. Checkout always bills the list price; the floor guides quotations."
+          >
+            <Input
+              id="product-floor"
+              type="number"
+              value={floorPrice}
+              placeholder="Lowest negotiable price"
+              onChange={(e) => setFloorPrice(e.target.value)}
+            />
+          </FormField>
+        </FormGrid>
+        <FormGrid>
+          <FormField label="Low-stock threshold" htmlFor="product-low-stock">
+            <Input
+              id="product-low-stock"
+              type="number"
+              value={lowStock}
+              onChange={(e) => setLowStock(e.target.value)}
+            />
+          </FormField>
+          <FormField
+            label="Stock tracking"
+            hint="Tracked products count towards low-stock alerts and the inventory KPIs."
+          >
+            <SelectField
+              value={trackStock}
+              onChange={(v) => setTrackStock(v as "default" | "on" | "off")}
+              ariaLabel="Stock tracking"
+              options={TRACKING_OPTIONS}
+            />
+          </FormField>
+        </FormGrid>
+        {isEdit && (
+          <ProductStockCard
+            productId={initial!.id!}
+            sku={sku}
+            stockQty={initial?.stockQty ?? 0}
+            tracked={
+              trackStock === "on" ||
+              (trackStock === "default" && price.trim() !== "")
+            }
+          />
+        )}
+      </FormSection>
+
+      <FormSection
+        title="Media"
+        description="The first image is used as the catalog thumbnail."
+      >
+        <ImageUploader value={images} onChange={setImages} />
+      </FormSection>
+
+      <FormSection
+        title="Specifications"
+        description="Shown as the spec table on the product page. Paste a “Key: Value” list to add several at once."
+      >
+        <SpecsEditor value={specs} onChange={setSpecs} />
+      </FormSection>
+
+      <SaveBar
+        saving={saving}
+        onSave={submit}
+        error={error}
+        saveLabel={isEdit ? "Save changes" : "Create product"}
+      />
+    </EditorForm>
   );
 }

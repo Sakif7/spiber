@@ -1,8 +1,8 @@
 import { setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
-import { Link } from "@/i18n/navigation";
 import { PackageForm } from "@/components/admin/tourism/catalog-form";
 import { getPackageByIdLean } from "@/lib/repositories/packages.repo";
+import { EditorHeader } from "@/components/admin/ui/form-shell";
 
 export const dynamic = "force-dynamic";
 
@@ -18,28 +18,12 @@ export default async function EditPackagePage({
   const initial = JSON.parse(JSON.stringify(doc)) as Record<string, unknown>;
 
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
-      <div style={{ display: "grid", gap: "var(--s-2)" }}>
-        <Link
-          href="/admin/tourism/packages"
-          style={{
-            fontSize: "var(--fs-small)",
-            color: "var(--color-text-muted)",
-          }}
-        >
-          ← Packages
-        </Link>
-        <h1
-          style={{
-            margin: 0,
-            fontFamily: "var(--font-display)",
-            fontSize: "var(--fs-2xl)",
-            color: "var(--color-text-strong)",
-          }}
-        >
-          Edit package
-        </h1>
-      </div>
+    <div className="space-y-4">
+      <EditorHeader
+        backHref="/admin/tourism/packages"
+        backLabel="Packages"
+        title="Edit package"
+      />
       <PackageForm id={id} initial={initial} />
     </div>
   );

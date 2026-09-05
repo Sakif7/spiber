@@ -4,9 +4,8 @@ import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { formatApiError } from "@/lib/http/form-error";
+import { LocalizedInput } from "@/components/admin/ui/localized-input";
 
 function TaxonomyForm({
   endpoint,
@@ -56,26 +55,16 @@ function TaxonomyForm({
 
   return (
     <div className="grid max-w-[520px] gap-4">
-      <div className="grid gap-1.5">
-        <Label>Name</Label>
-        <div className="grid grid-cols-3 gap-4">
-          <Input
-            placeholder="EN"
-            value={nameEn}
-            onChange={(e) => setNameEn(e.target.value)}
-          />
-          <Input
-            placeholder="বাংলা"
-            value={nameBn}
-            onChange={(e) => setNameBn(e.target.value)}
-          />
-          <Input
-            placeholder="日本語"
-            value={nameJa}
-            onChange={(e) => setNameJa(e.target.value)}
-          />
-        </div>
-      </div>
+      <LocalizedInput
+        label="Name"
+        required
+        value={{ en: nameEn, bn: nameBn, ja: nameJa }}
+        onChange={(v) => {
+          setNameEn(v.en ?? "");
+          setNameBn(v.bn ?? "");
+          setNameJa(v.ja ?? "");
+        }}
+      />
       {error && <p className="text-destructive text-sm">{error}</p>}
       <div>
         <Button type="button" onClick={submit} disabled={saving}>

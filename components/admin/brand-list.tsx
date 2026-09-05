@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { ChevronUp, ChevronDown, Pencil } from "lucide-react";
+import { ChevronUp, ChevronDown, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/cn";
 import { formatApiError } from "@/lib/http/form-error";
 import { BrandForm, type BrandFormValue } from "@/components/admin/brand-form";
 
@@ -68,21 +70,14 @@ export function BrandList({ brands }: { brands: BrandRow[] }) {
 
   if (brands.length === 0) {
     return (
-      <p
-        style={{
-          margin: 0,
-          padding: "var(--s-6)",
-          textAlign: "center",
-          color: "var(--color-text-muted)",
-        }}
-      >
+      <p className="text-muted-foreground p-6 text-center text-[13px]">
         No brands yet.
       </p>
     );
   }
 
   return (
-    <div>
+    <div className="divide-border/60 divide-y">
       {brands.map((b, index) => {
         const monogram =
           b.nameEn
@@ -98,150 +93,95 @@ export function BrandList({ brands }: { brands: BrandRow[] }) {
           logo: b.logo,
         };
         return (
-          <div
-            key={b.id}
-            style={{ borderBottom: "1px solid var(--color-border)" }}
-          >
+          <div key={b.id}>
             <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "var(--s-3)",
-                padding: "10px 14px",
-                opacity: busy === b.id ? 0.5 : 1,
-              }}
+              className={cn(
+                "flex items-center gap-3 px-3.5 py-2.5",
+                busy === b.id && "opacity-50",
+              )}
             >
               <span
                 aria-hidden
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: "var(--fs-caption)",
-                  color: "var(--color-text-subtle)",
-                  width: 22,
-                  textAlign: "right",
-                }}
+                className="text-muted-foreground w-6 shrink-0 text-right font-mono text-xs tabular-nums"
               >
                 {index + 1}
               </span>
-              <span
-                style={{
-                  display: "grid",
-                  placeItems: "center",
-                  width: 40,
-                  height: 40,
-                  flexShrink: 0,
-                  borderRadius: "var(--r-sm)",
-                  border: "1px solid var(--color-border)",
-                  background: "var(--color-surface-2)",
-                  overflow: "hidden",
-                  position: "relative",
-                }}
-              >
+              <span className="bg-muted border-border relative grid size-10 shrink-0 place-items-center overflow-hidden rounded-md border">
                 {b.logo ? (
                   <Image
                     src={b.logo}
                     alt=""
                     fill
                     sizes="40px"
-                    style={{ objectFit: "contain", padding: 4 }}
+                    className="p-1"
+                    style={{ objectFit: "contain" }}
                   />
                 ) : (
                   <span
-                    style={{
-                      fontFamily: "var(--font-display)",
-                      fontWeight: 700,
-                      fontSize: 13,
-                      color: "var(--color-brand-deep)",
-                    }}
+                    className="text-[13px] font-bold text-[var(--color-brand-deep)]"
+                    style={{ fontFamily: "var(--font-display)" }}
                   >
                     {monogram}
                   </span>
                 )}
               </span>
-              <span style={{ flex: 1, color: "var(--color-text-strong)" }}>
+              <span className="text-foreground min-w-0 flex-1 text-[13px]">
                 {b.nameEn}
                 {b.nameBn && (
-                  <span style={{ color: "var(--color-text-muted)" }}>
-                    {" "}
-                    · {b.nameBn}
-                  </span>
+                  <span className="text-muted-foreground"> · {b.nameBn}</span>
                 )}
-                <span
-                  style={{
-                    marginLeft: 8,
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "var(--fs-caption)",
-                    color: "var(--color-text-muted)",
-                  }}
-                >
+                <span className="text-muted-foreground ml-2 font-mono text-xs">
                   {b.slug}
                 </span>
               </span>
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon-sm"
                 onClick={() => move(index, -1)}
                 disabled={index === 0}
-                style={iconBtn(index === 0)}
                 aria-label={`Move ${b.nameEn} up`}
                 title="Move up"
               >
-                <ChevronUp size={15} aria-hidden />
-              </button>
-              <button
+                <ChevronUp />
+              </Button>
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon-sm"
                 onClick={() => move(index, 1)}
                 disabled={index === brands.length - 1}
-                style={iconBtn(index === brands.length - 1)}
                 aria-label={`Move ${b.nameEn} down`}
                 title="Move down"
               >
-                <ChevronDown size={15} aria-hidden />
-              </button>
-              <button
+                <ChevronDown />
+              </Button>
+              <Button
                 type="button"
+                variant={editing === b.id ? "secondary" : "ghost"}
+                size="sm"
                 onClick={() =>
                   setEditing((cur) => (cur === b.id ? null : b.id))
                 }
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 5,
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--r-sm)",
-                  background:
-                    editing === b.id ? "var(--color-surface-2)" : "transparent",
-                  cursor: "pointer",
-                  color: "var(--color-text)",
-                  fontSize: "var(--fs-small)",
-                  fontFamily: "inherit",
-                  padding: "5px 10px",
-                }}
+                aria-expanded={editing === b.id}
               >
-                <Pencil size={13} aria-hidden />
+                <Pencil />
                 {editing === b.id ? "Close" : "Edit"}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="text-destructive hover:text-destructive"
                 onClick={() => remove(b)}
-                style={{
-                  border: "none",
-                  background: "none",
-                  cursor: "pointer",
-                  color: "var(--color-error)",
-                  fontSize: "var(--fs-small)",
-                  fontFamily: "inherit",
-                }}
+                aria-label={`Delete ${b.nameEn}`}
+                title="Delete"
               >
-                Delete
-              </button>
+                <Trash2 />
+              </Button>
             </div>
             {editing === b.id && (
-              <div
-                style={{
-                  padding: "var(--s-4) 14px var(--s-5) 52px",
-                  background: "var(--color-surface-2)",
-                }}
-              >
+              <div className="bg-muted/40 pt-4 pr-3.5 pb-5 pl-[52px]">
                 <BrandForm brand={value} onDone={() => setEditing(null)} />
               </div>
             )}
@@ -251,16 +191,3 @@ export function BrandList({ brands }: { brands: BrandRow[] }) {
     </div>
   );
 }
-
-const iconBtn = (disabled: boolean): React.CSSProperties => ({
-  display: "inline-grid",
-  placeItems: "center",
-  width: 28,
-  height: 28,
-  border: "1px solid var(--color-border)",
-  borderRadius: "var(--r-sm)",
-  background: "transparent",
-  cursor: disabled ? "default" : "pointer",
-  color: disabled ? "var(--color-text-subtle)" : "var(--color-text)",
-  opacity: disabled ? 0.45 : 1,
-});

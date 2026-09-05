@@ -3,8 +3,14 @@ import {
   ContactMessage,
   type IContactMessage,
 } from "@/lib/models/contact-message";
-import type { Lean } from "@/lib/models/_shared";
 import type { ContactStatus } from "@/lib/schemas/contact";
+import {
+  applyDateRange,
+  applyPartialSearch,
+  paginate,
+  sortSpec,
+  type RepoListQuery,
+} from "./list-query";
 
 type ContactFilter = NonNullable<
   Parameters<typeof ContactMessage.countDocuments>[0]
@@ -15,35 +21,37 @@ export async function createContactMessage(data: Partial<IContactMessage>) {
   return ContactMessage.create(data);
 }
 
-export type ContactListParams = {
+/** Sort keys the admin list exposes → stored fields. */
+const CONTACT_SORT: Record<string, string> = {
+  date: "createdAt",
+  name: "name",
+  status: "status",
+  type: "inquiryType",
+};
+
+export type ContactListParams = RepoListQuery & {
   status?: ContactStatus;
-  page?: number;
-  pageSize?: number;
+  inquiryType?: string;
 };
 
 export async function listContactMessages(params: ContactListParams = {}) {
   await connectToDatabase();
   const q: Record<string, unknown> = { deletedAt: null };
   if (params.status) q.status = params.status;
-  const page = Math.max(1, params.page ?? 1);
-  const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 50));
-  const filter = q as unknown as ContactFilter;
-  const [items, total] = await Promise.all([
-    ContactMessage.find(filter)
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * pageSize)
-      .limit(pageSize)
-      .lean<Lean<IContactMessage>[]>()
-      .exec(),
-    ContactMessage.countDocuments(filter),
+  if (params.inquiryType) q.inquiryType = params.inquiryType;
+  applyPartialSearch(q, params.search, [
+    "contactNumber",
+    "name",
+    "email",
+    "phone",
+    "message",
   ]);
-  return {
-    items,
-    total,
-    page,
-    pageSize,
-    pages: Math.max(1, Math.ceil(total / pageSize)),
-  };
+  applyDateRange(q, params.from, params.to);
+  return paginate<IContactMessage>(ContactMessage, q, {
+    sort: sortSpec(params.sort, params.dir, CONTACT_SORT),
+    page: params.page,
+    pageSize: params.pageSize ?? 50,
+  });
 }
 
 /** Unread (new) message count — for a future admin dashboard KPI. */

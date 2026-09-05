@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
-import { CtaButton } from "@/components/ui/cta-button";
+import { Button } from "@/components/ui/button";
 
 export function ReviewModeration({ reviewId }: { reviewId: string }) {
   const router = useRouter();
@@ -25,13 +25,13 @@ export function ReviewModeration({ reviewId }: { reviewId: string }) {
   }
 
   return (
-    <div style={{ display: "flex", gap: 8 }}>
-      <CtaButton onClick={() => moderate("approved")}>
+    <div className="flex items-center gap-2">
+      <Button size="sm" onClick={() => moderate("approved")}>
         {busy === "approved" ? "…" : "Approve"}
-      </CtaButton>
-      <CtaButton variant="secondary" onClick={() => moderate("rejected")}>
+      </Button>
+      <Button size="sm" variant="outline" onClick={() => moderate("rejected")}>
         {busy === "rejected" ? "…" : "Reject"}
-      </CtaButton>
+      </Button>
     </div>
   );
 }

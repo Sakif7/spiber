@@ -4,6 +4,7 @@ import { Hospital, type IHospital } from "@/lib/models/hospital";
 import type { Lean } from "@/lib/models/_shared";
 import { applyPartialSearch } from "./search-filter";
 import type { TourismStatus } from "@/lib/schemas/tourism-catalog";
+import { applyDateRange, sortSpec, type RepoListQuery } from "./list-query";
 
 type Filter = NonNullable<Parameters<typeof Hospital.countDocuments>[0]>;
 
@@ -38,9 +39,15 @@ export async function getHospitalsByIds(
     .exec();
 }
 
-export type HospitalListParams = {
+/** Sort keys the admin list exposes → stored fields. */
+const HOSPITAL_SORT: Record<string, string> = {
+  date: "createdAt",
+  name: "name.en",
+  status: "status",
+};
+
+export type HospitalListParams = RepoListQuery & {
   status?: TourismStatus;
-  search?: string;
   /** Substring match against country (en/bn). */
   country?: string;
   /** Substring match against a specialty (en/bn). */
@@ -48,8 +55,6 @@ export type HospitalListParams = {
   /** Exact accreditation tag. */
   accreditation?: string;
   destinationId?: string;
-  page?: number;
-  pageSize?: number;
 };
 
 export async function listHospitals(params: HospitalListParams = {}) {
@@ -68,6 +73,7 @@ export async function listHospitals(params: HospitalListParams = {}) {
     "city.en",
     "city.bn",
   ]);
+  applyDateRange(q, params.from, params.to);
   applyPartialSearch(q, params.country, ["country.en", "country.bn"]);
   applyPartialSearch(q, params.specialty, ["specialties.en", "specialties.bn"]);
   const page = Math.max(1, params.page ?? 1);
@@ -75,7 +81,11 @@ export async function listHospitals(params: HospitalListParams = {}) {
   const filter = q as unknown as Filter;
   const [items, total] = await Promise.all([
     Hospital.find(filter)
-      .sort({ createdAt: -1 })
+      .sort(
+        params.sort
+          ? sortSpec(params.sort, params.dir, HOSPITAL_SORT)
+          : { createdAt: -1 },
+      )
       .skip((page - 1) * pageSize)
       .limit(pageSize)
       .lean<Lean<IHospital>[]>()

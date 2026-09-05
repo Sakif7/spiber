@@ -1,6 +1,14 @@
 import { setRequestLocale } from "next-intl/server";
 import { CategoryForm } from "@/components/admin/category-form";
 import { CategoryTree, type TreeNode } from "@/components/admin/category-tree";
+import { AdminPageHeader } from "@/components/admin/ui/page-header";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   listCategoryTree,
   listCategories,
@@ -48,50 +56,35 @@ export default async function AdminMarketplaceCategoriesPage({
   }
 
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
-      <h1
-        style={{
-          margin: 0,
-          fontFamily: "var(--font-display)",
-          fontSize: "var(--fs-2xl)",
-          color: "var(--color-text-strong)",
-        }}
-      >
-        Spiber Kart categories
-      </h1>
+    <div className="space-y-4">
+      <AdminPageHeader
+        title="Spiber Kart categories"
+        description="The order here drives the storefront category grid, the shop sidebar and the “Shop by category” navigation menu."
+      />
 
-      <section
-        style={{
-          background: "var(--color-surface)",
-          border: "1px solid var(--color-border)",
-          borderRadius: "var(--r-lg)",
-          overflow: "hidden",
-        }}
-      >
+      <Card className="gap-0 overflow-hidden py-0">
+        <CardHeader className="border-b px-4 py-3">
+          <CardTitle className="text-sm">
+            {parents.length} categor{parents.length === 1 ? "y" : "ies"}
+          </CardTitle>
+          <CardDescription>
+            Reorder with the arrows, or use Rename to change a name and slug.
+          </CardDescription>
+        </CardHeader>
         <CategoryTree nodes={nodes} />
-      </section>
+      </Card>
 
-      <section
-        style={{
-          background: "var(--color-surface)",
-          border: "1px solid var(--color-border)",
-          borderRadius: "var(--r-lg)",
-          padding: "var(--s-6)",
-          maxWidth: 560,
-        }}
-      >
-        <h2
-          style={{
-            margin: "0 0 var(--s-4)",
-            fontFamily: "var(--font-display)",
-            fontSize: "var(--fs-lg)",
-            color: "var(--color-text-strong)",
-          }}
-        >
-          New category
-        </h2>
-        <CategoryForm storefront="marketplace" parents={parents} />
-      </section>
+      <Card className="max-w-[560px]">
+        <CardHeader>
+          <CardTitle className="text-sm">New category</CardTitle>
+          <CardDescription>
+            New categories are appended to the end of their parent’s order.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <CategoryForm storefront="marketplace" parents={parents} />
+        </CardContent>
+      </Card>
     </div>
   );
 }

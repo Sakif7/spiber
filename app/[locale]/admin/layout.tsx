@@ -3,6 +3,9 @@ import { redirect } from "next/navigation";
 import { setRequestLocale } from "next-intl/server";
 import { getSessionUser } from "@/lib/auth/current-user";
 import { isAdmin } from "@/lib/auth/rbac";
+import { getAdminPrefsRaw } from "@/lib/repositories/users.repo";
+import { EMPTY_PREFS, sanitizePrefs, type AdminPrefs } from "@/lib/admin/prefs";
+import { NAV_BY_ID } from "@/components/admin/shell/nav";
 import { AdminThemeProvider } from "@/components/admin/theme/admin-theme-provider";
 import { AdminShell } from "@/components/admin/shell/admin-shell";
 import { SessionKeepAlive } from "@/components/auth/session-keep-alive";
@@ -45,6 +48,17 @@ export default async function AdminLayout({
 
   const role = user!.roles.includes("super_admin") ? "super_admin" : "admin";
 
+  // Sidebar favourites/recents, server-loaded so the rail renders complete on
+  // the first paint. A DB hiccup degrades to an empty (not broken) sidebar.
+  let prefs: AdminPrefs = EMPTY_PREFS;
+  try {
+    prefs = sanitizePrefs(await getAdminPrefsRaw(user!.sub), (id) =>
+      NAV_BY_ID.has(id),
+    );
+  } catch {
+    prefs = EMPTY_PREFS;
+  }
+
   return (
     <>
       <div
@@ -55,7 +69,7 @@ export default async function AdminLayout({
       />
       <AdminThemeProvider>
         <SessionKeepAlive />
-        <AdminShell email={user!.email} role={role}>
+        <AdminShell email={user!.email} role={role} initialPrefs={prefs}>
           {children}
         </AdminShell>
       </AdminThemeProvider>

@@ -6,34 +6,50 @@ import {
 import type { Lean } from "@/lib/models/_shared";
 import type { SoftwareStatus } from "@/lib/schemas/systems";
 import { applyPartialSearch } from "@/lib/repositories/search-filter";
+import { applyDateRange, sortSpec, type RepoListQuery } from "./list-query";
 
 type SoftwareFilter = NonNullable<
   Parameters<typeof SoftwareProduct.countDocuments>[0]
 >;
 
-export type SoftwareListParams = {
+/** Sort keys the admin software list exposes → stored fields. */
+const SOFTWARE_SORT: Record<string, string> = {
+  date: "createdAt",
+  name: "name.en",
+  price: "priceMinor",
+  status: "status",
+};
+
+export type SoftwareListParams = RepoListQuery & {
   status?: SoftwareStatus;
-  search?: string;
-  page?: number;
-  pageSize?: number;
+  /** Admin filters (validated against the enums by the page). */
+  pricingModel?: string;
+  deliveryType?: string;
 };
 
 export async function listSoftwareProducts(params: SoftwareListParams = {}) {
   await connectToDatabase();
   const q: Record<string, unknown> = { deletedAt: null };
   if (params.status) q.status = params.status;
+  if (params.pricingModel) q.pricingModel = params.pricingModel;
+  if (params.deliveryType) q.deliveryType = params.deliveryType;
   applyPartialSearch(q, params.search, [
     "name.en",
     "name.bn",
     "description.en",
     "description.bn",
   ]);
+  applyDateRange(q, params.from, params.to);
   const page = Math.max(1, params.page ?? 1);
   const pageSize = Math.min(60, Math.max(1, params.pageSize ?? 12));
   const filter = q as unknown as SoftwareFilter;
   const [items, total] = await Promise.all([
     SoftwareProduct.find(filter)
-      .sort({ createdAt: -1 })
+      .sort(
+        params.sort
+          ? sortSpec(params.sort, params.dir, SOFTWARE_SORT)
+          : { createdAt: -1 },
+      )
       .skip((page - 1) * pageSize)
       .limit(pageSize)
       .lean<Lean<ISoftwareProduct>[]>()

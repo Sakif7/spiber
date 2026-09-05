@@ -3,6 +3,13 @@ import { connectToDatabase } from "@/lib/db/connect";
 import { Inquiry, type IInquiry } from "@/lib/models/inquiry";
 import type { Lean } from "@/lib/models/_shared";
 import type { InquiryDivision, InquiryStatus } from "@/lib/schemas/inquiry";
+import {
+  applyDateRange,
+  applyPartialSearch,
+  paginate,
+  sortSpec,
+  type RepoListQuery,
+} from "./list-query";
 
 type InquiryFilter = NonNullable<Parameters<typeof Inquiry.countDocuments>[0]>;
 
@@ -25,12 +32,19 @@ export async function getInquiryByIdLean(id: string) {
   return Inquiry.findById(id).lean<Lean<IInquiry>>().exec();
 }
 
-export type InquiryListParams = {
+/** Sort keys the admin inquiries list exposes → stored fields. */
+const INQUIRY_SORT: Record<string, string> = {
+  date: "createdAt",
+  number: "inquiryNumber",
+  name: "name",
+  status: "status",
+  division: "division",
+};
+
+export type InquiryListParams = RepoListQuery & {
   division?: InquiryDivision;
   status?: InquiryStatus;
   assignedTo?: string;
-  page?: number;
-  pageSize?: number;
 };
 
 export async function listInquiries(params: InquiryListParams = {}) {
@@ -38,26 +52,22 @@ export async function listInquiries(params: InquiryListParams = {}) {
   const q: Record<string, unknown> = {};
   if (params.division) q.division = params.division;
   if (params.status) q.status = params.status;
-  if (params.assignedTo) q.assignedTo = params.assignedTo;
-  const page = Math.max(1, params.page ?? 1);
-  const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 50));
-  const filter = q as unknown as InquiryFilter;
-  const [items, total] = await Promise.all([
-    Inquiry.find(filter)
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * pageSize)
-      .limit(pageSize)
-      .lean<Lean<IInquiry>[]>()
-      .exec(),
-    Inquiry.countDocuments(filter),
+  if (params.assignedTo && mongoose.isValidObjectId(params.assignedTo)) {
+    q.assignedTo = params.assignedTo;
+  }
+  applyPartialSearch(q, params.search, [
+    "inquiryNumber",
+    "name",
+    "email",
+    "organization",
+    "subject",
   ]);
-  return {
-    items,
-    total,
-    page,
-    pageSize,
-    pages: Math.max(1, Math.ceil(total / pageSize)),
-  };
+  applyDateRange(q, params.from, params.to);
+  return paginate<IInquiry>(Inquiry, q, {
+    sort: sortSpec(params.sort, params.dir, INQUIRY_SORT),
+    page: params.page,
+    pageSize: params.pageSize ?? 50,
+  });
 }
 
 /** Open (non-won/lost) inquiry count for the dashboard KPI. */

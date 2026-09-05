@@ -5,7 +5,8 @@ import { useRouter } from "@/i18n/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { LocalizedInput } from "@/components/admin/ui/localized-input";
+import { FormField } from "@/components/admin/ui/form-shell";
 import { SingleImageField } from "@/components/admin/upload-fields";
 import { formatApiError } from "@/lib/http/form-error";
 
@@ -88,42 +89,31 @@ export function BrandForm({
 
   return (
     <div className="grid max-w-[560px] gap-4">
-      <div className="grid gap-1.5">
-        <Label>Name</Label>
-        <div className="grid grid-cols-3 gap-4">
-          <Input
-            placeholder="EN"
-            value={nameEn}
-            onChange={(e) => setNameEn(e.target.value)}
-          />
-          <Input
-            placeholder="বাংলা"
-            value={nameBn}
-            onChange={(e) => setNameBn(e.target.value)}
-          />
-          <Input
-            placeholder="日本語"
-            value={nameJa}
-            onChange={(e) => setNameJa(e.target.value)}
-          />
-        </div>
-      </div>
-      <div className="grid gap-1.5">
-        <Label>Slug</Label>
+      <LocalizedInput
+        label="Name"
+        required
+        value={{ en: nameEn, bn: nameBn, ja: nameJa }}
+        onChange={(v) => {
+          setNameEn(v.en ?? "");
+          setNameBn(v.bn ?? "");
+          setNameJa(v.ja ?? "");
+        }}
+        placeholder="e.g. B. Braun"
+      />
+      <FormField label="Slug" htmlFor="brand-slug">
         <Input
+          id="brand-slug"
           value={slug}
           placeholder="auto from name"
           onChange={(e) => setSlug(e.target.value)}
         />
-      </div>
-      <div className="grid gap-1.5">
-        <Label>Logo / icon</Label>
+      </FormField>
+      <FormField
+        label="Logo / icon"
+        hint="A transparent PNG or SVG works best — it shows in the “Shop by brand” grid and the brand strip on the Spiber Kart homepage."
+      >
         <SingleImageField value={logo} onChange={setLogo} label="Upload logo" />
-        <p className="text-muted-foreground text-xs">
-          A transparent PNG or SVG works best — it shows in the “Shop by brand”
-          grid and the brand strip on the Spiber Kart homepage.
-        </p>
-      </div>
+      </FormField>
 
       {error && <p className="text-destructive text-sm">{error}</p>}
 

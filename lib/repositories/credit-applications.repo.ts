@@ -6,6 +6,13 @@ import {
 } from "@/lib/models/credit-application";
 import type { Lean } from "@/lib/models/_shared";
 import type { CreditApplicationStatus } from "@/lib/schemas/credit";
+import {
+  applyDateRange,
+  applyPartialSearch,
+  paginate,
+  sortSpec,
+  type RepoListQuery,
+} from "./list-query";
 
 type Filter = NonNullable<
   Parameters<typeof CreditApplication.countDocuments>[0]
@@ -65,6 +72,39 @@ export async function listCreditApplications(
     .sort({ createdAt: -1 })
     .lean<Lean<ICreditApplication>[]>()
     .exec();
+}
+
+/** Sort keys the admin list exposes → stored fields. */
+const CREDIT_APPLICATION_SORT: Record<string, string> = {
+  date: "createdAt",
+  number: "applicationNumber",
+  organization: "organization",
+  status: "status",
+};
+
+export type CreditApplicationAdminListParams = RepoListQuery & {
+  status?: CreditApplicationStatus;
+};
+
+/** Searchable, sortable, paged list for the admin (list kit). */
+export async function listCreditApplicationsForAdmin(
+  params: CreditApplicationAdminListParams = {},
+) {
+  await connectToDatabase();
+  const q: Record<string, unknown> = { deletedAt: null };
+  if (params.status) q.status = params.status;
+  applyPartialSearch(q, params.search, [
+    "applicationNumber",
+    "organization",
+    "contactName",
+    "email",
+  ]);
+  applyDateRange(q, params.from, params.to);
+  return paginate<ICreditApplication>(CreditApplication, q, {
+    sort: sortSpec(params.sort, params.dir, CREDIT_APPLICATION_SORT),
+    page: params.page,
+    pageSize: params.pageSize,
+  });
 }
 
 export async function countOpenCreditApplications(): Promise<number> {

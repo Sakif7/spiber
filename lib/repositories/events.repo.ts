@@ -3,6 +3,12 @@ import { Event, type IEvent } from "@/lib/models/event";
 import type { Lean } from "@/lib/models/_shared";
 import type { EventStatus } from "@/lib/schemas/events";
 import { applyPartialSearch } from "@/lib/repositories/search-filter";
+import {
+  applyDateRange,
+  paginate,
+  sortSpec,
+  type RepoListQuery,
+} from "./list-query";
 
 type EventFilter = NonNullable<Parameters<typeof Event.countDocuments>[0]>;
 
@@ -97,31 +103,32 @@ export async function listVisibleEventsForFeed(limit = 100) {
 }
 
 // ---- Admin ----
-export async function listAdminEvents(
-  params: { status?: EventStatus; page?: number; pageSize?: number } = {},
-) {
+/** Sort keys the admin list exposes → stored fields. */
+const ADMIN_EVENT_SORT: Record<string, string> = {
+  start: "startDate",
+  date: "createdAt",
+  title: "title.en",
+  status: "status",
+};
+
+export type AdminEventListParams = RepoListQuery & {
+  status?: EventStatus;
+};
+
+export async function listAdminEvents(params: AdminEventListParams = {}) {
   await connectToDatabase();
   const q: Record<string, unknown> = { deletedAt: null };
   if (params.status) q.status = params.status;
-  const page = Math.max(1, params.page ?? 1);
-  const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 50));
-  const filter = q as unknown as EventFilter;
-  const [items, total] = await Promise.all([
-    Event.find(filter)
-      .sort({ startDate: -1 })
-      .skip((page - 1) * pageSize)
-      .limit(pageSize)
-      .lean<Lean<IEvent>[]>()
-      .exec(),
-    Event.countDocuments(filter),
-  ]);
-  return {
-    items,
-    total,
-    page,
-    pageSize,
-    pages: Math.max(1, Math.ceil(total / pageSize)),
-  };
+  applyPartialSearch(q, params.search, ["title.en", "title.bn", "location.en"]);
+  applyDateRange(q, params.from, params.to);
+  return paginate<IEvent>(Event, q, {
+    sort: sortSpec(params.sort, params.dir, ADMIN_EVENT_SORT, {
+      key: "start",
+      dir: "desc",
+    }),
+    page: params.page,
+    pageSize: params.pageSize ?? 50,
+  });
 }
 
 export async function getEventByIdLean(id: string) {

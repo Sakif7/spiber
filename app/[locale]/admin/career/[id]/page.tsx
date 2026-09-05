@@ -5,6 +5,7 @@ import {
   type JobFormInitial,
 } from "@/components/admin/career/job-form";
 import { getJobByIdLean } from "@/lib/repositories/career.repo";
+import { EditorHeader } from "@/components/admin/ui/form-shell";
 
 export const dynamic = "force-dynamic";
 
@@ -52,17 +53,12 @@ export default async function EditJobPage({
   };
 
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
-      <h1
-        style={{
-          margin: 0,
-          fontFamily: "var(--font-display)",
-          fontSize: "var(--fs-2xl)",
-          color: "var(--color-text-strong)",
-        }}
-      >
-        Edit job
-      </h1>
+    <div className="space-y-4">
+      <EditorHeader
+        backHref="/admin/career"
+        backLabel="Career"
+        title="Edit job"
+      />
       <JobForm initial={initial} />
     </div>
   );

@@ -4,6 +4,7 @@ import { Doctor, type IDoctor } from "@/lib/models/doctor";
 import type { Lean } from "@/lib/models/_shared";
 import { applyPartialSearch } from "./search-filter";
 import type { TourismStatus } from "@/lib/schemas/tourism-catalog";
+import { applyDateRange, sortSpec, type RepoListQuery } from "./list-query";
 
 type Filter = NonNullable<Parameters<typeof Doctor.countDocuments>[0]>;
 
@@ -27,15 +28,19 @@ export async function getActiveDoctorBySlug(slug: string) {
     .exec();
 }
 
-export type DoctorListParams = {
+/** Sort keys the admin list exposes → stored fields. */
+const DOCTOR_SORT: Record<string, string> = {
+  date: "createdAt",
+  name: "name",
+  status: "status",
+};
+
+export type DoctorListParams = RepoListQuery & {
   status?: TourismStatus;
-  search?: string;
   /** Substring match against specialty (en/bn). */
   specialty?: string;
   onlineConsultation?: boolean;
   hospitalId?: string;
-  page?: number;
-  pageSize?: number;
 };
 
 export async function listDoctors(params: DoctorListParams = {}) {
@@ -53,13 +58,18 @@ export async function listDoctors(params: DoctorListParams = {}) {
     "specialty.en",
     "specialty.bn",
   ]);
+  applyDateRange(q, params.from, params.to);
   applyPartialSearch(q, params.specialty, ["specialty.en", "specialty.bn"]);
   const page = Math.max(1, params.page ?? 1);
   const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 24));
   const filter = q as unknown as Filter;
   const [items, total] = await Promise.all([
     Doctor.find(filter)
-      .sort({ createdAt: -1 })
+      .sort(
+        params.sort
+          ? sortSpec(params.sort, params.dir, DOCTOR_SORT)
+          : { createdAt: -1 },
+      )
       .skip((page - 1) * pageSize)
       .limit(pageSize)
       .lean<Lean<IDoctor>[]>()

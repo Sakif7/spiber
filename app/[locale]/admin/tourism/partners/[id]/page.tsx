@@ -4,21 +4,16 @@ import { FileText } from "lucide-react";
 import { PartnerActions } from "@/components/admin/partner-actions";
 import { getPartnerApplicationByIdLean } from "@/lib/repositories/partnerApplications.repo";
 import { getSessionUser } from "@/lib/auth/current-user";
+import { EditorHeader } from "@/components/admin/ui/form-shell";
+import {
+  DetailCard,
+  DetailLayout,
+  DetailProse,
+  DetailRow,
+} from "@/components/admin/ui/detail";
+import { StatusBadge } from "@/components/admin/ui/status-badge";
 
 export const dynamic = "force-dynamic";
-
-const card: React.CSSProperties = {
-  border: "1px solid var(--color-border)",
-  background: "var(--color-surface)",
-  borderRadius: "var(--r-lg)",
-  padding: "var(--s-5)",
-  display: "grid",
-  gap: "var(--s-3)",
-};
-const muted: React.CSSProperties = {
-  color: "var(--color-text-muted)",
-  fontSize: "var(--fs-body-sm)",
-};
 
 export default async function AdminPartnerDetailPage({
   params,
@@ -36,143 +31,88 @@ export default async function AdminPartnerDetailPage({
   );
 
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
-      <div style={{ display: "grid", gap: 4 }}>
-        <h1
-          style={{
-            margin: 0,
-            fontFamily: "var(--font-display)",
-            fontSize: "var(--fs-2xl)",
-            color: "var(--color-text-strong)",
-          }}
-        >
-          {a.partnerApplicationNumber}
-        </h1>
-        <span style={{ ...muted, fontFamily: "var(--font-mono)" }}>
-          {a.type} · {a.status} · {new Date(a.createdAt).toLocaleString()}
-        </span>
-      </div>
+    <div className="space-y-4">
+      <EditorHeader
+        backHref="/admin/tourism/partners"
+        backLabel="Partners"
+        title={a.partnerApplicationNumber}
+        subtitle={
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="font-mono text-xs">{a.type}</span>
+            <StatusBadge>{a.status}</StatusBadge>
+            <span className="font-mono text-xs">
+              {new Date(a.createdAt).toLocaleString()}
+            </span>
+          </span>
+        }
+      />
 
-      <div
-        className="equal-2col"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)",
-          gap: "var(--s-5)",
-          alignItems: "start",
-        }}
+      <DetailLayout
+        aside={
+          <PartnerActions
+            applicationId={String(a._id)}
+            status={a.status}
+            currentUserId={user?.sub ?? ""}
+            assignedToMe={assignedToMe}
+          />
+        }
       >
-        <div style={{ display: "grid", gap: "var(--s-5)" }}>
-          <section style={card}>
-            <Row label="Organization" value={a.orgInfo.name} />
-            {a.orgInfo.country && (
-              <Row label="Country" value={a.orgInfo.country} />
-            )}
-            {a.orgInfo.website && (
-              <Row label="Website" value={a.orgInfo.website} />
-            )}
-            <Row label="Contact" value={a.contact.name} />
-            <Row label="Email" value={a.contact.email} />
-            <Row label="Phone" value={a.contact.phone} />
-          </section>
-
-          {a.orgInfo.description && (
-            <section style={card}>
-              <strong style={{ color: "var(--color-text-strong)" }}>
-                About
-              </strong>
-              <p style={{ margin: 0, whiteSpace: "pre-line" }}>
-                {a.orgInfo.description}
-              </p>
-            </section>
+        <DetailCard>
+          <DetailRow label="Organization">{a.orgInfo.name}</DetailRow>
+          {a.orgInfo.country && (
+            <DetailRow label="Country">{a.orgInfo.country}</DetailRow>
           )}
+          {a.orgInfo.website && (
+            <DetailRow label="Website">{a.orgInfo.website}</DetailRow>
+          )}
+          <DetailRow label="Contact">{a.contact.name}</DetailRow>
+          <DetailRow label="Email">{a.contact.email}</DetailRow>
+          <DetailRow label="Phone">{a.contact.phone}</DetailRow>
+        </DetailCard>
 
-          <section style={card}>
-            <strong style={{ color: "var(--color-text-strong)" }}>
-              Documents
-            </strong>
-            {(a.documents?.length ?? 0) === 0 ? (
-              <span style={muted}>No documents uploaded.</span>
-            ) : (
-              <div style={{ display: "grid", gap: 8 }}>
-                {a.documents.map((d, i) => (
-                  <a
-                    key={i}
-                    href={`/api/media/partner/${String(a._id)}/${i}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      padding: "8px 12px",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: "var(--r-sm)",
-                      color: "var(--color-brand-deep)",
-                      fontSize: "var(--fs-body-sm)",
-                      textDecoration: "none",
-                    }}
-                  >
-                    <FileText size={16} aria-hidden />
-                    <span style={{ wordBreak: "break-all" }}>{d.name}</span>
-                  </a>
-                ))}
-              </div>
-            )}
-          </section>
+        {a.orgInfo.description && (
+          <DetailCard title="About">
+            <DetailProse>{a.orgInfo.description}</DetailProse>
+          </DetailCard>
+        )}
 
-          {a.activity.length > 0 && (
-            <section style={card}>
-              <strong style={{ color: "var(--color-text-strong)" }}>
-                Activity
-              </strong>
-              {a.activity.map((n, i) => (
-                <div key={i} style={{ display: "grid", gap: 2 }}>
-                  <span style={{ color: "var(--color-text)" }}>{n.body}</span>
-                  <span style={muted}>{new Date(n.at).toLocaleString()}</span>
-                </div>
+        <DetailCard title="Documents">
+          {(a.documents?.length ?? 0) === 0 ? (
+            <p className="text-muted-foreground">No documents uploaded.</p>
+          ) : (
+            <div className="grid gap-2">
+              {a.documents.map((d, i) => (
+                <a
+                  key={i}
+                  href={`/api/media/partner/${String(a._id)}/${i}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="border-border text-primary hover:bg-muted flex items-center gap-2.5 rounded-md border px-3 py-2 text-[13px] no-underline"
+                >
+                  <FileText size={16} aria-hidden />
+                  <span className="break-all">{d.name}</span>
+                </a>
               ))}
-            </section>
+            </div>
           )}
-        </div>
+        </DetailCard>
 
-        <PartnerActions
-          applicationId={String(a._id)}
-          status={a.status}
-          currentUserId={user?.sub ?? ""}
-          assignedToMe={assignedToMe}
-        />
-      </div>
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        gap: "var(--s-4)",
-      }}
-    >
-      <span
-        style={{
-          color: "var(--color-text-muted)",
-          fontSize: "var(--fs-body-sm)",
-        }}
-      >
-        {label}
-      </span>
-      <strong
-        style={{
-          color: "var(--color-text-strong)",
-          wordBreak: "break-all",
-          textAlign: "right",
-        }}
-      >
-        {value}
-      </strong>
+        {a.activity.length > 0 && (
+          <DetailCard
+            title="Activity"
+            bodyClassName="divide-border/60 gap-0 divide-y py-0"
+          >
+            {a.activity.map((n, i) => (
+              <div key={i} className="grid gap-0.5 py-2.5">
+                <span className="text-foreground">{n.body}</span>
+                <span className="text-muted-foreground text-xs">
+                  {new Date(n.at).toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </DetailCard>
+        )}
+      </DetailLayout>
     </div>
   );
 }

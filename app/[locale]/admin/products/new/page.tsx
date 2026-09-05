@@ -3,6 +3,7 @@ import { setRequestLocale } from "next-intl/server";
 import { ProductForm } from "@/components/admin/product-form";
 import { listBrands, listCategories } from "@/lib/repositories/taxonomy.repo";
 import { localize } from "@/lib/schemas/localized";
+import { EditorHeader } from "@/components/admin/ui/form-shell";
 
 export const dynamic = "force-dynamic";
 
@@ -41,23 +42,12 @@ export default async function NewProductPage({
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: "var(--s-6)",
-      }}
-    >
-      <h1
-        style={{
-          margin: 0,
-          fontFamily: "var(--font-display)",
-          fontSize: "var(--fs-2xl)",
-          color: "var(--color-text-strong)",
-        }}
-      >
-        New product
-      </h1>
+    <div className="space-y-4">
+      <EditorHeader
+        backHref="/admin/products"
+        backLabel="Products"
+        title="New product"
+      />
       <ProductForm categories={categories} brands={brands} />
     </div>
   );

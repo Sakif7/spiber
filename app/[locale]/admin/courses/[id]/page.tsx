@@ -1,6 +1,5 @@
 import { setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
-import { Link } from "@/i18n/navigation";
 import { localize } from "@/lib/schemas/localized";
 import { getCourseById } from "@/lib/repositories/courses.repo";
 import { enrollmentCountsByCourse } from "@/lib/repositories/enrollments.repo";
@@ -9,6 +8,8 @@ import {
   CourseBuilder,
   type CourseBuilderInitial,
 } from "@/components/admin/academy/course-builder";
+import { EditorHeader } from "@/components/admin/ui/form-shell";
+import { Card } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
@@ -77,75 +78,28 @@ export default async function EditCoursePage({
   };
 
   return (
-    <div
-      style={{ display: "flex", flexDirection: "column", gap: "var(--s-6)" }}
-    >
-      <div style={{ display: "grid", gap: "var(--s-2)" }}>
-        <Link
-          href="/admin/courses"
-          style={{
-            fontSize: "var(--fs-small)",
-            color: "var(--color-text-muted)",
-          }}
-        >
-          ← Courses
-        </Link>
-        <h1
-          style={{
-            fontFamily: "var(--font-display)",
-            fontSize: "var(--fs-2xl)",
-            color: "var(--color-text-strong)",
-            margin: 0,
-          }}
-        >
-          {localize(c.title, "en") || "Untitled course"}
-        </h1>
-      </div>
+    <div className="space-y-4">
+      <EditorHeader
+        backHref="/admin/courses"
+        backLabel="Courses"
+        title={localize(c.title, "en") || "Untitled course"}
+      />
       {stats && (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-            gap: "var(--s-4)",
-          }}
-        >
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-4">
           {[
             { label: "Enrollments", value: String(stats.total) },
             { label: "Active", value: String(stats.active) },
             { label: "Completion", value: `${completionRate}%` },
             { label: "Revenue", value: formatBDT(stats.revenueMinor, "en") },
           ].map((s) => (
-            <div
-              key={s.label}
-              style={{
-                border: "1px solid var(--color-border)",
-                background: "var(--color-surface)",
-                borderRadius: "var(--r-lg)",
-                padding: "var(--s-4)",
-                display: "grid",
-                gap: 4,
-              }}
-            >
-              <span
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: "var(--fs-caption)",
-                  textTransform: "uppercase",
-                  letterSpacing: "var(--tracking-eyebrow)",
-                  color: "var(--color-text-muted)",
-                }}
-              >
+            <Card key={s.label} className="gap-1 p-4">
+              <span className="text-muted-foreground font-mono text-[0.65rem] tracking-[0.12em] uppercase">
                 {s.label}
               </span>
-              <strong
-                style={{
-                  fontSize: "var(--fs-h4)",
-                  color: "var(--color-text-strong)",
-                }}
-              >
+              <strong className="text-foreground text-xl leading-tight font-bold tabular-nums">
                 {s.value}
               </strong>
-            </div>
+            </Card>
           ))}
         </div>
       )}

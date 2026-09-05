@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
+import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/cn";
 import type { Tone } from "./status-badge";
@@ -20,7 +21,8 @@ export type StatTrend = {
   goodWhenUp?: boolean;
 };
 
-/** Dashboard KPI tile: icon chip, label, value, optional trend pill. */
+/** Dashboard KPI tile: icon chip, label, value, optional trend pill. Pass
+ *  `href` to make the whole tile a link to the page that explains the number. */
 export function StatCard({
   label,
   value,
@@ -28,6 +30,7 @@ export function StatCard({
   tone = "brand",
   trend,
   hint,
+  href,
   className,
 }: {
   label: string;
@@ -36,6 +39,7 @@ export function StatCard({
   tone?: Tone;
   trend?: StatTrend;
   hint?: string;
+  href?: string;
   className?: string;
 }) {
   const v = `var(${TONE_VAR[tone]})`;
@@ -53,27 +57,22 @@ export function StatCard({
         ? ArrowDownRight
         : Minus;
 
-  return (
-    <Card
-      className={cn(
-        "group h-full gap-0 p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)]",
-        className,
-      )}
-    >
+  const body = (
+    <>
       <div className="flex items-start justify-between gap-3">
         <span
           aria-hidden
-          className="grid size-10 place-items-center rounded-xl"
+          className="grid size-8 place-items-center rounded-lg"
           style={{
             color: v,
             backgroundColor: `color-mix(in srgb, ${v} 14%, transparent)`,
           }}
         >
-          <Icon className="size-5" strokeWidth={2} />
+          <Icon className="size-4" strokeWidth={2} />
         </span>
         {trend && (
           <span
-            className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-medium"
+            className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-medium"
             style={{
               color: trendColor,
               backgroundColor: `color-mix(in srgb, ${trendColor} 12%, transparent)`,
@@ -84,16 +83,37 @@ export function StatCard({
           </span>
         )}
       </div>
-      <p className="text-muted-foreground mt-4 font-mono text-[0.7rem] tracking-[0.12em] uppercase">
+      <p className="text-muted-foreground mt-3 font-mono text-[0.65rem] tracking-[0.12em] uppercase">
         {label}
       </p>
       <p
-        className="text-foreground mt-1 text-2xl leading-tight font-bold"
+        className="text-foreground mt-0.5 text-xl leading-tight font-bold"
         style={{ fontFamily: "var(--font-display)" }}
       >
         {value}
       </p>
-      {hint && <p className="text-muted-foreground mt-1 text-xs">{hint}</p>}
+      {hint && (
+        <p className="text-muted-foreground mt-0.5 text-[12px]">{hint}</p>
+      )}
+    </>
+  );
+
+  const cardClass = cn(
+    "group h-full gap-0 p-4 transition-all duration-200",
+    href && "hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)]",
+    className,
+  );
+
+  return href ? (
+    <Card className={cardClass}>
+      <Link
+        href={href}
+        className="focus-visible:ring-ring/50 -m-4 block rounded-lg p-4 outline-none focus-visible:ring-[3px]"
+      >
+        {body}
+      </Link>
     </Card>
+  ) : (
+    <Card className={cardClass}>{body}</Card>
   );
 }

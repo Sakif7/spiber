@@ -1,6 +1,6 @@
 import { setRequestLocale } from "next-intl/server";
-import { Link } from "@/i18n/navigation";
 import { BannerForm } from "@/components/admin/banner-form";
+import { EditorHeader } from "@/components/admin/ui/form-shell";
 
 export const dynamic = "force-dynamic";
 
@@ -12,28 +12,12 @@ export default async function NewBannerPage({
   const { locale } = await params;
   setRequestLocale(locale);
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
-      <div style={{ display: "grid", gap: "var(--s-2)" }}>
-        <Link
-          href="/admin/marketplace/banners"
-          style={{
-            fontSize: "var(--fs-small)",
-            color: "var(--color-text-muted)",
-          }}
-        >
-          ← Banners
-        </Link>
-        <h1
-          style={{
-            margin: 0,
-            fontFamily: "var(--font-display)",
-            fontSize: "var(--fs-2xl)",
-            color: "var(--color-text-strong)",
-          }}
-        >
-          New banner
-        </h1>
-      </div>
+    <div className="space-y-4">
+      <EditorHeader
+        backHref="/admin/marketplace/banners"
+        backLabel="Banners"
+        title="New banner"
+      />
       <BannerForm />
     </div>
   );

@@ -10,6 +10,13 @@ import type {
   PartnerApplicationStatus,
   PartnerType,
 } from "@/lib/schemas/partner-application";
+import {
+  applyDateRange,
+  applyPartialSearch,
+  paginate,
+  sortSpec,
+  type RepoListQuery,
+} from "./list-query";
 
 type Filter = NonNullable<
   Parameters<typeof PartnerApplication.countDocuments>[0]
@@ -36,12 +43,19 @@ export async function getPartnerApplicationByIdLean(id: string) {
     .exec();
 }
 
-export type PartnerApplicationListParams = {
+/** Sort keys the admin list exposes → stored fields. */
+const PARTNER_SORT: Record<string, string> = {
+  date: "createdAt",
+  number: "partnerApplicationNumber",
+  organization: "orgInfo.name",
+  status: "status",
+  type: "type",
+};
+
+export type PartnerApplicationListParams = RepoListQuery & {
   status?: PartnerApplicationStatus;
   type?: PartnerType;
   assignedTo?: string;
-  page?: number;
-  pageSize?: number;
 };
 
 export async function listPartnerApplications(
@@ -54,25 +68,19 @@ export async function listPartnerApplications(
   if (params.assignedTo && mongoose.isValidObjectId(params.assignedTo)) {
     q.assignedTo = params.assignedTo;
   }
-  const page = Math.max(1, params.page ?? 1);
-  const pageSize = Math.min(200, Math.max(1, params.pageSize ?? 50));
-  const filter = q as unknown as Filter;
-  const [items, total] = await Promise.all([
-    PartnerApplication.find(filter)
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * pageSize)
-      .limit(pageSize)
-      .lean<Lean<IPartnerApplication>[]>()
-      .exec(),
-    PartnerApplication.countDocuments(filter),
+  applyPartialSearch(q, params.search, [
+    "partnerApplicationNumber",
+    "orgInfo.name",
+    "contact.name",
+    "contact.email",
   ]);
-  return {
-    items,
-    total,
-    page,
-    pageSize,
-    pages: Math.max(1, Math.ceil(total / pageSize)),
-  };
+  applyDateRange(q, params.from, params.to);
+  return paginate<IPartnerApplication>(PartnerApplication, q, {
+    sort: sortSpec(params.sort, params.dir, PARTNER_SORT),
+    page: params.page,
+    pageSize: params.pageSize ?? 50,
+    maxPageSize: 200,
+  });
 }
 
 export async function countOpenPartnerApplications(): Promise<number> {

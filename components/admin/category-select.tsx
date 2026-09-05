@@ -1,5 +1,7 @@
 "use client";
 
+import { SelectField } from "./ui/select-field";
+
 export type CategoryOption = {
   id: string;
   name: string;
@@ -35,47 +37,25 @@ export function CategorySelect({
   // "" in the sub dropdown means "assign to the parent itself".
   const subValue = value === parentId ? "" : value;
 
-  const sel: React.CSSProperties = {
-    height: 40,
-    padding: "0 10px",
-    border: "1px solid var(--color-border-field)",
-    borderRadius: "var(--r-sm)",
-    font: "inherit",
-    background: "var(--color-surface)",
-    width: "100%",
-  };
-
   return (
-    <div style={{ display: "grid", gap: 6 }}>
-      <select
-        style={sel}
+    <div className="grid gap-1.5">
+      <SelectField
         value={parentId}
-        onChange={(e) => onChange(e.target.value)}
-        aria-label="Parent category"
-      >
-        {parents.length === 0 && (
-          <option value="">— create a category first —</option>
-        )}
-        {parents.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.name}
-          </option>
-        ))}
-      </select>
+        onChange={onChange}
+        ariaLabel="Parent category"
+        placeholder={
+          parents.length === 0 ? "Create a category first" : "Choose a category"
+        }
+        options={parents.map((p) => ({ value: p.id, label: p.name }))}
+      />
       {subs.length > 0 && (
-        <select
-          style={sel}
+        <SelectField
           value={subValue}
-          onChange={(e) => onChange(e.target.value || parentId)}
-          aria-label="Subcategory"
-        >
-          <option value="">All of {parentName}</option>
-          {subs.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
+          onChange={(v) => onChange(v || parentId)}
+          ariaLabel="Subcategory"
+          emptyLabel={`All of ${parentName}`}
+          options={subs.map((s) => ({ value: s.id, label: s.name }))}
+        />
       )}
     </div>
   );

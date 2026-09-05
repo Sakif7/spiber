@@ -5,7 +5,14 @@ import { useRouter } from "@/i18n/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
-export function StockAdjuster({ productId }: { productId: string }) {
+export function StockAdjuster({
+  productId,
+  variantId = null,
+}: {
+  productId: string;
+  /** Adjust one variant (its `Product.variants[].id`) instead of the base stock. */
+  variantId?: string | null;
+}) {
   const router = useRouter();
   const [qtyDelta, setQtyDelta] = useState("");
   const [reason, setReason] = useState("");
@@ -26,6 +33,7 @@ export function StockAdjuster({ productId }: { productId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           productId,
+          ...(variantId ? { variantId } : {}),
           qtyDelta: delta,
           reason: reason.trim() || undefined,
         }),
@@ -49,24 +57,30 @@ export function StockAdjuster({ productId }: { productId: string }) {
 
   return (
     <div className="grid gap-1">
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-nowrap items-center gap-2">
         <Input
           type="number"
           value={qtyDelta}
           onChange={(e) => setQtyDelta(e.target.value)}
           placeholder="+/-"
           aria-label="Quantity change"
-          className="w-20"
+          className="h-8 w-16"
         />
         <Input
           type="text"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          placeholder="Reason (optional)"
+          placeholder="Reason"
           aria-label="Reason"
-          className="w-[180px]"
+          className="h-8 w-32"
         />
-        <Button variant="outline" type="button" disabled={busy} onClick={apply}>
+        <Button
+          variant="outline"
+          size="sm"
+          type="button"
+          disabled={busy}
+          onClick={apply}
+        >
           {busy ? "Applying…" : "Apply"}
         </Button>
       </div>

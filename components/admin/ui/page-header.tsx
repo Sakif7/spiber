@@ -3,7 +3,8 @@ import { cn } from "@/lib/cn";
 /**
  * Standard admin page header: a title, optional description, and a right-aligned
  * action slot (e.g. a "New X" button). Used on every admin page so the top of
- * the content area is consistent.
+ * the content area is consistent. Dense by design: the topbar already repeats
+ * the page name, so this stays compact and lets the content start high.
  */
 export function AdminPageHeader({
   title,
@@ -19,23 +20,25 @@ export function AdminPageHeader({
   return (
     <div
       className={cn(
-        "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
+        "flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between",
         className,
       )}
     >
-      <div className="min-w-0 space-y-1">
+      <div className="min-w-0 space-y-0.5">
         <h1
-          className="text-foreground text-xl font-bold tracking-tight sm:text-2xl"
+          className="text-foreground text-lg font-bold tracking-tight sm:text-xl"
           style={{ fontFamily: "var(--font-display)" }}
         >
           {title}
         </h1>
         {description && (
-          <p className="text-muted-foreground text-sm">{description}</p>
+          <p className="text-muted-foreground text-[13px]">{description}</p>
         )}
       </div>
       {action && (
-        <div className="flex shrink-0 items-center gap-2">{action}</div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {action}
+        </div>
       )}
     </div>
   );

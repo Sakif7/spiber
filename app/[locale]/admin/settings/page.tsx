@@ -5,6 +5,7 @@ import {
 } from "@/lib/services/shop-settings.service";
 import { ShippingForm } from "@/components/admin/shipping-form";
 import { MedtradeTaxForm } from "@/components/admin/medtrade-tax-form";
+import { AdminPageHeader } from "@/components/admin/ui/page-header";
 
 export const dynamic = "force-dynamic";
 
@@ -38,29 +39,50 @@ export default async function AdminSettingsPage({
     aitRateBp = 0;
   }
 
-  const heading: React.CSSProperties = {
-    fontFamily: "var(--font-display)",
-    fontSize: "var(--fs-h2)",
-    color: "var(--color-text-strong)",
-    margin: 0,
-  };
-
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)", maxWidth: 560 }}>
-      <div style={{ display: "grid", gap: "var(--s-4)" }}>
-        <h1 style={heading}>Shipping settings</h1>
-        <ShippingForm
-          initialFlatFeeMinor={flatFeeMinor}
-          initialFreeThresholdMinor={freeThresholdMinor}
-        />
-      </div>
+    <div className="space-y-6">
+      <AdminPageHeader
+        title="Commerce settings"
+        description="Shipping applies to Spiber Kart and Medtrade orders. VAT and AIT apply to Medtrade only."
+      />
 
-      <div style={{ display: "grid", gap: "var(--s-4)" }}>
-        <h2 style={heading}>Medtrade tax</h2>
-        <MedtradeTaxForm
-          initialVatRateBp={vatRateBp}
-          initialAitRateBp={aitRateBp}
-        />
+      <div className="grid items-start gap-6 xl:grid-cols-2">
+        <section className="space-y-3" aria-labelledby="settings-shipping">
+          <div className="space-y-0.5">
+            <h2
+              id="settings-shipping"
+              className="text-foreground text-base font-semibold"
+            >
+              Shipping
+            </h2>
+            <p className="text-muted-foreground text-sm">
+              Flat fee and the free-shipping threshold for every order.
+            </p>
+          </div>
+          <ShippingForm
+            initialFlatFeeMinor={flatFeeMinor}
+            initialFreeThresholdMinor={freeThresholdMinor}
+          />
+        </section>
+
+        <section className="space-y-3" aria-labelledby="settings-tax">
+          <div className="space-y-0.5">
+            <h2
+              id="settings-tax"
+              className="text-foreground text-base font-semibold"
+            >
+              Medtrade tax
+            </h2>
+            <p className="text-muted-foreground text-sm">
+              VAT is charged on Medtrade orders. AIT is shown on invoices as
+              deductible at source and never changes the total.
+            </p>
+          </div>
+          <MedtradeTaxForm
+            initialVatRateBp={vatRateBp}
+            initialAitRateBp={aitRateBp}
+          />
+        </section>
       </div>
     </div>
   );

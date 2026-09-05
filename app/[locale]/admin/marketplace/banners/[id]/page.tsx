@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
 import { setRequestLocale } from "next-intl/server";
-import { Link } from "@/i18n/navigation";
 import { BannerForm } from "@/components/admin/banner-form";
 import { BannerDeleteButton } from "@/components/admin/banner-delete-button";
 import { getBannerById } from "@/lib/repositories/banners.repo";
 import { localize } from "@/lib/schemas/localized";
+import { EditorHeader } from "@/components/admin/ui/form-shell";
 
 export const dynamic = "force-dynamic";
 
@@ -20,39 +20,13 @@ export default async function EditBannerPage({
   if (!b) notFound();
 
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-end",
-          gap: "var(--s-4)",
-          flexWrap: "wrap",
-        }}
-      >
-        <div style={{ display: "grid", gap: "var(--s-2)" }}>
-          <Link
-            href="/admin/marketplace/banners"
-            style={{
-              fontSize: "var(--fs-small)",
-              color: "var(--color-text-muted)",
-            }}
-          >
-            ← Banners
-          </Link>
-          <h1
-            style={{
-              margin: 0,
-              fontFamily: "var(--font-display)",
-              fontSize: "var(--fs-2xl)",
-              color: "var(--color-text-strong)",
-            }}
-          >
-            {localize(b.title, "en")}
-          </h1>
-        </div>
-        <BannerDeleteButton id={String(b._id)} />
-      </div>
+    <div className="space-y-4">
+      <EditorHeader
+        backHref="/admin/marketplace/banners"
+        backLabel="Banners"
+        title={localize(b.title, "en")}
+        action={<BannerDeleteButton id={String(b._id)} />}
+      />
       <BannerForm
         initial={{
           id: String(b._id),

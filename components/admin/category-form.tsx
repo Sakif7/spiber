@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatApiError } from "@/lib/http/form-error";
+import { LocalizedInput } from "@/components/admin/ui/localized-input";
 
 const TOP_LEVEL = "__top__";
 
@@ -83,26 +84,16 @@ export function CategoryForm({
 
   return (
     <div className="grid gap-5">
-      <div className="grid gap-1.5">
-        <Label>Name</Label>
-        <div className="grid grid-cols-3 gap-4">
-          <Input
-            placeholder="EN"
-            value={nameEn}
-            onChange={(e) => setNameEn(e.target.value)}
-          />
-          <Input
-            placeholder="বাংলা"
-            value={nameBn}
-            onChange={(e) => setNameBn(e.target.value)}
-          />
-          <Input
-            placeholder="日本語"
-            value={nameJa}
-            onChange={(e) => setNameJa(e.target.value)}
-          />
-        </div>
-      </div>
+      <LocalizedInput
+        label="Name"
+        required
+        value={{ en: nameEn, bn: nameBn, ja: nameJa }}
+        onChange={(v) => {
+          setNameEn(v.en ?? "");
+          setNameBn(v.bn ?? "");
+          setNameJa(v.ja ?? "");
+        }}
+      />
       <div className="grid gap-1.5">
         <Label>Slug</Label>
         <Input

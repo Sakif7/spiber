@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { ImageUploader } from "./image-uploader";
 import { formatApiError } from "@/lib/http/form-error";
+import { LocalizedInput } from "@/components/admin/ui/localized-input";
 
 export type BannerInitial = {
   id?: string;
@@ -129,46 +130,24 @@ export function BannerForm({ initial }: { initial?: BannerInitial }) {
           </SelectContent>
         </Select>
       </div>
-      <div className="grid gap-1.5">
-        <Label>Title</Label>
-        <div className="grid grid-cols-3 gap-4">
-          <Input
-            placeholder="EN"
-            value={titleEn}
-            onChange={(e) => setTitleEn(e.target.value)}
-          />
-          <Input
-            placeholder="বাংলা"
-            value={titleBn}
-            onChange={(e) => setTitleBn(e.target.value)}
-          />
-          <Input
-            placeholder="日本語"
-            value={titleJa}
-            onChange={(e) => setTitleJa(e.target.value)}
-          />
-        </div>
-      </div>
-      <div className="grid gap-1.5">
-        <Label>Subtitle</Label>
-        <div className="grid grid-cols-3 gap-4">
-          <Input
-            placeholder="EN"
-            value={subEn}
-            onChange={(e) => setSubEn(e.target.value)}
-          />
-          <Input
-            placeholder="বাংলা"
-            value={subBn}
-            onChange={(e) => setSubBn(e.target.value)}
-          />
-          <Input
-            placeholder="日本語"
-            value={subJa}
-            onChange={(e) => setSubJa(e.target.value)}
-          />
-        </div>
-      </div>
+      <LocalizedInput
+        label="Title"
+        value={{ en: titleEn, bn: titleBn, ja: titleJa }}
+        onChange={(v) => {
+          setTitleEn(v.en ?? "");
+          setTitleBn(v.bn ?? "");
+          setTitleJa(v.ja ?? "");
+        }}
+      />
+      <LocalizedInput
+        label="Subtitle"
+        value={{ en: subEn, bn: subBn, ja: subJa }}
+        onChange={(v) => {
+          setSubEn(v.en ?? "");
+          setSubBn(v.bn ?? "");
+          setSubJa(v.ja ?? "");
+        }}
+      />
       <div className="grid gap-1.5">
         <Label>Images</Label>
         <ImageUploader value={images} onChange={setImages} />
@@ -186,26 +165,15 @@ export function BannerForm({ initial }: { initial?: BannerInitial }) {
             onChange={(e) => setHref(e.target.value)}
           />
         </div>
-        <div className="grid gap-1.5">
-          <Label>CTA label</Label>
-          <div className="grid grid-cols-3 gap-4">
-            <Input
-              placeholder="EN"
-              value={ctaEn}
-              onChange={(e) => setCtaEn(e.target.value)}
-            />
-            <Input
-              placeholder="বাংলা"
-              value={ctaBn}
-              onChange={(e) => setCtaBn(e.target.value)}
-            />
-            <Input
-              placeholder="日本語"
-              value={ctaJa}
-              onChange={(e) => setCtaJa(e.target.value)}
-            />
-          </div>
-        </div>
+        <LocalizedInput
+          label="CTA label"
+          value={{ en: ctaEn, bn: ctaBn, ja: ctaJa }}
+          onChange={(v) => {
+            setCtaEn(v.en ?? "");
+            setCtaBn(v.bn ?? "");
+            setCtaJa(v.ja ?? "");
+          }}
+        />
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="grid gap-1.5">

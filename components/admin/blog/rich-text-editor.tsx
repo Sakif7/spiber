@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
@@ -20,6 +20,8 @@ import {
   Undo,
   Redo,
 } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/cn";
 
 export function RichTextEditor({
   value,
@@ -41,16 +43,11 @@ export function RichTextEditor({
   });
 
   return (
-    <div
-      style={{
-        border: "1px solid var(--color-border)",
-        borderRadius: "var(--r-sm)",
-        background: "var(--color-surface)",
-        overflow: "hidden",
-      }}
-    >
+    <div className="border-border bg-card overflow-hidden rounded-md border">
       <Toolbar editor={editor} />
       <EditorContent editor={editor} />
+      {/* The editor body is contenteditable DOM owned by TipTap, so its
+          typography is styled with a scoped sheet rather than utilities. */}
       <style>{`
         .rte-content { min-height: 200px; padding: 12px 14px; outline: none; font-size: var(--fs-body); line-height: 1.7; }
         .rte-content:focus { outline: none; }
@@ -68,23 +65,7 @@ export function RichTextEditor({
   );
 }
 
-const btn: CSSProperties = {
-  display: "grid",
-  placeItems: "center",
-  width: 32,
-  height: 32,
-  borderRadius: "var(--r-sm)",
-  border: "1px solid transparent",
-  background: "transparent",
-  color: "var(--color-text-muted)",
-  cursor: "pointer",
-};
-const btnActive: CSSProperties = {
-  ...btn,
-  background: "var(--color-secondary-soft)",
-  color: "var(--color-secondary-deep)",
-};
-
+/** One toolbar control. `on` (when given) marks a toggleable mark as active. */
 function B({
   on,
   onClick,
@@ -97,30 +78,28 @@ function B({
   children: React.ReactNode;
 }) {
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
+      size="icon-sm"
       aria-label={label}
+      aria-pressed={on}
       title={label}
       onClick={onClick}
-      style={on ? btnActive : btn}
+      className={cn(
+        "text-muted-foreground hover:text-foreground",
+        on && "bg-card text-foreground shadow-[var(--shadow-sm)]",
+      )}
     >
       {children}
-    </button>
+    </Button>
   );
 }
 
 function Toolbar({ editor }: { editor: Editor | null }) {
   const [uploading, setUploading] = useState(false);
   if (!editor) {
-    return (
-      <div
-        style={{
-          height: 44,
-          borderBottom: "1px solid var(--color-border)",
-          background: "var(--color-surface-2)",
-        }}
-      />
-    );
+    return <div className="bg-muted border-border h-11 border-b" />;
   }
 
   async function uploadImage(file: File) {
@@ -147,92 +126,88 @@ function Toolbar({ editor }: { editor: Editor | null }) {
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexWrap: "wrap",
-        gap: 2,
-        padding: 6,
-        borderBottom: "1px solid var(--color-border)",
-        background: "var(--color-surface-2)",
-      }}
-    >
+    <div className="bg-muted border-border flex flex-wrap items-center gap-0.5 border-b p-1.5">
       <B
         label="Bold"
         on={editor.isActive("bold")}
         onClick={() => editor.chain().focus().toggleBold().run()}
       >
-        <Bold size={16} />
+        <Bold className="size-4" />
       </B>
       <B
         label="Italic"
         on={editor.isActive("italic")}
         onClick={() => editor.chain().focus().toggleItalic().run()}
       >
-        <Italic size={16} />
+        <Italic className="size-4" />
       </B>
       <B
         label="Strikethrough"
         on={editor.isActive("strike")}
         onClick={() => editor.chain().focus().toggleStrike().run()}
       >
-        <Strikethrough size={16} />
+        <Strikethrough className="size-4" />
       </B>
       <B
         label="Heading 2"
         on={editor.isActive("heading", { level: 2 })}
         onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
       >
-        <Heading2 size={16} />
+        <Heading2 className="size-4" />
       </B>
       <B
         label="Heading 3"
         on={editor.isActive("heading", { level: 3 })}
         onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
       >
-        <Heading3 size={16} />
+        <Heading3 className="size-4" />
       </B>
       <B
         label="Bullet list"
         on={editor.isActive("bulletList")}
         onClick={() => editor.chain().focus().toggleBulletList().run()}
       >
-        <List size={16} />
+        <List className="size-4" />
       </B>
       <B
         label="Ordered list"
         on={editor.isActive("orderedList")}
         onClick={() => editor.chain().focus().toggleOrderedList().run()}
       >
-        <ListOrdered size={16} />
+        <ListOrdered className="size-4" />
       </B>
       <B
         label="Quote"
         on={editor.isActive("blockquote")}
         onClick={() => editor.chain().focus().toggleBlockquote().run()}
       >
-        <Quote size={16} />
+        <Quote className="size-4" />
       </B>
       <B
         label="Code block"
         on={editor.isActive("codeBlock")}
         onClick={() => editor.chain().focus().toggleCodeBlock().run()}
       >
-        <Code size={16} />
+        <Code className="size-4" />
       </B>
       <B label="Link" on={editor.isActive("link")} onClick={toggleLink}>
-        <Link2 size={16} />
+        <Link2 className="size-4" />
       </B>
       <label
-        style={{ ...btn, cursor: uploading ? "default" : "pointer" }}
         title="Insert image"
+        className={cn(
+          buttonVariants({ variant: "ghost", size: "icon-sm" }),
+          "text-muted-foreground hover:text-foreground",
+          uploading ? "cursor-default opacity-60" : "cursor-pointer",
+        )}
       >
-        <ImagePlus size={16} />
+        <ImagePlus className="size-4" />
         <input
           type="file"
           accept="image/*"
           hidden
           disabled={uploading}
+          aria-label="Insert image"
           onChange={(e) => {
             const f = e.target.files?.[0];
             if (f) uploadImage(f);
@@ -241,10 +216,10 @@ function Toolbar({ editor }: { editor: Editor | null }) {
         />
       </label>
       <B label="Undo" onClick={() => editor.chain().focus().undo().run()}>
-        <Undo size={16} />
+        <Undo className="size-4" />
       </B>
       <B label="Redo" onClick={() => editor.chain().focus().redo().run()}>
-        <Redo size={16} />
+        <Redo className="size-4" />
       </B>
     </div>
   );

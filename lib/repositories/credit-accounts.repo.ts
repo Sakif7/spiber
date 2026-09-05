@@ -4,6 +4,13 @@ import {
   type ICreditAccount,
 } from "@/lib/models/credit-account";
 import type { Lean } from "@/lib/models/_shared";
+import {
+  applyDateRange,
+  applyPartialSearch,
+  paginate,
+  sortSpec,
+  type RepoListQuery,
+} from "./list-query";
 
 /**
  * The checkout gate. Returns the account ONLY when it is live and active, so a
@@ -45,26 +52,29 @@ export async function createCreditAccount(
   return doc.toObject() as Lean<ICreditAccount>;
 }
 
-export async function listCreditAccounts(params: {
+/** Sort keys the admin credit-accounts list exposes → stored fields. */
+const CREDIT_ACCOUNT_SORT: Record<string, string> = {
+  date: "createdAt",
+  organization: "organization",
+  terms: "termsDays",
+  status: "status",
+};
+
+export type CreditAccountListParams = RepoListQuery & {
   status?: "active" | "suspended";
-  page?: number;
-  pageSize?: number;
-}): Promise<{ items: Lean<ICreditAccount>[]; total: number }> {
+};
+
+export async function listCreditAccounts(params: CreditAccountListParams = {}) {
   await connectToDatabase();
-  const page = Math.max(1, params.page ?? 1);
-  const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 30));
-  const filter: Record<string, unknown> = { deletedAt: null };
-  if (params.status) filter.status = params.status;
-  const [items, total] = await Promise.all([
-    CreditAccount.find(filter)
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * pageSize)
-      .limit(pageSize)
-      .lean<Lean<ICreditAccount>[]>()
-      .exec(),
-    CreditAccount.countDocuments(filter).exec(),
-  ]);
-  return { items, total };
+  const q: Record<string, unknown> = { deletedAt: null };
+  if (params.status) q.status = params.status;
+  applyPartialSearch(q, params.search, ["organization"]);
+  applyDateRange(q, params.from, params.to);
+  return paginate<ICreditAccount>(CreditAccount, q, {
+    sort: sortSpec(params.sort, params.dir, CREDIT_ACCOUNT_SORT),
+    page: params.page,
+    pageSize: params.pageSize ?? 30,
+  });
 }
 
 export async function updateCreditAccount(

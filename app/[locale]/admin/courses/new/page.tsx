@@ -1,5 +1,6 @@
 import { setRequestLocale } from "next-intl/server";
 import { CourseBuilder } from "@/components/admin/academy/course-builder";
+import { EditorHeader } from "@/components/admin/ui/form-shell";
 
 export const dynamic = "force-dynamic";
 
@@ -12,19 +13,12 @@ export default async function NewCoursePage({
   setRequestLocale(locale);
 
   return (
-    <div
-      style={{ display: "flex", flexDirection: "column", gap: "var(--s-6)" }}
-    >
-      <h1
-        style={{
-          margin: 0,
-          fontFamily: "var(--font-display)",
-          fontSize: "var(--fs-2xl)",
-          color: "var(--color-text-strong)",
-        }}
-      >
-        New course
-      </h1>
+    <div className="space-y-4">
+      <EditorHeader
+        backHref="/admin/courses"
+        backLabel="Courses"
+        title="New course"
+      />
       <CourseBuilder />
     </div>
   );

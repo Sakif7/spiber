@@ -91,3 +91,18 @@ export const registerFormSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 export type RegisterFormValues = z.infer<typeof registerFormSchema>;
+
+/**
+ * Admin sidebar preferences (favourites + recents), self-only PATCH. Either
+ * replace the favourites list, record one visit, or both. Ids are validated
+ * against the nav registry server-side.
+ */
+export const adminPrefsUpdateSchema = z
+  .object({
+    favourites: z.array(z.string().trim().min(1).max(64)).max(24).optional(),
+    recent: z.string().trim().min(1).max(64).optional(),
+  })
+  .refine((d) => d.favourites !== undefined || d.recent !== undefined, {
+    message: "Nothing to update",
+  });
+export type AdminPrefsUpdateInput = z.infer<typeof adminPrefsUpdateSchema>;

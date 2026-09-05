@@ -1,9 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Plus, Trash2, Wand2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { fromMinor, toMinor } from "@/lib/money";
+import { LocalizedInput, type LocalizedValue } from "./ui/localized-input";
+import { FormField } from "./ui/form-shell";
 
 export type VariantOptionValue = { en: string; bn?: string; ja?: string };
 export type VariantOptionInput = {
@@ -19,9 +30,7 @@ export type VariantInput = {
 };
 
 type EditorOption = {
-  nameEn: string;
-  nameBn: string;
-  nameJa: string;
+  name: LocalizedValue;
   valuesCsv: string;
 };
 type EditorVariant = {
@@ -56,9 +65,7 @@ export function VariantsEditor({
 }) {
   const [options, setOptions] = useState<EditorOption[]>(
     (initial?.variantOptions ?? []).map((o) => ({
-      nameEn: o.name.en,
-      nameBn: o.name.bn ?? "",
-      nameJa: o.name.ja ?? "",
+      name: { en: o.name.en, bn: o.name.bn ?? "", ja: o.name.ja ?? "" },
       valuesCsv: o.values.map((v) => v.en).join(", "),
     })),
   );
@@ -78,12 +85,12 @@ export function VariantsEditor({
   // Emit serialized value whenever the editor changes.
   useEffect(() => {
     const variantOptions: VariantOptionInput[] = options
-      .filter((o) => o.nameEn.trim())
+      .filter((o) => (o.name.en ?? "").trim())
       .map((o) => ({
         name: {
-          en: o.nameEn.trim(),
-          bn: o.nameBn.trim() || undefined,
-          ja: o.nameJa.trim() || undefined,
+          en: (o.name.en ?? "").trim(),
+          bn: (o.name.bn ?? "").trim() || undefined,
+          ja: (o.name.ja ?? "").trim() || undefined,
         },
         values: o.valuesCsv
           .split(",")
@@ -105,9 +112,9 @@ export function VariantsEditor({
 
   function generate() {
     const defs = options
-      .filter((o) => o.nameEn.trim() && o.valuesCsv.trim())
+      .filter((o) => (o.name.en ?? "").trim() && o.valuesCsv.trim())
       .map((o) => ({
-        name: o.nameEn.trim(),
+        name: (o.name.en ?? "").trim(),
         values: o.valuesCsv
           .split(",")
           .map((s) => s.trim())
@@ -127,218 +134,163 @@ export function VariantsEditor({
     setVariants(next);
   }
 
-  const cell: React.CSSProperties = {
-    padding: "6px 8px",
-    border: "1px solid var(--color-border-field)",
-    borderRadius: "var(--r-sm)",
-    font: "inherit",
-    width: "100%",
-    background: "var(--color-surface)",
-  };
-
   return (
-    <div style={{ display: "grid", gap: "var(--s-4)" }}>
+    <div className="grid gap-4">
       {/* Option definitions */}
-      <div style={{ display: "grid", gap: "var(--s-3)" }}>
-        {options.map((o, i) => (
-          <div
-            key={i}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr 1.4fr auto",
-              gap: 8,
-              alignItems: "end",
-            }}
-          >
-            <div style={{ display: "grid", gap: 4 }}>
-              <Label>Option (EN)</Label>
-              <Input
-                value={o.nameEn}
-                placeholder="Size"
-                onChange={(e) =>
-                  setOptions((s) =>
-                    s.map((x, j) =>
-                      j === i ? { ...x, nameEn: e.target.value } : x,
-                    ),
-                  )
-                }
-              />
-            </div>
-            <div style={{ display: "grid", gap: 4 }}>
-              <Label>Option (বাংলা)</Label>
-              <Input
-                value={o.nameBn}
-                onChange={(e) =>
-                  setOptions((s) =>
-                    s.map((x, j) =>
-                      j === i ? { ...x, nameBn: e.target.value } : x,
-                    ),
-                  )
-                }
-              />
-            </div>
-            <div style={{ display: "grid", gap: 4 }}>
-              <Label>Option (日本語)</Label>
-              <Input
-                value={o.nameJa}
-                placeholder="日本語"
-                onChange={(e) =>
-                  setOptions((s) =>
-                    s.map((x, j) =>
-                      j === i ? { ...x, nameJa: e.target.value } : x,
-                    ),
-                  )
-                }
-              />
-            </div>
-            <div style={{ display: "grid", gap: 4 }}>
-              <Label>Values (comma-separated)</Label>
-              <Input
-                value={o.valuesCsv}
-                placeholder="S, M, L"
-                onChange={(e) =>
-                  setOptions((s) =>
-                    s.map((x, j) =>
-                      j === i ? { ...x, valuesCsv: e.target.value } : x,
-                    ),
-                  )
-                }
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => setOptions((s) => s.filter((_, j) => j !== i))}
-              style={{
-                height: 40,
-                padding: "0 12px",
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--r-sm)",
-                background: "transparent",
-                color: "var(--color-error)",
-                cursor: "pointer",
-              }}
+      {options.length > 0 && (
+        <div className="divide-border/60 bg-card divide-y rounded-lg shadow-[var(--shadow-sm)]">
+          {options.map((o, i) => (
+            <div
+              key={i}
+              className="grid items-end gap-3 px-3 py-3 sm:grid-cols-[1fr_1fr_auto]"
             >
-              Remove
-            </button>
-          </div>
-        ))}
-        <div style={{ display: "flex", gap: 8 }}>
-          <button
-            type="button"
-            onClick={() =>
-              setOptions((s) => [
-                ...s,
-                { nameEn: "", nameBn: "", nameJa: "", valuesCsv: "" },
-              ])
-            }
-            style={btn("secondary")}
-          >
-            + Add option
-          </button>
-          <button type="button" onClick={generate} style={btn("primary")}>
-            Generate variants
-          </button>
+              <LocalizedInput
+                label={i === 0 ? "Option" : undefined}
+                ariaLabel={`Option ${i + 1}`}
+                value={o.name}
+                placeholder="Size"
+                onChange={(v) =>
+                  setOptions((s) =>
+                    s.map((x, j) => (j === i ? { ...x, name: v } : x)),
+                  )
+                }
+              />
+              <FormField
+                label={i === 0 ? "Values (comma-separated)" : undefined}
+                htmlFor={`variant-values-${i}`}
+              >
+                <Input
+                  id={`variant-values-${i}`}
+                  value={o.valuesCsv}
+                  placeholder="S, M, L"
+                  onChange={(e) =>
+                    setOptions((s) =>
+                      s.map((x, j) =>
+                        j === i ? { ...x, valuesCsv: e.target.value } : x,
+                      ),
+                    )
+                  }
+                />
+              </FormField>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={`Remove option ${i + 1}`}
+                className="text-muted-foreground hover:text-destructive"
+                onClick={() => setOptions((s) => s.filter((_, j) => j !== i))}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </div>
+          ))}
         </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            setOptions((s) => [...s, { name: { en: "" }, valuesCsv: "" }])
+          }
+        >
+          <Plus className="size-4" />
+          Add option
+        </Button>
+        <Button type="button" size="sm" onClick={generate}>
+          <Wand2 className="size-4" />
+          Generate variants
+        </Button>
+        {variants.length > 0 && (
+          <span className="text-muted-foreground text-xs">
+            {variants.length} variant{variants.length === 1 ? "" : "s"} — stock
+            is held per variant and adjusted in Inventory.
+          </span>
+        )}
       </div>
 
       {/* Variant rows */}
       {variants.length > 0 && (
-        <div
-          style={{
-            overflowX: "auto",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--r-lg)",
-          }}
-        >
-          <table
-            style={{ width: "100%", borderCollapse: "collapse", minWidth: 560 }}
-          >
-            <thead>
-              <tr>
-                <th style={th}>Variant</th>
-                <th style={th}>SKU</th>
-                <th style={th}>Price (BDT)</th>
-                <th style={th}>Stock</th>
-              </tr>
-            </thead>
-            <tbody>
-              {variants.map((v, i) => (
-                <tr key={sig(v.options)}>
-                  <td style={td}>
-                    {v.options.map((o) => o.value).join(" · ")}
-                  </td>
-                  <td style={td}>
-                    <input
-                      style={cell}
-                      value={v.sku}
-                      onChange={(e) =>
-                        setVariants((s) =>
-                          s.map((x, j) =>
-                            j === i ? { ...x, sku: e.target.value } : x,
-                          ),
-                        )
-                      }
-                    />
-                  </td>
-                  <td style={td}>
-                    <input
-                      style={cell}
-                      type="number"
-                      placeholder="(uses base)"
-                      value={v.price}
-                      onChange={(e) =>
-                        setVariants((s) =>
-                          s.map((x, j) =>
-                            j === i ? { ...x, price: e.target.value } : x,
-                          ),
-                        )
-                      }
-                    />
-                  </td>
-                  <td style={td}>
-                    <input
-                      style={cell}
-                      type="number"
-                      value={v.stock}
-                      onChange={(e) =>
-                        setVariants((s) =>
-                          s.map((x, j) =>
-                            j === i ? { ...x, stock: e.target.value } : x,
-                          ),
-                        )
-                      }
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="bg-card overflow-hidden rounded-lg shadow-[var(--shadow-sm)]">
+          <Table style={{ minWidth: 560 }}>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="text-muted-foreground h-9 px-3 text-[13px] font-semibold">
+                  Variant
+                </TableHead>
+                <TableHead className="text-muted-foreground h-9 px-3 text-[13px] font-semibold">
+                  SKU
+                </TableHead>
+                <TableHead className="text-muted-foreground h-9 px-3 text-[13px] font-semibold">
+                  Price (BDT)
+                </TableHead>
+                <TableHead className="text-muted-foreground h-9 px-3 text-[13px] font-semibold">
+                  Stock
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {variants.map((v, i) => {
+                const label = v.options.map((o) => o.value).join(" · ");
+                return (
+                  <TableRow key={sig(v.options)}>
+                    <TableCell className="px-3 py-2 align-middle text-[13px] font-medium">
+                      {label}
+                    </TableCell>
+                    <TableCell className="px-3 py-2">
+                      <Input
+                        aria-label={`SKU for ${label}`}
+                        className="h-8"
+                        value={v.sku}
+                        onChange={(e) =>
+                          setVariants((s) =>
+                            s.map((x, j) =>
+                              j === i ? { ...x, sku: e.target.value } : x,
+                            ),
+                          )
+                        }
+                      />
+                    </TableCell>
+                    <TableCell className="px-3 py-2">
+                      <Input
+                        aria-label={`Price for ${label}`}
+                        className="h-8"
+                        type="number"
+                        placeholder="(uses base)"
+                        value={v.price}
+                        onChange={(e) =>
+                          setVariants((s) =>
+                            s.map((x, j) =>
+                              j === i ? { ...x, price: e.target.value } : x,
+                            ),
+                          )
+                        }
+                      />
+                    </TableCell>
+                    <TableCell className="px-3 py-2">
+                      <Input
+                        aria-label={`Stock for ${label}`}
+                        className="h-8"
+                        type="number"
+                        value={v.stock}
+                        onChange={(e) =>
+                          setVariants((s) =>
+                            s.map((x, j) =>
+                              j === i ? { ...x, stock: e.target.value } : x,
+                            ),
+                          )
+                        }
+                      />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         </div>
       )}
     </div>
   );
 }
-
-const th: React.CSSProperties = {
-  textAlign: "left",
-  padding: "8px 10px",
-  fontSize: "var(--fs-caption)",
-  color: "var(--color-text-muted)",
-  borderBottom: "1px solid var(--color-border)",
-};
-const td: React.CSSProperties = {
-  padding: "6px 10px",
-  borderBottom: "1px solid var(--color-border)",
-  verticalAlign: "middle",
-  fontSize: "var(--fs-body-sm)",
-};
-const btn = (variant: "primary" | "secondary"): React.CSSProperties => ({
-  height: 40,
-  padding: "0 16px",
-  borderRadius: "var(--r-pill)",
-  border: variant === "primary" ? "none" : "1px solid var(--color-border)",
-  background: variant === "primary" ? "var(--color-brand)" : "transparent",
-  color: variant === "primary" ? "#fff" : "var(--color-text)",
-  fontWeight: 600,
-  cursor: "pointer",
-});

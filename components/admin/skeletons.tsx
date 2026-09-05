@@ -1,10 +1,13 @@
 import type { CSSProperties } from "react";
+import { Skeleton as Shimmer } from "@/components/ui/skeleton";
+import { cn } from "@/lib/cn";
 
 /**
  * Admin loading skeletons. Each composed skeleton mirrors the real page it
  * stands in for (header rhythm, table columns, form rows) so the swap to live
- * content doesn't shift layout. Shimmer + reduced-motion handling live in the
- * `.skeleton` class (app/globals.css).
+ * content doesn't shift layout. The shimmer itself is the shadcn `Skeleton`
+ * primitive, so the placeholder tone follows the admin theme (light + dark)
+ * and stills under `prefers-reduced-motion`.
  */
 
 export function Skeleton({
@@ -19,9 +22,10 @@ export function Skeleton({
   style?: CSSProperties;
 }) {
   return (
-    <span
-      className="skeleton"
+    <Shimmer
       aria-hidden
+      className="block motion-reduce:animate-none"
+      // Dimensions come from the caller, so they stay inline.
       style={{
         width: width ?? "100%",
         height,
@@ -32,27 +36,13 @@ export function Skeleton({
   );
 }
 
-const cardStyle: CSSProperties = {
-  border: "1px solid var(--color-border)",
-  background: "var(--color-surface)",
-  borderRadius: "var(--r-lg)",
-  overflow: "hidden",
-};
-
-const thPad = "var(--s-3) var(--s-4)";
+/** The shared card shell: borderless, elevated, clipped (matches the real pages). */
+const card = "bg-card overflow-hidden rounded-lg shadow-[var(--shadow-sm)]";
 
 /** Title (+ optional action button) row, matching the admin page headers. */
 function HeaderRow({ action = true }: { action?: boolean }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: "var(--s-4)",
-        flexWrap: "wrap",
-      }}
-    >
+    <div className="flex flex-wrap items-center justify-between gap-4">
       <Skeleton width={180} height={30} radius="var(--r-sm)" />
       {action && <Skeleton width={132} height={40} radius="var(--r-sm)" />}
     </div>
@@ -68,17 +58,16 @@ function TableSkeleton({
   rows?: number;
 }) {
   const cols = Array.from({ length: columns });
+  // The track list is derived from the `columns` prop, so it stays inline.
+  const tracks: CSSProperties = {
+    gridTemplateColumns: `2fr repeat(${columns - 1}, 1fr)`,
+  };
   return (
-    <div style={cardStyle}>
+    <div className={card}>
       {/* head */}
       <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: `2fr repeat(${columns - 1}, 1fr)`,
-          gap: "var(--s-4)",
-          padding: thPad,
-          borderBottom: "1px solid var(--color-border)",
-        }}
+        className="border-border/60 grid gap-4 border-b px-4 py-3"
+        style={tracks}
       >
         {cols.map((_, i) => (
           <Skeleton key={i} width={i === 0 ? 120 : 70} height={12} />
@@ -88,15 +77,11 @@ function TableSkeleton({
       {Array.from({ length: rows }).map((_, r) => (
         <div
           key={r}
-          style={{
-            display: "grid",
-            gridTemplateColumns: `2fr repeat(${columns - 1}, 1fr)`,
-            gap: "var(--s-4)",
-            padding: "var(--s-4)",
-            borderBottom:
-              r === rows - 1 ? "none" : "1px solid var(--color-border)",
-            alignItems: "center",
-          }}
+          className={cn(
+            "grid items-center gap-4 p-4",
+            r < rows - 1 && "border-border/60 border-b",
+          )}
+          style={tracks}
         >
           {cols.map((_, c) => (
             <Skeleton
@@ -127,10 +112,10 @@ export function AdminListSkeleton({
   gap?: string;
 }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap }}>
+    <div className="flex flex-col" style={{ gap }}>
       <HeaderRow action={action} />
       {toolbar && (
-        <div style={{ display: "flex", gap: "var(--s-2)", flexWrap: "wrap" }}>
+        <div className="flex flex-wrap gap-2">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} width={74} height={30} radius="var(--r-sm)" />
           ))}
@@ -141,34 +126,19 @@ export function AdminListSkeleton({
   );
 }
 
-/** Dashboard = heading + 4 KPI cards + a panel. */
+/** Dashboard = heading + the KPI row + the chart/panel row. */
 export function AdminDashboardSkeleton() {
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
-      <div style={{ display: "grid", gap: 8 }}>
+    <div className="grid gap-6">
+      <div className="grid gap-2">
         <Skeleton width={220} height={34} radius="var(--r-sm)" />
         <Skeleton width={140} height={14} />
       </div>
-      <div
-        className="equal-4col"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-          gap: "var(--s-4)",
-        }}
-      >
-        {Array.from({ length: 4 }).map((_, i) => (
+      <div className="grid items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        {Array.from({ length: 5 }).map((_, i) => (
           <div
             key={i}
-            style={{
-              display: "grid",
-              gap: "var(--s-3)",
-              padding: "var(--s-5)",
-              background: "var(--color-surface)",
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--r-lg)",
-              boxShadow: "var(--shadow-xs)",
-            }}
+            className="bg-card grid gap-3 rounded-lg p-5 shadow-[var(--shadow-sm)]"
           >
             <Skeleton width={36} height={36} radius="var(--r-md)" />
             <Skeleton width={88} height={11} />
@@ -176,17 +146,17 @@ export function AdminDashboardSkeleton() {
           </div>
         ))}
       </div>
-      <div
-        style={{
-          ...cardStyle,
-          padding: "var(--s-6)",
-          display: "grid",
-          gap: "var(--s-3)",
-        }}
-      >
-        <Skeleton width="40%" height={16} />
-        <Skeleton width="65%" height={14} />
-        <Skeleton width="55%" height={14} />
+      <div className="grid items-stretch gap-3 xl:grid-cols-3">
+        <div className={cn(card, "grid content-start gap-3 p-6 xl:col-span-2")}>
+          <Skeleton width="40%" height={16} />
+          <Skeleton width="100%" height={200} radius="var(--r-sm)" />
+        </div>
+        <div className={cn(card, "grid content-start gap-3 p-6")}>
+          <Skeleton width="55%" height={16} />
+          <Skeleton width="90%" height={14} />
+          <Skeleton width="70%" height={14} />
+          <Skeleton width="80%" height={14} />
+        </div>
       </div>
     </div>
   );
@@ -195,7 +165,7 @@ export function AdminDashboardSkeleton() {
 /** A field row: label + input. */
 function FieldSkeleton({ inputHeight = 42 }: { inputHeight?: number }) {
   return (
-    <div style={{ display: "grid", gap: 8 }}>
+    <div className="grid gap-2">
       <Skeleton width={110} height={12} />
       <Skeleton width="100%" height={inputHeight} radius="var(--r-sm)" />
     </div>
@@ -217,22 +187,15 @@ export function AdminFormSkeleton({
   maxWidth?: number;
 }) {
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)", maxWidth }}>
+    <div className="grid gap-6" style={{ maxWidth }}>
       {title && (
-        <div style={{ display: "grid", gap: "var(--s-2)" }}>
+        <div className="grid gap-2">
           {breadcrumb && <Skeleton width={92} height={13} />}
           <Skeleton width={220} height={30} radius="var(--r-sm)" />
           {subtitle && <Skeleton width={120} height={13} />}
         </div>
       )}
-      <div
-        style={{
-          ...cardStyle,
-          padding: "var(--s-6)",
-          display: "grid",
-          gap: "var(--s-5)",
-        }}
-      >
+      <div className={cn(card, "grid gap-5 p-6")}>
         {Array.from({ length: fields }).map((_, i) => (
           <FieldSkeleton key={i} inputHeight={i % 4 === 3 ? 96 : 42} />
         ))}
@@ -262,22 +225,8 @@ export function AdminFormAndTableSkeleton({
   subtitle?: boolean;
 }) {
   const form = (
-    <div
-      key="form"
-      style={{
-        ...cardStyle,
-        padding: "var(--s-6)",
-        display: "grid",
-        gap: "var(--s-4)",
-      }}
-    >
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-          gap: "var(--s-4)",
-        }}
-      >
+    <div key="form" className={cn(card, "grid gap-4 p-6")}>
+      <div className="grid gap-4 sm:grid-cols-2">
         <FieldSkeleton />
         <FieldSkeleton />
       </div>
@@ -287,8 +236,8 @@ export function AdminFormAndTableSkeleton({
   const table = <TableSkeleton key="table" columns={columns} rows={5} />;
 
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
-      <div style={{ display: "grid", gap: "var(--s-2)" }}>
+    <div className="grid gap-6">
+      <div className="grid gap-2">
         <Skeleton width={200} height={30} radius="var(--r-sm)" />
         {subtitle && <Skeleton width={240} height={13} />}
       </div>
@@ -300,62 +249,26 @@ export function AdminFormAndTableSkeleton({
 /** Order detail = breadcrumb + two-column (items + summary/actions). */
 export function AdminOrderDetailSkeleton() {
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
+    <div className="grid gap-6">
       <Skeleton width={160} height={14} />
       <Skeleton width={240} height={30} radius="var(--r-sm)" />
-      <div
-        className="equal-2col"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1.6fr) minmax(0, 1fr)",
-          gap: "var(--s-5)",
-          alignItems: "start",
-        }}
-      >
-        <div
-          style={{
-            ...cardStyle,
-            padding: "var(--s-5)",
-            display: "grid",
-            gap: "var(--s-4)",
-          }}
-        >
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <div className={cn(card, "grid gap-4 p-5")}>
           <Skeleton width={120} height={12} />
           {Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: "var(--s-4)",
-              }}
-            >
+            <div key={i} className="flex justify-between gap-4">
               <Skeleton width="55%" height={14} />
               <Skeleton width={70} height={14} />
             </div>
           ))}
         </div>
-        <div style={{ display: "grid", gap: "var(--s-5)" }}>
-          <div
-            style={{
-              ...cardStyle,
-              padding: "var(--s-5)",
-              display: "grid",
-              gap: "var(--s-3)",
-            }}
-          >
+        <div className="grid gap-5">
+          <div className={cn(card, "grid gap-3 p-5")}>
             <Skeleton width={100} height={12} />
             <Skeleton width="100%" height={42} radius="var(--r-sm)" />
             <Skeleton width="100%" height={42} radius="var(--r-sm)" />
           </div>
-          <div
-            style={{
-              ...cardStyle,
-              padding: "var(--s-5)",
-              display: "grid",
-              gap: "var(--s-3)",
-            }}
-          >
+          <div className={cn(card, "grid gap-3 p-5")}>
             <Skeleton width={120} height={12} />
             <Skeleton width="80%" height={14} />
             <Skeleton width="70%" height={14} />

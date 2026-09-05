@@ -5,6 +5,7 @@ import {
   listBlogTags,
 } from "@/lib/repositories/blogTaxonomy.repo";
 import { localize } from "@/lib/schemas/localized";
+import { EditorHeader } from "@/components/admin/ui/form-shell";
 
 export const dynamic = "force-dynamic";
 
@@ -20,17 +21,12 @@ export default async function NewBlogPostPage({
     listBlogTags().catch(() => []),
   ]);
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
-      <h1
-        style={{
-          margin: 0,
-          fontFamily: "var(--font-display)",
-          fontSize: "var(--fs-2xl)",
-          color: "var(--color-text-strong)",
-        }}
-      >
-        New post
-      </h1>
+    <div className="space-y-4">
+      <EditorHeader
+        backHref="/admin/blog/posts"
+        backLabel="Posts"
+        title="New post"
+      />
       <PostEditor
         categories={cats.map((c) => ({
           id: String(c._id),

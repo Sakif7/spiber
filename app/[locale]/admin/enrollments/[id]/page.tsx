@@ -1,20 +1,19 @@
 import { setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
-import { Link } from "@/i18n/navigation";
 import { EnrollmentActions } from "@/components/admin/academy/enrollment-actions";
 import { getEnrollmentById } from "@/lib/repositories/enrollments.repo";
 import { getCourseById, flattenLessons } from "@/lib/repositories/courses.repo";
 import { localize } from "@/lib/schemas/localized";
 import { formatBDT } from "@/lib/money";
+import {
+  DetailCard,
+  DetailLayout,
+  DetailRow,
+} from "@/components/admin/ui/detail";
+import { EditorHeader } from "@/components/admin/ui/form-shell";
+import { StatusBadge } from "@/components/admin/ui/status-badge";
 
 export const dynamic = "force-dynamic";
-
-const cardStyle: React.CSSProperties = {
-  border: "1px solid var(--color-border)",
-  background: "var(--color-surface)",
-  borderRadius: "var(--r-lg)",
-  padding: "var(--s-5)",
-};
 
 export default async function AdminEnrollmentDetail({
   params,
@@ -38,146 +37,71 @@ export default async function AdminEnrollmentDetail({
     : 0;
 
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
-      <div style={{ display: "grid", gap: "var(--s-2)" }}>
-        <Link
-          href="/admin/enrollments"
-          style={{
-            fontSize: "var(--fs-small)",
-            color: "var(--color-text-muted)",
-          }}
-        >
-          ← Enrollments
-        </Link>
-        <h1
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "var(--fs-h3)",
-            color: "var(--color-text-strong)",
-            margin: 0,
-          }}
-        >
-          {e.enrollmentNumber}
-        </h1>
-      </div>
+    <div className="space-y-4">
+      <EditorHeader
+        backHref="/admin/enrollments"
+        backLabel="Enrollments"
+        title={e.enrollmentNumber}
+      />
 
-      <div
-        className="equal-2col"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1.6fr) minmax(0, 1fr)",
-          gap: "var(--s-5)",
-          alignItems: "start",
-        }}
+      <DetailLayout
+        aside={<EnrollmentActions enrollmentId={id} status={e.status} />}
       >
-        <div style={{ display: "grid", gap: "var(--s-5)" }}>
-          <div style={{ ...cardStyle, display: "grid", gap: "var(--s-3)" }}>
-            <Row label="Course" value={courseTitle} />
-            <Row label="Student" value={e.email} />
-            <Row label="Status" value={e.status} />
-            <Row label="Payment" value={e.payment?.status ?? "—"} />
-            <Row
-              label="Total"
-              value={e.totalMinor > 0 ? formatBDT(e.totalMinor, "en") : "Free"}
-            />
-            {e.couponCode && <Row label="Coupon" value={e.couponCode} />}
-            <Row
-              label="Progress"
-              value={`${done}/${lessons.length} lessons · ${percent}%`}
-            />
-            {e.completedAt && (
-              <Row label="Certificate" value={e.certificateId ?? "—"} />
-            )}
-          </div>
-
-          <div style={{ ...cardStyle, display: "grid", gap: "var(--s-3)" }}>
-            <h2
-              style={{
-                margin: 0,
-                fontSize: "var(--fs-lg)",
-                color: "var(--color-text-strong)",
-              }}
-            >
-              Timeline
-            </h2>
-            {e.timeline.length === 0 ? (
-              <p
-                style={{
-                  color: "var(--color-text-muted)",
-                  fontSize: "var(--fs-sm)",
-                }}
-              >
-                No events.
-              </p>
+        <DetailCard>
+          <DetailRow label="Course">{courseTitle}</DetailRow>
+          <DetailRow label="Student">{e.email}</DetailRow>
+          <DetailRow label="Status">
+            <StatusBadge>{e.status}</StatusBadge>
+          </DetailRow>
+          <DetailRow label="Payment">
+            {e.payment?.status ? (
+              <StatusBadge>{e.payment.status}</StatusBadge>
             ) : (
-              <ul
-                style={{
-                  listStyle: "none",
-                  margin: 0,
-                  padding: 0,
-                  display: "grid",
-                  gap: 10,
-                }}
-              >
-                {e.timeline.map((entry, i) => (
-                  <li
-                    key={i}
-                    style={{
-                      display: "flex",
-                      gap: "var(--s-3)",
-                      fontSize: "var(--fs-sm)",
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontWeight: 600,
-                        color: "var(--color-text-strong)",
-                        textTransform: "capitalize",
-                        minWidth: 90,
-                      }}
-                    >
-                      {entry.status}
-                    </span>
-                    <span style={{ color: "var(--color-text-muted)" }}>
-                      {new Date(entry.at).toLocaleString()}
-                      {entry.note ? ` — ${entry.note}` : ""}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              "—"
             )}
-          </div>
-        </div>
+          </DetailRow>
+          <DetailRow label="Total">
+            <span className="tabular-nums">
+              {e.totalMinor > 0 ? formatBDT(e.totalMinor, "en") : "Free"}
+            </span>
+          </DetailRow>
+          {e.couponCode && (
+            <DetailRow label="Coupon" mono>
+              {e.couponCode}
+            </DetailRow>
+          )}
+          <DetailRow label="Progress">
+            <span className="tabular-nums">
+              {done}/{lessons.length} lessons · {percent}%
+            </span>
+          </DetailRow>
+          {e.completedAt && (
+            <DetailRow label="Certificate" mono>
+              {e.certificateId ?? "—"}
+            </DetailRow>
+          )}
+        </DetailCard>
 
-        <EnrollmentActions enrollmentId={id} status={e.status} />
-      </div>
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        gap: "var(--s-4)",
-      }}
-    >
-      <span
-        style={{ color: "var(--color-text-muted)", fontSize: "var(--fs-sm)" }}
-      >
-        {label}
-      </span>
-      <strong
-        style={{
-          color: "var(--color-text-strong)",
-          textTransform:
-            label === "Status" || label === "Payment" ? "capitalize" : "none",
-        }}
-      >
-        {value}
-      </strong>
+        <DetailCard title="Timeline">
+          {e.timeline.length === 0 ? (
+            <p className="text-muted-foreground text-[13px]">No events.</p>
+          ) : (
+            <ul className="grid gap-2.5">
+              {e.timeline.map((entry, i) => (
+                <li key={i} className="flex gap-3 text-[13px]">
+                  <span className="text-foreground min-w-[90px] font-semibold capitalize">
+                    {entry.status}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {new Date(entry.at).toLocaleString()}
+                    {entry.note ? ` — ${entry.note}` : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </DetailCard>
+      </DetailLayout>
     </div>
   );
 }

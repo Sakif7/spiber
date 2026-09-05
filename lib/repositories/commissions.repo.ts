@@ -5,6 +5,13 @@ import {
 } from "@/lib/models/affiliateCommission";
 import type { Lean } from "@/lib/models/_shared";
 import type { CommissionStatus } from "@/lib/schemas/systems";
+import {
+  applyDateRange,
+  applyPartialSearch,
+  paginate,
+  sortSpec,
+  type RepoListQuery,
+} from "./list-query";
 
 export async function getCommissionByPurchaseId(purchaseId: string) {
   await connectToDatabase();
@@ -32,6 +39,35 @@ export async function listCommissions(
     .limit(200)
     .lean<Lean<IAffiliateCommission>[]>()
     .exec();
+}
+
+/** Sort keys the admin list exposes → stored fields. */
+const COMMISSION_SORT: Record<string, string> = {
+  date: "createdAt",
+  accrued: "accruedAt",
+  amount: "amountMinor",
+  status: "status",
+  app: "externalApp",
+};
+
+export type CommissionsAdminListParams = RepoListQuery & {
+  status?: CommissionStatus;
+};
+
+/** Searchable, sortable, paged list for the admin (list kit). */
+export async function listCommissionsForAdmin(
+  params: CommissionsAdminListParams = {},
+) {
+  await connectToDatabase();
+  const q: Record<string, unknown> = { deletedAt: null };
+  if (params.status) q.status = params.status;
+  applyPartialSearch(q, params.search, ["externalApp"]);
+  applyDateRange(q, params.from, params.to);
+  return paginate<IAffiliateCommission>(AffiliateCommission, q, {
+    sort: sortSpec(params.sort, params.dir, COMMISSION_SORT),
+    page: params.page,
+    pageSize: params.pageSize,
+  });
 }
 
 /** Total accrued (unpaid) commission, in poisha — for the ledger summary. */

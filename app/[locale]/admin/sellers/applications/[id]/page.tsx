@@ -3,6 +3,15 @@ import { notFound } from "next/navigation";
 import { SellerApplicationActions } from "@/components/admin/seller-application-actions";
 import { getSellerApplicationByIdLean } from "@/lib/repositories/seller-applications.repo";
 import { getSessionUser } from "@/lib/auth/current-user";
+import { EditorHeader } from "@/components/admin/ui/form-shell";
+import {
+  DetailCard,
+  DetailLayout,
+  DetailMeta,
+  DetailProse,
+  DetailRow,
+} from "@/components/admin/ui/detail";
+import { StatusBadge } from "@/components/admin/ui/status-badge";
 
 export const dynamic = "force-dynamic";
 
@@ -28,228 +37,128 @@ export default async function AdminSellerApplicationDetailPage({
     user && a.assignedTo && String(a.assignedTo) === user.sub,
   );
 
-  const card: React.CSSProperties = {
-    border: "1px solid var(--color-border)",
-    background: "var(--color-surface)",
-    borderRadius: "var(--r-lg)",
-    padding: "var(--s-5)",
-    display: "grid",
-    gap: "var(--s-3)",
-  };
-  const muted: React.CSSProperties = {
-    color: "var(--color-text-muted)",
-    fontSize: "var(--fs-body-sm)",
-  };
-
   const bank = a.bankDetails;
 
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
-      <div style={{ display: "grid", gap: 4 }}>
-        <h1
-          style={{
-            margin: 0,
-            fontFamily: "var(--font-display)",
-            fontSize: "var(--fs-2xl)",
-            color: "var(--color-text-strong)",
-          }}
-        >
-          {a.businessName}
-        </h1>
-        <span style={{ ...muted, fontFamily: "var(--font-mono)" }}>
-          {a.applicationNumber} · {a.status}
-        </span>
-      </div>
-
-      <div
-        className="equal-2col"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)",
-          gap: "var(--s-5)",
-          alignItems: "start",
-        }}
-      >
-        <div style={{ display: "grid", gap: "var(--s-5)" }}>
-          <section style={card}>
-            <Row label="Business" value={a.businessName} />
-            <Row label="Contact" value={a.contactName} />
-            <Row label="Email" value={a.email} />
-            {a.phone && <Row label="Phone" value={a.phone} />}
-            {a.website && <Row label="Website" value={a.website} mono />}
-            {a.address && <Row label="Address" value={a.address} />}
-            {a.categories && <Row label="Categories" value={a.categories} />}
-          </section>
-
-          <section style={card}>
-            <strong style={{ color: "var(--color-text-strong)" }}>
-              Description
-            </strong>
-            <p
-              style={{
-                margin: 0,
-                whiteSpace: "pre-line",
-                color: "var(--color-text)",
-              }}
-            >
-              {a.description}
-            </p>
-          </section>
-
-          {a.documents && a.documents.length > 0 ? (
-            <section style={card}>
-              <strong style={{ color: "var(--color-text-strong)" }}>
-                Verification documents
-              </strong>
-              <div style={{ display: "grid", gap: 8 }}>
-                {a.documents.map((d, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      gap: "var(--s-4)",
-                    }}
-                  >
-                    <span style={{ display: "grid", gap: 2, minWidth: 0 }}>
-                      <strong
-                        style={{
-                          color: "var(--color-text-strong)",
-                          fontSize: "var(--fs-body-sm)",
-                        }}
-                      >
-                        {DOC_LABELS[d.label] ?? d.label}
-                      </strong>
-                      <span
-                        style={{
-                          ...muted,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {d.filename}
-                        {d.size ? ` · ${Math.round(d.size / 1024)} KB` : ""}
-                      </span>
-                    </span>
-                    <a
-                      href={`/api/media/seller-application/${String(a._id)}/${i}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{
-                        flexShrink: 0,
-                        color: "var(--color-brand-deep)",
-                        fontWeight: 600,
-                        fontSize: "var(--fs-body-sm)",
-                      }}
-                    >
-                      View
-                    </a>
-                  </div>
-                ))}
-              </div>
-              {a.termsAcceptedAt && (
-                <span style={muted}>
-                  Seller terms accepted{" "}
-                  {new Date(a.termsAcceptedAt).toLocaleString()}
-                </span>
-              )}
-            </section>
-          ) : (
-            <section style={card}>
-              <strong style={{ color: "var(--color-text-strong)" }}>
-                Verification documents
-              </strong>
-              <span style={muted}>
-                None uploaded (application predates document verification).
-              </span>
-            </section>
-          )}
-
-          {bank && (
-            <section style={card}>
-              <strong style={{ color: "var(--color-text-strong)" }}>
-                Bank details
-              </strong>
-              {bank.accountName && (
-                <Row label="Account name" value={bank.accountName} />
-              )}
-              {bank.bankName && <Row label="Bank" value={bank.bankName} />}
-              {bank.accountNumber && (
-                <Row label="Account number" value={bank.accountNumber} mono />
-              )}
-              {bank.branch && <Row label="Branch" value={bank.branch} />}
-              {bank.routingNumber && (
-                <Row label="Routing number" value={bank.routingNumber} mono />
-              )}
-              {bank.mobileWallet && (
-                <Row label="Mobile wallet" value={bank.mobileWallet} mono />
-              )}
-            </section>
-          )}
-
-          {a.activity.length > 0 && (
-            <section style={card}>
-              <strong style={{ color: "var(--color-text-strong)" }}>
-                Notes
-              </strong>
-              {a.activity.map((n, i) => (
-                <div key={i} style={{ display: "grid", gap: 2 }}>
-                  <span style={{ color: "var(--color-text)" }}>{n.body}</span>
-                  <span style={muted}>{new Date(n.at).toLocaleString()}</span>
-                </div>
-              ))}
-            </section>
-          )}
-        </div>
-
-        <SellerApplicationActions
-          applicationId={String(a._id)}
-          status={a.status}
-          currentUserId={user?.sub ?? ""}
-          assignedToMe={assignedToMe}
+    <div className="space-y-4">
+      <div className="space-y-1">
+        <EditorHeader
+          backHref="/admin/sellers/applications"
+          backLabel="Applications"
+          title={a.businessName}
+          action={<StatusBadge>{a.status}</StatusBadge>}
         />
+        <DetailMeta>{a.applicationNumber}</DetailMeta>
       </div>
-    </div>
-  );
-}
 
-function Row({
-  label,
-  value,
-  mono,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-}) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        gap: "var(--s-4)",
-      }}
-    >
-      <span
-        style={{
-          color: "var(--color-text-muted)",
-          fontSize: "var(--fs-body-sm)",
-        }}
+      <DetailLayout
+        aside={
+          <SellerApplicationActions
+            applicationId={String(a._id)}
+            status={a.status}
+            currentUserId={user?.sub ?? ""}
+            assignedToMe={assignedToMe}
+          />
+        }
       >
-        {label}
-      </span>
-      <strong
-        style={{
-          color: "var(--color-text-strong)",
-          fontFamily: mono ? "var(--font-mono)" : "inherit",
-          wordBreak: "break-all",
-          textAlign: "right",
-        }}
-      >
-        {value}
-      </strong>
+        <DetailCard>
+          <DetailRow label="Business">{a.businessName}</DetailRow>
+          <DetailRow label="Contact">{a.contactName}</DetailRow>
+          <DetailRow label="Email">{a.email}</DetailRow>
+          {a.phone && <DetailRow label="Phone">{a.phone}</DetailRow>}
+          {a.website && (
+            <DetailRow label="Website" mono>
+              {a.website}
+            </DetailRow>
+          )}
+          {a.address && <DetailRow label="Address">{a.address}</DetailRow>}
+          {a.categories && (
+            <DetailRow label="Categories">{a.categories}</DetailRow>
+          )}
+        </DetailCard>
+
+        <DetailCard title="Description">
+          <DetailProse>{a.description}</DetailProse>
+        </DetailCard>
+
+        {a.documents && a.documents.length > 0 ? (
+          <DetailCard title="Verification documents">
+            {a.documents.map((d, i) => (
+              <div key={i} className="flex items-center justify-between gap-4">
+                <span className="grid min-w-0 gap-0.5">
+                  <span className="text-foreground font-medium">
+                    {DOC_LABELS[d.label] ?? d.label}
+                  </span>
+                  <span className="text-muted-foreground truncate text-xs">
+                    {d.filename}
+                    {d.size ? ` · ${Math.round(d.size / 1024)} KB` : ""}
+                  </span>
+                </span>
+                <a
+                  href={`/api/media/seller-application/${String(a._id)}/${i}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary shrink-0 font-medium hover:underline"
+                >
+                  View
+                </a>
+              </div>
+            ))}
+            {a.termsAcceptedAt && (
+              <span className="text-muted-foreground text-xs">
+                Seller terms accepted{" "}
+                {new Date(a.termsAcceptedAt).toLocaleString()}
+              </span>
+            )}
+          </DetailCard>
+        ) : (
+          <DetailCard title="Verification documents">
+            <span className="text-muted-foreground">
+              None uploaded (application predates document verification).
+            </span>
+          </DetailCard>
+        )}
+
+        {bank && (
+          <DetailCard title="Bank details">
+            {bank.accountName && (
+              <DetailRow label="Account name">{bank.accountName}</DetailRow>
+            )}
+            {bank.bankName && (
+              <DetailRow label="Bank">{bank.bankName}</DetailRow>
+            )}
+            {bank.accountNumber && (
+              <DetailRow label="Account number" mono>
+                {bank.accountNumber}
+              </DetailRow>
+            )}
+            {bank.branch && <DetailRow label="Branch">{bank.branch}</DetailRow>}
+            {bank.routingNumber && (
+              <DetailRow label="Routing number" mono>
+                {bank.routingNumber}
+              </DetailRow>
+            )}
+            {bank.mobileWallet && (
+              <DetailRow label="Mobile wallet" mono>
+                {bank.mobileWallet}
+              </DetailRow>
+            )}
+          </DetailCard>
+        )}
+
+        {a.activity.length > 0 && (
+          <DetailCard title="Notes">
+            {a.activity.map((n, i) => (
+              <div key={i} className="grid gap-0.5">
+                <span className="text-foreground">{n.body}</span>
+                <span className="text-muted-foreground text-xs">
+                  {new Date(n.at).toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </DetailCard>
+        )}
+      </DetailLayout>
     </div>
   );
 }

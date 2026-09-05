@@ -9,6 +9,11 @@ import { Inquiry } from "@/lib/models/inquiry";
 import { ContactMessage } from "@/lib/models/contact-message";
 import { Appointment } from "@/lib/models/appointment";
 import { TravelRequest } from "@/lib/models/travelRequest";
+import {
+  countLowStockProducts,
+  listLowStockProducts,
+  type LowStockRow,
+} from "@/lib/repositories/products.repo";
 
 const DAY = 86_400_000;
 
@@ -24,12 +29,21 @@ export type DashboardData = {
     openCases: number;
     openInquiries: number;
     pendingOrders: number;
+    /** Customer refund requests an admin still has to settle. */
+    openRefundRequests: number;
+    /** Quotation requests nobody has touched yet. */
+    newQuotations: number;
+    /** Seller listings (new or edited) waiting for approval. */
+    pendingSellerProducts: number;
+    /** Tracked products at or below their low-stock threshold. */
+    lowStock: number;
   };
   revenueSeries: { day: string; revenueMinor: number; orders: number }[];
   ordersByStatus: { status: string; count: number }[];
   casesByStatus: { status: string; count: number }[];
   activityMix: { key: string; label: string; count: number }[];
   catalogByCategory: { name: string; count: number }[];
+  lowStockItems: LowStockRow[];
   recentOrders: {
     id: string;
     orderNumber: string;
@@ -102,6 +116,8 @@ export async function loadDashboard(now: Date): Promise<DashboardData> {
     recentOrderDocs,
     recentCaseDocs,
     mixCounts,
+    attention,
+    lowStockItems,
   ] = await Promise.all([
     revenueInRange(currentStart, currentEnd),
     revenueInRange(prevStart, currentStart),
@@ -195,6 +211,18 @@ export async function loadDashboard(now: Date): Promise<DashboardData> {
       TravelRequest.countDocuments({ createdAt: { $gte: currentStart } }),
       ContactMessage.countDocuments({ createdAt: { $gte: currentStart } }),
     ]),
+    // "Needs attention" counters — each is the exact predicate its list page
+    // filters by, so the number on the dashboard equals the rows behind the link.
+    Promise.all([
+      Order.countDocuments({ "refundRequest.status": "open" }),
+      Quotation.countDocuments({ deletedAt: null, status: "new" }),
+      Product.countDocuments({
+        deletedAt: null,
+        $or: [{ approvalStatus: "pending" }, { pendingDraft: { $ne: null } }],
+      }),
+      countLowStockProducts(),
+    ]),
+    listLowStockProducts(6),
   ]);
 
   const seriesMap = new Map(seriesRows.map((r) => [r._id, r]));
@@ -211,6 +239,8 @@ export async function loadDashboard(now: Date): Promise<DashboardData> {
 
   const [orderCt, enrollCt, swCt, quoteCt, caseCt, inqCt, aptCt, trvCt, msgCt] =
     mixCounts;
+  const [openRefundRequests, newQuotations, pendingSellerProducts, lowStock] =
+    attention;
 
   const activityMix = [
     { key: "orders", label: "Orders", count: orderCt },
@@ -236,6 +266,10 @@ export async function loadDashboard(now: Date): Promise<DashboardData> {
       openCases,
       openInquiries,
       pendingOrders,
+      openRefundRequests,
+      newQuotations,
+      pendingSellerProducts,
+      lowStock,
     },
     revenueSeries,
     ordersByStatus: ordersByStatusRows.map((r) => ({
@@ -251,6 +285,7 @@ export async function loadDashboard(now: Date): Promise<DashboardData> {
       name: r.name,
       count: r.count,
     })),
+    lowStockItems,
     recentOrders: recentOrderDocs.map((o) => ({
       id: String(o._id),
       orderNumber: o.orderNumber,

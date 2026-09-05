@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { Trash2 } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
+import { Button } from "@/components/ui/button";
 import { formatApiError } from "@/lib/http/form-error";
 
 export function BannerDeleteButton({ id }: { id: string }) {
@@ -27,23 +29,16 @@ export function BannerDeleteButton({ id }: { id: string }) {
   }
 
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
+      size="sm"
       onClick={remove}
       disabled={busy}
-      style={{
-        background: "transparent",
-        border: "1px solid var(--color-border)",
-        borderRadius: "var(--r-sm)",
-        color: "var(--color-error)",
-        padding: "8px 16px",
-        fontSize: "var(--fs-small)",
-        fontFamily: "inherit",
-        cursor: busy ? "default" : "pointer",
-        opacity: busy ? 0.6 : 1,
-      }}
+      className="text-destructive hover:text-destructive"
     >
+      <Trash2 aria-hidden />
       {busy ? "Deleting…" : "Delete banner"}
-    </button>
+    </Button>
   );
 }

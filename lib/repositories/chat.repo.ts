@@ -7,6 +7,13 @@ import {
 } from "@/lib/models/chat-conversation";
 import type { Lean } from "@/lib/models/_shared";
 import type { ChatStatus } from "@/lib/schemas/chat";
+import {
+  applyDateRange,
+  applyPartialSearch,
+  paginate,
+  sortSpec,
+  type RepoListQuery,
+} from "./list-query";
 
 type ChatFilter = NonNullable<
   Parameters<typeof ChatConversation.countDocuments>[0]
@@ -67,12 +74,18 @@ export async function attachLead(ref: string, lead: IChatLead) {
 
 /* ── Admin ───────────────────────────────────────────────────────────────── */
 
-export type ChatListParams = {
+/** Sort keys the admin list exposes → stored fields. */
+const CHAT_SORT: Record<string, string> = {
+  updated: "updatedAt",
+  date: "createdAt",
+  status: "status",
+  ref: "ref",
+};
+
+export type ChatListParams = RepoListQuery & {
   status?: ChatStatus;
   /** Only conversations that captured a lead. */
   leadsOnly?: boolean;
-  page?: number;
-  pageSize?: number;
 };
 
 export async function listChatConversations(params: ChatListParams = {}) {
@@ -80,25 +93,21 @@ export async function listChatConversations(params: ChatListParams = {}) {
   const q: Record<string, unknown> = { deletedAt: null };
   if (params.status) q.status = params.status;
   if (params.leadsOnly) q.lead = { $ne: null };
-  const page = Math.max(1, params.page ?? 1);
-  const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 50));
-  const filter = q as unknown as ChatFilter;
-  const [items, total] = await Promise.all([
-    ChatConversation.find(filter)
-      .sort({ updatedAt: -1 })
-      .skip((page - 1) * pageSize)
-      .limit(pageSize)
-      .lean<Lean<IChatConversation>[]>()
-      .exec(),
-    ChatConversation.countDocuments(filter),
+  applyPartialSearch(q, params.search, [
+    "ref",
+    "lead.name",
+    "lead.email",
+    "lead.phone",
   ]);
-  return {
-    items,
-    total,
-    page,
-    pageSize,
-    pages: Math.max(1, Math.ceil(total / pageSize)),
-  };
+  applyDateRange(q, params.from, params.to);
+  return paginate<IChatConversation>(ChatConversation, q, {
+    sort: sortSpec(params.sort, params.dir, CHAT_SORT, {
+      key: "updated",
+      dir: "desc",
+    }),
+    page: params.page,
+    pageSize: params.pageSize ?? 50,
+  });
 }
 
 export async function getChatConversationById(id: string) {

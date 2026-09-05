@@ -2,12 +2,11 @@ import { ok, fail } from "@/lib/http/respond";
 import { parseJson } from "@/lib/http/validate";
 import { requireAdmin } from "@/lib/auth/guard";
 import { adjustStockSchema } from "@/lib/schemas/inventory";
-import {
-  adjustStock,
-  InsufficientStockError,
-} from "@/lib/services/inventory.service";
+import { adminAdjustStock } from "@/lib/services/inventory.service";
+import { inventoryErrorResponse } from "@/lib/http/inventory-error";
 import { writeAudit } from "@/lib/repositories/audit.repo";
 
+/** Adjust one stock unit by a delta (receive, write-off, correction). */
 export async function POST(req: Request) {
   const admin = await requireAdmin();
   if (!admin) return fail({ code: "forbidden" }, 403);
@@ -15,18 +14,21 @@ export async function POST(req: Request) {
   if (!parsed.success)
     return fail({ code: "invalid_input", details: parsed.issues }, 400);
   try {
-    await adjustStock({ ...parsed.data, createdBy: admin.sub });
+    const res = await adminAdjustStock({
+      ...parsed.data,
+      createdBy: admin.sub,
+    });
     await writeAudit({
       actorId: admin.sub,
-      action: "inventory.adjust",
+      action: res.overridden ? "inventory.override" : "inventory.adjust",
       entityType: "Product",
       entityId: parsed.data.productId,
-      after: parsed.data,
+      after: { ...parsed.data, stockAfter: res.stockAfter },
     });
-    return ok({});
+    return ok({ stockAfter: res.stockAfter, overridden: res.overridden });
   } catch (e) {
-    if (e instanceof InsufficientStockError)
-      return fail({ code: "insufficient_stock" }, 409);
+    const mapped = inventoryErrorResponse(e);
+    if (mapped) return mapped;
     throw e;
   }
 }

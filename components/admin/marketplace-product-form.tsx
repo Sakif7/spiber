@@ -4,13 +4,23 @@ import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CtaButton } from "@/components/ui/cta-button";
+import { Switch } from "@/components/ui/switch";
 import { fromMinor, toMinor } from "@/lib/money";
 import { formatApiError } from "@/lib/http/form-error";
 import { ImageUploader } from "./image-uploader";
 import { SpecsEditor, type SpecRow } from "./specs-editor";
 import { VariantsEditor, type VariantsValue } from "./variants-editor";
 import { CategorySelect, type CategoryOption } from "./category-select";
+import { ProductStockCard } from "./inventory/product-stock-card";
+import { LocalizedInput, type LocalizedValue } from "./ui/localized-input";
+import { SelectField } from "./ui/select-field";
+import {
+  EditorForm,
+  FormField,
+  FormGrid,
+  FormSection,
+  SaveBar,
+} from "./ui/form-shell";
 
 export type MarketplaceProductInitial = {
   id?: string;
@@ -23,6 +33,8 @@ export type MarketplaceProductInitial = {
   priceMinor?: number | null;
   compareAtMinor?: number | null;
   lowStockThreshold?: number;
+  /** Read-only here — stock is changed in Inventory. */
+  stockQty?: number;
   status?: "draft" | "active" | "archived";
   featured?: boolean;
   specs?: SpecRow[];
@@ -32,6 +44,12 @@ export type MarketplaceProductInitial = {
 };
 
 type Option = { id: string; name: string };
+
+const STATUS_OPTIONS = [
+  { value: "draft", label: "Draft" },
+  { value: "active", label: "Active" },
+  { value: "archived", label: "Archived" },
+];
 
 export function MarketplaceProductForm({
   initial,
@@ -47,12 +65,16 @@ export function MarketplaceProductForm({
 
   const [sku, setSku] = useState(initial?.sku ?? "");
   const [slug, setSlug] = useState(initial?.slug ?? "");
-  const [nameEn, setNameEn] = useState(initial?.name?.en ?? "");
-  const [nameBn, setNameBn] = useState(initial?.name?.bn ?? "");
-  const [nameJa, setNameJa] = useState(initial?.name?.ja ?? "");
-  const [descEn, setDescEn] = useState(initial?.description?.en ?? "");
-  const [descBn, setDescBn] = useState(initial?.description?.bn ?? "");
-  const [descJa, setDescJa] = useState(initial?.description?.ja ?? "");
+  const [name, setName] = useState<LocalizedValue>({
+    en: initial?.name?.en ?? "",
+    bn: initial?.name?.bn ?? "",
+    ja: initial?.name?.ja ?? "",
+  });
+  const [description, setDescription] = useState<LocalizedValue>({
+    en: initial?.description?.en ?? "",
+    bn: initial?.description?.bn ?? "",
+    ja: initial?.description?.ja ?? "",
+  });
   const [categoryId, setCategoryId] = useState(
     initial?.categoryId ??
       categories.find((c) => !c.parentId)?.id ??
@@ -89,9 +111,17 @@ export function MarketplaceProductForm({
       storefront: "marketplace" as const,
       sku,
       slug,
-      name: { en: nameEn, bn: nameBn || undefined, ja: nameJa || undefined },
-      description: descEn
-        ? { en: descEn, bn: descBn || undefined, ja: descJa || undefined }
+      name: {
+        en: name.en ?? "",
+        bn: name.bn || undefined,
+        ja: name.ja || undefined,
+      },
+      description: description.en
+        ? {
+            en: description.en,
+            bn: description.bn || undefined,
+            ja: description.ja || undefined,
+          }
         : undefined,
       categoryId,
       brandId: brandId || undefined,
@@ -123,186 +153,150 @@ export function MarketplaceProductForm({
     }
   }
 
-  const field = { display: "grid", gap: 6 } as const;
-  const row = {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "var(--s-4)",
-  } as const;
-  const triRow = {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr 1fr",
-    gap: "var(--s-4)",
-  } as const;
-  const sel: React.CSSProperties = {
-    height: 40,
-    padding: "0 10px",
-    border: "1px solid var(--color-border-field)",
-    borderRadius: "var(--r-sm)",
-    font: "inherit",
-    background: "var(--color-surface)",
-  };
-
   return (
-    <div style={{ display: "grid", gap: "var(--s-5)", maxWidth: 820 }}>
-      <div style={field}>
-        <Label>Name</Label>
-        <div style={triRow}>
-          <Input
-            placeholder="EN"
-            value={nameEn}
-            onChange={(e) => setNameEn(e.target.value)}
-          />
-          <Input
-            placeholder="বাংলা"
-            value={nameBn}
-            onChange={(e) => setNameBn(e.target.value)}
-          />
-          <Input
-            placeholder="日本語"
-            value={nameJa}
-            onChange={(e) => setNameJa(e.target.value)}
-          />
-        </div>
-      </div>
-      <div style={row}>
-        <div style={field}>
-          <Label>SKU</Label>
-          <Input value={sku} onChange={(e) => setSku(e.target.value)} />
-        </div>
-        <div style={field}>
-          <Label>Slug</Label>
-          <Input
-            value={slug}
-            placeholder="auto from name"
-            onChange={(e) => setSlug(e.target.value)}
-          />
-        </div>
-      </div>
-      <div style={field}>
-        <Label>Description</Label>
-        <div style={triRow}>
-          <textarea
-            rows={3}
-            placeholder="EN"
-            value={descEn}
-            onChange={(e) => setDescEn(e.target.value)}
-            style={{ ...sel, height: "auto", padding: 10 }}
-          />
-          <textarea
-            rows={3}
-            placeholder="বাংলা"
-            value={descBn}
-            onChange={(e) => setDescBn(e.target.value)}
-            style={{ ...sel, height: "auto", padding: 10 }}
-          />
-          <textarea
-            rows={3}
-            placeholder="日本語"
-            value={descJa}
-            onChange={(e) => setDescJa(e.target.value)}
-            style={{ ...sel, height: "auto", padding: 10 }}
-          />
-        </div>
-      </div>
-      <div style={row}>
-        <div style={field}>
-          <Label>Category</Label>
-          <CategorySelect
-            categories={categories}
-            value={categoryId}
-            onChange={setCategoryId}
-          />
-        </div>
-        <div style={field}>
-          <Label>Brand</Label>
-          <select
-            style={sel}
-            value={brandId}
-            onChange={(e) => setBrandId(e.target.value)}
+    <EditorForm>
+      <FormSection
+        title="Basics"
+        description="What the product is called and where it sits in the catalog."
+      >
+        <LocalizedInput
+          label="Name"
+          required
+          value={name}
+          onChange={setName}
+          placeholder="e.g. Omron Digital BP Monitor"
+        />
+        <FormGrid>
+          <FormField label="SKU" htmlFor="kart-sku" required>
+            <Input
+              id="kart-sku"
+              value={sku}
+              onChange={(e) => setSku(e.target.value)}
+            />
+          </FormField>
+          <FormField
+            label="Slug"
+            htmlFor="kart-slug"
+            hint="Leave blank to derive it from the English name."
           >
-            <option value="">— none —</option>
-            {brands.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-      <div style={triRow}>
-        <div style={field}>
-          <Label>Base price (BDT)</Label>
-          <Input
-            type="number"
-            value={price}
-            placeholder="Required (or set per variant)"
-            onChange={(e) => setPrice(e.target.value)}
-          />
-        </div>
-        <div style={field}>
-          <Label>Compare-at / “was” price (BDT)</Label>
-          <Input
-            type="number"
-            value={compareAt}
-            placeholder="Optional — shows a Sale badge"
-            onChange={(e) => setCompareAt(e.target.value)}
-          />
-        </div>
-        <div style={field}>
-          <Label>Low-stock threshold</Label>
-          <Input
-            type="number"
-            value={lowStock}
-            onChange={(e) => setLowStock(e.target.value)}
-          />
-        </div>
-      </div>
-      <div style={row}>
-        <div style={field}>
-          <Label>Status</Label>
-          <select
-            style={sel}
-            value={status}
-            onChange={(e) => setStatus(e.target.value as typeof status)}
+            <Input
+              id="kart-slug"
+              value={slug}
+              placeholder="auto from name"
+              onChange={(e) => setSlug(e.target.value)}
+            />
+          </FormField>
+        </FormGrid>
+        <LocalizedInput
+          label="Description"
+          textarea
+          value={description}
+          onChange={setDescription}
+        />
+        <FormGrid>
+          <FormField label="Category">
+            <CategorySelect
+              categories={categories}
+              value={categoryId}
+              onChange={setCategoryId}
+            />
+          </FormField>
+          <FormField label="Brand">
+            <SelectField
+              value={brandId}
+              onChange={setBrandId}
+              ariaLabel="Brand"
+              emptyLabel="— none —"
+              options={brands.map((b) => ({ value: b.id, label: b.name }))}
+            />
+          </FormField>
+        </FormGrid>
+        <FormGrid>
+          <FormField label="Status">
+            <SelectField
+              value={status}
+              onChange={(v) => setStatus(v as typeof status)}
+              ariaLabel="Status"
+              options={STATUS_OPTIONS}
+            />
+          </FormField>
+          <FormField label="Visibility">
+            <div className="flex h-9 items-center gap-2.5">
+              <Switch
+                id="kart-featured"
+                checked={featured}
+                onCheckedChange={setFeatured}
+              />
+              <Label htmlFor="kart-featured" className="font-normal">
+                Featured on the homepage
+              </Label>
+            </div>
+          </FormField>
+        </FormGrid>
+      </FormSection>
+
+      <FormSection
+        title="Pricing & stock"
+        description="A Spiber Kart product needs a base price, or a price on every variant."
+      >
+        <FormGrid cols={3}>
+          <FormField label="Base price (BDT)" htmlFor="kart-price">
+            <Input
+              id="kart-price"
+              type="number"
+              value={price}
+              placeholder="Required (or set per variant)"
+              onChange={(e) => setPrice(e.target.value)}
+            />
+          </FormField>
+          <FormField
+            label="Compare-at / “was” price"
+            htmlFor="kart-compare"
+            hint="Above the price, shows a Sale badge."
           >
-            <option value="draft">Draft</option>
-            <option value="active">Active</option>
-            <option value="archived">Archived</option>
-          </select>
-        </div>
-        <label
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            marginTop: 26,
-          }}
-        >
-          <input
-            type="checkbox"
-            checked={featured}
-            onChange={(e) => setFeatured(e.target.checked)}
+            <Input
+              id="kart-compare"
+              type="number"
+              value={compareAt}
+              placeholder="Optional"
+              onChange={(e) => setCompareAt(e.target.value)}
+            />
+          </FormField>
+          <FormField label="Low-stock threshold" htmlFor="kart-low-stock">
+            <Input
+              id="kart-low-stock"
+              type="number"
+              value={lowStock}
+              onChange={(e) => setLowStock(e.target.value)}
+            />
+          </FormField>
+        </FormGrid>
+        {isEdit && (
+          <ProductStockCard
+            productId={initial!.id!}
+            sku={sku}
+            stockQty={initial?.stockQty ?? 0}
+            variants={variantData.variants.map((v) => ({
+              sku: v.sku,
+              label: v.options.map((o) => o.value).join(" · "),
+              stockQty: v.stockQty ?? 0,
+            }))}
+            tracked
           />
-          Featured on homepage
-        </label>
-      </div>
-      <div style={field}>
-        <Label>Images</Label>
+        )}
+      </FormSection>
+
+      <FormSection
+        title="Media"
+        description="The first image is used as the catalog thumbnail."
+      >
         <ImageUploader value={images} onChange={setImages} />
-      </div>
-      <div style={field}>
-        <Label>Variants</Label>
-        <p
-          style={{
-            margin: 0,
-            fontSize: "var(--fs-caption)",
-            color: "var(--color-text-muted)",
-          }}
-        >
-          Optional. Define options (e.g. Size, Color), then generate per-variant
-          SKU / price / stock.
-        </p>
+      </FormSection>
+
+      <FormSection
+        title="Variants"
+        description="Optional. Define options (e.g. Size, Color), then generate per-variant SKU, price and stock."
+      >
         <VariantsEditor
           initial={{
             variantOptions: initial?.variantOptions ?? [],
@@ -310,16 +304,21 @@ export function MarketplaceProductForm({
           }}
           onChange={setVariantData}
         />
-      </div>
-      <div style={field}>
-        <Label>Specifications</Label>
-        <SpecsEditor value={specs} onChange={setSpecs} />
-      </div>
+      </FormSection>
 
-      {error && <p style={{ color: "var(--color-error)" }}>{error}</p>}
-      <CtaButton onClick={submit}>
-        {saving ? "Saving…" : isEdit ? "Save changes" : "Create product"}
-      </CtaButton>
-    </div>
+      <FormSection
+        title="Specifications"
+        description="Shown as the spec table on the product page. Paste a “Key: Value” list to add several at once."
+      >
+        <SpecsEditor value={specs} onChange={setSpecs} />
+      </FormSection>
+
+      <SaveBar
+        saving={saving}
+        onSave={submit}
+        error={error}
+        saveLabel={isEdit ? "Save changes" : "Create product"}
+      />
+    </EditorForm>
   );
 }

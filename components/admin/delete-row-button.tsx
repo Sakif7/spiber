@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { Trash2 } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
+import { Button } from "@/components/ui/button";
 
 /**
  * Generic admin row delete button: confirms, DELETEs the given endpoint, then
@@ -27,22 +29,17 @@ export function DeleteRowButton({
     else window.alert("delete_failed");
   }
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
+      size="xs"
       onClick={remove}
       disabled={busy}
-      style={{
-        background: "transparent",
-        border: "1px solid var(--color-border)",
-        borderRadius: "var(--r-sm)",
-        color: "var(--color-error)",
-        padding: "4px 10px",
-        fontSize: "var(--fs-small)",
-        cursor: busy ? "default" : "pointer",
-        opacity: busy ? 0.6 : 1,
-      }}
+      aria-label={`Delete ${title}`}
+      className="text-destructive hover:text-destructive hover:bg-destructive/10"
     >
+      <Trash2 aria-hidden />
       {busy ? "…" : "Delete"}
-    </button>
+    </Button>
   );
 }

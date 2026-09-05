@@ -2,23 +2,13 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { UploadButton } from "./upload-fields";
+import { uploadErrorMessage } from "./upload-error";
 
-/** Raw API error codes → human messages (shared by both upload fields). */
-export function uploadErrorMessage(code: string | undefined): string {
-  switch (code) {
-    case "forbidden":
-    case "unauthorized":
-      return "You don't have permission to upload here.";
-    case "too_large":
-      return "That file is too large.";
-    case "bad_type":
-      return "That file type isn't supported — use JPG, PNG or WebP.";
-    case "rate_limited":
-      return "Too many uploads — wait a moment and try again.";
-    default:
-      return "Upload failed. Please try again.";
-  }
-}
+// Re-exported so existing importers keep working after the helper moved out.
+export { uploadErrorMessage };
 
 export function ImageUploader({
   value,
@@ -47,82 +37,42 @@ export function ImageUploader({
   }
 
   return (
-    <div style={{ display: "grid", gap: 8 }}>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {value.map((url, i) => (
-          <div
-            key={url}
-            style={{
-              position: "relative",
-              width: 80,
-              height: 80,
-              borderRadius: 8,
-              overflow: "hidden",
-              border: "1px solid var(--color-border)",
-            }}
-          >
-            <Image
-              src={url}
-              alt=""
-              fill
-              sizes="80px"
-              style={{ objectFit: "cover" }}
-            />
-            <button
-              type="button"
-              onClick={() => onChange(value.filter((_, j) => j !== i))}
-              aria-label="Remove"
-              style={{
-                position: "absolute",
-                top: 2,
-                right: 2,
-                width: 20,
-                height: 20,
-                borderRadius: 999,
-                border: 0,
-                background: "rgba(0,0,0,.6)",
-                color: "#fff",
-                cursor: "pointer",
-                lineHeight: 1,
-              }}
+    <div className="grid gap-2">
+      {value.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {value.map((url, i) => (
+            <div
+              key={url}
+              className="border-border relative size-20 shrink-0 overflow-hidden rounded-md border"
             >
-              ×
-            </button>
-          </div>
-        ))}
-        <label
-          style={{
-            width: 80,
-            height: 80,
-            display: "grid",
-            placeItems: "center",
-            border: "1px dashed var(--color-border)",
-            borderRadius: 8,
-            cursor: "pointer",
-            color: "var(--color-text-muted)",
-            fontSize: 24,
-          }}
-        >
-          {busy ? "…" : "+"}
-          <input
-            type="file"
-            accept="image/*"
-            hidden
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) upload(f);
-              e.target.value = "";
-            }}
-          />
-        </label>
-      </div>
-      {error && (
-        <span
-          style={{ color: "var(--color-error)", fontSize: "var(--fs-small)" }}
-        >
-          {error}
-        </span>
+              <Image
+                src={url}
+                alt=""
+                fill
+                sizes="80px"
+                style={{ objectFit: "cover" }}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                aria-label={`Remove image ${i + 1}`}
+                title="Remove"
+                className="absolute top-1 right-1 rounded-full bg-black/60 text-white hover:bg-black/80 hover:text-white"
+                onClick={() => onChange(value.filter((_, j) => j !== i))}
+              >
+                <X />
+              </Button>
+            </div>
+          ))}
+        </div>
       )}
+      <UploadButton
+        onFile={upload}
+        busy={busy}
+        label={value.length > 0 ? "Add image" : "Upload image"}
+      />
+      {error && <p className="text-destructive text-[13px]">{error}</p>}
     </div>
   );
 }

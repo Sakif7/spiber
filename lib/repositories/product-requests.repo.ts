@@ -6,6 +6,13 @@ import {
 } from "@/lib/models/product-request";
 import type { Lean } from "@/lib/models/_shared";
 import type { ProductRequestStatus } from "@/lib/schemas/product-request";
+import {
+  applyDateRange,
+  applyPartialSearch,
+  paginate,
+  sortSpec,
+  type RepoListQuery,
+} from "./list-query";
 
 type PRFilter = NonNullable<
   Parameters<typeof ProductRequest.countDocuments>[0]
@@ -28,11 +35,19 @@ export async function getProductRequestByIdLean(id: string) {
   return ProductRequest.findById(id).lean<Lean<IProductRequest>>().exec();
 }
 
-export type ProductRequestListParams = {
+/** Sort keys the admin product-requests list exposes → stored fields. */
+const PRODUCT_REQUEST_SORT: Record<string, string> = {
+  date: "createdAt",
+  number: "requestNumber",
+  product: "productName",
+  name: "name",
+  status: "status",
+  qty: "quantity",
+};
+
+export type ProductRequestListParams = RepoListQuery & {
   status?: ProductRequestStatus;
   assignedTo?: string;
-  page?: number;
-  pageSize?: number;
 };
 
 export async function listProductRequests(
@@ -41,26 +56,21 @@ export async function listProductRequests(
   await connectToDatabase();
   const q: Record<string, unknown> = {};
   if (params.status) q.status = params.status;
-  if (params.assignedTo) q.assignedTo = params.assignedTo;
-  const page = Math.max(1, params.page ?? 1);
-  const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 50));
-  const filter = q as unknown as PRFilter;
-  const [items, total] = await Promise.all([
-    ProductRequest.find(filter)
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * pageSize)
-      .limit(pageSize)
-      .lean<Lean<IProductRequest>[]>()
-      .exec(),
-    ProductRequest.countDocuments(filter),
+  if (params.assignedTo && mongoose.isValidObjectId(params.assignedTo)) {
+    q.assignedTo = params.assignedTo;
+  }
+  applyPartialSearch(q, params.search, [
+    "requestNumber",
+    "productName",
+    "name",
+    "email",
   ]);
-  return {
-    items,
-    total,
-    page,
-    pageSize,
-    pages: Math.max(1, Math.ceil(total / pageSize)),
-  };
+  applyDateRange(q, params.from, params.to);
+  return paginate<IProductRequest>(ProductRequest, q, {
+    sort: sortSpec(params.sort, params.dir, PRODUCT_REQUEST_SORT),
+    page: params.page,
+    pageSize: params.pageSize ?? 50,
+  });
 }
 
 /** Open (not fulfilled/declined) product-request count for the dashboard KPI. */

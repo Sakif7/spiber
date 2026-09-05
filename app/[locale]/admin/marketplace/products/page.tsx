@@ -7,31 +7,37 @@ import { listProducts } from "@/lib/repositories/products.repo";
 import { formatBDT } from "@/lib/money";
 import { localize } from "@/lib/schemas/localized";
 import type { ProductStatus } from "@/lib/schemas/catalog";
+import {
+  parseListQuery,
+  type ListConfig,
+  type SearchParamsInput,
+} from "@/lib/admin/list-params";
+import { productSortFor } from "@/lib/admin/product-sort";
 
 export const dynamic = "force-dynamic";
 
-const STATUSES = ["draft", "active", "archived"];
+const STATUSES: ProductStatus[] = ["draft", "active", "archived"];
+
+const LIST: ListConfig = {
+  sortable: ["date", "name", "price"],
+  defaultSort: "date",
+  filters: ["status"],
+};
 
 export default async function AdminMarketplaceProductsPage({
   params,
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  searchParams: Promise<SearchParamsInput>;
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const sp = await searchParams;
 
-  const q = typeof sp.q === "string" ? sp.q : "";
-  const status =
-    typeof sp.status === "string" && STATUSES.includes(sp.status)
-      ? (sp.status as ProductStatus)
-      : undefined;
-  const page = Math.max(
-    1,
-    parseInt(typeof sp.page === "string" ? sp.page : "1", 10) || 1,
-  );
+  const query = parseListQuery(await searchParams, LIST);
+  const status = STATUSES.includes(query.filters.status as ProductStatus)
+    ? (query.filters.status as ProductStatus)
+    : undefined;
 
   let rows: ProductManagerRow[] = [];
   let total = 0;
@@ -39,10 +45,11 @@ export default async function AdminMarketplaceProductsPage({
   try {
     const res = await listProducts({
       storefront: "marketplace",
-      search: q || undefined,
+      search: query.q || undefined,
       status,
-      page,
-      pageSize: 60,
+      sort: productSortFor(query),
+      page: query.page,
+      pageSize: query.pageSize,
     });
     total = res.total;
     pages = res.pages;
@@ -74,14 +81,17 @@ export default async function AdminMarketplaceProductsPage({
     <ProductsManager
       storefront="marketplace"
       title="Spiber Kart products"
+      description="House catalog for the Spiber Kart storefront."
       basePath="/admin/marketplace/products"
       newHref="/admin/marketplace/products/new"
       rows={rows}
       total={total}
-      page={page}
+      page={query.page}
       pages={pages}
-      q={q}
+      pageSize={query.pageSize}
+      q={query.q}
       status={status ?? ""}
+      sort={{ key: query.sort, dir: query.dir }}
     />
   );
 }

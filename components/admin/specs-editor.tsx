@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Input } from "@/components/ui/input";
+import { Plus, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { bulkSpecPasteFromText, parseSpecLines } from "@/lib/specs/parse";
+import { LocalizedInput } from "./ui/localized-input";
 
 export type SpecRow = {
   key: { en: string; bn?: string; ja?: string };
@@ -66,170 +69,96 @@ export function SpecsEditor({
   const bulkPreview = parseSpecLines(bulkText).length;
 
   return (
-    <div style={{ display: "grid", gap: 10 }}>
-      {value.map((row, i) => (
-        <div
-          key={i}
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr auto",
-            gap: 8,
-            alignItems: "center",
-          }}
-        >
-          <div style={{ display: "grid", gap: 4 }}>
-            <Input
-              placeholder="Key (EN)"
-              value={row.key.en}
-              onChange={(e) =>
-                update(i, { key: { ...row.key, en: e.target.value } })
-              }
-              onPaste={(e) => handleSmartPaste(i, e)}
-            />
-            <Input
-              placeholder="Key (বাংলা)"
-              value={row.key.bn ?? ""}
-              onChange={(e) =>
-                update(i, { key: { ...row.key, bn: e.target.value } })
-              }
-            />
-            <Input
-              placeholder="Key (日本語)"
-              value={row.key.ja ?? ""}
-              onChange={(e) =>
-                update(i, { key: { ...row.key, ja: e.target.value } })
-              }
-            />
-          </div>
-          <div style={{ display: "grid", gap: 4 }}>
-            <Input
-              placeholder="Value (EN)"
-              value={row.value.en}
-              onChange={(e) =>
-                update(i, { value: { ...row.value, en: e.target.value } })
-              }
-              onPaste={(e) => handleSmartPaste(i, e)}
-            />
-            <Input
-              placeholder="Value (বাংলা)"
-              value={row.value.bn ?? ""}
-              onChange={(e) =>
-                update(i, { value: { ...row.value, bn: e.target.value } })
-              }
-            />
-            <Input
-              placeholder="Value (日本語)"
-              value={row.value.ja ?? ""}
-              onChange={(e) =>
-                update(i, { value: { ...row.value, ja: e.target.value } })
-              }
-            />
-          </div>
-          <button
-            type="button"
-            onClick={() => onChange(value.filter((_, j) => j !== i))}
-            style={{
-              border: 0,
-              background: "none",
-              color: "var(--color-text-muted)",
-              cursor: "pointer",
-            }}
-          >
-            Remove
-          </button>
+    <div className="grid gap-3">
+      {value.length > 0 && (
+        <div className="divide-border/60 bg-card divide-y rounded-lg shadow-[var(--shadow-sm)]">
+          {value.map((row, i) => (
+            <div
+              key={i}
+              className="grid items-end gap-3 px-3 py-3 sm:grid-cols-[1fr_1fr_auto]"
+            >
+              <LocalizedInput
+                label={i === 0 ? "Key" : undefined}
+                ariaLabel={`Key ${i + 1}`}
+                value={row.key}
+                placeholder="e.g. Country of Origin"
+                onChange={(v) =>
+                  update(i, { key: { ...row.key, ...v, en: v.en ?? "" } })
+                }
+                onPasteEn={(e) => handleSmartPaste(i, e)}
+              />
+              <LocalizedInput
+                label={i === 0 ? "Value" : undefined}
+                ariaLabel={`Value ${i + 1}`}
+                value={row.value}
+                placeholder="e.g. Japan"
+                onChange={(v) =>
+                  update(i, { value: { ...row.value, ...v, en: v.en ?? "" } })
+                }
+                onPasteEn={(e) => handleSmartPaste(i, e)}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={`Remove spec ${i + 1}`}
+                className="text-muted-foreground hover:text-destructive"
+                onClick={() => onChange(value.filter((_, j) => j !== i))}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <button
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={() =>
             onChange([...value, { key: { en: "" }, value: { en: "" } }])
           }
-          style={ghostBtn}
         >
-          + Add spec
-        </button>
-        <button
+          <Plus className="size-4" />
+          Add spec
+        </Button>
+        <Button
           type="button"
+          variant="ghost"
+          size="sm"
           onClick={() => setBulkOpen((o) => !o)}
-          style={ghostBtn}
         >
           {bulkOpen ? "Close bulk paste" : "Paste a list"}
-        </button>
+        </Button>
       </div>
 
       {bulkOpen && (
-        <div
-          style={{
-            display: "grid",
-            gap: 8,
-            padding: 12,
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--r-sm)",
-            background: "var(--color-surface-2)",
-          }}
-        >
-          <p
-            style={{
-              margin: 0,
-              fontSize: "var(--fs-small)",
-              color: "var(--color-text-muted)",
-            }}
-          >
-            Paste one spec per line as <code>Key: Value</code> (or tab / =
+        <div className="bg-muted/40 grid gap-2 rounded-lg p-3">
+          <p className="text-muted-foreground text-xs">
+            Paste one spec per line as{" "}
+            <code className="font-mono">Key: Value</code> (or tab / =
             separated). Each line becomes its own spec.
           </p>
-          <textarea
+          <Textarea
             value={bulkText}
             onChange={(e) => setBulkText(e.target.value)}
             placeholder={"Model: ECG-100\nColor: White\nWeight: 4.2 kg"}
             rows={5}
-            style={{
-              width: "100%",
-              padding: "8px 10px",
-              borderRadius: "var(--r-sm)",
-              border: "1px solid var(--color-border-field)",
-              background: "var(--color-surface)",
-              fontFamily: "var(--font-mono)",
-              fontSize: 13,
-              resize: "vertical",
-              color: "var(--color-text)",
-            }}
+            aria-label="Specs to import"
+            className="font-mono text-[13px]"
           />
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-            }}
-          >
-            <button
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
               type="button"
+              size="sm"
               onClick={importBulk}
               disabled={bulkPreview === 0}
-              style={{
-                ...ghostBtn,
-                background:
-                  bulkPreview === 0
-                    ? "var(--color-surface-2)"
-                    : "var(--color-brand)",
-                color: bulkPreview === 0 ? "var(--color-text-muted)" : "#fff",
-                borderColor:
-                  bulkPreview === 0
-                    ? "var(--color-border)"
-                    : "var(--color-brand)",
-                cursor: bulkPreview === 0 ? "not-allowed" : "pointer",
-              }}
             >
               Add {bulkPreview} spec{bulkPreview === 1 ? "" : "s"}
-            </button>
-            <span
-              style={{
-                fontSize: "var(--fs-small)",
-                color: "var(--color-text-muted)",
-              }}
-            >
+            </Button>
+            <span className="text-muted-foreground text-xs">
               {bulkPreview === 0
                 ? "Nothing detected yet"
                 : `${bulkPreview} spec${bulkPreview === 1 ? "" : "s"} detected`}
@@ -240,13 +169,3 @@ export function SpecsEditor({
     </div>
   );
 }
-
-const ghostBtn: React.CSSProperties = {
-  justifySelf: "start",
-  padding: "6px 12px",
-  borderRadius: "var(--r-sm)",
-  border: "1px solid var(--color-border)",
-  background: "var(--color-surface-2)",
-  cursor: "pointer",
-  fontSize: "var(--fs-small)",
-};

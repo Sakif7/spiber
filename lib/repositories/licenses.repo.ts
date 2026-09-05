@@ -2,6 +2,13 @@ import { connectToDatabase } from "@/lib/db/connect";
 import { License, type ILicense } from "@/lib/models/license";
 import type { Lean } from "@/lib/models/_shared";
 import type { LicenseStatus } from "@/lib/schemas/systems";
+import {
+  applyDateRange,
+  applyPartialSearch,
+  paginate,
+  sortSpec,
+  type RepoListQuery,
+} from "./list-query";
 
 export async function getLicenseByPurchaseId(purchaseId: string) {
   await connectToDatabase();
@@ -30,6 +37,34 @@ export async function listLicenses(params: { status?: LicenseStatus } = {}) {
     .limit(200)
     .lean<Lean<ILicense>[]>()
     .exec();
+}
+
+/** Sort keys the admin list exposes → stored fields. */
+const LICENSE_SORT: Record<string, string> = {
+  date: "createdAt",
+  issued: "issuedAt",
+  status: "status",
+  key: "key",
+};
+
+export type LicensesAdminListParams = RepoListQuery & {
+  status?: LicenseStatus;
+};
+
+/** Searchable, sortable, paged list for the admin (list kit). */
+export async function listLicensesForAdmin(
+  params: LicensesAdminListParams = {},
+) {
+  await connectToDatabase();
+  const q: Record<string, unknown> = {};
+  if (params.status) q.status = params.status;
+  applyPartialSearch(q, params.search, ["key"]);
+  applyDateRange(q, params.from, params.to);
+  return paginate<ILicense>(License, q, {
+    sort: sortSpec(params.sort, params.dir, LICENSE_SORT),
+    page: params.page,
+    pageSize: params.pageSize,
+  });
 }
 
 export async function createLicense(data: Partial<ILicense>) {

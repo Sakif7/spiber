@@ -1,6 +1,12 @@
 import { connectToDatabase } from "@/lib/db/connect";
 import { Coupon, type ICoupon } from "@/lib/models/coupon";
 import type { Lean } from "@/lib/models/_shared";
+import {
+  applyPartialSearch,
+  paginate,
+  sortSpec,
+  type RepoListQuery,
+} from "./list-query";
 
 export async function getCouponByCode(code: string) {
   await connectToDatabase();
@@ -10,6 +16,33 @@ export async function getCouponByCode(code: string) {
 export async function listCoupons() {
   await connectToDatabase();
   return Coupon.find({}).sort({ createdAt: -1 }).lean<Lean<ICoupon>[]>().exec();
+}
+
+/** Sort keys the admin coupons list exposes → stored fields. */
+const COUPON_SORT: Record<string, string> = {
+  date: "createdAt",
+  code: "code",
+  used: "usedCount",
+  expires: "expiresAt",
+};
+
+export type CouponListParams = RepoListQuery & {
+  /** "active" | "inactive" (omit for all). */
+  state?: "active" | "inactive";
+};
+
+/** Searchable, sortable, paged coupon list for the admin (list kit). */
+export async function listCouponsForAdmin(params: CouponListParams = {}) {
+  await connectToDatabase();
+  const q: Record<string, unknown> = {};
+  if (params.state === "active") q.active = true;
+  if (params.state === "inactive") q.active = { $ne: true };
+  applyPartialSearch(q, params.search, ["code"]);
+  return paginate<ICoupon>(Coupon, q, {
+    sort: sortSpec(params.sort, params.dir, COUPON_SORT),
+    page: params.page,
+    pageSize: params.pageSize,
+  });
 }
 
 export async function createCoupon(data: Partial<ICoupon>) {

@@ -5,6 +5,7 @@ import {
   type EventFormInitial,
 } from "@/components/admin/events/event-form";
 import { getEventByIdLean } from "@/lib/repositories/events.repo";
+import { EditorHeader } from "@/components/admin/ui/form-shell";
 
 export const dynamic = "force-dynamic";
 
@@ -42,17 +43,12 @@ export default async function EditEventPage({
   };
 
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
-      <h1
-        style={{
-          margin: 0,
-          fontFamily: "var(--font-display)",
-          fontSize: "var(--fs-2xl)",
-          color: "var(--color-text-strong)",
-        }}
-      >
-        Edit event
-      </h1>
+    <div className="space-y-4">
+      <EditorHeader
+        backHref="/admin/events"
+        backLabel="Events"
+        title="Edit event"
+      />
       <EventForm initial={initial} />
     </div>
   );

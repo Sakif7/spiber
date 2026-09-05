@@ -5,10 +5,13 @@ import {
 } from "@/lib/models/softwarePurchase";
 import type { Lean } from "@/lib/models/_shared";
 import type { PurchaseStatus } from "@/lib/schemas/systems";
-
-type PurchaseFilter = NonNullable<
-  Parameters<typeof SoftwarePurchase.countDocuments>[0]
->;
+import {
+  applyDateRange,
+  applyPartialSearch,
+  paginate,
+  sortSpec,
+  type RepoListQuery,
+} from "./list-query";
 
 export async function getPurchaseByIdempotencyKey(key: string) {
   await connectToDatabase();
@@ -65,35 +68,34 @@ export async function listPurchasesByUser(userId: string) {
     .exec();
 }
 
-export type PurchaseListParams = {
+/** Sort keys the admin purchases list exposes → stored fields. */
+const PURCHASE_SORT: Record<string, string> = {
+  date: "createdAt",
+  number: "purchaseNumber",
+  email: "email",
+  status: "status",
+  total: "totalMinor",
+};
+
+export type PurchaseListParams = RepoListQuery & {
   status?: PurchaseStatus;
-  page?: number;
-  pageSize?: number;
 };
 
 export async function listPurchases(params: PurchaseListParams = {}) {
   await connectToDatabase();
   const q: Record<string, unknown> = {};
   if (params.status) q.status = params.status;
-  const page = Math.max(1, params.page ?? 1);
-  const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 50));
-  const filter = q as unknown as PurchaseFilter;
-  const [items, total] = await Promise.all([
-    SoftwarePurchase.find(filter)
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * pageSize)
-      .limit(pageSize)
-      .lean<Lean<ISoftwarePurchase>[]>()
-      .exec(),
-    SoftwarePurchase.countDocuments(filter),
+  applyPartialSearch(q, params.search, [
+    "purchaseNumber",
+    "email",
+    "productSnapshot.name.en",
   ]);
-  return {
-    items,
-    total,
-    page,
-    pageSize,
-    pages: Math.max(1, Math.ceil(total / pageSize)),
-  };
+  applyDateRange(q, params.from, params.to);
+  return paginate<ISoftwarePurchase>(SoftwarePurchase, q, {
+    sort: sortSpec(params.sort, params.dir, PURCHASE_SORT),
+    page: params.page,
+    pageSize: params.pageSize ?? 50,
+  });
 }
 
 export async function createPurchase(data: Partial<ISoftwarePurchase>) {

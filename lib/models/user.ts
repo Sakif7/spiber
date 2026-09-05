@@ -2,6 +2,12 @@ import mongoose, { Schema, type Model } from "mongoose";
 import { ROLES, type Role } from "@/lib/schemas/user";
 import type { Address } from "@/lib/schemas/order";
 
+/** Persisted admin navigation preferences (see `lib/admin/prefs.ts`). */
+export interface IAdminPrefs {
+  favourites: string[];
+  recents: { id: string; at: Date }[];
+}
+
 export interface IUser {
   name: string;
   email: string;
@@ -13,6 +19,9 @@ export interface IUser {
   // prefill checkout and quotation forms.
   phone?: string;
   defaultAddress?: Address | null;
+  // Admin-only: pinned favourites + recent pages for the admin sidebar and
+  // command palette. Absent for customers (and for admins who never pinned).
+  adminPrefs?: IAdminPrefs | null;
   // Bumped on password reset / forced logout; embedded in refresh + reset tokens
   // and checked on use, so outstanding tokens can be revoked ("log out everywhere"
   // and single-use reset links).
@@ -36,6 +45,22 @@ const addressDef = new Schema(
   { _id: false },
 );
 
+const adminRecentDef = new Schema(
+  {
+    id: { type: String, required: true },
+    at: { type: Date, required: true },
+  },
+  { _id: false },
+);
+
+const adminPrefsDef = new Schema<IAdminPrefs>(
+  {
+    favourites: { type: [String], default: [] },
+    recents: { type: [adminRecentDef], default: [] },
+  },
+  { _id: false },
+);
+
 const userSchema = new Schema<IUser>(
   {
     name: { type: String, required: true, trim: true },
@@ -52,6 +77,7 @@ const userSchema = new Schema<IUser>(
     locale: { type: String, enum: ["en", "bn", "ja"], default: "en" },
     phone: { type: String, trim: true },
     defaultAddress: { type: addressDef, default: null },
+    adminPrefs: { type: adminPrefsDef, default: null },
     tokenVersion: { type: Number, default: 0 },
     disabled: { type: Boolean, default: false },
   },

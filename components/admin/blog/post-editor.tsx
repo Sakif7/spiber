@@ -1,14 +1,23 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
-import Image from "next/image";
+import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { CtaButton } from "@/components/ui/cta-button";
 import { RichTextEditor } from "./rich-text-editor";
 import { formatApiError } from "@/lib/http/form-error";
+import { cn } from "@/lib/cn";
 import type { BlogStatus } from "@/lib/schemas/blog";
+import { LocalizedInput, type LocalizedValue } from "../ui/localized-input";
+import { SelectField } from "../ui/select-field";
+import {
+  EditorForm,
+  FormField,
+  FormGrid,
+  FormSection,
+  SaveBar,
+} from "../ui/form-shell";
+import { SingleImageField } from "../upload-fields";
 
 type L = { en: string; bn: string; ja: string };
 type Opt = { id: string; name: string };
@@ -41,42 +50,26 @@ const fillL = (l?: LInit): L => ({
   bn: l?.bn ?? "",
   ja: l?.ja ?? "",
 });
-const field: CSSProperties = { display: "grid", gap: 6 };
-const row: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "1fr 1fr",
-  gap: "var(--s-4)",
-};
-const triRow: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "1fr 1fr 1fr",
-  gap: "var(--s-4)",
-};
-const card: CSSProperties = {
-  border: "1px solid var(--color-border)",
-  background: "var(--color-surface)",
-  borderRadius: "var(--r-lg)",
-  padding: "var(--s-5)",
-  display: "grid",
-  gap: "var(--s-4)",
-};
-const selStyle: CSSProperties = {
-  height: 40,
-  padding: "0 10px",
-  border: "1px solid var(--color-border-field)",
-  borderRadius: "var(--r-sm)",
-  font: "inherit",
-  background: "var(--color-surface)",
-};
-const taStyle: CSSProperties = {
-  font: "inherit",
-  padding: "8px 10px",
-  border: "1px solid var(--color-border-field)",
-  borderRadius: "var(--r-sm)",
-  background: "var(--color-surface)",
-  width: "100%",
-  resize: "vertical",
-};
+/** LocalizedInput hands back a partial value; the payload builder wants all three. */
+const fromLV = (v: LocalizedValue): L => ({
+  en: v.en ?? "",
+  bn: v.bn ?? "",
+  ja: v.ja ?? "",
+});
+
+const STATUS_OPTIONS = [
+  { value: "draft", label: "Draft" },
+  { value: "scheduled", label: "Scheduled" },
+  { value: "published", label: "Published" },
+  { value: "archived", label: "Archived" },
+];
+
+/** Body locales, matched to the LocalizedInput tab strip. */
+const BODY_TABS = [
+  { key: "en", label: "EN" },
+  { key: "bn", label: "বাংলা" },
+  { key: "ja", label: "日本語" },
+] as const;
 
 export function PostEditor({
   initial,
@@ -96,6 +89,7 @@ export function PostEditor({
   const [bodyEn, setBodyEn] = useState(initial?.bodyEn ?? "");
   const [bodyBn, setBodyBn] = useState(initial?.bodyBn ?? "");
   const [bodyJa, setBodyJa] = useState(initial?.bodyJa ?? "");
+  const [bodyTab, setBodyTab] = useState<"en" | "bn" | "ja">("en");
   const [coverImage, setCoverImage] = useState(initial?.coverImage ?? "");
   const [authorName, setAuthorName] = useState(initial?.authorName ?? "");
   const [categoryId, setCategoryId] = useState(initial?.categoryId ?? "");
@@ -171,324 +165,217 @@ export function PostEditor({
     }
   }
 
+  const bodyFilled: Record<string, boolean> = {
+    en: Boolean(bodyEn.replace(/<[^>]*>/g, "").trim()),
+    bn: Boolean(bodyBn.replace(/<[^>]*>/g, "").trim()),
+    ja: Boolean(bodyJa.replace(/<[^>]*>/g, "").trim()),
+  };
+
   return (
-    <div style={{ display: "grid", gap: "var(--s-5)", maxWidth: 860 }}>
-      <section style={card}>
-        <BilingualField label="Title" value={title} onChange={setTitle} />
-        <div style={row}>
-          <div style={field}>
-            <Label>Slug (optional)</Label>
+    <EditorForm className="max-w-5xl">
+      <FormSection
+        title="Post"
+        description="Title, excerpt and where the post is filed."
+      >
+        <LocalizedInput
+          label="Title"
+          required
+          value={title}
+          onChange={(v) => setTitle(fromLV(v))}
+          placeholder="e.g. Choosing a patient monitor"
+        />
+        <FormGrid>
+          <FormField
+            label="Slug (optional)"
+            htmlFor="post-slug"
+            hint="Leave blank to derive it from the English title."
+          >
             <Input
+              id="post-slug"
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
               placeholder="auto from title"
             />
-          </div>
-          <div style={field}>
-            <Label>Category</Label>
-            <select
+          </FormField>
+          <FormField label="Category">
+            <SelectField
               value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              style={selStyle}
-            >
-              <option value="">— none —</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <div style={field}>
-          <Label>Author (optional)</Label>
+              onChange={setCategoryId}
+              ariaLabel="Category"
+              emptyLabel="— none —"
+              options={categories.map((c) => ({
+                value: c.id,
+                label: c.name,
+              }))}
+            />
+          </FormField>
+        </FormGrid>
+        <FormField
+          label="Author (optional)"
+          htmlFor="post-author"
+          hint="A byline that overrides your account name. The original author is preserved when someone else edits."
+        >
           <Input
+            id="post-author"
             value={authorName}
             onChange={(e) => setAuthorName(e.target.value)}
             placeholder="Defaults to your account name"
             maxLength={120}
           />
-        </div>
-        <BilingualField
+        </FormField>
+        <LocalizedInput
           label="Excerpt (optional)"
-          value={excerpt}
-          onChange={setExcerpt}
           textarea
+          rows={2}
+          value={excerpt}
+          onChange={(v) => setExcerpt(fromLV(v))}
+          hint="Derived from the body when left blank."
         />
-        <div style={field}>
-          <Label>Cover image</Label>
-          <SingleImage value={coverImage} onChange={setCoverImage} />
-        </div>
-      </section>
+        <FormField label="Cover image">
+          <SingleImageField value={coverImage} onChange={setCoverImage} />
+        </FormField>
+      </FormSection>
 
-      <section style={card}>
-        <div style={field}>
-          <Label>Body (English)</Label>
+      <FormSection
+        title="Body"
+        description="English is required; the translations are optional and fall back to English."
+        action={
+          <div
+            role="group"
+            aria-label="Body language"
+            className="bg-muted inline-flex items-center gap-0.5 rounded-md p-0.5"
+          >
+            {BODY_TABS.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                aria-pressed={bodyTab === t.key}
+                onClick={() => setBodyTab(t.key)}
+                className={cn(
+                  "flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium transition-colors",
+                  bodyTab === t.key
+                    ? "bg-card text-foreground shadow-[var(--shadow-sm)]"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {t.label}
+                <span
+                  aria-hidden
+                  className={cn(
+                    "size-1 rounded-full",
+                    bodyFilled[t.key]
+                      ? "bg-[var(--color-success)]"
+                      : "bg-transparent",
+                  )}
+                />
+              </button>
+            ))}
+          </div>
+        }
+      >
+        {/* All three stay mounted so switching a tab never resets the editor. */}
+        <div hidden={bodyTab !== "en"}>
           <RichTextEditor value={bodyEn} onChange={setBodyEn} />
         </div>
-        <div style={field}>
-          <Label>Body (বাংলা) — optional</Label>
+        <div hidden={bodyTab !== "bn"}>
           <RichTextEditor value={bodyBn} onChange={setBodyBn} />
         </div>
-        <div style={field}>
-          <Label>Body (日本語) — optional</Label>
+        <div hidden={bodyTab !== "ja"}>
           <RichTextEditor value={bodyJa} onChange={setBodyJa} />
         </div>
-      </section>
+      </FormSection>
 
-      <section style={card}>
-        <Label>Tags</Label>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          {tags.length === 0 && (
-            <span
-              style={{
-                color: "var(--color-text-muted)",
-                fontSize: "var(--fs-sm)",
-              }}
-            >
-              No tags yet — add some under Blog → Taxonomy.
-            </span>
-          )}
-          {tags.map((tg) => {
-            const on = tagIds.includes(tg.id);
-            return (
-              <button
-                key={tg.id}
-                type="button"
-                onClick={() =>
-                  setTagIds((ids) =>
-                    on ? ids.filter((x) => x !== tg.id) : [...ids, tg.id],
-                  )
-                }
-                style={{
-                  padding: "4px 12px",
-                  borderRadius: "var(--r-pill)",
-                  border: "1px solid var(--color-border)",
-                  background: on
-                    ? "var(--color-secondary-soft)"
-                    : "var(--color-surface)",
-                  color: on
-                    ? "var(--color-secondary-deep)"
-                    : "var(--color-text-muted)",
-                  fontSize: "var(--fs-sm)",
-                  cursor: "pointer",
-                }}
-              >
-                {tg.name}
-              </button>
-            );
-          })}
-        </div>
-      </section>
+      <FormSection
+        title="Tags"
+        description="Tags drive the related-posts rail and the tag archive pages."
+      >
+        {tags.length === 0 ? (
+          <p className="text-muted-foreground text-[13px]">
+            No tags yet — add some under Blog → Taxonomy.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {tags.map((tg) => {
+              const on = tagIds.includes(tg.id);
+              return (
+                <button
+                  key={tg.id}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() =>
+                    setTagIds((ids) =>
+                      on ? ids.filter((x) => x !== tg.id) : [...ids, tg.id],
+                    )
+                  }
+                  className={cn(
+                    "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                    on
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  {tg.name}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </FormSection>
 
-      {/* SEO */}
-      <section style={card}>
-        <strong style={{ color: "var(--color-text-strong)" }}>
-          SEO (optional)
-        </strong>
-        <BilingualField
+      <FormSection
+        title="SEO"
+        description="Optional. Falls back to the post title and excerpt."
+      >
+        <LocalizedInput
           label="Meta title"
           value={metaTitle}
-          onChange={setMetaTitle}
+          onChange={(v) => setMetaTitle(fromLV(v))}
         />
-        <BilingualField
+        <LocalizedInput
           label="Meta description"
-          value={metaDescription}
-          onChange={setMetaDescription}
           textarea
+          rows={2}
+          value={metaDescription}
+          onChange={(v) => setMetaDescription(fromLV(v))}
         />
-        <div style={field}>
-          <Label>OG image</Label>
-          <SingleImage value={ogImage} onChange={setOgImage} />
-        </div>
-      </section>
+        <FormField label="OG image">
+          <SingleImageField value={ogImage} onChange={setOgImage} />
+        </FormField>
+      </FormSection>
 
-      {/* Publish */}
-      <section style={card}>
-        <div style={row}>
-          <div style={field}>
-            <Label>Status</Label>
-            <select
+      <FormSection
+        title="Publishing"
+        description="A scheduled post becomes visible once its publish time passes — no cron needed."
+      >
+        <FormGrid>
+          <FormField label="Status">
+            <SelectField
               value={status}
-              onChange={(e) => setStatus(e.target.value as BlogStatus)}
-              style={selStyle}
-            >
-              <option value="draft">Draft</option>
-              <option value="scheduled">Scheduled</option>
-              <option value="published">Published</option>
-              <option value="archived">Archived</option>
-            </select>
-          </div>
+              onChange={(v) => setStatus(v as BlogStatus)}
+              ariaLabel="Status"
+              options={STATUS_OPTIONS}
+            />
+          </FormField>
           {status === "scheduled" && (
-            <div style={field}>
-              <Label>Publish at</Label>
+            <FormField label="Publish at" htmlFor="post-scheduled">
               <Input
+                id="post-scheduled"
                 type="datetime-local"
                 value={scheduledFor}
                 onChange={(e) => setScheduledFor(e.target.value)}
               />
-            </div>
+            </FormField>
           )}
-        </div>
-      </section>
+        </FormGrid>
+      </FormSection>
 
-      {error && <p style={{ color: "var(--color-error)" }}>{error}</p>}
-      <div>
-        <CtaButton onClick={submit}>
-          {saving ? "Saving…" : isEdit ? "Save post" : "Create post"}
-        </CtaButton>
-      </div>
-    </div>
-  );
-}
-
-function BilingualField({
-  label,
-  value,
-  onChange,
-  textarea,
-}: {
-  label: string;
-  value: L;
-  onChange: (v: L) => void;
-  textarea?: boolean;
-}) {
-  return (
-    <div style={field}>
-      <Label>{label}</Label>
-      <div style={triRow}>
-        {textarea ? (
-          <>
-            <textarea
-              placeholder="EN"
-              value={value.en}
-              onChange={(e) => onChange({ ...value, en: e.target.value })}
-              rows={2}
-              style={taStyle}
-            />
-            <textarea
-              placeholder="বাংলা"
-              value={value.bn}
-              onChange={(e) => onChange({ ...value, bn: e.target.value })}
-              rows={2}
-              style={taStyle}
-            />
-            <textarea
-              placeholder="日本語"
-              value={value.ja}
-              onChange={(e) => onChange({ ...value, ja: e.target.value })}
-              rows={2}
-              style={taStyle}
-            />
-          </>
-        ) : (
-          <>
-            <Input
-              placeholder="EN"
-              value={value.en}
-              onChange={(e) => onChange({ ...value, en: e.target.value })}
-            />
-            <Input
-              placeholder="বাংলা"
-              value={value.bn}
-              onChange={(e) => onChange({ ...value, bn: e.target.value })}
-            />
-            <Input
-              placeholder="日本語"
-              value={value.ja}
-              onChange={(e) => onChange({ ...value, ja: e.target.value })}
-            />
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function SingleImage({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (url: string) => void;
-}) {
-  const [busy, setBusy] = useState(false);
-  async function upload(file: File) {
-    setBusy(true);
-    const fd = new FormData();
-    fd.append("file", file);
-    const res = await fetch("/api/admin/uploads", { method: "POST", body: fd });
-    const json = await res.json().catch(() => null);
-    setBusy(false);
-    if (res.ok && json?.ok) onChange(json.data.url);
-  }
-  return (
-    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-      {value && (
-        <div
-          style={{
-            position: "relative",
-            width: 120,
-            height: 68,
-            borderRadius: "var(--r-sm)",
-            overflow: "hidden",
-            border: "1px solid var(--color-border)",
-          }}
-        >
-          <Image
-            src={value}
-            alt=""
-            fill
-            sizes="120px"
-            style={{ objectFit: "cover" }}
-          />
-        </div>
-      )}
-      <label
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "8px 14px",
-          borderRadius: "var(--r-sm)",
-          border: "1px solid var(--color-border)",
-          background: "var(--color-surface)",
-          color: "var(--color-brand-deep)",
-          fontWeight: 600,
-          fontSize: "var(--fs-sm)",
-          cursor: busy ? "default" : "pointer",
-        }}
-      >
-        {busy ? "Uploading…" : value ? "Replace" : "Upload"}
-        <input
-          type="file"
-          accept="image/*"
-          hidden
-          disabled={busy}
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) upload(f);
-            e.target.value = "";
-          }}
-        />
-      </label>
-      {value && (
-        <button
-          type="button"
-          onClick={() => onChange("")}
-          style={{
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--r-sm)",
-            background: "var(--color-surface)",
-            color: "var(--color-error)",
-            padding: "6px 10px",
-            cursor: "pointer",
-          }}
-        >
-          Remove
-        </button>
-      )}
-    </div>
+      <SaveBar
+        saving={saving}
+        onSave={submit}
+        error={error}
+        saveLabel={isEdit ? "Save post" : "Create post"}
+      />
+    </EditorForm>
   );
 }
 
@@ -507,22 +394,15 @@ export function PostDeleteButton({ id, title }: { id: string; title: string }) {
     else window.alert("delete_failed");
   }
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
+      size="sm"
       onClick={remove}
       disabled={busy}
-      style={{
-        background: "transparent",
-        border: "1px solid var(--color-border)",
-        borderRadius: "var(--r-sm)",
-        color: "var(--color-error)",
-        padding: "4px 10px",
-        fontSize: "var(--fs-small)",
-        cursor: busy ? "default" : "pointer",
-        opacity: busy ? 0.6 : 1,
-      }}
+      className="text-destructive hover:text-destructive h-7 px-2"
     >
       {busy ? "…" : "Delete"}
-    </button>
+    </Button>
   );
 }

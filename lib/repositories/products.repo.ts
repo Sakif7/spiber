@@ -5,11 +5,24 @@ import { Order } from "@/lib/models/order";
 import type { Lean } from "@/lib/models/_shared";
 import type { ProductStatus, Storefront } from "@/lib/schemas/catalog";
 import { applyPartialSearch } from "@/lib/repositories/search-filter";
+import {
+  applyDateRange,
+  paginate,
+  sortSpec,
+  type RepoListQuery,
+} from "./list-query";
+import { STOCK_EXPR, TRACKED_EXPR } from "@/lib/inventory/tracking";
 
 // Version-agnostic Mongoose filter type (Mongoose 9 renamed FilterQuery).
 type ProductFilter = NonNullable<Parameters<typeof Product.countDocuments>[0]>;
 
-export type ProductSort = "newest" | "price_asc" | "price_desc" | "rating_desc";
+export type ProductSort =
+  | "newest"
+  | "price_asc"
+  | "price_desc"
+  | "rating_desc"
+  | "name_asc"
+  | "name_desc";
 
 export type ProductListParams = {
   storefront?: Storefront;
@@ -110,14 +123,15 @@ export async function listProducts(params: ProductListParams) {
   const q = buildQuery(params);
   const page = Math.max(1, params.page ?? 1);
   const pageSize = Math.min(60, Math.max(1, params.pageSize ?? 12));
-  const sort: Record<string, 1 | -1> =
-    params.sort === "price_asc"
-      ? { priceMinor: 1 }
-      : params.sort === "price_desc"
-        ? { priceMinor: -1 }
-        : params.sort === "rating_desc"
-          ? { ratingAvg: -1 }
-          : { createdAt: -1 };
+  const SORTS: Record<ProductSort, Record<string, 1 | -1>> = {
+    newest: { createdAt: -1 },
+    price_asc: { priceMinor: 1, _id: -1 },
+    price_desc: { priceMinor: -1, _id: -1 },
+    rating_desc: { ratingAvg: -1, _id: -1 },
+    name_asc: { "name.en": 1, _id: -1 },
+    name_desc: { "name.en": -1, _id: -1 },
+  };
+  const sort: Record<string, 1 | -1> = SORTS[params.sort ?? "newest"];
 
   const filter = q as unknown as ProductFilter;
   const [items, total] = await Promise.all([
@@ -606,10 +620,132 @@ export async function listPendingSellerProducts() {
     .exec();
 }
 
+/** Sort keys the seller-approval board exposes → stored fields. */
+const PENDING_PRODUCT_SORT: Record<string, string> = {
+  date: "createdAt",
+  name: "name.en",
+  price: "priceMinor",
+};
+
+export type PendingSellerProductListParams = RepoListQuery & {
+  /** "new" = first submission, "update" = an approved listing with a draft. */
+  kind?: "new" | "update";
+};
+
+/** Paged, searchable version of the approval queue (list kit). Same
+ * predicate as listPendingSellerProducts. */
+export async function listPendingSellerProductsForAdmin(
+  params: PendingSellerProductListParams = {},
+) {
+  await connectToDatabase();
+  const q: Record<string, unknown> = { deletedAt: null };
+  if (params.kind === "new") q.approvalStatus = "pending";
+  else if (params.kind === "update") q.pendingDraft = { $ne: null };
+  else q.$or = [{ approvalStatus: "pending" }, { pendingDraft: { $ne: null } }];
+  applyPartialSearch(q, params.search, [
+    "name.en",
+    "sku",
+    "pendingDraft.name.en",
+  ]);
+  applyDateRange(q, params.from, params.to);
+  return paginate<IProduct>(Product, q, {
+    sort: sortSpec(params.sort, params.dir, PENDING_PRODUCT_SORT, {
+      key: "date",
+      dir: "asc",
+    }),
+    page: params.page,
+    pageSize: params.pageSize,
+  });
+}
+
 export async function countPendingSellerProducts(): Promise<number> {
   await connectToDatabase();
   return Product.countDocuments({
     deletedAt: null,
     $or: [{ approvalStatus: "pending" }, { pendingDraft: { $ne: null } }],
   } as unknown as ProductFilter);
+}
+
+/**
+ * Active products whose on-hand stock is at or below their low-stock threshold.
+ * Stock = the sum of variant quantities when a product has variants, else its
+ * base quantity. Only TRACKED products count: every Spiber Kart product, and
+ * Medtrade products that carry a price (quotation-only instruments have no
+ * stock concept, so they must not read as "low").
+ */
+export async function countLowStockProducts(
+  storefront?: Storefront,
+): Promise<number> {
+  await connectToDatabase();
+  const match: Record<string, unknown> = { deletedAt: null, status: "active" };
+  if (storefront) match.storefront = storefront;
+  const rows = await Product.aggregate<{ n: number }>([
+    { $match: match },
+    {
+      $addFields: { _stock: STOCK_EXPR, _tracked: TRACKED_EXPR },
+    },
+    {
+      $match: {
+        _tracked: true,
+        $expr: { $lte: ["$_stock", { $ifNull: ["$lowStockThreshold", 0] }] },
+      },
+    },
+    { $count: "n" },
+  ]);
+  return rows[0]?.n ?? 0;
+}
+
+export type LowStockRow = {
+  id: string;
+  name: string;
+  sku: string;
+  storefront: Storefront;
+  stock: number;
+  threshold: number;
+};
+
+/**
+ * The lowest-stock TRACKED active products at or below their threshold (same
+ * tracking rule as countLowStockProducts), for the dashboard's low-stock list.
+ */
+export async function listLowStockProducts(limit = 6): Promise<LowStockRow[]> {
+  await connectToDatabase();
+  const rows = await Product.aggregate<{
+    _id: unknown;
+    name?: { en?: string };
+    sku?: string;
+    storefront: Storefront;
+    _stock: number;
+    lowStockThreshold?: number;
+  }>([
+    { $match: { deletedAt: null, status: "active" } },
+    {
+      $addFields: { _stock: STOCK_EXPR, _tracked: TRACKED_EXPR },
+    },
+    {
+      $match: {
+        _tracked: true,
+        $expr: { $lte: ["$_stock", { $ifNull: ["$lowStockThreshold", 0] }] },
+      },
+    },
+    { $sort: { _stock: 1, "name.en": 1 } },
+    { $limit: Math.max(1, Math.min(50, limit)) },
+    {
+      $project: {
+        name: 1,
+        sku: 1,
+        storefront: 1,
+        _stock: 1,
+        lowStockThreshold: 1,
+      },
+    },
+  ]);
+  return rows.map((r) => ({
+    id: String(r._id),
+    name: r.name?.en ?? "",
+    sku: r.sku ?? "",
+    storefront: r.storefront,
+    stock: r._stock,
+    threshold: r.lowStockThreshold ?? 0,
+  }));
 }

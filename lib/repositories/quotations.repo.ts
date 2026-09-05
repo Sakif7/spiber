@@ -3,6 +3,13 @@ import { connectToDatabase } from "@/lib/db/connect";
 import { Quotation, type IQuotation } from "@/lib/models/quotation";
 import type { Lean } from "@/lib/models/_shared";
 import type { QuotationStatus } from "@/lib/schemas/quotation";
+import {
+  applyDateRange,
+  applyPartialSearch,
+  paginate,
+  sortSpec,
+  type RepoListQuery,
+} from "./list-query";
 
 type QuotationFilter = NonNullable<
   Parameters<typeof Quotation.countDocuments>[0]
@@ -34,11 +41,18 @@ export async function getQuotationByNumber(quotationNumber: string) {
     .exec();
 }
 
-export type QuotationListParams = {
+/** Sort keys the admin quotations list exposes → stored fields. */
+const QUOTATION_SORT: Record<string, string> = {
+  date: "createdAt",
+  number: "quotationNumber",
+  requester: "contact.name",
+  status: "status",
+  quoted: "quote.amountMinor",
+};
+
+export type QuotationListParams = RepoListQuery & {
   status?: QuotationStatus;
   assignedTo?: string;
-  page?: number;
-  pageSize?: number;
 };
 
 export async function listQuotations(params: QuotationListParams = {}) {
@@ -46,25 +60,19 @@ export async function listQuotations(params: QuotationListParams = {}) {
   const q: Record<string, unknown> = { deletedAt: null };
   if (params.status) q.status = params.status;
   if (params.assignedTo) q.assignedTo = params.assignedTo;
-  const page = Math.max(1, params.page ?? 1);
-  const pageSize = Math.min(200, Math.max(1, params.pageSize ?? 50));
-  const filter = q as unknown as QuotationFilter;
-  const [items, total] = await Promise.all([
-    Quotation.find(filter)
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * pageSize)
-      .limit(pageSize)
-      .lean<Lean<IQuotation>[]>()
-      .exec(),
-    Quotation.countDocuments(filter),
+  applyPartialSearch(q, params.search, [
+    "quotationNumber",
+    "contact.name",
+    "contact.email",
+    "contact.organization",
   ]);
-  return {
-    items,
-    total,
-    page,
-    pageSize,
-    pages: Math.max(1, Math.ceil(total / pageSize)),
-  };
+  applyDateRange(q, params.from, params.to);
+  return paginate<IQuotation>(Quotation, q, {
+    sort: sortSpec(params.sort, params.dir, QUOTATION_SORT),
+    page: params.page,
+    pageSize: params.pageSize ?? 50,
+    maxPageSize: 200,
+  });
 }
 
 export async function listQuotationsByRequester(userId: string) {

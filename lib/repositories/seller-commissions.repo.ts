@@ -6,6 +6,13 @@ import {
 } from "@/lib/models/seller-commission";
 import type { Lean } from "@/lib/models/_shared";
 import type { SellerCommissionStatus } from "@/lib/schemas/seller-commission";
+import {
+  applyDateRange,
+  applyPartialSearch,
+  paginate,
+  sortSpec,
+  type RepoListQuery,
+} from "./list-query";
 
 type Filter = NonNullable<
   Parameters<typeof SellerCommission.countDocuments>[0]
@@ -38,6 +45,40 @@ export async function listSellerCommissions(
     .sort({ createdAt: -1 })
     .lean<Lean<ISellerCommission>[]>()
     .exec();
+}
+
+/** Sort keys the admin list exposes → stored fields. */
+const SELLER_COMMISSION_SORT: Record<string, string> = {
+  date: "createdAt",
+  order: "orderNumber",
+  sales: "itemSubtotalMinor",
+  commission: "commissionAmountMinor",
+  earnings: "sellerEarningsMinor",
+  status: "status",
+};
+
+export type SellerCommissionAdminListParams = RepoListQuery & {
+  status?: SellerCommissionStatus;
+  sellerId?: string;
+};
+
+/** Searchable, sortable, paged list for the admin (list kit). */
+export async function listSellerCommissionsForAdmin(
+  params: SellerCommissionAdminListParams = {},
+) {
+  await connectToDatabase();
+  const q: Record<string, unknown> = { deletedAt: null };
+  if (params.status) q.status = params.status;
+  if (params.sellerId && mongoose.isValidObjectId(params.sellerId)) {
+    q.sellerId = params.sellerId;
+  }
+  applyPartialSearch(q, params.search, ["orderNumber"]);
+  applyDateRange(q, params.from, params.to);
+  return paginate<ISellerCommission>(SellerCommission, q, {
+    sort: sortSpec(params.sort, params.dir, SELLER_COMMISSION_SORT),
+    page: params.page,
+    pageSize: params.pageSize,
+  });
 }
 
 export async function getCommissionsByIds(ids: string[]) {

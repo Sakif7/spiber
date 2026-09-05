@@ -3,11 +3,11 @@ import { setRequestLocale } from "next-intl/server";
 import { getProductById } from "@/lib/repositories/products.repo";
 import { listCategories, listBrands } from "@/lib/repositories/taxonomy.repo";
 import { localize } from "@/lib/schemas/localized";
-import { Link } from "@/i18n/navigation";
 import {
   ProductForm,
   type ProductFormInitial,
 } from "@/components/admin/product-form";
+import { EditorHeader } from "@/components/admin/ui/form-shell";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +62,8 @@ export default async function EditProductPage({
     priceMinor: p.priceMinor ?? undefined,
     floorPriceMinor: p.floorPriceMinor ?? null,
     lowStockThreshold: p.lowStockThreshold,
+    stockQty: p.stockQty ?? 0,
+    trackStock: p.trackStock ?? null,
     status: p.status,
     specs: (p.specs ?? []).map(
       (s: {
@@ -76,37 +78,13 @@ export default async function EditProductPage({
   };
 
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
-      <div style={{ display: "grid", gap: "var(--s-2)" }}>
-        <Link
-          href="/admin/products"
-          style={{
-            fontSize: "var(--fs-small)",
-            color: "var(--color-text-muted)",
-          }}
-        >
-          ← Products
-        </Link>
-        <h1
-          style={{
-            fontFamily: "var(--font-display)",
-            fontSize: "var(--fs-h2)",
-            color: "var(--color-text-strong)",
-            margin: 0,
-          }}
-        >
-          {localize(p.name, "en") || p.sku}
-        </h1>
-        <p
-          style={{
-            fontSize: "var(--fs-small)",
-            color: "var(--color-text-muted)",
-            margin: 0,
-          }}
-        >
-          SKU {p.sku}
-        </p>
-      </div>
+    <div className="space-y-4">
+      <EditorHeader
+        backHref="/admin/products"
+        backLabel="Products"
+        title={localize(p.name, "en") || p.sku}
+        subtitle={<>SKU {p.sku}</>}
+      />
 
       <ProductForm initial={initial} categories={categories} brands={brands} />
     </div>

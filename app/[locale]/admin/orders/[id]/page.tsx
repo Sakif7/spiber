@@ -1,9 +1,19 @@
 import { setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { getOrderById } from "@/lib/repositories/orders.repo";
-import { Link } from "@/i18n/navigation";
 import { formatBDT } from "@/lib/money";
 import { OrderActions } from "@/components/admin/order-actions";
+import { DetailCard } from "@/components/admin/ui/detail";
+import { EditorHeader } from "@/components/admin/ui/form-shell";
+import { StatusBadge } from "@/components/admin/ui/status-badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 /** How the order is paid, in plain words for the admin summary. */
 const PAYMENT_METHOD_LABEL: Record<string, string> = {
@@ -75,44 +85,11 @@ type PlainOrder = {
   createdAt: string | Date;
 };
 
-const sectionCard: React.CSSProperties = {
-  border: "1px solid var(--color-border)",
-  background: "var(--color-surface)",
-  borderRadius: "var(--r-lg)",
-  padding: "var(--s-5)",
-};
-
-const labelStyle: React.CSSProperties = {
-  fontSize: "var(--fs-xs)",
-  textTransform: "uppercase",
-  letterSpacing: "0.06em",
-  color: "var(--color-text-muted)",
-};
-
-const headingStyle: React.CSSProperties = {
-  margin: "0 0 var(--s-4) 0",
-  fontFamily: "var(--font-display)",
-  fontSize: "var(--fs-lg)",
-  color: "var(--color-text-strong)",
-};
-
-const thStyle: React.CSSProperties = {
-  textAlign: "left",
-  padding: "var(--s-2) var(--s-3)",
-  borderBottom: "1px solid var(--color-border)",
-  fontSize: "var(--fs-xs)",
-  textTransform: "uppercase",
-  letterSpacing: "0.06em",
-  color: "var(--color-text-muted)",
-  fontWeight: 600,
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: "var(--s-2) var(--s-3)",
-  borderBottom: "1px solid var(--color-border)",
-  fontSize: "var(--fs-sm)",
-  color: "var(--color-text)",
-};
+/** Table chrome copied from the shared admin DataTable so every table reads
+ *  the same; the items table lives inside a detail card, so it uses the
+ *  shadcn table primitives directly rather than nesting a card in a card. */
+const TH = "text-muted-foreground h-9 px-3 text-[13px] font-semibold";
+const TD = "px-3 py-2 align-middle text-[13px]";
 
 function fmtDate(value: string | Date): string {
   const d = value instanceof Date ? value : new Date(value);
@@ -126,35 +103,13 @@ function fmtDate(value: string | Date): string {
   });
 }
 
-function StatusPill({ children }: { children: React.ReactNode }) {
-  return (
-    <span
-      style={{
-        display: "inline-block",
-        padding: "2px 10px",
-        borderRadius: "var(--r-sm)",
-        border: "1px solid var(--color-border)",
-        background: "var(--color-surface)",
-        fontSize: "var(--fs-xs)",
-        fontWeight: 600,
-        textTransform: "capitalize",
-        color: "var(--color-text-strong)",
-      }}
-    >
-      {children}
-    </span>
-  );
-}
-
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      <span style={labelStyle}>{label}</span>
-      <span
-        style={{ fontSize: "var(--fs-sm)", color: "var(--color-text-strong)" }}
-      >
-        {value}
+    <div className="grid gap-1">
+      <span className="text-muted-foreground text-xs tracking-[0.06em] uppercase">
+        {label}
       </span>
+      <span className="text-foreground text-[13px] font-medium">{value}</span>
     </div>
   );
 }
@@ -175,330 +130,194 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
   const o = order;
 
   return (
-    <div
-      style={{ display: "flex", flexDirection: "column", gap: "var(--s-6)" }}
-    >
-      <div
-        className="admin-no-print"
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: "var(--s-3)",
-          flexWrap: "wrap",
-        }}
-      >
-        <div>
-          <Link
-            href="/admin/orders"
-            style={{
-              fontSize: "var(--fs-sm)",
-              color: "var(--color-text-muted)",
-              textDecoration: "none",
-            }}
-          >
-            ← Back to orders
-          </Link>
-          <h1
-            style={{
-              margin: "var(--s-2) 0 0 0",
-              fontFamily: "var(--font-display)",
-              fontSize: "var(--fs-2xl)",
-              color: "var(--color-text-strong)",
-            }}
-          >
-            Order {o.orderNumber}
-          </h1>
-        </div>
-      </div>
+    <div className="space-y-4">
+      <EditorHeader
+        backHref="/admin/orders"
+        backLabel="Back to orders"
+        title={<>Order {o.orderNumber}</>}
+      />
 
-      {/* Printable invoice region */}
-      <div
-        className="admin-invoice"
-        style={{ display: "flex", flexDirection: "column", gap: "var(--s-6)" }}
-      >
-        <section style={sectionCard}>
-          <h2 style={headingStyle}>Summary</h2>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-              gap: "var(--s-4)",
-            }}
-          >
-            <Field label="Order number" value={o.orderNumber} />
-            <Field label="Placed" value={fmtDate(o.createdAt)} />
-            <Field
-              label="Store"
-              value={
-                o.storefront === "instruments" ? "Medtrade" : "Spiber Kart"
-              }
-            />
-            <Field label="Status" value={<StatusPill>{o.status}</StatusPill>} />
-            <Field
-              label="Payment"
-              value={
-                <span style={{ textTransform: "capitalize" }}>
-                  {o.payment?.status ?? "—"}
-                  {o.payment?.provider ? ` · ${o.payment.provider}` : ""}
-                </span>
-              }
-            />
-            <Field
-              label="Method"
-              value={PAYMENT_METHOD_LABEL[o.payment?.method ?? "offline"]}
-            />
-            {o.payment?.dueAt ? (
-              <Field
-                label={`Payment due${
-                  o.payment.termsDays ? ` (Net ${o.payment.termsDays})` : ""
-                }`}
-                value={fmtDate(o.payment.dueAt)}
-              />
-            ) : null}
-            {o.payment?.paidAt ? (
-              <Field label="Paid at" value={fmtDate(o.payment.paidAt)} />
-            ) : null}
-            <Field label="Customer email" value={o.email} />
-            {o.trackingNumber ? (
-              <Field
-                label="Tracking"
-                value={
-                  <span style={{ fontFamily: "var(--font-mono)" }}>
-                    {o.trackingNumber}
-                  </span>
-                }
-              />
-            ) : null}
-          </div>
-        </section>
-
-        <section style={sectionCard}>
-          <h2 style={headingStyle}>Shipping address</h2>
-          <address
-            style={{
-              fontStyle: "normal",
-              fontSize: "var(--fs-sm)",
-              lineHeight: 1.6,
-              color: "var(--color-text)",
-            }}
-          >
-            {o.shippingAddress.label ? (
-              <div style={{ color: "var(--color-text-muted)" }}>
-                {o.shippingAddress.label}
-              </div>
-            ) : null}
-            <div>{o.shippingAddress.line1}</div>
-            {o.shippingAddress.line2 ? (
-              <div>{o.shippingAddress.line2}</div>
-            ) : null}
-            <div>
-              {o.shippingAddress.city}, {o.shippingAddress.district}
-              {o.shippingAddress.postalCode
-                ? ` ${o.shippingAddress.postalCode}`
-                : ""}
-            </div>
-            <div style={{ fontFamily: "var(--font-mono)" }}>
-              {o.shippingAddress.phone}
-            </div>
-          </address>
-        </section>
-
-        <section style={sectionCard}>
-          <h2 style={headingStyle}>Items</h2>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr>
-                  <th style={thStyle}>Product</th>
-                  <th style={thStyle}>SKU</th>
-                  <th style={{ ...thStyle, textAlign: "right" }}>Unit</th>
-                  <th style={{ ...thStyle, textAlign: "right" }}>Qty</th>
-                  <th style={{ ...thStyle, textAlign: "right" }}>Line total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {o.items.map((item, idx) => (
-                  <tr key={`${item.productSnapshot.sku}-${idx}`}>
-                    <td
-                      style={{ ...tdStyle, color: "var(--color-text-strong)" }}
-                    >
-                      {item.productSnapshot.name?.en ?? "—"}
-                    </td>
-                    <td style={{ ...tdStyle, fontFamily: "var(--font-mono)" }}>
-                      {item.productSnapshot.sku}
-                    </td>
-                    <td style={{ ...tdStyle, textAlign: "right" }}>
-                      {formatBDT(item.productSnapshot.priceMinor)}
-                    </td>
-                    <td style={{ ...tdStyle, textAlign: "right" }}>
-                      {item.qty}
-                    </td>
-                    <td style={{ ...tdStyle, textAlign: "right" }}>
-                      {formatBDT(item.lineTotalMinor)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div
-            style={{
-              marginTop: "var(--s-4)",
-              marginLeft: "auto",
-              maxWidth: 320,
-              display: "flex",
-              flexDirection: "column",
-              gap: "var(--s-2)",
-            }}
-          >
-            <TotalRow label="Subtotal" value={formatBDT(o.subtotalMinor)} />
-            <TotalRow label="Shipping" value={formatBDT(o.shippingMinor)} />
-            <TotalRow
-              label="Discount"
-              value={
-                o.discountMinor > 0
-                  ? `− ${formatBDT(o.discountMinor)}`
-                  : formatBDT(0)
-              }
-            />
-            {o.taxMinor > 0 ? (
-              <TotalRow
-                label={o.taxRateBp ? `VAT (${o.taxRateBp / 100}%)` : "VAT"}
-                value={formatBDT(o.taxMinor)}
-              />
-            ) : null}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                paddingTop: "var(--s-2)",
-                borderTop: "1px solid var(--color-border)",
-                fontSize: "var(--fs-md)",
-                fontWeight: 700,
-                color: "var(--color-text-strong)",
-              }}
-            >
-              <span>Total</span>
-              <span>{formatBDT(o.totalMinor)}</span>
-            </div>
-          </div>
-        </section>
-
-        {o.refundRequest ? (
-          <section
-            style={{
-              ...sectionCard,
-              borderColor:
-                o.refundRequest.status === "open"
-                  ? "var(--color-secondary)"
-                  : "var(--color-border)",
-            }}
-          >
-            <h2 style={headingStyle}>
-              Refund request{" "}
-              <span
-                style={{
-                  fontSize: "var(--fs-sm)",
-                  fontWeight: 600,
-                  color:
-                    o.refundRequest.status === "open"
-                      ? "var(--color-secondary)"
-                      : "var(--color-text-muted)",
-                }}
-              >
-                · {o.refundRequest.status}
+      <DetailCard title="Summary">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-4">
+          <Field label="Order number" value={o.orderNumber} />
+          <Field label="Placed" value={fmtDate(o.createdAt)} />
+          <Field
+            label="Store"
+            value={o.storefront === "instruments" ? "Medtrade" : "Spiber Kart"}
+          />
+          <Field label="Status" value={<StatusBadge>{o.status}</StatusBadge>} />
+          <Field
+            label="Payment"
+            value={
+              <span className="capitalize">
+                {o.payment?.status ?? "—"}
+                {o.payment?.provider ? ` · ${o.payment.provider}` : ""}
               </span>
-            </h2>
-            <p style={{ margin: 0, fontSize: "var(--fs-sm)" }}>
-              Requested {fmtDate(o.refundRequest.requestedAt)} —{" "}
-              {o.refundRequest.reason}
-            </p>
-            {o.refundRequest.status === "open" ? (
-              <p
-                style={{
-                  margin: "var(--s-2) 0 0",
-                  fontSize: "var(--fs-sm)",
-                  color: "var(--color-text-muted)",
-                }}
-              >
-                Settle it with the Cancel/Refund actions below — the request
-                resolves automatically.
-              </p>
-            ) : null}
-          </section>
-        ) : null}
+            }
+          />
+          <Field
+            label="Method"
+            value={PAYMENT_METHOD_LABEL[o.payment?.method ?? "offline"]}
+          />
+          {o.payment?.dueAt ? (
+            <Field
+              label={`Payment due${
+                o.payment.termsDays ? ` (Net ${o.payment.termsDays})` : ""
+              }`}
+              value={fmtDate(o.payment.dueAt)}
+            />
+          ) : null}
+          {o.payment?.paidAt ? (
+            <Field label="Paid at" value={fmtDate(o.payment.paidAt)} />
+          ) : null}
+          <Field label="Customer email" value={o.email} />
+          {o.trackingNumber ? (
+            <Field
+              label="Tracking"
+              value={
+                <span className="font-mono text-xs">{o.trackingNumber}</span>
+              }
+            />
+          ) : null}
+        </div>
+      </DetailCard>
 
-        <section style={sectionCard}>
-          <h2 style={headingStyle}>Timeline</h2>
-          {o.timeline.length === 0 ? (
-            <p
-              style={{
-                margin: 0,
-                color: "var(--color-text-muted)",
-                fontSize: "var(--fs-sm)",
-              }}
-            >
-              No timeline events.
+      <DetailCard title="Shipping address">
+        <address className="text-foreground text-[13px] leading-relaxed not-italic">
+          {o.shippingAddress.label ? (
+            <div className="text-muted-foreground">
+              {o.shippingAddress.label}
+            </div>
+          ) : null}
+          <div>{o.shippingAddress.line1}</div>
+          {o.shippingAddress.line2 ? (
+            <div>{o.shippingAddress.line2}</div>
+          ) : null}
+          <div>
+            {o.shippingAddress.city}, {o.shippingAddress.district}
+            {o.shippingAddress.postalCode
+              ? ` ${o.shippingAddress.postalCode}`
+              : ""}
+          </div>
+          <div className="font-mono text-xs">{o.shippingAddress.phone}</div>
+        </address>
+      </DetailCard>
+
+      <DetailCard
+        title="Items"
+        bodyClassName="min-w-0 grid-cols-[minmax(0,1fr)] px-0"
+      >
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead className={TH}>Product</TableHead>
+              <TableHead className={TH}>SKU</TableHead>
+              <TableHead className={`${TH} text-right`}>Unit</TableHead>
+              <TableHead className={`${TH} text-right`}>Qty</TableHead>
+              <TableHead className={`${TH} text-right`}>Line total</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {o.items.map((item, idx) => (
+              <TableRow key={`${item.productSnapshot.sku}-${idx}`}>
+                <TableCell className={`${TD} text-foreground font-medium`}>
+                  {item.productSnapshot.name?.en ?? "—"}
+                </TableCell>
+                <TableCell className={`${TD} font-mono text-xs`}>
+                  {item.productSnapshot.sku}
+                </TableCell>
+                <TableCell className={`${TD} text-right tabular-nums`}>
+                  {formatBDT(item.productSnapshot.priceMinor)}
+                </TableCell>
+                <TableCell className={`${TD} text-right tabular-nums`}>
+                  {item.qty}
+                </TableCell>
+                <TableCell className={`${TD} text-right tabular-nums`}>
+                  {formatBDT(item.lineTotalMinor)}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+
+        <div className="mt-4 ml-auto flex w-full max-w-[320px] flex-col gap-2 px-4">
+          <TotalRow label="Subtotal" value={formatBDT(o.subtotalMinor)} />
+          <TotalRow label="Shipping" value={formatBDT(o.shippingMinor)} />
+          <TotalRow
+            label="Discount"
+            value={
+              o.discountMinor > 0
+                ? `− ${formatBDT(o.discountMinor)}`
+                : formatBDT(0)
+            }
+          />
+          {o.taxMinor > 0 ? (
+            <TotalRow
+              label={o.taxRateBp ? `VAT (${o.taxRateBp / 100}%)` : "VAT"}
+              value={formatBDT(o.taxMinor)}
+            />
+          ) : null}
+          <div className="text-foreground flex justify-between border-t pt-2 text-sm font-bold">
+            <span>Total</span>
+            <span className="tabular-nums">{formatBDT(o.totalMinor)}</span>
+          </div>
+        </div>
+      </DetailCard>
+
+      {o.refundRequest ? (
+        <DetailCard
+          title="Refund request"
+          action={<StatusBadge>{o.refundRequest.status}</StatusBadge>}
+          className={
+            o.refundRequest.status === "open"
+              ? "border border-[var(--color-secondary)]"
+              : undefined
+          }
+        >
+          <p className="text-foreground text-[13px]">
+            Requested {fmtDate(o.refundRequest.requestedAt)} —{" "}
+            {o.refundRequest.reason}
+          </p>
+          {o.refundRequest.status === "open" ? (
+            <p className="text-muted-foreground text-[13px]">
+              Settle it with the Cancel/Refund actions below — the request
+              resolves automatically.
             </p>
-          ) : (
-            <ol
-              style={{
-                listStyle: "none",
-                margin: 0,
-                padding: 0,
-                display: "flex",
-                flexDirection: "column",
-                gap: "var(--s-3)",
-              }}
-            >
-              {o.timeline.map((event, idx) => (
-                <li
-                  key={`${event.status}-${idx}`}
-                  style={{
-                    display: "flex",
-                    gap: "var(--s-3)",
-                    alignItems: "baseline",
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <StatusPill>{event.status}</StatusPill>
-                  <span
-                    style={{
-                      fontSize: "var(--fs-sm)",
-                      color: "var(--color-text-muted)",
-                    }}
-                  >
-                    {fmtDate(event.at)}
+          ) : null}
+        </DetailCard>
+      ) : null}
+
+      <DetailCard title="Timeline">
+        {o.timeline.length === 0 ? (
+          <p className="text-muted-foreground text-[13px]">
+            No timeline events.
+          </p>
+        ) : (
+          <ol className="flex flex-col gap-3">
+            {o.timeline.map((event, idx) => (
+              <li
+                key={`${event.status}-${idx}`}
+                className="flex flex-wrap items-baseline gap-3"
+              >
+                <StatusBadge>{event.status}</StatusBadge>
+                <span className="text-muted-foreground text-[13px]">
+                  {fmtDate(event.at)}
+                </span>
+                {event.note ? (
+                  <span className="text-foreground text-[13px]">
+                    — {event.note}
                   </span>
-                  {event.note ? (
-                    <span
-                      style={{
-                        fontSize: "var(--fs-sm)",
-                        color: "var(--color-text)",
-                      }}
-                    >
-                      — {event.note}
-                    </span>
-                  ) : null}
-                  {event.internalNote ? (
-                    <span
-                      style={{
-                        fontSize: "var(--fs-sm)",
-                        color: "var(--color-text-muted)",
-                        fontStyle: "italic",
-                      }}
-                    >
-                      (internal: {event.internalNote})
-                    </span>
-                  ) : null}
-                </li>
-              ))}
-            </ol>
-          )}
-        </section>
-      </div>
+                ) : null}
+                {event.internalNote ? (
+                  <span className="text-muted-foreground text-[13px] italic">
+                    (internal: {event.internalNote})
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+        )}
+      </DetailCard>
 
       <OrderActions
         orderId={String(o._id)}
@@ -512,16 +331,9 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
 
 function TotalRow({ label, value }: { label: string; value: string }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        fontSize: "var(--fs-sm)",
-        color: "var(--color-text)",
-      }}
-    >
-      <span style={{ color: "var(--color-text-muted)" }}>{label}</span>
-      <span>{value}</span>
+    <div className="flex justify-between text-[13px]">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="text-foreground tabular-nums">{value}</span>
     </div>
   );
 }

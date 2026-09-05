@@ -1,9 +1,19 @@
 import { setRequestLocale } from "next-intl/server";
+import { FolderTree, Tags } from "lucide-react";
 import {
   BlogCategoryForm,
   BlogTagForm,
   TaxonomyDeleteButton,
 } from "@/components/admin/blog/taxonomy-forms";
+import { DataTable, type Column } from "@/components/admin/ui/data-table";
+import { AdminPageHeader } from "@/components/admin/ui/page-header";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   listBlogCategories,
   listBlogTags,
@@ -11,6 +21,37 @@ import {
 import { localize } from "@/lib/schemas/localized";
 
 export const dynamic = "force-dynamic";
+
+type TaxonomyRow = { id: string; name: string; slug: string };
+
+function columns(kind: "categories" | "tags"): Column<TaxonomyRow>[] {
+  return [
+    {
+      key: "name",
+      header: "Name",
+      cell: (r) => (
+        <span className="text-foreground font-medium">{r.name}</span>
+      ),
+    },
+    {
+      key: "slug",
+      header: "Slug",
+      cell: (r) => (
+        <span className="text-muted-foreground font-mono text-xs">
+          {r.slug}
+        </span>
+      ),
+    },
+    {
+      key: "actions",
+      header: "",
+      align: "right",
+      mobile: "actions",
+      className: "w-24",
+      cell: (r) => <TaxonomyDeleteButton kind={kind} id={r.id} name={r.name} />,
+    },
+  ];
+}
 
 export default async function AdminBlogTaxonomyPage({
   params,
@@ -25,169 +66,71 @@ export default async function AdminBlogTaxonomyPage({
     listBlogTags().catch(() => []),
   ]);
 
-  const th: React.CSSProperties = {
-    textAlign: "left",
-    padding: "var(--s-3) var(--s-4)",
-    fontFamily: "var(--font-mono)",
-    fontSize: "var(--fs-caption)",
-    color: "var(--color-text-muted)",
-    fontWeight: 500,
-    borderBottom: "1px solid var(--color-border)",
-  };
-  const td: React.CSSProperties = {
-    padding: "var(--s-3) var(--s-4)",
-    fontSize: "var(--fs-small)",
-    color: "var(--color-text)",
-    borderBottom: "1px solid var(--color-border)",
-    verticalAlign: "middle",
-  };
-  const card: React.CSSProperties = {
-    border: "1px solid var(--color-border)",
-    borderRadius: "var(--r-lg)",
-    background: "var(--color-surface)",
-    padding: "var(--s-5)",
-    display: "grid",
-    gap: "var(--s-4)",
-  };
-  const h2: React.CSSProperties = {
-    margin: 0,
-    fontSize: "var(--fs-h4)",
-    color: "var(--color-text-strong)",
-  };
+  const catRows: TaxonomyRow[] = cats.map((c) => ({
+    id: String(c._id),
+    name: localize(c.name, "en"),
+    slug: c.slug,
+  }));
+  const tagRows: TaxonomyRow[] = tags.map((t) => ({
+    id: String(t._id),
+    name: localize(t.name, "en"),
+    slug: t.slug,
+  }));
 
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
-      <h1
-        style={{
-          margin: 0,
-          fontFamily: "var(--font-display)",
-          fontSize: "var(--fs-2xl)",
-          color: "var(--color-text-strong)",
-        }}
-      >
-        Blog taxonomy
-      </h1>
+    <div className="space-y-4">
+      <AdminPageHeader
+        title="Blog taxonomy"
+        description="Categories group posts on the blog index; tags drive the related-posts rail and the tag archives."
+      />
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-          gap: "var(--s-6)",
-          alignItems: "start",
-        }}
-      >
+      <div className="grid items-start gap-6 md:grid-cols-2">
         {/* Categories */}
-        <div style={{ display: "grid", gap: "var(--s-4)" }}>
-          <section style={card}>
-            <h2 style={h2}>Categories</h2>
-            <BlogCategoryForm />
-          </section>
-          <section
-            style={{
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--r-lg)",
-              background: "var(--color-surface)",
-              overflow: "hidden",
-            }}
-          >
-            {cats.length === 0 ? (
-              <p
-                style={{
-                  margin: 0,
-                  padding: "var(--s-5)",
-                  color: "var(--color-text-muted)",
-                }}
-              >
-                No categories yet.
-              </p>
-            ) : (
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    <th style={th}>Name</th>
-                    <th style={th}>Slug</th>
-                    <th style={{ ...th, textAlign: "right" }}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {cats.map((c) => (
-                    <tr key={String(c._id)}>
-                      <td style={{ ...td, color: "var(--color-text-strong)" }}>
-                        {localize(c.name, "en")}
-                      </td>
-                      <td style={{ ...td, fontFamily: "var(--font-mono)" }}>
-                        {c.slug}
-                      </td>
-                      <td style={{ ...td, textAlign: "right" }}>
-                        <TaxonomyDeleteButton
-                          kind="categories"
-                          id={String(c._id)}
-                          name={localize(c.name, "en")}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </section>
+        <div className="grid gap-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Add category</CardTitle>
+              <CardDescription>
+                English is required; the other locales fall back to it.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <BlogCategoryForm />
+            </CardContent>
+          </Card>
+          <DataTable
+            columns={columns("categories")}
+            rows={catRows}
+            getRowKey={(r) => r.id}
+            minWidth={360}
+            empty="No categories yet"
+            emptyIcon={FolderTree}
+            emptyDescription="Add a category above to group blog posts."
+          />
         </div>
 
         {/* Tags */}
-        <div style={{ display: "grid", gap: "var(--s-4)" }}>
-          <section style={card}>
-            <h2 style={h2}>Tags</h2>
-            <BlogTagForm />
-          </section>
-          <section
-            style={{
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--r-lg)",
-              background: "var(--color-surface)",
-              overflow: "hidden",
-            }}
-          >
-            {tags.length === 0 ? (
-              <p
-                style={{
-                  margin: 0,
-                  padding: "var(--s-5)",
-                  color: "var(--color-text-muted)",
-                }}
-              >
-                No tags yet.
-              </p>
-            ) : (
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    <th style={th}>Name</th>
-                    <th style={th}>Slug</th>
-                    <th style={{ ...th, textAlign: "right" }}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tags.map((tg) => (
-                    <tr key={String(tg._id)}>
-                      <td style={{ ...td, color: "var(--color-text-strong)" }}>
-                        {localize(tg.name, "en")}
-                      </td>
-                      <td style={{ ...td, fontFamily: "var(--font-mono)" }}>
-                        {tg.slug}
-                      </td>
-                      <td style={{ ...td, textAlign: "right" }}>
-                        <TaxonomyDeleteButton
-                          kind="tags"
-                          id={String(tg._id)}
-                          name={localize(tg.name, "en")}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </section>
+        <div className="grid gap-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Add tag</CardTitle>
+              <CardDescription>
+                English is required; the other locales fall back to it.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <BlogTagForm />
+            </CardContent>
+          </Card>
+          <DataTable
+            columns={columns("tags")}
+            rows={tagRows}
+            getRowKey={(r) => r.id}
+            minWidth={360}
+            empty="No tags yet"
+            emptyIcon={Tags}
+            emptyDescription="Add a tag above to power the related-posts rail."
+          />
         </div>
       </div>
     </div>

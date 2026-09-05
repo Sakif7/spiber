@@ -5,6 +5,7 @@ import {
   type AlbumFormInitial,
 } from "@/components/admin/gallery/album-form";
 import { getAlbumByIdLean } from "@/lib/repositories/gallery.repo";
+import { EditorHeader } from "@/components/admin/ui/form-shell";
 
 export const dynamic = "force-dynamic";
 
@@ -39,17 +40,12 @@ export default async function EditAlbumPage({
   };
 
   return (
-    <div style={{ display: "grid", gap: "var(--s-6)" }}>
-      <h1
-        style={{
-          margin: 0,
-          fontFamily: "var(--font-display)",
-          fontSize: "var(--fs-2xl)",
-          color: "var(--color-text-strong)",
-        }}
-      >
-        Edit album
-      </h1>
+    <div className="space-y-4">
+      <EditorHeader
+        backHref="/admin/gallery"
+        backLabel="Gallery"
+        title="Edit album"
+      />
       <AlbumForm initial={initial} />
     </div>
   );

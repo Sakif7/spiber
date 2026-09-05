@@ -3,8 +3,13 @@ import { connectToDatabase } from "@/lib/db/connect";
 import { Order, type IOrder } from "@/lib/models/order";
 import type { Lean } from "@/lib/models/_shared";
 import type { OrderStatus } from "@/lib/schemas/order";
-
-type OrderFilter = NonNullable<Parameters<typeof Order.countDocuments>[0]>;
+import {
+  applyDateRange,
+  applyPartialSearch,
+  paginate,
+  sortSpec,
+  type RepoListQuery,
+} from "./list-query";
 
 export async function createOrder(data: Partial<IOrder>) {
   await connectToDatabase();
@@ -41,13 +46,19 @@ export async function listOrdersByUser(userId: string) {
     .exec();
 }
 
-export type OrderListParams = {
+/** Sort keys the admin orders list exposes → stored fields. */
+const ORDER_SORT: Record<string, string> = {
+  date: "createdAt",
+  number: "orderNumber",
+  email: "email",
+  status: "status",
+  total: "totalMinor",
+};
+
+export type OrderListParams = RepoListQuery & {
   status?: OrderStatus;
   /** Filter the admin list to one storefront (Medtrade vs Spiber Kart). */
   storefront?: "instruments" | "marketplace";
-  search?: string;
-  page?: number;
-  pageSize?: number;
 };
 
 export async function listOrders(params: OrderListParams) {
@@ -62,31 +73,14 @@ export async function listOrders(params: OrderListParams) {
         ? { $in: ["marketplace", null] }
         : params.storefront;
   }
-  if (params.search) {
-    q.$or = [
-      { orderNumber: { $regex: params.search, $options: "i" } },
-      { email: { $regex: params.search, $options: "i" } },
-    ];
-  }
-  const page = Math.max(1, params.page ?? 1);
-  const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 20));
-  const filter = q as unknown as OrderFilter;
-  const [items, total] = await Promise.all([
-    Order.find(filter)
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * pageSize)
-      .limit(pageSize)
-      .lean<Lean<IOrder>[]>()
-      .exec(),
-    Order.countDocuments(filter),
-  ]);
-  return {
-    items,
-    total,
-    page,
-    pageSize,
-    pages: Math.max(1, Math.ceil(total / pageSize)),
-  };
+  // Escaped, per-term substring match (the old raw $regex let "(" break the query).
+  applyPartialSearch(q, params.search, ["orderNumber", "email"]);
+  applyDateRange(q, params.from, params.to);
+  return paginate<IOrder>(Order, q, {
+    sort: sortSpec(params.sort, params.dir, ORDER_SORT),
+    page: params.page,
+    pageSize: params.pageSize ?? 20,
+  });
 }
 
 /** Dashboard KPIs: today's paid revenue + counts. `dayStart` passed in (no Date.now in shared code paths). */
@@ -133,4 +127,18 @@ export async function countOrdersForSeller(sellerId: string): Promise<number> {
   await connectToDatabase();
   if (!mongoose.isValidObjectId(sellerId)) return 0;
   return Order.countDocuments({ "items.productSnapshot.sellerId": sellerId });
+}
+
+/** Order numbers for a set of order ids (stock-ledger references). */
+export async function orderNumbersByIds(
+  ids: string[],
+): Promise<Record<string, string>> {
+  await connectToDatabase();
+  const valid = [...new Set(ids)].filter((id) => mongoose.isValidObjectId(id));
+  if (valid.length === 0) return {};
+  const rows = await Order.find({ _id: { $in: valid } })
+    .select("_id orderNumber")
+    .lean<{ _id: mongoose.Types.ObjectId; orderNumber: string }[]>()
+    .exec();
+  return Object.fromEntries(rows.map((r) => [String(r._id), r.orderNumber]));
 }

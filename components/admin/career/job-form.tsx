@@ -5,7 +5,6 @@ import { useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -15,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { formatApiError } from "@/lib/http/form-error";
 import type { EmploymentType, JobStatus } from "@/lib/schemas/career";
+import { LocalizedInput } from "@/components/admin/ui/localized-input";
 
 type L = { en: string; bn: string; ja: string };
 type LInit = { en?: string; bn?: string; ja?: string };
@@ -376,51 +376,17 @@ function BilingualField({
   textarea?: boolean;
   rows?: number;
 }) {
+  // Thin adapter over the shared tabbed field: the form keeps its `{en,bn,ja}`
+  // state while the control renders one input behind an EN/বাংলা/日本語 tab strip.
   return (
-    <div className="grid gap-1.5">
-      <Label>{label}</Label>
-      <div className="grid grid-cols-3 gap-4">
-        {textarea ? (
-          <>
-            <Textarea
-              placeholder="EN"
-              value={value.en}
-              onChange={(e) => onChange({ ...value, en: e.target.value })}
-              rows={rows}
-            />
-            <Textarea
-              placeholder="বাংলা"
-              value={value.bn}
-              onChange={(e) => onChange({ ...value, bn: e.target.value })}
-              rows={rows}
-            />
-            <Textarea
-              placeholder="日本語"
-              value={value.ja}
-              onChange={(e) => onChange({ ...value, ja: e.target.value })}
-              rows={rows}
-            />
-          </>
-        ) : (
-          <>
-            <Input
-              placeholder="EN"
-              value={value.en}
-              onChange={(e) => onChange({ ...value, en: e.target.value })}
-            />
-            <Input
-              placeholder="বাংলা"
-              value={value.bn}
-              onChange={(e) => onChange({ ...value, bn: e.target.value })}
-            />
-            <Input
-              placeholder="日本語"
-              value={value.ja}
-              onChange={(e) => onChange({ ...value, ja: e.target.value })}
-            />
-          </>
-        )}
-      </div>
-    </div>
+    <LocalizedInput
+      label={label}
+      value={value}
+      textarea={textarea}
+      rows={rows}
+      onChange={(v) =>
+        onChange({ en: v.en ?? "", bn: v.bn ?? "", ja: v.ja ?? "" })
+      }
+    />
   );
 }

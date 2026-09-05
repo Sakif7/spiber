@@ -1,6 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { ChevronRight, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/cn";
 
 type Row = {
   id: string;
@@ -123,252 +127,126 @@ export function MaintenancePanel({
   const confirmed = confirmText.trim() === name;
 
   return (
-    <div
-      style={{
-        border: "1px solid var(--color-border)",
-        borderRadius: "var(--r-lg)",
-        background: "var(--color-surface)",
-        overflow: "hidden",
-      }}
-    >
+    <div className="bg-card overflow-hidden rounded-lg shadow-[var(--shadow-sm)]">
       <button
         type="button"
         onClick={toggle}
-        style={{
-          width: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "var(--s-3)",
-          padding: "var(--s-4)",
-          background: "none",
-          border: "none",
-          cursor: "pointer",
-          fontFamily: "inherit",
-          textAlign: "left",
-        }}
+        aria-expanded={open}
+        className="hover:bg-muted/50 flex w-full items-center justify-between gap-3 p-4 text-left transition-colors"
       >
-        <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span
+        <span className="flex min-w-0 items-center gap-2.5">
+          <ChevronRight
             aria-hidden
-            style={{
-              color: "var(--color-text-muted)",
-              transform: open ? "rotate(90deg)" : "none",
-              transition: "transform 150ms",
-            }}
-          >
-            ›
-          </span>
-          <span style={{ fontWeight: 600, color: "var(--color-text-strong)" }}>
+            className={cn(
+              "text-muted-foreground size-4 shrink-0 transition-transform duration-150",
+              open && "rotate-90",
+            )}
+          />
+          <span className="text-foreground truncate text-[13px] font-semibold">
             {label}
           </span>
-          <code
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "var(--fs-caption)",
-              color: "var(--color-text-muted)",
-            }}
-          >
+          <code className="text-muted-foreground truncate font-mono text-xs">
             {name}
           </code>
         </span>
         <span
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "var(--fs-body-sm)",
-            color:
-              count > 0
-                ? "var(--color-text-strong)"
-                : "var(--color-text-muted)",
-          }}
+          className={cn(
+            "shrink-0 font-mono text-[13px] tabular-nums",
+            count > 0 ? "text-foreground" : "text-muted-foreground",
+          )}
         >
           {count} {count === 1 ? "doc" : "docs"}
         </span>
       </button>
 
       {open && (
-        <div
-          style={{
-            borderTop: "1px solid var(--color-border)",
-            padding: "var(--s-4)",
-            display: "grid",
-            gap: "var(--s-4)",
-          }}
-        >
+        <div className="border-border/60 grid gap-4 border-t p-4">
           {error && (
-            <p
-              style={{
-                margin: 0,
-                color: "var(--color-error)",
-                fontSize: "var(--fs-sm)",
-              }}
-            >
+            <p role="alert" className="text-destructive text-[13px]">
               {error}
             </p>
           )}
 
           {loading ? (
-            <p style={{ color: "var(--color-text-muted)", margin: 0 }}>
-              Loading…
-            </p>
+            <p className="text-muted-foreground text-[13px]">Loading…</p>
           ) : rows && rows.length > 0 ? (
-            <div style={{ display: "grid", gap: 4 }}>
-              {rows.map((r) => (
-                <div
-                  key={r.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "var(--s-3)",
-                    padding: "6px 8px",
-                    borderBottom: "1px solid var(--color-border)",
-                  }}
-                >
-                  <span
-                    style={{
-                      flex: 1,
-                      minWidth: 0,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {r.label}
-                    {r.deleted && (
-                      <span
-                        style={{
-                          marginLeft: 8,
-                          fontSize: "var(--fs-caption)",
-                          color: "var(--color-secondary-deep)",
-                        }}
-                      >
-                        (soft-deleted)
-                      </span>
-                    )}
-                  </span>
-                  <code
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "var(--fs-micro)",
-                      color: "var(--color-text-subtle)",
-                    }}
-                  >
-                    {r.id.slice(-6)}
-                  </code>
-                  <button
-                    type="button"
-                    onClick={() => deleteOne(r.id)}
-                    disabled={busyId === r.id}
-                    style={{
-                      border: "1px solid var(--color-border)",
-                      borderRadius: "var(--r-sm)",
-                      background: "transparent",
-                      color: "var(--color-error)",
-                      padding: "3px 10px",
-                      fontSize: "var(--fs-small)",
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                    }}
-                  >
-                    {busyId === r.id ? "…" : "Delete"}
-                  </button>
-                </div>
-              ))}
+            <div className="grid gap-1">
+              <div className="divide-border/60 divide-y">
+                {rows.map((r) => (
+                  <div key={r.id} className="flex items-center gap-3 px-2 py-1">
+                    <span className="min-w-0 flex-1 truncate text-[13px]">
+                      {r.label}
+                      {r.deleted && (
+                        <span className="ml-2 text-xs text-[var(--color-secondary-deep)]">
+                          (soft-deleted)
+                        </span>
+                      )}
+                    </span>
+                    <code className="text-muted-foreground shrink-0 font-mono text-[11px]">
+                      {r.id.slice(-6)}
+                    </code>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => deleteOne(r.id)}
+                      disabled={busyId === r.id}
+                      aria-label={`Permanently delete ${r.label}`}
+                      title="Delete permanently"
+                    >
+                      <Trash2
+                        className={cn(busyId === r.id && "animate-pulse")}
+                      />
+                    </Button>
+                  </div>
+                ))}
+              </div>
               {count > rows.length && (
-                <p
-                  style={{
-                    margin: "4px 0 0",
-                    fontSize: "var(--fs-caption)",
-                    color: "var(--color-text-muted)",
-                  }}
-                >
+                <p className="text-muted-foreground pt-1 text-xs">
                   Showing the {rows.length} most recent of {count}. Use “Purge
                   all” to remove everything.
                 </p>
               )}
             </div>
           ) : (
-            <p style={{ color: "var(--color-text-muted)", margin: 0 }}>
-              No records.
-            </p>
+            <p className="text-muted-foreground text-[13px]">No records.</p>
           )}
 
           {/* Purge */}
           {count > 0 && (
-            <div
-              style={{
-                display: "grid",
-                gap: 8,
-                paddingTop: "var(--s-3)",
-                borderTop: "1px dashed var(--color-border)",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "var(--fs-caption)",
-                  color: "var(--color-text-muted)",
-                }}
-              >
-                Type{" "}
-                <code
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    color: "var(--color-error)",
-                  }}
-                >
-                  {name}
-                </code>{" "}
+            <div className="border-border/60 grid gap-2 border-t border-dashed pt-3">
+              <span className="text-muted-foreground text-xs">
+                Type <code className="text-destructive font-mono">{name}</code>{" "}
                 to enable purge:
               </span>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <input
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
                   value={confirmText}
                   onChange={(e) => setConfirmText(e.target.value)}
                   placeholder={name}
-                  style={{
-                    font: "inherit",
-                    padding: "6px 10px",
-                    border: "1px solid var(--color-border-field)",
-                    borderRadius: "var(--r-sm)",
-                    background: "var(--color-surface)",
-                  }}
+                  aria-label={`Type ${name} to confirm the purge`}
+                  className="h-8 w-auto max-w-[15rem]"
                 />
-                <button
+                <Button
                   type="button"
+                  variant="destructive"
+                  size="sm"
                   disabled={!confirmed || purging}
                   onClick={() => purge(false)}
-                  style={{
-                    border: "none",
-                    borderRadius: "var(--r-sm)",
-                    background: confirmed
-                      ? "var(--color-error)"
-                      : "var(--color-border)",
-                    color: "#fff",
-                    padding: "6px 14px",
-                    fontWeight: 600,
-                    cursor: confirmed ? "pointer" : "not-allowed",
-                    fontFamily: "inherit",
-                  }}
                 >
                   {purging ? "Purging…" : `Purge all ${count}`}
-                </button>
+                </Button>
                 {softDelete && (
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     disabled={!confirmed || purging}
                     onClick={() => purge(true)}
-                    style={{
-                      border: "1px solid var(--color-border)",
-                      borderRadius: "var(--r-sm)",
-                      background: "transparent",
-                      color: "var(--color-text)",
-                      padding: "6px 14px",
-                      cursor: confirmed ? "pointer" : "not-allowed",
-                      fontFamily: "inherit",
-                    }}
                   >
                     Purge soft-deleted only
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>

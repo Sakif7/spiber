@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, Upload } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { CtaButton } from "@/components/ui/cta-button";
 import { ImageUploader } from "@/components/admin/image-uploader";
 import { fromMinor, toMinor } from "@/lib/money";
 import { formatApiError } from "@/lib/http/form-error";
@@ -14,6 +13,15 @@ import type {
   DeliveryType,
   SoftwareStatus,
 } from "@/lib/schemas/systems";
+import { LocalizedInput, type LocalizedValue } from "./ui/localized-input";
+import { SelectField } from "./ui/select-field";
+import {
+  EditorForm,
+  FormField,
+  FormGrid,
+  FormSection,
+  SaveBar,
+} from "./ui/form-shell";
 
 type L = { en: string; bn: string; ja: string };
 
@@ -42,35 +50,28 @@ const toL = (l: LInit): L => ({
   bn: l.bn ?? "",
   ja: l.ja ?? "",
 });
+/** LocalizedInput hands back a partial value; the payload builder wants all three. */
+const fromLV = (v: LocalizedValue): L => ({
+  en: v.en ?? "",
+  bn: v.bn ?? "",
+  ja: v.ja ?? "",
+});
 
-const field: CSSProperties = { display: "grid", gap: 6 };
-const row: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "1fr 1fr",
-  gap: "var(--s-4)",
-};
-const triRow: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "1fr 1fr 1fr",
-  gap: "var(--s-4)",
-};
-const selStyle: CSSProperties = {
-  height: 40,
-  padding: "0 10px",
-  border: "1px solid var(--color-border-field)",
-  borderRadius: "var(--r-sm)",
-  font: "inherit",
-  background: "var(--color-surface)",
-};
-const taStyle: CSSProperties = {
-  font: "inherit",
-  padding: "8px 10px",
-  border: "1px solid var(--color-border-field)",
-  borderRadius: "var(--r-sm)",
-  background: "var(--color-surface)",
-  width: "100%",
-  resize: "vertical",
-};
+const STATUS_OPTIONS = [
+  { value: "draft", label: "Draft" },
+  { value: "active", label: "Active" },
+  { value: "archived", label: "Archived" },
+];
+const PRICING_OPTIONS = [
+  { value: "one_time", label: "One-time" },
+  { value: "subscription", label: "Subscription" },
+  { value: "quote", label: "Quote (inquiry only)" },
+];
+const DELIVERY_OPTIONS = [
+  { value: "license", label: "License key" },
+  { value: "asset", label: "Downloadable asset" },
+  { value: "external", label: "External activation (e.g. ZenHcare)" },
+];
 
 export function SoftwareProductForm({
   initial,
@@ -194,329 +195,239 @@ export function SoftwareProductForm({
   }
 
   return (
-    <div style={{ display: "grid", gap: "var(--s-5)", maxWidth: 760 }}>
-      <BilingualField label="Name" value={name} onChange={setName} />
-      <div style={row}>
-        <div style={field}>
-          <Label>Slug (optional)</Label>
-          <Input
-            value={slug}
-            onChange={(e) => setSlug(e.target.value)}
-            placeholder="auto from name"
-          />
-        </div>
-        <div style={field}>
-          <Label>Status</Label>
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value as SoftwareStatus)}
-            style={selStyle}
-          >
-            <option value="draft">Draft</option>
-            <option value="active">Active</option>
-            <option value="archived">Archived</option>
-          </select>
-        </div>
-      </div>
-
-      <BilingualField
-        label="Description"
-        value={description}
-        onChange={setDescription}
-        textarea
-      />
-
-      {/* Pricing */}
-      <div style={row}>
-        <div style={field}>
-          <Label>Pricing model</Label>
-          <select
-            value={pricingModel}
-            onChange={(e) =>
-              setPricingModel(e.target.value as SoftwarePricingModel)
-            }
-            style={selStyle}
-          >
-            <option value="one_time">One-time</option>
-            <option value="subscription">Subscription</option>
-            <option value="quote">Quote (inquiry only)</option>
-          </select>
-        </div>
-        {pricingModel !== "quote" && (
-          <div style={field}>
-            <Label>Price (BDT)</Label>
-            <Input
-              type="number"
-              value={priceMajor}
-              onChange={(e) => setPriceMajor(e.target.value)}
-            />
-          </div>
-        )}
-      </div>
-
-      <div style={field}>
-        <Label>Demo URL (optional)</Label>
-        <Input
-          value={demoUrl}
-          onChange={(e) => setDemoUrl(e.target.value)}
-          placeholder="https://demo.example.com"
+    <EditorForm>
+      <FormSection
+        title="Basics"
+        description="How the product is presented in the Digihealth catalog."
+      >
+        <LocalizedInput
+          label="Name"
+          required
+          value={name}
+          onChange={(v) => setName(fromLV(v))}
+          placeholder="e.g. Clinic Management Suite"
         />
-      </div>
-
-      {/* Delivery */}
-      <div style={field}>
-        <Label>Delivery type</Label>
-        <select
-          value={deliveryType}
-          onChange={(e) => setDeliveryType(e.target.value as DeliveryType)}
-          style={selStyle}
-        >
-          <option value="license">License key</option>
-          <option value="asset">Downloadable asset</option>
-          <option value="external">External activation (e.g. ZenHcare)</option>
-        </select>
-      </div>
-
-      {deliveryType === "asset" && (
-        <div style={field}>
-          <Label>Asset file (private, gated download)</Label>
-          {assetKey ? (
-            <div
-              style={{
-                fontSize: "var(--fs-sm)",
-                color: "var(--color-text-muted)",
-              }}
-            >
-              Uploaded: <strong>{assetName || assetKey}</strong>
-              <button
-                type="button"
-                onClick={() => {
-                  setAssetKey("");
-                  setAssetName("");
-                }}
-                style={{
-                  marginLeft: 10,
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--r-sm)",
-                  background: "var(--color-surface)",
-                  padding: "2px 10px",
-                  cursor: "pointer",
-                }}
-              >
-                Replace
-              </button>
-            </div>
-          ) : (
-            <label
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "8px 14px",
-                borderRadius: "var(--r-sm)",
-                border: "1px solid var(--color-border)",
-                background: "var(--color-surface)",
-                color: "var(--color-brand-deep)",
-                fontWeight: 600,
-                fontSize: "var(--fs-sm)",
-                cursor: assetBusy ? "default" : "pointer",
-                justifySelf: "start",
-              }}
-            >
-              {assetBusy ? "Uploading…" : "Upload asset"}
-              <input
-                type="file"
-                hidden
-                disabled={assetBusy}
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) uploadAsset(f);
-                  e.target.value = "";
-                }}
-              />
-            </label>
-          )}
-        </div>
-      )}
-
-      {deliveryType === "external" && (
-        <div style={row}>
-          <div style={field}>
-            <Label>External app key</Label>
-            <Input
-              value={externalApp}
-              onChange={(e) => setExternalApp(e.target.value)}
-              placeholder="zenhcare"
-            />
-          </div>
-          <div style={field}>
-            <Label>Affiliate cut (%)</Label>
-            <Input
-              type="number"
-              value={affiliatePct}
-              onChange={(e) => setAffiliatePct(e.target.value)}
-              placeholder="e.g. 15"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Screenshots */}
-      <div style={field}>
-        <Label>Screenshots</Label>
-        <ImageUploader value={screenshots} onChange={setScreenshots} />
-      </div>
-
-      {/* Features */}
-      <div style={field}>
-        <Label>Features</Label>
-        {features.map((f, i) => (
-          <div
-            key={i}
-            style={{ display: "flex", gap: 8, alignItems: "center" }}
+        <FormGrid>
+          <FormField
+            label="Slug (optional)"
+            htmlFor="software-slug"
+            hint="Leave blank to derive it from the English name."
           >
             <Input
-              placeholder="EN"
-              value={f.en}
-              onChange={(e) =>
-                setFeatures((fs) =>
-                  fs.map((x, j) =>
-                    j === i ? { ...x, en: e.target.value } : x,
-                  ),
-                )
-              }
+              id="software-slug"
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+              placeholder="auto from name"
             />
-            <Input
-              placeholder="বাংলা"
-              value={f.bn}
-              onChange={(e) =>
-                setFeatures((fs) =>
-                  fs.map((x, j) =>
-                    j === i ? { ...x, bn: e.target.value } : x,
-                  ),
-                )
-              }
+          </FormField>
+          <FormField label="Status">
+            <SelectField
+              value={status}
+              onChange={(v) => setStatus(v as SoftwareStatus)}
+              ariaLabel="Status"
+              options={STATUS_OPTIONS}
             />
-            <Input
-              placeholder="日本語"
-              value={f.ja}
-              onChange={(e) =>
-                setFeatures((fs) =>
-                  fs.map((x, j) =>
-                    j === i ? { ...x, ja: e.target.value } : x,
-                  ),
-                )
-              }
-            />
-            <button
-              type="button"
-              onClick={() => setFeatures((fs) => fs.filter((_, j) => j !== i))}
-              aria-label="Remove feature"
-              style={{
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--r-sm)",
-                background: "var(--color-surface)",
-                color: "var(--color-error)",
-                padding: "6px 8px",
-                cursor: "pointer",
-              }}
-            >
-              <Trash2 size={14} />
-            </button>
-          </div>
-        ))}
-        <button
-          type="button"
-          onClick={() => setFeatures((fs) => [...fs, emptyL()])}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "6px 10px",
-            borderRadius: "var(--r-sm)",
-            border: "1px solid var(--color-border)",
-            background: "var(--color-surface)",
-            color: "var(--color-brand-deep)",
-            fontWeight: 600,
-            fontSize: "var(--fs-sm)",
-            cursor: "pointer",
-            justifySelf: "start",
-          }}
+          </FormField>
+        </FormGrid>
+        <LocalizedInput
+          label="Description"
+          textarea
+          value={description}
+          onChange={(v) => setDescription(fromLV(v))}
+        />
+        <FormField
+          label="Demo URL (optional)"
+          htmlFor="software-demo"
+          hint="Shown as a “Try the demo” link on the product page."
         >
-          <Plus size={13} /> Feature
-        </button>
-      </div>
+          <Input
+            id="software-demo"
+            value={demoUrl}
+            onChange={(e) => setDemoUrl(e.target.value)}
+            placeholder="https://demo.example.com"
+          />
+        </FormField>
+      </FormSection>
 
-      {error && <p style={{ color: "var(--color-error)" }}>{error}</p>}
-      <div>
-        <CtaButton onClick={submit}>
-          {saving ? "Saving…" : isEdit ? "Save product" : "Create product"}
-        </CtaButton>
-      </div>
-    </div>
-  );
-}
+      <FormSection
+        title="Pricing"
+        description="Quote-only products are not purchasable — they collect an inquiry instead."
+      >
+        <FormGrid>
+          <FormField label="Pricing model">
+            <SelectField
+              value={pricingModel}
+              onChange={(v) => setPricingModel(v as SoftwarePricingModel)}
+              ariaLabel="Pricing model"
+              options={PRICING_OPTIONS}
+            />
+          </FormField>
+          {pricingModel !== "quote" && (
+            <FormField label="Price (BDT)" htmlFor="software-price">
+              <Input
+                id="software-price"
+                type="number"
+                value={priceMajor}
+                onChange={(e) => setPriceMajor(e.target.value)}
+              />
+            </FormField>
+          )}
+        </FormGrid>
+      </FormSection>
 
-function BilingualField({
-  label,
-  value,
-  onChange,
-  textarea,
-}: {
-  label: string;
-  value: L;
-  onChange: (v: L) => void;
-  textarea?: boolean;
-}) {
-  return (
-    <div style={field}>
-      <Label>{label}</Label>
-      <div style={triRow}>
-        {textarea ? (
-          <>
-            <textarea
-              placeholder="EN"
-              value={value.en}
-              onChange={(e) => onChange({ ...value, en: e.target.value })}
-              rows={3}
-              style={taStyle}
-            />
-            <textarea
-              placeholder="বাংলা"
-              value={value.bn}
-              onChange={(e) => onChange({ ...value, bn: e.target.value })}
-              rows={3}
-              style={taStyle}
-            />
-            <textarea
-              placeholder="日本語"
-              value={value.ja}
-              onChange={(e) => onChange({ ...value, ja: e.target.value })}
-              rows={3}
-              style={taStyle}
-            />
-          </>
-        ) : (
-          <>
-            <Input
-              placeholder="EN"
-              value={value.en}
-              onChange={(e) => onChange({ ...value, en: e.target.value })}
-            />
-            <Input
-              placeholder="বাংলা"
-              value={value.bn}
-              onChange={(e) => onChange({ ...value, bn: e.target.value })}
-            />
-            <Input
-              placeholder="日本語"
-              value={value.ja}
-              onChange={(e) => onChange({ ...value, ja: e.target.value })}
-            />
-          </>
+      <FormSection
+        title="Delivery"
+        description="What the buyer receives once the purchase is marked paid."
+      >
+        <FormField label="Delivery type">
+          <SelectField
+            value={deliveryType}
+            onChange={(v) => setDeliveryType(v as DeliveryType)}
+            ariaLabel="Delivery type"
+            options={DELIVERY_OPTIONS}
+            className="sm:max-w-md"
+          />
+        </FormField>
+
+        {deliveryType === "asset" && (
+          <FormField
+            label="Asset file"
+            hint="Stored privately and served through the gated download route — never a public URL."
+          >
+            {assetKey ? (
+              <div className="flex flex-wrap items-center gap-3 text-[13px]">
+                <span className="text-muted-foreground">
+                  Uploaded:{" "}
+                  <strong className="text-foreground">
+                    {assetName || assetKey}
+                  </strong>
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setAssetKey("");
+                    setAssetName("");
+                  }}
+                >
+                  Replace
+                </Button>
+              </div>
+            ) : (
+              <Button asChild variant="outline" size="sm" className="w-fit">
+                <label className={assetBusy ? "" : "cursor-pointer"}>
+                  <Upload className="size-4" />
+                  {assetBusy ? "Uploading…" : "Upload asset"}
+                  <input
+                    type="file"
+                    hidden
+                    disabled={assetBusy}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) uploadAsset(f);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+              </Button>
+            )}
+          </FormField>
         )}
-      </div>
-    </div>
+
+        {deliveryType === "external" && (
+          <FormGrid>
+            <FormField
+              label="External app key"
+              htmlFor="software-external"
+              hint="Identifies the external system in the provisioning task."
+            >
+              <Input
+                id="software-external"
+                value={externalApp}
+                onChange={(e) => setExternalApp(e.target.value)}
+                placeholder="zenhcare"
+              />
+            </FormField>
+            <FormField
+              label="Affiliate cut (%)"
+              htmlFor="software-affiliate"
+              hint="Accrued on the amount actually charged, snapshotted per sale."
+            >
+              <Input
+                id="software-affiliate"
+                type="number"
+                value={affiliatePct}
+                onChange={(e) => setAffiliatePct(e.target.value)}
+                placeholder="e.g. 15"
+              />
+            </FormField>
+          </FormGrid>
+        )}
+      </FormSection>
+
+      <FormSection
+        title="Screenshots"
+        description="The first screenshot is used as the catalog thumbnail."
+      >
+        <ImageUploader value={screenshots} onChange={setScreenshots} />
+      </FormSection>
+
+      <FormSection
+        title="Features"
+        description="Bullet points listed on the product page. English is required for a bullet to be saved."
+      >
+        {features.length > 0 && (
+          <div className="divide-border/60 bg-card divide-y rounded-lg shadow-[var(--shadow-sm)]">
+            {features.map((f, i) => (
+              <div key={i} className="flex items-end gap-3 px-3 py-3">
+                <LocalizedInput
+                  className="min-w-0 flex-1"
+                  label={i === 0 ? "Feature" : undefined}
+                  ariaLabel={`Feature ${i + 1}`}
+                  value={f}
+                  placeholder="e.g. Appointment scheduling"
+                  onChange={(v) =>
+                    setFeatures((fs) =>
+                      fs.map((x, j) => (j === i ? fromLV(v) : x)),
+                    )
+                  }
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Remove feature ${i + 1}`}
+                  className="text-muted-foreground hover:text-destructive"
+                  onClick={() =>
+                    setFeatures((fs) => fs.filter((_, j) => j !== i))
+                  }
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-fit"
+          onClick={() => setFeatures((fs) => [...fs, emptyL()])}
+        >
+          <Plus className="size-4" />
+          Add feature
+        </Button>
+      </FormSection>
+
+      <SaveBar
+        saving={saving}
+        onSave={submit}
+        error={error}
+        saveLabel={isEdit ? "Save product" : "Create product"}
+      />
+    </EditorForm>
   );
 }
 
@@ -541,22 +452,15 @@ export function SoftwareDeleteButton({
     else window.alert("delete_failed");
   }
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
+      size="sm"
       onClick={remove}
       disabled={busy}
-      style={{
-        background: "transparent",
-        border: "1px solid var(--color-border)",
-        borderRadius: "var(--r-sm)",
-        color: "var(--color-error)",
-        padding: "4px 10px",
-        fontSize: "var(--fs-small)",
-        cursor: busy ? "default" : "pointer",
-        opacity: busy ? 0.6 : 1,
-      }}
+      className="text-destructive hover:text-destructive h-7 px-2"
     >
       {busy ? "…" : "Delete"}
-    </button>
+    </Button>
   );
 }

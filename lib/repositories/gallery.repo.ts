@@ -3,6 +3,12 @@ import { GalleryAlbum, type IGalleryAlbum } from "@/lib/models/galleryAlbum";
 import type { Lean } from "@/lib/models/_shared";
 import type { GalleryStatus } from "@/lib/schemas/gallery";
 import { applyPartialSearch } from "@/lib/repositories/search-filter";
+import {
+  applyDateRange,
+  paginate,
+  sortSpec,
+  type RepoListQuery,
+} from "./list-query";
 
 type AlbumFilter = NonNullable<
   Parameters<typeof GalleryAlbum.countDocuments>[0]
@@ -66,31 +72,29 @@ export async function listVisibleAlbumsForFeed(limit = 100) {
 }
 
 // ---- Admin ----
-export async function listAdminAlbums(
-  params: { status?: GalleryStatus; page?: number; pageSize?: number } = {},
-) {
+/** Sort keys the admin list exposes → stored fields. */
+const ADMIN_ALBUM_SORT: Record<string, string> = {
+  date: "createdAt",
+  title: "title.en",
+  status: "status",
+  albumDate: "date",
+};
+
+export type AdminAlbumListParams = RepoListQuery & {
+  status?: GalleryStatus;
+};
+
+export async function listAdminAlbums(params: AdminAlbumListParams = {}) {
   await connectToDatabase();
   const q: Record<string, unknown> = { deletedAt: null };
   if (params.status) q.status = params.status;
-  const page = Math.max(1, params.page ?? 1);
-  const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 50));
-  const filter = q as unknown as AlbumFilter;
-  const [items, total] = await Promise.all([
-    GalleryAlbum.find(filter)
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * pageSize)
-      .limit(pageSize)
-      .lean<Lean<IGalleryAlbum>[]>()
-      .exec(),
-    GalleryAlbum.countDocuments(filter),
-  ]);
-  return {
-    items,
-    total,
-    page,
-    pageSize,
-    pages: Math.max(1, Math.ceil(total / pageSize)),
-  };
+  applyPartialSearch(q, params.search, ["title.en", "title.bn"]);
+  applyDateRange(q, params.from, params.to);
+  return paginate<IGalleryAlbum>(GalleryAlbum, q, {
+    sort: sortSpec(params.sort, params.dir, ADMIN_ALBUM_SORT),
+    page: params.page,
+    pageSize: params.pageSize ?? 50,
+  });
 }
 
 export async function getAlbumByIdLean(id: string) {

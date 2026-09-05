@@ -64,6 +64,8 @@ export interface IProduct {
   floorPriceMinor?: number | null;
   stockQty: number;
   lowStockThreshold: number;
+  /** null = default tracking rule (Kart tracked; Medtrade tracked once priced); true/false force it. */
+  trackStock?: boolean | null;
   status: ProductStatus;
   featured: boolean;
   variantOptions: IVariantOption[];
@@ -154,6 +156,8 @@ const productSchema = new Schema<IProduct>(
     floorPriceMinor: { type: Number, default: null, min: 0 },
     stockQty: { type: Number, default: 0 },
     lowStockThreshold: { type: Number, default: 5, min: 0 },
+    // null = default tracking rule; true/false force stock tracking on/off.
+    trackStock: { type: Boolean, default: null },
     status: {
       type: String,
       enum: ["draft", "active", "archived"],
