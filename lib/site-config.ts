@@ -72,6 +72,7 @@ export const publicRoutes = [
   "/tourism/partner",
   "/health-corner",
   "/blog",
+  "/guide",
   "/privacy",
   "/terms",
   "/refund-shipping",

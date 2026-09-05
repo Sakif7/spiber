@@ -230,16 +230,18 @@ export function QuoteForm({
       <form onSubmit={submit} style={{ ...panel, gap: "var(--s-4)" }}>
         <h2 style={sectionTitle}>{t("detailsTitle")}</h2>
         <div style={twoCol}>
-          <Field label={t("name")}>
+          <Field label={t("name")} htmlFor="quote-name">
             <Input
+              id="quote-name"
               name="name"
               required
               maxLength={120}
               defaultValue={initialContact?.name ?? ""}
             />
           </Field>
-          <Field label={t("email")}>
+          <Field label={t("email")} htmlFor="quote-email">
             <Input
+              id="quote-email"
               name="email"
               type="email"
               required
@@ -248,15 +250,17 @@ export function QuoteForm({
           </Field>
         </div>
         <div style={twoCol}>
-          <Field label={t("organization")}>
+          <Field label={t("organization")} htmlFor="quote-organization">
             <Input
+              id="quote-organization"
               name="organization"
               maxLength={160}
               defaultValue={initialContact?.organization ?? ""}
             />
           </Field>
-          <Field label={t("phone")}>
+          <Field label={t("phone")} htmlFor="quote-phone">
             <Input
+              id="quote-phone"
               name="phone"
               maxLength={40}
               defaultValue={initialContact?.phone ?? ""}
@@ -264,22 +268,29 @@ export function QuoteForm({
           </Field>
         </div>
         <div style={twoCol}>
-          <Field label={t("district")}>
-            <Input name="district" required maxLength={100} />
+          <Field label={t("district")} htmlFor="quote-district">
+            <Input
+              id="quote-district"
+              name="district"
+              required
+              maxLength={100}
+            />
           </Field>
-          <Field label={t("city")}>
-            <Input name="city" maxLength={100} />
+          <Field label={t("city")} htmlFor="quote-city">
+            <Input id="quote-city" name="city" maxLength={100} />
           </Field>
         </div>
-        <Field label={t("timeline")}>
+        <Field label={t("timeline")} htmlFor="quote-timeline">
           <Input
+            id="quote-timeline"
             name="timeline"
             maxLength={120}
             placeholder={t("timelinePlaceholder")}
           />
         </Field>
-        <Field label={t("notes")}>
+        <Field label={t("notes")} htmlFor="quote-notes">
           <textarea
+            id="quote-notes"
             name="notes"
             rows={4}
             maxLength={5000}
@@ -332,14 +343,17 @@ const twoCol: CSSProperties = {
 
 function Field({
   label,
+  htmlFor,
   children,
 }: {
   label: string;
+  /** Id of the control below, so the label actually labels it. */
+  htmlFor: string;
   children: React.ReactNode;
 }) {
   return (
     <div style={{ display: "grid", gap: 6 }}>
-      <Label>{label}</Label>
+      <Label htmlFor={htmlFor}>{label}</Label>
       {children}
     </div>
   );

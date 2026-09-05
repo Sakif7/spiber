@@ -7,6 +7,15 @@ import { Container } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { SOCIALS } from "./social-links";
 
+/** Destinations for the footer legal row, in the order the labels appear. */
+const LEGAL_HREFS = [
+  "/guide",
+  "/privacy",
+  "/terms",
+  "/privacy",
+  "/sitemap.xml",
+];
+
 function NewsletterForm() {
   const t = useTranslations("footer");
   const [email, setEmail] = useState("");
@@ -301,16 +310,15 @@ export function Footer() {
           <div>{t("copyright")}</div>
           <div style={{ display: "flex", gap: 24 }}>
             {(t.raw("legal") as string[]).map((label, i) => {
-              if (i === 3) {
-                return (
-                  <a key={i} href="/sitemap.xml">
-                    {label}
-                  </a>
-                );
-              }
-              const href =
-                i === 0 ? "/privacy" : i === 1 ? "/terms" : "/privacy";
-              return (
+              // Positional, matching the `footer.legal` array in every locale:
+              // guide, privacy, terms, cookies (part of the privacy policy),
+              // sitemap. The sitemap is a generated file, not an app route.
+              const href = LEGAL_HREFS[i] ?? "/privacy";
+              return href === "/sitemap.xml" ? (
+                <a key={i} href={href}>
+                  {label}
+                </a>
+              ) : (
                 <Link key={i} href={href}>
                   {label}
                 </Link>

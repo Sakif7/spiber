@@ -610,6 +610,11 @@
       "title": "Managing Body",
       "description": "Meet the people leading Spiber Med — the clinicians, operators, and builders behind our medical devices, digital health, training, and tourism divisions.",
       "breadcrumb": "Managing Body"
+    },
+    "guide": {
+      "title": "Using Spiber Med",
+      "description": "How to find equipment, ask for a price, place an order, book treatment abroad and manage your account.",
+      "englishOnly": "This guide is currently available in English only. A translated version is on the way."
     }
   },
   "sectionTabs": {
@@ -1744,7 +1749,7 @@
         ]
       }
     ],
-    "legal": ["PRIVACY", "TERMS", "COOKIES", "SITEMAP"]
+    "legal": ["USER GUIDE", "PRIVACY", "TERMS", "COOKIES", "SITEMAP"]
   },
   "utilityBar": {
     "location": "Banani · Dhaka 1213, Bangladesh",

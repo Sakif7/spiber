@@ -1,8 +1,11 @@
 import { setRequestLocale } from "next-intl/server";
 import { TriangleAlert } from "lucide-react";
 import { MaintenancePanel } from "@/components/admin/maintenance-panel";
+import { MaintenanceTabs } from "@/components/admin/maintenance-tabs";
 import { countDeletable } from "@/lib/services/hard-delete.service";
 import { AdminPageHeader } from "@/components/admin/ui/page-header";
+import { GuideBody } from "@/components/guide/guide-body";
+import { ADMIN_GUIDE } from "@/lib/guide/admin-guide";
 
 export const dynamic = "force-dynamic";
 
@@ -21,29 +24,40 @@ export default async function AdminMaintenancePage({
     collections = [];
   }
 
-  return (
-    <div className="space-y-4">
-      <AdminPageHeader
-        title="Maintenance"
-        description={
-          <>
-            Permanently delete records to clean up test data. Everywhere else
-            the app uses recoverable soft-delete — actions here are{" "}
-            <strong className="text-destructive">irreversible</strong>. Expand a
-            collection to browse and delete individual records, or purge a whole
-            collection (type its name to confirm).
-          </>
-        }
-      />
+  const guide = (
+    <div className="grid gap-4">
+      <div>
+        <h2
+          className="text-foreground text-lg font-bold tracking-tight"
+          style={{ fontFamily: "var(--font-display)" }}
+        >
+          {ADMIN_GUIDE.title}
+        </h2>
+        <p className="text-muted-foreground mt-1 text-[13px]">
+          {ADMIN_GUIDE.lede}
+        </p>
+        {ADMIN_GUIDE.updated && (
+          <p className="text-muted-foreground mt-1 text-xs">
+            {ADMIN_GUIDE.updated}
+          </p>
+        )}
+      </div>
+      <GuideBody guide={ADMIN_GUIDE} imageBase="/guide/admin" tone="admin" />
+    </div>
+  );
 
+  const cleanup = (
+    <div className="grid gap-4">
       <div className="border-destructive/50 bg-destructive/5 flex items-start gap-3 rounded-lg border p-4">
         <TriangleAlert
           aria-hidden
           className="text-destructive mt-0.5 size-4 shrink-0"
         />
         <div className="text-foreground text-[13px]">
-          <strong className="font-medium">Danger zone.</strong> Deletes are not
-          cascaded — removing a product won’t remove its
+          <strong className="font-medium">Danger zone.</strong> Everywhere else
+          the app uses recoverable soft-delete. Deletes here are{" "}
+          <strong className="text-destructive">irreversible</strong> and are not
+          cascaded, so removing a product won’t remove its
           orders/reviews/inventory movements. Hard-delete those collections too
           if you’re cleaning a full test scenario. User accounts and audit logs
           are protected here; use{" "}
@@ -65,6 +79,16 @@ export default async function AdminMaintenancePage({
           />
         ))}
       </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-4">
+      <AdminPageHeader
+        title="Maintenance"
+        description="How to run the admin, and the tools for permanently clearing test data."
+      />
+      <MaintenanceTabs guide={guide} cleanup={cleanup} />
     </div>
   );
 }
