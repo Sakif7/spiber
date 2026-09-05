@@ -48,6 +48,8 @@ import { siteConfig } from "@/lib/site-config";
 import { logger } from "@/lib/log";
 import {
   allowedOrderTransitions,
+  CHECKOUT_METHODS,
+  DEFAULT_METHOD,
   RETURN_WINDOW_DAYS,
   type CheckoutInput,
   type OrderStatus,
@@ -58,14 +60,15 @@ import type { IOrder, IOrderItem } from "@/lib/models/order";
 const genOrderNumber = (): string => makeId("SPM");
 
 export type PlaceOrderResult =
-  | { ok: true; order: IOrder }
+  | { ok: true; order: IOrder; orderId: string }
   | {
       ok: false;
       code:
         | "empty_cart"
         | "out_of_stock"
         | "product_unavailable"
-        | "credit_not_available";
+        | "credit_not_available"
+        | "invalid_payment_method";
     };
 
 /**
@@ -83,12 +86,20 @@ export async function placeOrder(
   await connectToDatabase();
 
   const existing = await getOrderByIdempotencyKey(input.idempotencyKey);
-  if (existing) return { ok: true, order: existing.toObject() };
+  if (existing)
+    return {
+      ok: true,
+      order: existing.toObject(),
+      orderId: String(existing._id),
+    };
 
-  // How this order is paid. Spiber Kart is always "offline" — a smuggled
-  // paymentMethod in the body is ignored there.
-  const method: PaymentMethod =
-    storefront === "instruments" ? (input.paymentMethod ?? "cod") : "offline";
+  // How this order is paid. Rejected rather than quietly downgraded, so a
+  // client asking for something this storefront does not offer gets told.
+  const requested = input.paymentMethod;
+  if (requested && !CHECKOUT_METHODS[storefront].includes(requested)) {
+    return { ok: false, code: "invalid_payment_method" };
+  }
+  const method: PaymentMethod = requested ?? DEFAULT_METHOD[storefront];
 
   // Credit is DB-authoritative and checked BEFORE any stock moves, so a
   // rejected credit order leaves no compensation to unwind.
@@ -313,7 +324,8 @@ export async function placeOrder(
       if (field) {
         // Concurrent placement with the same idempotency key won the race.
         const dup = await getOrderByIdempotencyKey(input.idempotencyKey);
-        if (dup) return { ok: true, order: dup.toObject() };
+        if (dup)
+          return { ok: true, order: dup.toObject(), orderId: String(dup._id) };
       }
       throw err;
     }
@@ -335,7 +347,7 @@ export async function placeOrder(
     entity: { kind: "Order", id: String(order._id), ref: order.orderNumber },
   });
 
-  return { ok: true, order: order.toObject() };
+  return { ok: true, order: order.toObject(), orderId: String(orderId) };
 }
 
 async function compensate(
@@ -377,7 +389,17 @@ export type TransitionResult =
 export async function transitionOrder(
   orderId: string,
   to: OrderStatus,
-  opts: { note?: string; internalNote?: string; trackingNumber?: string } = {},
+  opts: {
+    note?: string;
+    internalNote?: string;
+    trackingNumber?: string;
+    /**
+     * Skip the customer email. Used by the payment-expiry sweeper: an
+     * abandoned checkout is the common case and mailing every one of them
+     * would be noise for the customer and bad for the sending domain.
+     */
+    silent?: boolean;
+  } = {},
 ): Promise<TransitionResult> {
   const order = await getOrderById(orderId);
   if (!order) return { ok: false, code: "not_found" };
@@ -413,7 +435,11 @@ export async function transitionOrder(
     if (to === "refunded" || order.payment.status === "paid") {
       order.payment.status = "refunded";
       order.payment.refundedAt = now;
+    } else if (order.payment.status === "initiated") {
+      // The customer was at the gateway and never came back.
+      order.payment.status = "failed";
     }
+    order.payment.expiresAt = null;
     // Return the coupon's redemption slot.
     if (order.couponCode) {
       await releaseCouponUsageByCode(order.couponCode).catch((e) =>
@@ -441,11 +467,12 @@ export async function transitionOrder(
   await order.save();
 
   if (
-    to === "paid" ||
-    to === "shipped" ||
-    to === "delivered" ||
-    to === "cancelled" ||
-    to === "refunded"
+    !opts.silent &&
+    (to === "paid" ||
+      to === "shipped" ||
+      to === "delivered" ||
+      to === "cancelled" ||
+      to === "refunded")
   ) {
     await sendOrderEmail(order, to).catch((e) =>
       logger.warn("order status email failed", e),

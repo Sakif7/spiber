@@ -41,6 +41,7 @@ export function CheckoutForm({
   creditEligible = false,
   creditTermsDays = 30,
   creditApplyHref,
+  onlineAvailable = false,
 }: {
   /** Prefill (logged-in users: profile name/phone + default address). */
   initial?: Partial<FormValues>;
@@ -53,20 +54,29 @@ export function CheckoutForm({
   creditTermsDays?: number;
   /** Where a non-enlisted shopper can apply (omit to hide the prompt). */
   creditApplyHref?: string;
+  /** An online gateway is configured, so "pay now" can be offered. */
+  onlineAvailable?: boolean;
 }) {
   const t = useTranslations("shop.checkout");
   const locale = useLocale() as Locale;
   const router = useRouter();
   const qc = useQueryClient();
   const isMedtrade = storefront === "instruments";
+  // Whether the customer is actually offered a choice. Spiber Kart with no
+  // gateway configured shows nothing, and then no method is sent at all, so
+  // the order keeps the storefront's existing arrangement rather than being
+  // silently recorded as something the customer never picked.
+  const showPaymentChoice = onlineAvailable || isMedtrade;
 
   const [idempotencyKey] = useState(() => crypto.randomUUID());
   const [coupon, setCoupon] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  // Medtrade only. COD is the default; credit needs an approved account, and
-  // the server re-checks it regardless of what the client sends.
-  const [paymentMethod, setPaymentMethod] = useState<"cod" | "credit">("cod");
+  // The server re-checks whatever the client sends: it validates the method
+  // against the storefront and re-checks credit against an active account.
+  const [paymentMethod, setPaymentMethod] = useState<
+    "online" | "cod" | "credit"
+  >(onlineAvailable ? "online" : "cod");
 
   const {
     register,
@@ -127,7 +137,7 @@ export function CheckoutForm({
         note: values.note,
         idempotencyKey,
         storefront,
-        paymentMethod: isMedtrade ? paymentMethod : undefined,
+        paymentMethod: showPaymentChoice ? paymentMethod : undefined,
       }),
     });
     const json = await res.json();
@@ -137,6 +147,10 @@ export function CheckoutForm({
         subtotalMinor: 0,
         count: 0,
       });
+      if (json.data.redirectUrl) {
+        window.location.assign(json.data.redirectUrl);
+        return;
+      }
       router.push(
         `${basePath}/order/${json.data.orderNumber}?email=${encodeURIComponent(json.data.email)}`,
       );
@@ -144,11 +158,15 @@ export function CheckoutForm({
     }
     const code = json?.error?.code;
     setSubmitError(
-      code === "out_of_stock"
-        ? t("outOfStock")
-        : code === "credit_not_available"
-          ? t("creditNotAvailable")
-          : t("error"),
+      code === "payment_unavailable"
+        ? t("paymentUnavailable")
+        : code === "invalid_payment_method"
+          ? t("paymentMethodUnavailable")
+          : code === "out_of_stock"
+            ? t("outOfStock")
+            : code === "credit_not_available"
+              ? t("creditNotAvailable")
+              : t("error"),
     );
   }
 
@@ -255,8 +273,9 @@ export function CheckoutForm({
           <Input id="note" {...register("note")} />
         </div>
 
-        {/* Medtrade only. Kart stays on the implicit offline arrangement. */}
-        {isMedtrade && (
+        {/* Shown whenever there is a choice to make: an online gateway, or
+            Medtrade's cash-on-delivery and credit terms. */}
+        {showPaymentChoice && (
           <fieldset
             style={{
               display: "grid",
@@ -277,6 +296,22 @@ export function CheckoutForm({
               {t("paymentMethod")}
             </legend>
 
+            {onlineAvailable && (
+              <label style={payOption}>
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="online"
+                  checked={paymentMethod === "online"}
+                  onChange={() => setPaymentMethod("online")}
+                />
+                <span>
+                  <strong>{t("payOnline")}</strong>
+                  <span style={payHint}>{t("payOnlineNote")}</span>
+                </span>
+              </label>
+            )}
+
             <label style={payOption}>
               <input
                 type="radio"
@@ -291,7 +326,7 @@ export function CheckoutForm({
               </span>
             </label>
 
-            {creditEligible ? (
+            {!isMedtrade ? null : creditEligible ? (
               <label style={payOption}>
                 <input
                   type="radio"

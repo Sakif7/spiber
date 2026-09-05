@@ -34,11 +34,18 @@ export interface IPaymentRef {
   paidAt?: Date | null;
   refundedAt?: Date | null;
   /**
-   * Commercial arrangement (offline | cod | credit). Legacy orders predate the
-   * field, so ALWAYS read it as `payment.method ?? "offline"` — `.lean()`
-   * reads do not apply Mongoose defaults.
+   * Commercial arrangement (offline | online | cod | credit). Legacy orders
+   * predate the field, so ALWAYS read it as `payment.method ?? "offline"` —
+   * `.lean()` reads do not apply Mongoose defaults.
    */
   method?: PaymentMethod;
+  /** Online only: when the customer was handed to the gateway. */
+  initiatedAt?: Date | null;
+  /**
+   * Online only: when the stock this order reserved is released if the payment
+   * has still not arrived. Swept by /api/cron/expire-payments.
+   */
+  expiresAt?: Date | null;
   /** Credit only: agreed net terms, snapshotted from the account. */
   termsDays?: number | null;
   /** Credit only: when the invoice falls due (placedAt + termsDays). */
@@ -173,13 +180,13 @@ const orderSchema = new Schema<IOrder>(
     payment: {
       provider: {
         type: String,
-        enum: ["manual", "sslcommerz", "aamarpay", "stripe"],
+        enum: ["manual", "dev", "sslcommerz", "aamarpay", "stripe"],
         default: "manual",
       },
       txnId: String,
       status: {
         type: String,
-        enum: ["unpaid", "paid", "failed", "refunded"],
+        enum: ["unpaid", "initiated", "paid", "failed", "refunded"],
         default: "unpaid",
       },
       raw: Schema.Types.Mixed,
@@ -187,9 +194,11 @@ const orderSchema = new Schema<IOrder>(
       refundedAt: { type: Date, default: null },
       method: {
         type: String,
-        enum: ["offline", "cod", "credit"],
+        enum: ["offline", "online", "cod", "credit"],
         default: "offline",
       },
+      initiatedAt: { type: Date, default: null },
+      expiresAt: { type: Date, default: null },
       termsDays: { type: Number, default: null },
       dueAt: { type: Date, default: null },
     },
@@ -236,6 +245,8 @@ const orderSchema = new Schema<IOrder>(
 orderSchema.index({ idempotencyKey: 1 }, { unique: true });
 orderSchema.index({ createdAt: -1 });
 orderSchema.index({ storefront: 1, status: 1, createdAt: -1 });
+// Drives the expiry sweeper, which looks for in-flight payments past their hold.
+orderSchema.index({ "payment.status": 1, "payment.expiresAt": 1 });
 
 export const Order: Model<IOrder> =
   (mongoose.models.Order as Model<IOrder>) ??

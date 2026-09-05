@@ -1891,7 +1891,11 @@
       "creditUnavailable": "Buying on credit is available to enlisted hospitals and clinics.",
       "applyCredit": "Apply for a credit account",
       "vat": "VAT",
-      "creditNotAvailable": "Your credit account is not active. Choose cash on delivery, or contact us."
+      "creditNotAvailable": "Your credit account is not active. Choose cash on delivery, or contact us.",
+      "payOnline": "Pay now",
+      "payOnlineNote": "Card, mobile banking or internet banking. You will be taken to a secure payment page.",
+      "paymentUnavailable": "We could not start the payment, and nothing has been charged. Please try again in a moment.",
+      "paymentMethodUnavailable": "That payment method is not available for this order."
     },
     "confirmation": {
       "title": "Order confirmed",

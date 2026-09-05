@@ -13,6 +13,8 @@ export type OrderStatus = z.infer<typeof orderStatusEnum>;
 
 export const paymentStatusEnum = z.enum([
   "unpaid",
+  /** Sent to the gateway, waiting on the customer. Holds stock until expiry. */
+  "initiated",
   "paid",
   "failed",
   "refunded",
@@ -21,6 +23,8 @@ export type PaymentStatus = z.infer<typeof paymentStatusEnum>;
 
 export const paymentProviderEnum = z.enum([
   "manual",
+  /** Built-in sandbox gateway. Refuses to run in production. */
+  "dev",
   "sslcommerz",
   "aamarpay",
   "stripe",
@@ -39,8 +43,34 @@ export type PaymentProviderName = z.infer<typeof paymentProviderEnum>;
  * Legacy orders have no `method` at all, so every read path uses
  * `payment.method ?? "offline"` (`.lean()` does not apply Mongoose defaults).
  */
-export const paymentMethodEnum = z.enum(["offline", "cod", "credit"]);
+export const paymentMethodEnum = z.enum(["offline", "online", "cod", "credit"]);
 export type PaymentMethod = z.infer<typeof paymentMethodEnum>;
+
+/**
+ * What each storefront may be paid with. Credit is Medtrade-only because it
+ * needs an approved account; "offline" is not offered at checkout any more but
+ * stays valid for legacy orders and admin-created ones.
+ */
+export const CHECKOUT_METHODS: Record<
+  "instruments" | "marketplace",
+  readonly PaymentMethod[]
+> = {
+  instruments: ["online", "cod", "credit"],
+  marketplace: ["online", "cod"],
+};
+
+/** The method to use when the client did not choose one. */
+export const DEFAULT_METHOD: Record<
+  "instruments" | "marketplace",
+  PaymentMethod
+> = { instruments: "cod", marketplace: "offline" };
+
+/**
+ * How long an order awaiting an online payment keeps the stock it reserved at
+ * placement. Past this the sweeper cancels it and returns the stock, so an
+ * abandoned checkout cannot hold inventory indefinitely.
+ */
+export const PAYMENT_HOLD_MINUTES = 30;
 
 export const addressSchema = z.object({
   label: z.string().max(60).optional(),
@@ -71,11 +101,11 @@ export const checkoutSchema = z.object({
    */
   storefront: z.enum(["instruments", "marketplace"]).optional(),
   /**
-   * Medtrade only. Ignored on Spiber Kart (always "offline"). "credit" is
-   * re-checked against an ACTIVE CreditAccount server-side before any stock
-   * moves — a client can't grant itself terms.
+   * How the customer wants to pay. Validated against CHECKOUT_METHODS for the
+   * storefront, and "credit" is re-checked against an ACTIVE CreditAccount
+   * server-side before any stock moves, so a client can't grant itself terms.
    */
-  paymentMethod: z.enum(["cod", "credit"]).optional(),
+  paymentMethod: z.enum(["online", "cod", "credit"]).optional(),
 });
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 

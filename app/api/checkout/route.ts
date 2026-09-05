@@ -1,7 +1,7 @@
 import { ok, fail } from "@/lib/http/respond";
 import { parseJson } from "@/lib/http/validate";
 import { checkoutSchema } from "@/lib/schemas/order";
-import { placeOrder } from "@/lib/services/order.service";
+import { placeAndPay } from "@/lib/services/payment.service";
 import { resolveCartOwner } from "@/lib/shop/cart-owner";
 import { getSessionUser } from "@/lib/auth/current-user";
 import { rateLimit, clientIp } from "@/lib/auth/rate-limit";
@@ -19,11 +19,14 @@ export async function POST(req: Request) {
   // The body only selects which of the caller's own carts to check out; every
   // price, tax rate and credit check is derived server-side from it.
   const storefront = parsed.data.storefront ?? "marketplace";
-  const result = await placeOrder(parsed.data, owner, user?.sub, storefront);
+  const result = await placeAndPay(parsed.data, owner, user?.sub, storefront);
   if (!result.ok) return fail({ code: result.code }, 409);
   return ok({
     orderNumber: result.order.orderNumber,
     totalMinor: result.order.totalMinor,
     email: result.order.email,
+    // Present only for online payment: the client sends the customer here to
+    // pay. The order is NOT paid until the gateway's webhook says so.
+    redirectUrl: result.redirectUrl,
   });
 }

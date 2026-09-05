@@ -2,6 +2,7 @@ import { setRequestLocale, getTranslations } from "next-intl/server";
 import { Container } from "@/components/ui/container";
 import { PageHeader } from "@/components/ui/page-header";
 import { CheckoutForm } from "@/components/shop/checkout-form";
+import { onlinePaymentAvailable } from "@/lib/services/payment.service";
 import { getSessionUser } from "@/lib/auth/current-user";
 import { findUserById } from "@/lib/repositories/users.repo";
 import { getActiveCreditAccount } from "@/lib/repositories/credit-accounts.repo";
@@ -65,6 +66,7 @@ export default async function MedtradeCheckoutPage({
       <section style={{ paddingBlock: "clamp(40px, 5vw, 80px)" }}>
         <Container>
           <CheckoutForm
+            onlineAvailable={onlinePaymentAvailable()}
             initial={initial}
             storefront="instruments"
             basePath="/medtrade"
