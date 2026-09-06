@@ -1232,21 +1232,150 @@
           "line": "Delivering goods to any location quickly and with ease."
         }
       ],
-      "solutions": {
-        "lab": {
-          "title": "Lab Equipment",
-          "description": "Precision analyzers, microscopes & refrigeration — engineered for clinical and research labs across Bangladesh.",
-          "imageAlt": "Modern laboratory with microscope, analyzers and glassware"
+      "tilesLabel": "What we do",
+      "tilesCount": "{index} / {total}",
+      "tiles": {
+        "medtrade": {
+          "title": "Buy Equipment",
+          "sub": "Bulk & institutional supply · quote-based",
+          "brand": "Spiber Medtrade",
+          "desc": "Clinical-grade devices for hospitals, clinics and labs, priced per project with a formal quotation.",
+          "imageAlt": "Operating theatre fitted with clinical-grade equipment",
+          "chips": [
+            {
+              "label": "Catalogue",
+              "href": "/medtrade"
+            },
+            {
+              "label": "Request a quotation",
+              "href": "/medtrade/quote"
+            },
+            {
+              "label": "Credit facility",
+              "href": "/medtrade/credit-facility"
+            }
+          ]
         },
-        "furniture": {
-          "title": "Medical Furniture",
-          "description": "Patient beds, OR tables, ICU stations.",
-          "imageAlt": "Modern hospital beds, exam chairs and OR tables in teal accents"
+        "kart": {
+          "title": "Shop Online",
+          "sub": "Retail store · ships nationwide",
+          "brand": "Spiber Kart",
+          "desc": "Everyday medical and wellness products, delivered across Bangladesh.",
+          "imageAlt": "Bedside blood-pressure monitor showing a reading",
+          "chips": [
+            {
+              "label": "Shop all",
+              "href": "/kart/shop"
+            },
+            {
+              "label": "Brands",
+              "href": "/kart/brands"
+            },
+            {
+              "label": "Request a product",
+              "href": "/kart/request-product"
+            },
+            {
+              "label": "Become a seller",
+              "href": "/become-a-seller"
+            }
+          ]
         },
-        "software": {
-          "title": "Software Solutions",
-          "description": "HIS, EMR & telemedicine platforms.",
-          "imageAlt": "Medical software dashboards on touchscreens and tablets"
+        "digihealth": {
+          "title": "Hospital Software",
+          "sub": "HIS, EMR & telemedicine",
+          "brand": "Spiber Digihealth",
+          "desc": "HIS, EMR and telemedicine platforms, plus custom builds hosted in Bangladesh.",
+          "imageAlt": "Hospital software dashboards on wall screens and tablets",
+          "chips": [
+            {
+              "label": "Software products",
+              "href": "/digihealth/products"
+            },
+            {
+              "label": "Custom solutions",
+              "href": "/digihealth/custom"
+            },
+            {
+              "label": "Request a demo",
+              "href": "/contact"
+            }
+          ]
+        },
+        "academy": {
+          "title": "Training & Courses",
+          "sub": "Certification for medical staff",
+          "brand": "Spiber MedAcademy",
+          "desc": "Accredited courses and hands-on training for doctors, nurses and technicians.",
+          "imageAlt": "Hands-on resuscitation training with a manikin and AED",
+          "chips": [
+            {
+              "label": "All courses",
+              "href": "/medacademy/courses"
+            },
+            {
+              "label": "Beginner",
+              "href": "/medacademy/courses?level=beginner"
+            },
+            {
+              "label": "Intermediate",
+              "href": "/medacademy/courses?level=intermediate"
+            },
+            {
+              "label": "Advanced",
+              "href": "/medacademy/courses?level=advanced"
+            }
+          ]
+        },
+        "tourism": {
+          "title": "Medical Tourism",
+          "sub": "Treatment abroad, arranged",
+          "brand": "Spiber Tourism",
+          "desc": "Treatment at accredited partner hospitals abroad, with travel, visa and stay handled for you.",
+          "imageAlt": "Tree-lined road abroad, evoking medical travel",
+          "chips": [
+            {
+              "label": "Destinations",
+              "href": "/tourism/destinations"
+            },
+            {
+              "label": "Hospitals",
+              "href": "/tourism/hospitals"
+            },
+            {
+              "label": "Doctors",
+              "href": "/tourism/doctors"
+            },
+            {
+              "label": "Packages",
+              "href": "/tourism/packages"
+            }
+          ]
+        },
+        "health": {
+          "title": "Health & Wellness",
+          "sub": "Consumer health products",
+          "brand": "Spiber Health Corner",
+          "desc": "Supplements, personal care and wellness essentials, sold on Spiber Kart today.",
+          "imageAlt": "A nurse supporting an elderly patient at home",
+          "chips": [
+            {
+              "label": "Supplements",
+              "href": "/kart/category/supplements"
+            },
+            {
+              "label": "Personal care",
+              "href": "/kart/category/personal-care"
+            },
+            {
+              "label": "Beauty",
+              "href": "/kart/category/beauty"
+            },
+            {
+              "label": "Fitness",
+              "href": "/kart/category/fitness"
+            }
+          ]
         }
       }
     },

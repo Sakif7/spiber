@@ -1232,21 +1232,150 @@
           "line": "যেকোনো স্থানে দ্রুত ও সহজে পণ্য পৌঁছে দিচ্ছি।"
         }
       ],
-      "solutions": {
-        "lab": {
-          "title": "ল্যাব সরঞ্জাম",
-          "description": "সুনির্দিষ্ট অ্যানালাইজার, মাইক্রোস্কোপ ও রেফ্রিজারেশন — বাংলাদেশজুড়ে ক্লিনিক্যাল ও গবেষণা ল্যাবের জন্য প্রকৌশলিত।",
-          "imageAlt": "মাইক্রোস্কোপ, অ্যানালাইজার ও কাচের সরঞ্জামসহ আধুনিক ল্যাবরেটরি"
+      "tilesLabel": "আমরা যা করি",
+      "tilesCount": "{index} / {total}",
+      "tiles": {
+        "medtrade": {
+          "title": "যন্ত্রপাতি কিনুন",
+          "sub": "বাল্ক ও প্রাতিষ্ঠানিক সরবরাহ · কোটেশনভিত্তিক",
+          "brand": "Spiber Medtrade",
+          "desc": "হাসপাতাল, ক্লিনিক ও ল্যাবের জন্য ক্লিনিক্যাল-গ্রেড যন্ত্রপাতি — প্রকল্পভিত্তিক মূল্য ও আনুষ্ঠানিক কোটেশনসহ।",
+          "imageAlt": "ক্লিনিক্যাল-গ্রেড সরঞ্জামে সজ্জিত অপারেশন থিয়েটার",
+          "chips": [
+            {
+              "label": "ক্যাটালগ",
+              "href": "/medtrade"
+            },
+            {
+              "label": "কোটেশন চান",
+              "href": "/medtrade/quote"
+            },
+            {
+              "label": "ক্রেডিট সুবিধা",
+              "href": "/medtrade/credit-facility"
+            }
+          ]
         },
-        "furniture": {
-          "title": "চিকিৎসা আসবাবপত্র",
-          "description": "রোগীর বেড, অপারেশন থিয়েটার টেবিল, আইসিইউ স্টেশন।",
-          "imageAlt": "টিল রঙের আভায় আধুনিক হাসপাতালের বেড, এক্সাম চেয়ার ও অপারেশন থিয়েটার টেবিল"
+        "kart": {
+          "title": "অনলাইনে কেনাকাটা",
+          "sub": "রিটেইল স্টোর · সারাদেশে ডেলিভারি",
+          "brand": "Spiber Kart",
+          "desc": "দৈনন্দিন চিকিৎসা ও সুস্থতার পণ্য, বাংলাদেশজুড়ে ডেলিভারি।",
+          "imageAlt": "রোগীর পাশে রক্তচাপ মনিটরে রিডিং দেখা যাচ্ছে",
+          "chips": [
+            {
+              "label": "সব পণ্য",
+              "href": "/kart/shop"
+            },
+            {
+              "label": "ব্র্যান্ড",
+              "href": "/kart/brands"
+            },
+            {
+              "label": "পণ্যের অনুরোধ",
+              "href": "/kart/request-product"
+            },
+            {
+              "label": "বিক্রেতা হোন",
+              "href": "/become-a-seller"
+            }
+          ]
         },
-        "software": {
-          "title": "সফটওয়্যার সমাধান",
-          "description": "HIS, EMR ও টেলিমেডিসিন প্ল্যাটফর্ম।",
-          "imageAlt": "টাচস্ক্রিন ও ট্যাবলেটে চিকিৎসা সফটওয়্যারের ড্যাশবোর্ড"
+        "digihealth": {
+          "title": "হাসপাতাল সফটওয়্যার",
+          "sub": "HIS, EMR ও টেলিমেডিসিন",
+          "brand": "Spiber Digihealth",
+          "desc": "HIS, EMR ও টেলিমেডিসিন প্ল্যাটফর্ম, সঙ্গে বাংলাদেশে হোস্ট করা কাস্টম সমাধান।",
+          "imageAlt": "দেয়ালের স্ক্রিন ও ট্যাবলেটে হাসপাতাল সফটওয়্যারের ড্যাশবোর্ড",
+          "chips": [
+            {
+              "label": "সফটওয়্যার পণ্য",
+              "href": "/digihealth/products"
+            },
+            {
+              "label": "কাস্টম সমাধান",
+              "href": "/digihealth/custom"
+            },
+            {
+              "label": "ডেমো চান",
+              "href": "/contact"
+            }
+          ]
+        },
+        "academy": {
+          "title": "প্রশিক্ষণ ও কোর্স",
+          "sub": "চিকিৎসা কর্মীদের সার্টিফিকেশন",
+          "brand": "Spiber MedAcademy",
+          "desc": "ডাক্তার, নার্স ও টেকনিশিয়ানদের জন্য স্বীকৃত কোর্স ও হাতে-কলমে প্রশিক্ষণ।",
+          "imageAlt": "ম্যানিকিন ও AED দিয়ে হাতে-কলমে রিসাসিটেশন প্রশিক্ষণ",
+          "chips": [
+            {
+              "label": "সব কোর্স",
+              "href": "/medacademy/courses"
+            },
+            {
+              "label": "প্রাথমিক",
+              "href": "/medacademy/courses?level=beginner"
+            },
+            {
+              "label": "মধ্যম",
+              "href": "/medacademy/courses?level=intermediate"
+            },
+            {
+              "label": "উন্নত",
+              "href": "/medacademy/courses?level=advanced"
+            }
+          ]
+        },
+        "tourism": {
+          "title": "মেডিকেল ট্যুরিজম",
+          "sub": "বিদেশে চিকিৎসা, সব ব্যবস্থাসহ",
+          "brand": "Spiber Tourism",
+          "desc": "বিদেশের স্বীকৃত পার্টনার হাসপাতালে চিকিৎসা — ভ্রমণ, ভিসা ও থাকার ব্যবস্থা আমরাই করি।",
+          "imageAlt": "বিদেশের গাছে ঘেরা সড়ক, চিকিৎসা ভ্রমণের আবহ",
+          "chips": [
+            {
+              "label": "গন্তব্য",
+              "href": "/tourism/destinations"
+            },
+            {
+              "label": "হাসপাতাল",
+              "href": "/tourism/hospitals"
+            },
+            {
+              "label": "ডাক্তার",
+              "href": "/tourism/doctors"
+            },
+            {
+              "label": "প্যাকেজ",
+              "href": "/tourism/packages"
+            }
+          ]
+        },
+        "health": {
+          "title": "স্বাস্থ্য ও সুস্থতা",
+          "sub": "ভোক্তা স্বাস্থ্যপণ্য",
+          "brand": "Spiber Health Corner",
+          "desc": "সাপ্লিমেন্ট, ব্যক্তিগত যত্ন ও সুস্থতার প্রয়োজনীয় পণ্য — আজই স্পাইবার কার্টে।",
+          "imageAlt": "বাড়িতে একজন বয়স্ক রোগীকে সহায়তা করছেন একজন নার্স",
+          "chips": [
+            {
+              "label": "সাপ্লিমেন্ট",
+              "href": "/kart/category/supplements"
+            },
+            {
+              "label": "ব্যক্তিগত যত্ন",
+              "href": "/kart/category/personal-care"
+            },
+            {
+              "label": "বিউটি",
+              "href": "/kart/category/beauty"
+            },
+            {
+              "label": "ফিটনেস",
+              "href": "/kart/category/fitness"
+            }
+          ]
         }
       }
     },

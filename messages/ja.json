@@ -1232,21 +1232,150 @@
           "line": "あらゆる場所へ、迅速かつスムーズに商品をお届けします。"
         }
       ],
-      "solutions": {
-        "lab": {
-          "title": "ラボ機器",
-          "description": "高精度な分析装置、顕微鏡、冷蔵設備——バングラデシュ全土の臨床・研究ラボのために設計されています。",
-          "imageAlt": "顕微鏡、分析装置、ガラス器具を備えた最新のラボ"
+      "tilesLabel": "事業内容",
+      "tilesCount": "{index} / {total}",
+      "tiles": {
+        "medtrade": {
+          "title": "医療機器の購入",
+          "sub": "法人・施設向け一括供給 · 見積制",
+          "brand": "Spiber Medtrade",
+          "desc": "病院・クリニック・検査室向けの臨床グレード機器を、案件ごとの正式見積でご提供します。",
+          "imageAlt": "臨床グレードの機器を備えた手術室",
+          "chips": [
+            {
+              "label": "カタログ",
+              "href": "/medtrade"
+            },
+            {
+              "label": "見積もりを依頼",
+              "href": "/medtrade/quote"
+            },
+            {
+              "label": "クレジット枠",
+              "href": "/medtrade/credit-facility"
+            }
+          ]
         },
-        "furniture": {
-          "title": "医療用什器",
-          "description": "患者用ベッド、手術台、ICUステーション。",
-          "imageAlt": "ティールのアクセントが効いた最新の病院用ベッド、診察チェア、手術台"
+        "kart": {
+          "title": "オンラインで買う",
+          "sub": "小売ストア · 全国配送",
+          "brand": "Spiber Kart",
+          "desc": "日常の医療・ウェルネス用品をバングラデシュ全土へお届けします。",
+          "imageAlt": "ベッドサイドの血圧計に表示された測定値",
+          "chips": [
+            {
+              "label": "すべての商品",
+              "href": "/kart/shop"
+            },
+            {
+              "label": "ブランド",
+              "href": "/kart/brands"
+            },
+            {
+              "label": "商品リクエスト",
+              "href": "/kart/request-product"
+            },
+            {
+              "label": "出品者になる",
+              "href": "/become-a-seller"
+            }
+          ]
         },
-        "software": {
-          "title": "ソフトウェアソリューション",
-          "description": "HIS、EMR、遠隔医療プラットフォーム。",
-          "imageAlt": "タッチスクリーンやタブレットに表示された医療ソフトウェアのダッシュボード"
+        "digihealth": {
+          "title": "病院向けソフトウェア",
+          "sub": "HIS・EMR・遠隔医療",
+          "brand": "Spiber Digihealth",
+          "desc": "HIS・EMR・遠隔医療プラットフォームに加え、バングラデシュ国内でホストするカスタム開発も承ります。",
+          "imageAlt": "壁面スクリーンとタブレットに表示された病院ソフトウェアのダッシュボード",
+          "chips": [
+            {
+              "label": "ソフトウェア製品",
+              "href": "/digihealth/products"
+            },
+            {
+              "label": "カスタムソリューション",
+              "href": "/digihealth/custom"
+            },
+            {
+              "label": "デモを依頼",
+              "href": "/contact"
+            }
+          ]
+        },
+        "academy": {
+          "title": "研修・コース",
+          "sub": "医療スタッフの認定資格",
+          "brand": "Spiber MedAcademy",
+          "desc": "医師・看護師・技師向けの認定コースと実践研修。",
+          "imageAlt": "マネキンとAEDを使った実践的な蘇生研修",
+          "chips": [
+            {
+              "label": "すべてのコース",
+              "href": "/medacademy/courses"
+            },
+            {
+              "label": "初級",
+              "href": "/medacademy/courses?level=beginner"
+            },
+            {
+              "label": "中級",
+              "href": "/medacademy/courses?level=intermediate"
+            },
+            {
+              "label": "上級",
+              "href": "/medacademy/courses?level=advanced"
+            }
+          ]
+        },
+        "tourism": {
+          "title": "医療ツーリズム",
+          "sub": "海外での治療を手配",
+          "brand": "Spiber Tourism",
+          "desc": "海外の認定提携病院での治療を、渡航・ビザ・滞在の手配込みでサポートします。",
+          "imageAlt": "海外の並木道、医療渡航のイメージ",
+          "chips": [
+            {
+              "label": "渡航先",
+              "href": "/tourism/destinations"
+            },
+            {
+              "label": "病院",
+              "href": "/tourism/hospitals"
+            },
+            {
+              "label": "医師",
+              "href": "/tourism/doctors"
+            },
+            {
+              "label": "パッケージ",
+              "href": "/tourism/packages"
+            }
+          ]
+        },
+        "health": {
+          "title": "健康とウェルネス",
+          "sub": "一般向けヘルスケア用品",
+          "brand": "Spiber Health Corner",
+          "desc": "サプリメント、パーソナルケア、ウェルネス用品を、今すぐSpiber Kartで。",
+          "imageAlt": "自宅で高齢の患者を支える看護師",
+          "chips": [
+            {
+              "label": "サプリメント",
+              "href": "/kart/category/supplements"
+            },
+            {
+              "label": "パーソナルケア",
+              "href": "/kart/category/personal-care"
+            },
+            {
+              "label": "ビューティー",
+              "href": "/kart/category/beauty"
+            },
+            {
+              "label": "フィットネス",
+              "href": "/kart/category/fitness"
+            }
+          ]
         }
       }
     },

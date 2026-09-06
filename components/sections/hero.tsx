@@ -1,6 +1,16 @@
 "use client";
 
-import { CSSProperties, useEffect, useState } from "react";
+import {
+  CSSProperties,
+  FocusEvent,
+  MouseEvent,
+  PointerEvent,
+  ReactNode,
+  UIEvent,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
@@ -8,10 +18,10 @@ import { Arrow, Container, Reveal } from "@/components/ui";
 import { useMagnetic } from "@/hooks";
 import DotGrid from "@/components/ui/dot-grid";
 import { colors } from "@/lib/design-tokens";
+import { cn } from "@/lib/cn";
+import { heroPosition } from "@/lib/hero-images";
 import { Link } from "@/i18n/navigation";
 import { CatalogSearch } from "@/components/search/catalog-search";
-
-const MotionLink = motion.create(Link);
 
 // `word` is the noun that follows the static "Empowering " prefix in the
 // hero headline; `title` is the source tagline shown in the small indicator
@@ -224,7 +234,372 @@ function TaglineRotator({ items }: { items: typeof HERO_TAGLINES }) {
   );
 }
 
-function HeroBackground({ hoveredId }: { hoveredId: string | null }) {
+/* ───────────────────────── Six-tile bento ─────────────────────────
+   Layout, growth geometry and motion live in the `.hb-*` rules in
+   globals.css (see the comment block there). This file owns the data, the
+   open state (hover-intent / focus / tap) and the one measurement the CSS
+   cannot make itself (--hb-dy). */
+
+export type HeroTileId =
+  | "medtrade"
+  | "kart"
+  | "digihealth"
+  | "academy"
+  | "tourism"
+  | "health";
+
+export type HeroChip = { label: string; href: string };
+
+/** Live chips per tile (server-fetched categories); a missing tile falls back
+ *  to the static chips in the message catalog. */
+export type HeroLiveChips = Partial<Record<HeroTileId, HeroChip[]>>;
+
+type IconKey =
+  | "instruments"
+  | "marketplace"
+  | "systems"
+  | "academy"
+  | "plane"
+  | "heart";
+
+type HeroTile = {
+  id: HeroTileId;
+  href: string;
+  image: string;
+  icon: IconKey;
+  /** The two 4-column tiles: drop the caption in narrow bentos (CSS). */
+  small?: boolean;
+  /** The photo tile is the likely LCP element — preload it. */
+  priority?: boolean;
+};
+
+const HERO_TILES: HeroTile[] = [
+  {
+    id: "medtrade",
+    href: "/medtrade",
+    image: "/modern-operating-room-equipment.jpeg",
+    icon: "instruments",
+    priority: true,
+  },
+  {
+    id: "kart",
+    href: "/kart",
+    image: "/icu-patient-blood-pressure-monitor.jpeg",
+    icon: "marketplace",
+  },
+  {
+    id: "digihealth",
+    href: "/digihealth",
+    image: "/bento-software.png",
+    icon: "systems",
+    small: true,
+  },
+  {
+    id: "academy",
+    href: "/medacademy",
+    image: "/cpr-training-manikin-with-aed.jpeg",
+    icon: "academy",
+    small: true,
+  },
+  {
+    id: "tourism",
+    href: "/tourism",
+    image: "/cherry-blossom-tree-lined-road.jpeg",
+    icon: "plane",
+  },
+  {
+    id: "health",
+    href: "/health-corner",
+    image: "/nurse-comforting-elderly-woman-home-care.jpeg",
+    icon: "heart",
+  },
+];
+
+/** Same `sizes` for the tile photo and the full-bleed background copy, so the
+ *  browser fetches ONE optimized variant per photo and reuses it. */
+const PHOTO_SIZES = "(max-width: 980px) 100vw, 720px";
+
+/** Rail card width + gap, for the "01 / 06" counter (≤980 only). */
+const RAIL_STEP = 312;
+
+const ICONS: Record<IconKey, ReactNode> = {
+  instruments: (
+    <path d="M9 3v6.5L4.8 17a3 3 0 0 0 2.6 4.5h9.2A3 3 0 0 0 19.2 17L15 9.5V3M8 3h8M9 13h6" />
+  ),
+  marketplace: (
+    <path d="M6 2 3 6v1a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0V6l-3-4ZM5 10v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9M10 20v-5h4v5" />
+  ),
+  systems: <path d="M3 5h18v12H3zM3 9h18M8 21h8M12 17v4" />,
+  academy: (
+    <path d="M3 8.5 12 4l9 4.5-9 4.5-9-4.5Zm4 3v4.2c0 .9 2.2 2.3 5 2.3s5-1.4 5-2.3V11.5" />
+  ),
+  plane: (
+    <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" />
+  ),
+  heart: (
+    <>
+      <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+      <path d="M3.2 12h6.3l.5-1 2 4.5 2-7 1.5 3.5h5.3" />
+    </>
+  ),
+};
+
+function TileIcon({ icon }: { icon: IconKey }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {ICONS[icon]}
+    </svg>
+  );
+}
+
+/** Touch devices that still get the bento (≥981px, no hover): first tap opens
+ *  the card, second tap follows the link. Phones get the rail, where a tap
+ *  simply navigates. */
+function isTouchBento() {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(hover: none)").matches &&
+    window.matchMedia("(min-width: 981px)").matches
+  );
+}
+
+function HeroBento({
+  liveChips,
+  active,
+  onActiveChange,
+}: {
+  liveChips?: HeroLiveChips;
+  active: HeroTileId | null;
+  onActiveChange: (id: HeroTileId | null) => void;
+}) {
+  const t = useTranslations("home.hero");
+  const rootRef = useRef<HTMLDivElement>(null);
+  const intent = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [tapped, setTapped] = useState<HeroTileId | null>(null);
+  const [railIndex, setRailIndex] = useState(0);
+
+  const clearIntent = () => {
+    if (intent.current) clearTimeout(intent.current);
+    intent.current = null;
+  };
+  useEffect(() => clearIntent, []);
+
+  // --hb-dy: the hidden detail's height (+ the 12px gap), so the title block
+  // can rest in the tile's corner while its natural place is the open layout.
+  // Re-measured when the bento's width changes and once the fonts have loaded.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const apply = () => {
+      root.querySelectorAll<HTMLElement>(".hb-tile").forEach((tile) => {
+        const detail = tile.querySelector<HTMLElement>(".hb-detail");
+        if (detail)
+          tile.style.setProperty("--hb-dy", `${detail.offsetHeight + 12}px`);
+      });
+    };
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(root);
+    document.fonts?.ready.then(apply);
+    return () => ro.disconnect();
+  }, []);
+
+  // A tap-opened card closes when the next tap lands outside the bento.
+  useEffect(() => {
+    if (!tapped) return;
+    const onDocClick = (e: globalThis.MouseEvent) => {
+      if (rootRef.current?.contains(e.target as Node)) return;
+      setTapped(null);
+      onActiveChange(null);
+    };
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  }, [tapped, onActiveChange]);
+
+  const onEnter = (id: HeroTileId) => (e: PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType !== "mouse" || isTouchBento()) return;
+    clearIntent();
+    // 100ms hover-intent gate: sweeping across the grid opens nothing.
+    intent.current = setTimeout(() => onActiveChange(id), 100);
+  };
+  const onLeave = (id: HeroTileId) => (e: PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType !== "mouse" || isTouchBento()) return;
+    clearIntent();
+    if (active === id) onActiveChange(null);
+  };
+  const onBlur = (id: HeroTileId) => (e: FocusEvent<HTMLDivElement>) => {
+    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+    if (active === id) onActiveChange(null);
+  };
+  const onTitleClick =
+    (id: HeroTileId) => (e: MouseEvent<HTMLAnchorElement>) => {
+      if (!isTouchBento() || active === id) return;
+      e.preventDefault();
+      setTapped(id);
+      onActiveChange(id);
+    };
+  const onRailScroll = (e: UIEvent<HTMLDivElement>) => {
+    const i = Math.min(
+      HERO_TILES.length - 1,
+      Math.max(0, Math.round(e.currentTarget.scrollLeft / RAIL_STEP)),
+    );
+    if (i !== railIndex) setRailIndex(i);
+  };
+
+  const pad2 = (n: number) => String(n).padStart(2, "0");
+
+  return (
+    <>
+      <div className="hb-rail-head">
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 10,
+            fontFamily: "var(--font-mono)",
+            fontSize: 10.5,
+            fontWeight: 500,
+            letterSpacing: ".14em",
+            textTransform: "uppercase",
+            color: "var(--brand-teal)",
+          }}
+        >
+          <span
+            aria-hidden
+            style={{
+              width: 18,
+              height: 2,
+              borderRadius: 2,
+              background:
+                "linear-gradient(90deg, var(--brand-teal), var(--aqua-400))",
+            }}
+          />
+          {t("tilesLabel")}
+        </span>
+        <span
+          aria-live="polite"
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 11,
+            letterSpacing: ".14em",
+            color: "var(--color-text-muted)",
+          }}
+        >
+          {t("tilesCount", {
+            index: pad2(railIndex + 1),
+            total: pad2(HERO_TILES.length),
+          })}
+        </span>
+      </div>
+
+      <div
+        ref={rootRef}
+        className="hb"
+        onScroll={onRailScroll}
+        aria-label={t("tilesLabel")}
+      >
+        {HERO_TILES.map((tile) => {
+          const open = active === tile.id;
+          const chips =
+            liveChips?.[tile.id] ??
+            (t.raw(`tiles.${tile.id}.chips`) as HeroChip[]);
+          return (
+            <div
+              key={tile.id}
+              className={cn(
+                "hb-tile",
+                `hb-tile--${tile.id}`,
+                tile.small && "hb-tile--sm",
+              )}
+              data-open={open ? "true" : undefined}
+              onPointerEnter={onEnter(tile.id)}
+              onPointerLeave={onLeave(tile.id)}
+              onFocus={() => onActiveChange(tile.id)}
+              onBlur={onBlur(tile.id)}
+            >
+              <div className="hb-panel">
+                <div className="hb-bg">
+                  <div className="hb-photo">
+                    <Image
+                      src={tile.image}
+                      alt={t(`tiles.${tile.id}.imageAlt`)}
+                      fill
+                      priority={tile.priority}
+                      sizes={PHOTO_SIZES}
+                      style={{
+                        objectFit: "cover",
+                        objectPosition: heroPosition(tile.image),
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className="hb-scrim-rest" aria-hidden />
+                <div className="hb-scrim-open" aria-hidden />
+                <div className="hb-content">
+                  <div className="hb-tblock">
+                    <h3 className="hb-title">
+                      <Link href={tile.href} onClick={onTitleClick(tile.id)}>
+                        {t(`tiles.${tile.id}.title`)}
+                      </Link>
+                    </h3>
+                    <p className="hb-sub">{t(`tiles.${tile.id}.sub`)}</p>
+                    <span className="hb-brand">
+                      {t(`tiles.${tile.id}.brand`)}
+                    </span>
+                  </div>
+                  <div className="hb-detail">
+                    <p className="hb-desc">{t(`tiles.${tile.id}.desc`)}</p>
+                    <ul className="hb-chips">
+                      {chips.map((c) => (
+                        <li key={`${c.href}|${c.label}`}>
+                          <Link href={c.href}>{c.label}</Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+                <div className="hb-top" aria-hidden>
+                  <span className="hb-glyph">
+                    <TileIcon icon={tile.icon} />
+                  </span>
+                </div>
+                <span className="hb-arrow" aria-hidden>
+                  <Arrow size={12} />
+                </span>
+                <div className="hb-ring" aria-hidden />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="hb-dots" aria-hidden>
+        {HERO_TILES.map((tile, i) => (
+          <i key={tile.id} data-on={i === railIndex ? "true" : undefined} />
+        ))}
+      </div>
+    </>
+  );
+}
+
+/** Full-bleed photo behind the whole hero while a tile is open — the existing
+ *  reveal. Each photo mounts the first time its tile opens (the tile's own
+ *  copy is the same optimized variant, so it is normally already cached). */
+function HeroBackground({
+  activeId,
+  seen,
+}: {
+  activeId: HeroTileId | null;
+  seen: ReadonlySet<HeroTileId>;
+}) {
   return (
     <div
       aria-hidden
@@ -246,7 +621,7 @@ function HeroBackground({ hoveredId }: { hoveredId: string | null }) {
       />
 
       <motion.div
-        animate={{ opacity: hoveredId ? 0.12 : 0.45 }}
+        animate={{ opacity: activeId ? 0.12 : 0.45 }}
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
         className="hero-blob"
         style={{
@@ -260,11 +635,11 @@ function HeroBackground({ hoveredId }: { hoveredId: string | null }) {
         }}
       />
 
-      {HERO_SOLUTIONS.map((s) => (
+      {HERO_TILES.filter((tile) => seen.has(tile.id)).map((tile) => (
         <motion.div
-          key={s.id}
+          key={tile.id}
           initial={false}
-          animate={{ opacity: hoveredId === s.id ? 1 : 0 }}
+          animate={{ opacity: activeId === tile.id ? 1 : 0 }}
           transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
           style={{
             position: "absolute",
@@ -272,10 +647,13 @@ function HeroBackground({ hoveredId }: { hoveredId: string | null }) {
           }}
         >
           <Image
-            src={s.image}
+            src={tile.image}
             alt=""
             fill
-            sizes="100vw"
+            // Mounted on first open, so "eager" just means "now" — and it keeps
+            // Next's dev-only LCP heuristic quiet when a hover repaints the hero.
+            loading="eager"
+            sizes={PHOTO_SIZES}
             style={{
               objectFit: "cover",
               objectPosition: "center center",
@@ -294,328 +672,6 @@ function HeroBackground({ hoveredId }: { hoveredId: string | null }) {
         </motion.div>
       ))}
     </div>
-  );
-}
-
-type Solution = {
-  id: string;
-  title: string;
-  description: string;
-  image: string;
-  imageAlt: string;
-  imagePosition?: string;
-  href: string;
-};
-
-const HERO_SOLUTIONS: Solution[] = [
-  {
-    id: "lab",
-    title: "Lab Equipment",
-    description:
-      "Precision analyzers, microscopes & refrigeration — engineered for clinical and research labs across Bangladesh.",
-    image: "/bento-lab-equipment.png",
-    imageAlt: "Modern laboratory with microscope, analyzers and glassware",
-    imagePosition: "center center",
-    href: "/medtrade",
-  },
-  {
-    id: "furniture",
-    title: "Medical Furniture",
-    description: "Patient beds, OR tables, ICU stations.",
-    image: "/bento-furniture.png",
-    imageAlt: "Modern hospital beds, exam chairs and OR tables in teal accents",
-    imagePosition: "center center",
-    href: "/medtrade",
-  },
-  {
-    id: "software",
-    title: "Software Solutions",
-    description: "HIS, EMR & telemedicine platforms.",
-    image: "/bento-software.png",
-    imageAlt: "Medical software dashboards on touchscreens and tablets",
-    imagePosition: "center center",
-    href: "/digihealth",
-  },
-];
-
-function FeaturedTile({
-  s,
-  delay,
-  onHover,
-}: {
-  s: Solution;
-  delay: number;
-  onHover: (id: string | null) => void;
-}) {
-  const t = useTranslations("home.hero");
-  const sol = (
-    t.raw("solutions") as Record<
-      string,
-      { title: string; description: string; imageAlt: string }
-    >
-  )[s.id];
-  return (
-    <MotionLink
-      href={s.href}
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-      whileHover="hover"
-      onMouseEnter={() => onHover(s.id)}
-      onMouseLeave={() => onHover(null)}
-      onFocus={() => onHover(s.id)}
-      onBlur={() => onHover(null)}
-      style={{
-        position: "relative",
-        gridColumn: "1 / span 2",
-        borderRadius: 28,
-        overflow: "hidden",
-        textDecoration: "none",
-        color: "white",
-        background: "var(--slate-900)",
-        boxShadow:
-          "0 1px 2px rgba(10,31,44,.05), 0 32px 80px -28px color-mix(in srgb, var(--brand-teal) 32%, transparent), 0 0 0 1px color-mix(in srgb, var(--brand-teal) 6%, transparent)",
-        display: "block",
-        minHeight: 260,
-      }}
-    >
-      <motion.div
-        variants={{ hover: { scale: 1.05 } }}
-        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-        style={{ position: "absolute", inset: 0 }}
-      >
-        <Image
-          src={s.image}
-          alt={sol.imageAlt}
-          fill
-          priority
-          sizes="(max-width: 980px) 90vw, 560px"
-          style={{
-            objectFit: "cover",
-            objectPosition: s.imagePosition ?? "center",
-          }}
-        />
-      </motion.div>
-      <div
-        aria-hidden
-        style={{
-          position: "absolute",
-          inset: 0,
-          background:
-            "linear-gradient(180deg, rgba(2,8,11,0.0) 0%, rgba(2,8,11,0.15) 38%, rgba(2,8,11,0.78) 100%)",
-        }}
-      />
-
-      <motion.span
-        variants={{ hover: { x: 4 } }}
-        transition={{ type: "spring", stiffness: 380, damping: 26 }}
-        style={{
-          position: "absolute",
-          top: 22,
-          right: 24,
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          width: 36,
-          height: 36,
-          borderRadius: 999,
-          background: "rgba(255,255,255,0.92)",
-          color: "var(--color-text-strong)",
-        }}
-      >
-        <Arrow size={14} />
-      </motion.span>
-
-      <div
-        style={{
-          position: "absolute",
-          left: 24,
-          right: 24,
-          bottom: 22,
-        }}
-      >
-        <h3
-          style={{
-            fontFamily: "var(--font-display)",
-            fontWeight: 600,
-            fontSize: "clamp(24px, 2.6vw, 34px)",
-            letterSpacing: "-.02em",
-            lineHeight: 1.05,
-            margin: 0,
-            color: "white",
-          }}
-        >
-          {sol.title}
-        </h3>
-        <p
-          style={{
-            margin: "6px 0 0",
-            fontSize: 14.5,
-            lineHeight: 1.5,
-            color: "rgba(255,255,255,.82)",
-            maxWidth: "44ch",
-          }}
-        >
-          {sol.description}
-        </p>
-      </div>
-    </MotionLink>
-  );
-}
-
-function CompactTile({
-  s,
-  delay,
-  onHover,
-}: {
-  s: Solution;
-  delay: number;
-  onHover: (id: string | null) => void;
-}) {
-  const t = useTranslations("home.hero");
-  const sol = (
-    t.raw("solutions") as Record<
-      string,
-      { title: string; description: string; imageAlt: string }
-    >
-  )[s.id];
-  return (
-    <MotionLink
-      href={s.href}
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-      whileHover="hover"
-      onMouseEnter={() => onHover(s.id)}
-      onMouseLeave={() => onHover(null)}
-      onFocus={() => onHover(s.id)}
-      onBlur={() => onHover(null)}
-      style={{
-        position: "relative",
-        borderRadius: 22,
-        overflow: "hidden",
-        textDecoration: "none",
-        color: "white",
-        background: "var(--slate-900)",
-        boxShadow:
-          "0 1px 2px rgba(10,31,44,.05), 0 24px 60px -24px rgba(10,31,44,.24), 0 0 0 1px rgba(10,31,44,.05)",
-        display: "block",
-        minHeight: 180,
-      }}
-    >
-      <motion.div
-        variants={{ hover: { scale: 1.07 } }}
-        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-        style={{ position: "absolute", inset: 0 }}
-      >
-        <Image
-          src={s.image}
-          alt={sol.imageAlt}
-          fill
-          sizes="(max-width: 980px) 45vw, 280px"
-          style={{
-            objectFit: "cover",
-            objectPosition: s.imagePosition ?? "center",
-          }}
-        />
-      </motion.div>
-      <div
-        aria-hidden
-        style={{
-          position: "absolute",
-          inset: 0,
-          background:
-            "linear-gradient(180deg, rgba(2,8,11,0.05) 0%, rgba(2,8,11,0.25) 45%, rgba(2,8,11,0.82) 100%)",
-        }}
-      />
-
-      <motion.span
-        variants={{ hover: { x: 3, y: -3 } }}
-        transition={{ type: "spring", stiffness: 380, damping: 26 }}
-        style={{
-          position: "absolute",
-          top: 14,
-          right: 14,
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          width: 30,
-          height: 30,
-          borderRadius: 999,
-          background: "rgba(255,255,255,0.92)",
-          color: "var(--color-text-strong)",
-        }}
-      >
-        <Arrow size={12} />
-      </motion.span>
-
-      <div
-        style={{
-          position: "absolute",
-          left: 16,
-          right: 16,
-          bottom: 14,
-        }}
-      >
-        <h3
-          style={{
-            fontFamily: "var(--font-display)",
-            fontWeight: 600,
-            fontSize: 19,
-            letterSpacing: "-.012em",
-            lineHeight: 1.1,
-            margin: 0,
-            color: "white",
-          }}
-        >
-          {sol.title}
-        </h3>
-        <p
-          style={{
-            margin: "4px 0 0",
-            fontSize: 12.5,
-            lineHeight: 1.4,
-            color: "rgba(255,255,255,.78)",
-          }}
-        >
-          {sol.description}
-        </p>
-      </div>
-    </MotionLink>
-  );
-}
-
-function HeroScene({ onHover }: { onHover: (id: string | null) => void }) {
-  const [featured, ...compact] = HERO_SOLUTIONS;
-  const [hovered, setHovered] = useState<string | null>(null);
-  const handleHover = (id: string | null) => {
-    setHovered(id);
-    onHover(id);
-  };
-  return (
-    <motion.div
-      animate={{ opacity: hovered ? 0 : 1 }}
-      transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-      onMouseLeave={() => handleHover(null)}
-      style={{
-        position: "relative",
-        width: "100%",
-        display: "grid",
-        gridTemplateColumns: "1fr 1fr",
-        gridAutoRows: "minmax(180px, auto)",
-        gap: 16,
-      }}
-    >
-      <FeaturedTile s={featured} delay={0.2} onHover={handleHover} />
-      {compact.map((s, i) => (
-        <CompactTile
-          key={s.id}
-          s={s}
-          delay={0.35 + i * 0.1}
-          onHover={handleHover}
-        />
-      ))}
-    </motion.div>
   );
 }
 
@@ -663,10 +719,16 @@ function PartnerMarquee() {
   );
 }
 
-export function Hero() {
+export function Hero({ chips }: { chips?: HeroLiveChips }) {
   const t = useTranslations("home.hero");
   const ctaMag = useMagnetic<HTMLAnchorElement>(0.22, 90);
-  const [hoveredSolution, setHoveredSolution] = useState<string | null>(null);
+  const [active, setActive] = useState<HeroTileId | null>(null);
+  const [seen, setSeen] = useState<ReadonlySet<HeroTileId>>(() => new Set());
+
+  const onActiveChange = (id: HeroTileId | null) => {
+    setActive(id);
+    if (id) setSeen((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+  };
 
   return (
     <section
@@ -678,14 +740,16 @@ export function Hero() {
         background: "var(--color-surface)",
       }}
     >
-      <HeroBackground hoveredId={hoveredSolution} />
+      <HeroBackground activeId={active} seen={seen} />
       <Container style={{ position: "relative", zIndex: 1 }}>
         <div
           className="hero-grid"
           style={{
+            // Equal columns: the bento needs the width (540px at the capped
+            // container), and the 92px headline still clears its column.
             display: "grid",
-            gridTemplateColumns: "minmax(0, 1.1fr) minmax(0, 1fr)",
-            gap: 56,
+            gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+            gap: 48,
             alignItems: "start",
             paddingTop: 40,
             paddingBottom: 40,
@@ -828,16 +892,20 @@ export function Hero() {
           </Reveal>
 
           <Reveal>
-            <HeroScene onHover={setHoveredSolution} />
+            <HeroBento
+              liveChips={chips}
+              active={active}
+              onActiveChange={onActiveChange}
+            />
             {/* Static, crawlable brand/entity line under the bento — names
                 "Spiber Med" + what + where in the homepage's first text
                 (the rotating headline above is evocative, not entity-defining).
                 Helps branded + entity SEO while balancing the column. Fades out
-                in sync with the bento when a tile is hovered (so the revealed
-                image isn't overlaid by lingering text). */}
+                while a tile is open (so the revealed photo isn't overlaid by
+                lingering text). */}
             <motion.p
-              animate={{ opacity: hoveredSolution ? 0 : 1 }}
-              transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+              animate={{ opacity: active ? 0 : 1 }}
+              transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
               style={{
                 margin: "20px 2px 0",
                 fontSize: 14.5,
