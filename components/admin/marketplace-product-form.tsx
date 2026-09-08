@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "@/i18n/navigation";
+import { useAfterSave } from "@/components/admin/ui/form-panel";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -60,7 +60,7 @@ export function MarketplaceProductForm({
   categories: CategoryOption[];
   brands: Option[];
 }) {
-  const router = useRouter();
+  const afterSave = useAfterSave();
   const isEdit = Boolean(initial?.id);
 
   const [sku, setSku] = useState(initial?.sku ?? "");
@@ -146,8 +146,7 @@ export function MarketplaceProductForm({
     const json = await res.json().catch(() => null);
     setSaving(false);
     if (res.ok && json?.ok) {
-      router.push("/admin/marketplace/products");
-      router.refresh();
+      afterSave("/admin/marketplace/products");
     } else {
       setError(formatApiError(json));
     }

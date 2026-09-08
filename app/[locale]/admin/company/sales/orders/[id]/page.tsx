@@ -85,6 +85,12 @@ export default async function SalesOrderPage({
         blockers={orderBlockers}
       />
 
+      {!canEdit && (
+        <p className="text-muted-foreground -mt-2">
+          This order can no longer be edited.
+        </p>
+      )}
+
       <DetailLayout
         aside={
           <>
@@ -165,11 +171,6 @@ export default async function SalesOrderPage({
           </>
         }
       >
-        {!canEdit && (
-          <p className="text-muted-foreground">
-            This order can no longer be edited.
-          </p>
-        )}
         <OrderEditor
           orderId={id}
           initialLines={order.items.map((i) => ({

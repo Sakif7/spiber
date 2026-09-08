@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { FormSection } from "@/components/admin/ui/form-shell";
+import { FormPanelButton } from "@/components/admin/ui/form-panel";
+import { LeadForm } from "@/components/admin/sales/lead-form";
 
 type LeadRow = {
   id: string;
@@ -31,12 +32,14 @@ export function LeadPicker({ leads }: { leads: LeadRow[] }) {
       title="Choose a client"
       description="An order belongs to a lead — it is who the proposal and invoice are addressed to."
       action={
-        <Button asChild size="sm" variant="outline" className="gap-1.5">
-          <Link href="/admin/company/sales/leads/new">
-            <Plus className="size-4" />
-            New lead
-          </Link>
-        </Button>
+        <FormPanelButton
+          label="New lead"
+          title="New lead"
+          description="Add the client this order is for."
+          variant="outline"
+        >
+          <LeadForm />
+        </FormPanelButton>
       }
     >
       <div className="relative">

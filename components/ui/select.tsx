@@ -53,8 +53,13 @@ function SelectTrigger({
 function SelectContent({
   className,
   children,
-  position = "item-aligned",
-  align = "center",
+  /* A select opens BELOW its field, like every other menu in the admin.
+     Radix's "item-aligned" default positions the list so the SELECTED option
+     sits on top of the trigger — it covers the control you just clicked, and
+     it never sets data-side, so the open/close animation could not match
+     either. */
+  position = "popper",
+  align = "start",
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Content>) {
   return (

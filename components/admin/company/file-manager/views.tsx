@@ -100,7 +100,7 @@ export function ItemList({
                 onSort={() => onSort("name")}
               />
             </th>
-            <th className={cn(cell, "w-28 text-left")}>
+            <th className={cn(cell, "w-32 text-left whitespace-nowrap")}>
               <SortButton
                 label="Type"
                 active={sort === "type"}
@@ -117,7 +117,7 @@ export function ItemList({
                 className="ml-auto"
               />
             </th>
-            <th className={cn(cell, "w-32 text-left")}>
+            <th className={cn(cell, "w-32 text-left whitespace-nowrap")}>
               <SortButton
                 label="Modified"
                 active={sort === "modified"}
@@ -125,7 +125,12 @@ export function ItemList({
                 onSort={() => onSort("modified")}
               />
             </th>
-            <th className={cn(cell, "text-muted-foreground w-48 text-left")}>
+            <th
+              className={cn(
+                cell,
+                "text-muted-foreground w-64 text-left whitespace-nowrap",
+              )}
+            >
               Uploaded by
             </th>
           </tr>
@@ -164,26 +169,62 @@ export function ItemList({
                   />
                 </td>
                 <td className={cell}>
-                  <span className="flex items-center gap-2">
+                  <span className="flex min-w-0 items-center gap-2">
                     <FolderIcon className="text-primary size-4 shrink-0" />
-                    <button
-                      type="button"
-                      className="truncate font-medium hover:underline"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        p.onOpenFolder(f.id);
-                      }}
-                    >
-                      {f.name}
-                    </button>
+                    <span className="min-w-0">
+                      <button
+                        type="button"
+                        className="block truncate font-medium hover:underline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          p.onOpenFolder(f.id);
+                        }}
+                      >
+                        {f.name}
+                      </button>
+                      {/* How much is inside sits under the name, where the Name
+                          column's spare width actually is. It was in Type,
+                          which is 112px wide and wrapped it onto two lines. */}
+                      <span className="text-muted-foreground text-admin-xs block">
+                        {f.itemCount
+                          ? `${f.itemCount} item${f.itemCount === 1 ? "" : "s"}`
+                          : "Empty"}
+                      </span>
+                    </span>
                   </span>
                 </td>
-                <td className={cn(cell, "text-muted-foreground")}>Folder</td>
-                <td className={cn(cell, "text-muted-foreground text-right")}>
-                  —
+                <td
+                  className={cn(
+                    cell,
+                    "text-muted-foreground whitespace-nowrap",
+                  )}
+                >
+                  Folder
                 </td>
-                <td className={cn(cell, "text-muted-foreground")}>—</td>
-                <td className={cn(cell, "text-muted-foreground")}>—</td>
+                <td
+                  className={cn(
+                    cell,
+                    "text-muted-foreground text-right whitespace-nowrap tabular-nums",
+                  )}
+                >
+                  {f.sizeBytes ? formatBytes(f.sizeBytes) : "—"}
+                </td>
+                <td
+                  className={cn(
+                    cell,
+                    "text-muted-foreground whitespace-nowrap",
+                  )}
+                >
+                  {f.modifiedAt ? dateLabel(f.modifiedAt) : "—"}
+                </td>
+                <td className={cn(cell, "text-muted-foreground max-w-0")}>
+                  <span
+                    className="block truncate"
+                    title={f.createdByEmail ?? ""}
+                  >
+                    {f.createdByEmail ?? "—"}
+                  </span>
+                </td>
               </tr>
             );
           })}
@@ -234,17 +275,37 @@ export function ItemList({
                     </button>
                   </span>
                 </td>
-                <td className={cn(cell, "text-muted-foreground")}>
+                <td
+                  className={cn(
+                    cell,
+                    "text-muted-foreground whitespace-nowrap",
+                  )}
+                >
                   {typeLabel(f.contentType, f.ext)}
                 </td>
-                <td className={cn(cell, "text-muted-foreground text-right")}>
+                <td
+                  className={cn(
+                    cell,
+                    "text-muted-foreground text-right whitespace-nowrap tabular-nums",
+                  )}
+                >
                   {formatBytes(f.size)}
                 </td>
-                <td className={cn(cell, "text-muted-foreground")}>
+                <td
+                  className={cn(
+                    cell,
+                    "text-muted-foreground whitespace-nowrap",
+                  )}
+                >
                   {dateLabel(f.updatedAt)}
                 </td>
-                <td className={cn(cell, "text-muted-foreground truncate")}>
-                  {f.uploadedByEmail ?? "—"}
+                <td className={cn(cell, "text-muted-foreground max-w-0")}>
+                  <span
+                    className="block truncate"
+                    title={f.uploadedByEmail ?? ""}
+                  >
+                    {f.uploadedByEmail ?? "—"}
+                  </span>
                 </td>
               </tr>
             );

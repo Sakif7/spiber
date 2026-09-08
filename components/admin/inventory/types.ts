@@ -25,7 +25,6 @@ export type HubUnit = {
   seller: { id: string; name: string } | null;
   categoryName: string | null;
   brandName: string | null;
-  editorHref: string;
   historyHref: string;
   lastMovement: { at: string; type: string; qtyDelta: number } | null;
 };

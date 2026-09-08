@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { setRequestLocale } from "next-intl/server";
-import { Plus } from "lucide-react";
 import {
   listEmployees,
   rateForMonth,
@@ -10,7 +9,8 @@ import { rateLabel } from "@/lib/hr/payroll-math";
 import { AdminPageHeader } from "@/components/admin/ui/page-header";
 import { DataTable, type Column } from "@/components/admin/ui/data-table";
 import { StatusBadge } from "@/components/admin/ui/status-badge";
-import { Button } from "@/components/ui/button";
+import { FormPanelButton } from "@/components/admin/ui/form-panel";
+import { EmployeeForm } from "@/components/admin/hr/employee-form";
 
 export const dynamic = "force-dynamic";
 
@@ -112,12 +112,13 @@ export default async function EmployeesPage({
         title="Employees"
         description="Who is on the payroll, and how each of them is paid."
         action={
-          <Button asChild size="sm" className="gap-1.5">
-            <Link href="/admin/company/people/employees/new">
-              <Plus className="size-4" />
-              Add employee
-            </Link>
-          </Button>
+          <FormPanelButton
+            label="Add employee"
+            title="Add employee"
+            description="Someone on the payroll, and how they are paid."
+          >
+            <EmployeeForm />
+          </FormPanelButton>
         }
       />
       <DataTable

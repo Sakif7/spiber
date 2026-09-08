@@ -10,6 +10,8 @@ import {
   Svg,
   Path,
   Circle,
+  G,
+  Font,
 } from "@react-pdf/renderer";
 import { LEGAL, CONTACT, OFFICES } from "@/lib/contact";
 
@@ -32,11 +34,23 @@ import { LEGAL, CONTACT, OFFICES } from "@/lib/contact";
  * numbers under a "(BDT)" heading, exactly as the samples do.
  */
 
+/**
+ * No mid-word breaking.
+ *
+ * The renderer hyphenates by a generic algorithm, not a dictionary, so a spec
+ * line came out as "Pow-er", "Tempera-ture", "Warran-ty". On a document a
+ * client receives that reads as a typo. Returning the word whole tells the
+ * renderer to wrap between words instead.
+ */
+Font.registerHyphenationCallback((word) => [word]);
+
 /** Sampled from the logo artwork so drawn bars match the wordmark exactly. */
 const TEAL = "#20b0b0";
 const INK = "#1a1a1a";
 const MUTED = "#444444";
 const RULE = "#000000";
+/** Between cells: present, but not competing with the numbers. */
+const HAIRLINE = "#9a9a9a";
 /** Table header wash — the faintest teal that still separates the head row. */
 const TINT = "#eaf7f7";
 
@@ -68,7 +82,14 @@ export const styles = StyleSheet.create({
   },
   logoWrap: { justifyContent: "center", paddingTop: 6 },
   logo: { width: 190 },
-  contact: { marginLeft: "auto", width: 232 },
+  /**
+   * The contact column runs to the edge of the sheet, as on the printed
+   * stationery. The width is set so the longest line — the regional office's
+   * "Panchlaish, Chittagong-4211, Bangladesh" — fills it rather than stopping
+   * short, and the negative margin carries the block out through the page
+   * padding to sit a few points off the trim.
+   */
+  contact: { marginLeft: "auto", width: 158, marginRight: -32 },
   contactRow: { flexDirection: "row", marginBottom: 5 },
   contactIcon: { marginRight: 6, marginTop: 0.5 },
   contactText: {
@@ -125,30 +146,44 @@ export const styles = StyleSheet.create({
   bulletText: { flex: 1, textAlign: "justify" },
 
   /* ── table ──
-     Every cell is ruled, as on the samples. The refinements over the scan are
-     deliberate and small: a tinted header, room to breathe, and figures set
-     right so decimal places line up down the column. */
+     Ruled like the samples, but the weight is graded rather than uniform: a
+     hairline between cells, a full rule around the table and under the head.
+     A page of identical 1pt boxes is what made the old one read as a grid
+     first and a table second. */
   table: { borderWidth: 1, borderColor: RULE },
-  tr: { flexDirection: "row", borderBottomWidth: 1, borderColor: RULE },
+  tr: { flexDirection: "row", borderBottomWidth: 0.5, borderColor: HAIRLINE },
+  /** Under the head: a full rule, so the columns start clearly. */
+  trHead: { flexDirection: "row", borderBottomWidth: 1, borderColor: RULE },
   trLast: { flexDirection: "row" },
+  /** The first totals row: separated from the items by a full rule. */
+  trTotalsStart: {
+    flexDirection: "row",
+    borderTopWidth: 1,
+    borderBottomWidth: 0.5,
+    borderColor: RULE,
+  },
   th: {
     fontFamily: "Times-Bold",
     fontSize: 9.5,
-    paddingVertical: 4,
+    paddingVertical: 5,
     paddingHorizontal: 5,
     textAlign: "center",
     backgroundColor: TINT,
-    borderRightWidth: 1,
-    borderColor: RULE,
+    borderRightWidth: 0.5,
+    borderColor: HAIRLINE,
   },
   td: {
     fontSize: 9.5,
-    paddingVertical: 3,
+    paddingVertical: 4.5,
     paddingHorizontal: 5,
     textAlign: "center",
-    borderRightWidth: 1,
-    borderColor: RULE,
+    borderRightWidth: 0.5,
+    borderColor: HAIRLINE,
   },
+  /** The empty run to the left of the totals: one cell, not four boxes. */
+  tdSpan: { borderRightWidth: 0.5, borderColor: HAIRLINE },
+  /** The figure a reader is looking for. */
+  tdStrong: { fontFamily: "Times-Bold", backgroundColor: TINT },
   /** Item description: reads far better ranged left than centred. */
   tdText: { textAlign: "left" },
   /** Money: ranged right so the columns of figures align. */
@@ -215,24 +250,57 @@ function publicImage(name: string): Buffer | null {
   return null;
 }
 
-/** One circular teal badge from the letterhead's contact column. */
+/**
+ * One circular badge from the letterhead's contact column.
+ *
+ * The glyphs are drawn stroked inside a scaled group rather than as one
+ * hand-written path: the previous phone and office marks relied on an implicit
+ * lineto after a moveto ("M4 11.2 12 4l…"), which this renderer resolves
+ * differently from a browser — the office mark came out as an arch and the
+ * phone as a blob. Every command below is explicit, and every shape is one the
+ * renderer draws the same way at any size.
+ */
+const GLYPHS: Record<string, string[]> = {
+  phone: [
+    "M7 3 L11 3 L12.5 8 L10 9.5 C11 12 12 13 14.5 14 L16 11.5 L21 13 L21 17 C21 19 19.5 20.5 17.5 20.3 C10 19.5 4.5 14 3.7 6.5 C3.5 4.5 5 3 7 3 Z",
+  ],
+  mail: ["M3 6 L21 6 L21 18 L3 18 Z", "M3 6 L12 13 L21 6"],
+  web: [
+    "M12 3 C16.9 3 21 7.1 21 12 C21 16.9 16.9 21 12 21 C7.1 21 3 16.9 3 12 C3 7.1 7.1 3 12 3 Z",
+    "M3 12 L21 12",
+    "M12 3 C15 6.5 15 17.5 12 21 C9 17.5 9 6.5 12 3 Z",
+  ],
+  place: [
+    "M12 2.5 C16 2.5 19 5.5 19 9.5 C19 14.5 12 21.5 12 21.5 C12 21.5 5 14.5 5 9.5 C5 5.5 8 2.5 12 2.5 Z",
+    "M12 7 C13.4 7 14.5 8.1 14.5 9.5 C14.5 10.9 13.4 12 12 12 C10.6 12 9.5 10.9 9.5 9.5 C9.5 8.1 10.6 7 12 7 Z",
+  ],
+};
+
 function ContactIcon({ kind }: { kind: "phone" | "mail" | "web" | "place" }) {
-  const glyph = {
-    phone:
-      "M6.6 10.8a15.6 15.6 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.4c.6 0 1 .4 1 1 0 1.2.2 2.4.6 3.6.1.3 0 .7-.2 1l-2.2 2.2z",
-    mail: "M3 6h18v12H3V6zm1.6 1.4L12 13l7.4-5.6",
-    web: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c2.4 2.4 3.6 5.4 3.6 9S14.4 18.6 12 21c-2.4-2.4-3.6-5.4-3.6-9S9.6 5.4 12 3z",
-    place: "M4 11.2 12 4l8 7.2V20a1 1 0 0 1-1 1h-4.6v-6H9.6v6H5a1 1 0 0 1-1-1z",
-  }[kind];
   return (
-    <Svg viewBox="0 0 24 24" style={{ width: 11, height: 11 }}>
-      <Circle cx="12" cy="12" r="11.5" fill={TEAL} />
-      <Path
-        d={glyph}
-        stroke="#ffffff"
-        strokeWidth={kind === "place" || kind === "phone" ? 0 : 1.6}
-        fill={kind === "place" || kind === "phone" ? "#ffffff" : "none"}
+    <Svg viewBox="0 0 24 24" style={{ width: 12, height: 12 }}>
+      <Circle
+        cx="12"
+        cy="12"
+        r="11"
+        fill="#ffffff"
+        stroke={TEAL}
+        strokeWidth={1.6}
       />
+      {/* The 24-unit glyph, brought down to sit inside the ring. */}
+      <G transform="translate(5.4 5.4) scale(0.55)">
+        {GLYPHS[kind].map((d, i) => (
+          <Path
+            key={i}
+            d={d}
+            stroke={TEAL}
+            strokeWidth={2}
+            fill="none"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+        ))}
+      </G>
     </Svg>
   );
 }
@@ -249,7 +317,7 @@ function ContactLine({
       <View style={styles.contactIcon}>
         <ContactIcon kind={kind} />
       </View>
-      <View style={{ flexGrow: 1 }}>{children}</View>
+      <View style={{ flex: 1 }}>{children}</View>
     </View>
   );
 }
@@ -309,34 +377,52 @@ export function Letterhead() {
 /**
  * The pale dot motif the printed stationery carries down the right of the page.
  *
- * Same circles as the logo's cluster, blown up and dropped to a wash so they
- * sit behind the text. Rendered as the first child of a Page so everything
- * else paints over it, and `fixed` so it repeats on a second page.
+ * The logo's own dot cluster, cut down its middle and only the LEFT half
+ * kept — the client marked that cut on the artwork. Blown up and dropped to a
+ * wash so it sits behind the text, with the cut edge running off the right of
+ * the page so the pattern reads as continuing past it.
  *
- * Coordinates are in points against the full A4 box, which is why the view is
- * pulled out to the page edges by the padding.
+ * Rendered as the first child of a Page so everything else paints over it, and
+ * `fixed` so it repeats on a second page. Coordinates are in points against
+ * the full A4 box, which is why the view is pulled out to the page edges by
+ * the padding.
  */
-const WATERMARK_DOTS: { cx: number; cy: number; r: number }[] = [
-  { cx: 415, cy: 368, r: 24 },
-  { cx: 545, cy: 520, r: 41 },
-  { cx: 305, cy: 482, r: 19 },
-  { cx: 423, cy: 612, r: 31 },
-  { cx: 537, cy: 712, r: 33 },
-  { cx: 500, cy: 300, r: 14 },
-  { cx: 350, cy: 690, r: 12 },
-  { cx: 575, cy: 620, r: 17 },
+/**
+ * Measured off `letterhead-logo.png` and normalised so the motif can be drawn
+ * at any size: x runs from the outer edge toward the cut, y from the top of
+ * the cluster, and r is a fraction of the half's width. Kept as circles rather than an upscaled
+ * crop, which at this size would be visibly soft.
+ */
+const WATERMARK_DOTS: { x: number; y: number; r: number }[] = [
+  { x: 0.6705, y: 0.0696, r: 0.1676 },
+  { x: 0.1371, y: 0.2911, r: 0.1371 },
+  { x: 0.6705, y: 0.5032, r: 0.1714 },
+  { x: 0.1524, y: 0.712, r: 0.141 },
+  { x: 0.6705, y: 0.9304, r: 0.1676 },
 ];
+/** Height of that half, as a multiple of its width. */
+const WATERMARK_ASPECT = 2.4076;
+
+/** Printed size and placement: the cut edge sits past the right page edge,
+ *  so what shows is the half the client marked. */
+const WM_WIDTH = 210;
+const WM_BLEED = 26;
 
 export function Watermark() {
+  const w = WM_WIDTH;
+  const h = w * WATERMARK_ASPECT;
+  const x0 = 595 + WM_BLEED - w;
+  const y0 = (842 - h) / 2;
+
   return (
     <View style={styles.watermark} fixed>
       <Svg viewBox="0 0 595 842" style={{ width: 595, height: 842 }}>
         {WATERMARK_DOTS.map((d, i) => (
           <Circle
             key={i}
-            cx={String(d.cx)}
-            cy={String(d.cy)}
-            r={String(d.r)}
+            cx={String(x0 + d.x * w)}
+            cy={String(y0 + d.y * h)}
+            r={String(d.r * w)}
             fill={TEAL}
             fillOpacity={0.09}
           />

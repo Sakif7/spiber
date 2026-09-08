@@ -8,8 +8,38 @@ import {
 } from "@/lib/repositories/courses.repo";
 import { toCourseDoc } from "@/lib/services/course.service";
 import { writeAudit } from "@/lib/repositories/audit.repo";
+import { getCourseById } from "@/lib/repositories/courses.repo";
+import { enrollmentCountsByCourse } from "@/lib/repositories/enrollments.repo";
+import { courseEditInitial } from "@/lib/admin/edit-initial";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * One course, shaped for the builder, plus the enrolment figures the old edit
+ * page showed beside it.
+ */
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const admin = await requireAdmin();
+  if (!admin) return fail({ code: "forbidden" }, 403);
+  const { id } = await params;
+  const doc = await getCourseById(id).catch(() => null);
+  if (!doc) return fail({ code: "not_found" }, 404);
+  const stats = await enrollmentCountsByCourse(id).catch(() => null);
+  return ok({
+    initial: courseEditInitial(doc.toObject()),
+    stats: stats
+      ? {
+          total: stats.total,
+          active: stats.active,
+          completed: stats.completed,
+          revenueMinor: stats.revenueMinor,
+        }
+      : null,
+  });
+}
 
 export async function PATCH(
   req: Request,

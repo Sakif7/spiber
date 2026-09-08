@@ -279,11 +279,16 @@ export function OrderEditor({
           <div className="overflow-x-auto">
             <table className="w-full min-w-[860px] border-collapse">
               <thead>
+                {/* Widths are proportioned to what each column actually holds.
+                    Description used to be the only flexible column, so it took
+                    every spare pixel — ~870px for "Air Fryer 5L" — while
+                    Specification sat at 128px and truncated real content.
+                    Description and Specification now share the slack 2:1. */}
                 <tr className="text-muted-foreground border-b text-left">
                   <th className="w-8 py-2">#</th>
-                  <th className="py-2">Description</th>
-                  <th className="w-32 py-2">Brand/Origin</th>
-                  <th className="w-32 py-2">Specification</th>
+                  <th className="w-[34%] py-2">Description</th>
+                  <th className="w-[14%] py-2">Brand/Origin</th>
+                  <th className="w-[22%] py-2">Specification</th>
                   <th className="w-20 py-2">Unit</th>
                   <th className="w-28 py-2 text-right">Unit price</th>
                   <th className="w-20 py-2 text-right">Qty</th>
@@ -420,9 +425,13 @@ export function OrderEditor({
       </FormSection>
 
       <FormSection title="Totals">
-        {/* The client's own PO reference, printed on the invoice so their
-            accounts payable can match it. */}
-        <div className="mb-3 grid items-start gap-3 sm:grid-cols-2">
+        {/* Four fields on ONE grid, so the column edges line up down the whole
+            block. They used to be two stacked grids — `sm:grid-cols-2` above
+            `sm:grid-cols-[1fr_1fr_auto]` — which silently gave the two rows
+            different column widths: Discount ended ~50px short of Reference,
+            and VAT started ~65px left of Transport. Every field also carries a
+            hint now, so no cell is a line shorter than the one beside it. */}
+        <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
           <FormField
             label="Reference / PO No."
             hint="Optional. Shown on the invoice."
@@ -445,14 +454,7 @@ export function OrderEditor({
               inputMode="decimal"
             />
           </FormField>
-        </div>
-
-        {/* `items-start`, not `items-end`: VAT carries a hint and Discount does
-            not, so bottom-aligning the two pushed the Discount label a hint's
-            height below VAT's. The totals column opts into `self-end` on its
-            own, which moves nothing else. */}
-        <div className="grid items-start gap-3 sm:grid-cols-[1fr_1fr_auto]">
-          <FormField label="Discount (৳)">
+          <FormField label="Discount (৳)" hint="Taken off before VAT.">
             <Input
               value={discount}
               onChange={(e) => setDiscount(e.target.value)}
@@ -468,30 +470,32 @@ export function OrderEditor({
               inputMode="decimal"
             />
           </FormField>
-          <div className="self-end text-right">
-            <p className="text-muted-foreground">
-              Subtotal {money(totals.subtotalMinor)}
-            </p>
-            {totals.discountMinor > 0 && (
-              <p className="text-muted-foreground">
-                Discount −{money(totals.discountMinor)}
-              </p>
-            )}
-            {totals.vatMinor > 0 && (
-              <p className="text-muted-foreground">
-                VAT {money(totals.vatMinor)}
-              </p>
-            )}
-            {totals.deliveryMinor > 0 && (
-              <p className="text-muted-foreground">
-                Transport {money(totals.deliveryMinor)}
-              </p>
-            )}
-            <p className="text-base font-semibold">
-              {money(totals.totalMinor)}
-            </p>
-          </div>
         </div>
+
+        {/* The running total is its own thing, not a fourth column wedged into
+            the field grid with no heading. Every row is labelled — including
+            the total, which previously printed as a bare number. */}
+        <dl className="border-border bg-muted/40 mt-4 ml-auto w-full max-w-xs space-y-1.5 rounded-md border p-3">
+          <TotalRow label="Subtotal" value={money(totals.subtotalMinor)} />
+          {totals.discountMinor > 0 && (
+            <TotalRow
+              label="Discount"
+              value={`−${money(totals.discountMinor)}`}
+            />
+          )}
+          {totals.vatMinor > 0 && (
+            <TotalRow
+              label={`VAT (${vatPercent || 0}%)`}
+              value={money(totals.vatMinor)}
+            />
+          )}
+          {totals.deliveryMinor > 0 && (
+            <TotalRow label="Transport" value={money(totals.deliveryMinor)} />
+          )}
+          <div className="border-border mt-1.5 border-t pt-1.5">
+            <TotalRow label="Total" value={money(totals.totalMinor)} emphasis />
+          </div>
+        </dl>
       </FormSection>
 
       {canEdit && (
@@ -636,5 +640,33 @@ function ProductPicker({ onPick }: { onPick: (hit: ProductHit) => void }) {
         </div>
       </PopoverContent>
     </Popover>
+  );
+}
+
+/** One line of the totals summary: label left, figure right, digits aligned. */
+function TotalRow({
+  label,
+  value,
+  emphasis,
+}: {
+  label: string;
+  value: string;
+  emphasis?: boolean;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-4">
+      <dt className={emphasis ? "font-medium" : "text-muted-foreground"}>
+        {label}
+      </dt>
+      <dd
+        className={
+          emphasis
+            ? "text-base font-semibold tabular-nums"
+            : "text-muted-foreground tabular-nums"
+        }
+      >
+        {value}
+      </dd>
+    </div>
   );
 }

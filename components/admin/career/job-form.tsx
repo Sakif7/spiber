@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "@/i18n/navigation";
+import { useAfterSave } from "@/components/admin/ui/form-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -59,7 +59,7 @@ const EMPLOYMENT_TYPES: { value: EmploymentType; label: string }[] = [
 ];
 
 export function JobForm({ initial }: { initial?: JobFormInitial }) {
-  const router = useRouter();
+  const afterSave = useAfterSave();
   const isEdit = Boolean(initial?.id);
 
   const [title, setTitle] = useState<L>(toL(initial?.title));
@@ -157,8 +157,7 @@ export function JobForm({ initial }: { initial?: JobFormInitial }) {
     const json = await res.json().catch(() => null);
     setSaving(false);
     if (res.ok && json?.ok) {
-      router.push("/admin/career");
-      router.refresh();
+      afterSave("/admin/career");
     } else {
       setError(formatApiError(json));
     }

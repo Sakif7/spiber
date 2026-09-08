@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "@/i18n/navigation";
+import { useAfterSave } from "@/components/admin/ui/form-panel";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -53,7 +53,7 @@ export function VisitForm({
   people: PersonOption[];
   leads: LeadOption[];
 }) {
-  const router = useRouter();
+  const afterSave = useAfterSave();
   const [v, setV] = useState<VisitFormValues>(visit ?? EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -105,10 +105,9 @@ export function VisitForm({
         return;
       }
       toast.success(visit?.id ? "Visit updated." : "Visit recorded.");
-      router.push(
+      afterSave(
         `/admin/company/people/visits/${visit?.id ?? json?.data?.id ?? ""}`,
       );
-      router.refresh();
     } finally {
       setSaving(false);
     }

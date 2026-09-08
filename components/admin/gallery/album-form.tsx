@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { ChevronDown, ChevronUp, Upload, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useRouter } from "@/i18n/navigation";
+import { useAfterSave } from "@/components/admin/ui/form-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -53,7 +53,7 @@ const STATUS_OPTIONS = [
 ];
 
 export function AlbumForm({ initial }: { initial?: AlbumFormInitial }) {
-  const router = useRouter();
+  const afterSave = useAfterSave();
   const isEdit = Boolean(initial?.id);
 
   const [title, setTitle] = useState<L>(initial?.title ?? emptyL());
@@ -150,8 +150,7 @@ export function AlbumForm({ initial }: { initial?: AlbumFormInitial }) {
     const json = await res.json().catch(() => null);
     setSaving(false);
     if (res.ok && json?.ok) {
-      router.push("/admin/gallery");
-      router.refresh();
+      afterSave("/admin/gallery");
     } else {
       setError(formatApiError(json));
     }

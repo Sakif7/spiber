@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "@/i18n/navigation";
+import { useAfterSave } from "@/components/admin/ui/form-panel";
 import { Input } from "@/components/ui/input";
 import { fromMinor, toMinor } from "@/lib/money";
 import { formatApiError } from "@/lib/http/form-error";
@@ -61,7 +61,7 @@ export function ProductForm({
   categories: CategoryOption[];
   brands: Option[];
 }) {
-  const router = useRouter();
+  const afterSave = useAfterSave();
   const isEdit = Boolean(initial?.id);
 
   const [sku, setSku] = useState(initial?.sku ?? "");
@@ -155,8 +155,7 @@ export function ProductForm({
     const json = await res.json().catch(() => null);
     setSaving(false);
     if (res.ok && json?.ok) {
-      router.push("/admin/products");
-      router.refresh();
+      afterSave("/admin/products");
     } else {
       setError(formatApiError(json));
     }

@@ -83,3 +83,6 @@ Thumbs.db
 # Local dev server log (from manual restarts)
 .next-dev.log
 .patchtmp/
+
+# Rendered PDF previews (npm run pdf-preview)
+/public/_preview/

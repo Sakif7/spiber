@@ -1,7 +1,4 @@
 import { setRequestLocale } from "next-intl/server";
-import { Plus } from "lucide-react";
-import { Link } from "@/i18n/navigation";
-import { Button } from "@/components/ui/button";
 import { listDoctors } from "@/lib/repositories/doctors.repo";
 import { listHospitals } from "@/lib/repositories/hospitals.repo";
 import { asLocale } from "@/lib/i18n/intl-locale";
@@ -21,6 +18,8 @@ import {
   CatalogList,
   type CatalogRow,
 } from "@/components/admin/tourism/catalog-list";
+import { FormPanelButton } from "@/components/admin/ui/form-panel";
+import { DoctorForm } from "@/components/admin/tourism/catalog-form";
 
 export const dynamic = "force-dynamic";
 
@@ -77,6 +76,9 @@ export default async function AdminDoctorsPage({
     pages = res.pages;
     rows = res.items.map((r) => ({
       id: String(r._id),
+      // Small documents, so the list carries them and the edit panel
+      // opens instantly instead of fetching one.
+      initial: JSON.parse(JSON.stringify(r)) as Record<string, unknown>,
       title: r.name,
       slug: r.slug,
       status: r.status,
@@ -91,23 +93,28 @@ export default async function AdminDoctorsPage({
     rows = [];
   }
 
+  const newAction = (
+    <FormPanelButton
+      label="New doctor"
+      title="New doctor"
+      description="A specialist profile for consultation and referral."
+    >
+      <DoctorForm />
+    </FormPanelButton>
+  );
+
   return (
     <div className="space-y-4">
       <AdminPageHeader
         title="Doctors"
         description="Specialist profiles available for consultation and referral."
-        action={
-          <Button asChild size="sm">
-            <Link href="/admin/tourism/doctors/new">
-              <Plus className="size-4" />
-              New doctor
-            </Link>
-          </Button>
-        }
+        action={newAction}
       />
       <CatalogList
         rows={rows}
-        base="/admin/tourism/doctors"
+        newAction={newAction}
+        editTitle="Edit doctor"
+        renderEdit={(r) => <DoctorForm id={r.id} initial={r.initial} />}
         noun="doctors"
         nounSingular="doctor"
         metaHeader="Specialty"

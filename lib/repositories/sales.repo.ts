@@ -394,19 +394,39 @@ export async function salesLineDetails(
 
   for (const p of products) {
     const name = (p.name?.en ?? "").trim();
-    const origin = (
-      p.specs?.find(
-        (s) => (s.key?.en ?? "").trim().toLowerCase() === "country of origin",
-      )?.value?.en ?? ""
-    ).trim();
+    const description = (p.description?.en ?? "").trim();
+    const specs = (p.specs ?? []).map((s) => ({
+      key: (s.key?.en ?? "").trim(),
+      value: (s.value?.en ?? "").trim(),
+    }));
+    const origin =
+      specs.find((s) => s.key.toLowerCase() === "country of origin")?.value ??
+      "";
     const brand = p.brandId ? (brandName.get(String(p.brandId)) ?? "") : "";
 
+    // Country of origin is printed in Brand/Origin, so it must not appear a
+    // second time in Specification.
+    const printableSpecs = specs
+      .filter(
+        (s) => s.key && s.value && s.key.toLowerCase() !== "country of origin",
+      )
+      .map((s) => `${s.key}: ${s.value}`);
+
     out.set(String(p._id), {
-      // Fall back to the name when a product carries no description, so the
-      // line is never blank — a blank line prints blank on the invoice.
-      description: (p.description?.en ?? "").trim() || name,
-      specification: name,
+      // The NAME is the product's identity — for the client's catalogue it is
+      // the model, which is what a buyer matches against a quotation. This used
+      // to be `description || name`, which printed the storefront's marketing
+      // blurb ("A quality product available on the Spiber Marketplace.") for
+      // anything that had one, and duplicated the name into both columns for
+      // anything that did not.
+      description: name || description,
+      // Real specs first; the catalogue description is the equipment TYPE and
+      // is the honest fallback. Never the name again — that is the column to
+      // the left.
+      specification: printableSpecs.join(" · ") || description,
       // "Brand / Origin" matches the printed column; either half may be absent.
+      // Brand is resolved from the master Brand collection via `brandId`, so a
+      // product with no brand assigned prints blank rather than guessing.
       brandOrigin: [brand, origin].filter(Boolean).join(" / "),
     });
   }

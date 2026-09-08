@@ -1,7 +1,4 @@
 import { setRequestLocale } from "next-intl/server";
-import { Plus } from "lucide-react";
-import { Link } from "@/i18n/navigation";
-import { Button } from "@/components/ui/button";
 import { listCoursesForAdmin } from "@/lib/repositories/courses.repo";
 import { formatBDT } from "@/lib/money";
 import { localize } from "@/lib/schemas/localized";
@@ -22,6 +19,10 @@ import { Pagination } from "@/components/admin/ui/pagination";
 import { RowActions } from "@/components/admin/ui/row-actions";
 import { StatusBadge } from "@/components/admin/ui/status-badge";
 import { DataTable, type Column } from "@/components/admin/ui/data-table";
+import { FormPanelButton } from "@/components/admin/ui/form-panel";
+import { CourseBuilder } from "@/components/admin/academy/course-builder";
+import { CourseBuilderPanel } from "@/components/admin/academy/course-builder-panel";
+import { FormPanelTrigger } from "@/components/admin/ui/form-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -100,12 +101,9 @@ export default async function AdminCoursesPage({
       sortKey: "title",
       sortDir: "asc",
       cell: (c) => (
-        <Link
-          href={`/admin/courses/${c.id}`}
-          className="text-primary font-medium hover:underline"
-        >
-          {c.title || "(untitled)"}
-        </Link>
+        <FormPanelTrigger label={c.title || "(untitled)"} title="Edit course">
+          <CourseBuilderPanel id={c.id} />
+        </FormPanelTrigger>
       ),
     },
     {
@@ -160,8 +158,11 @@ export default async function AdminCoursesPage({
           actions={[
             {
               label: "Edit course",
-              href: `/admin/courses/${c.id}`,
               icon: "edit",
+              panel: {
+                title: "Edit course",
+                content: <CourseBuilderPanel id={c.id} />,
+              },
             },
           ]}
         />
@@ -175,12 +176,13 @@ export default async function AdminCoursesPage({
         title="Courses"
         description="MedAcademy courses — content, pricing, and publish status."
         action={
-          <Button asChild size="sm">
-            <Link href="/admin/courses/new">
-              <Plus className="size-4" />
-              New course
-            </Link>
-          </Button>
+          <FormPanelButton
+            label="New course"
+            title="New course"
+            description="A MedAcademy course — content, pricing and publish status."
+          >
+            <CourseBuilder />
+          </FormPanelButton>
         }
       />
 
@@ -228,9 +230,14 @@ export default async function AdminCoursesPage({
         }
         emptyAction={
           filtered ? undefined : (
-            <Button asChild size="sm">
-              <Link href="/admin/courses/new">New course</Link>
-            </Button>
+            <FormPanelButton
+              label="New course"
+              title="New course"
+              description="A MedAcademy course — content, pricing and publish status."
+              icon={false}
+            >
+              <CourseBuilder />
+            </FormPanelButton>
           )
         }
         minWidth={760}

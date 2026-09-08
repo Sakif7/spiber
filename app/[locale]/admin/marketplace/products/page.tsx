@@ -4,6 +4,9 @@ import {
   type ProductManagerRow,
 } from "@/components/admin/products-manager";
 import { listProducts } from "@/lib/repositories/products.repo";
+import { listBrands, listCategories } from "@/lib/repositories/taxonomy.repo";
+import { FormPanelButton } from "@/components/admin/ui/form-panel";
+import { MarketplaceProductForm } from "@/components/admin/marketplace-product-form";
 import { formatBDT } from "@/lib/money";
 import { localize } from "@/lib/schemas/localized";
 import type { ProductStatus } from "@/lib/schemas/catalog";
@@ -77,14 +80,45 @@ export default async function AdminMarketplaceProductsPage({
     rows = [];
   }
 
+  // The new-product panel needs what the editor page used to load.
+  let categories: { id: string; name: string; parentId: string | null }[] = [];
+  let brands: { id: string; name: string }[] = [];
+  try {
+    const [cats, brs] = await Promise.all([
+      listCategories("marketplace"),
+      listBrands(),
+    ]);
+    categories = cats.map((c) => ({
+      id: String(c._id),
+      name: localize(c.name, "en"),
+      parentId: c.parentId ? String(c.parentId) : null,
+    }));
+    brands = brs.map((b) => ({
+      id: String(b._id),
+      name: localize(b.name, "en"),
+    }));
+  } catch {
+    categories = [];
+    brands = [];
+  }
+
   return (
     <ProductsManager
       storefront="marketplace"
       title="Spiber Kart products"
       description="House catalog for the Spiber Kart storefront."
-      basePath="/admin/marketplace/products"
-      newHref="/admin/marketplace/products/new"
+      newAction={
+        <FormPanelButton
+          label="New product"
+          title="New product"
+          description="A house listing on the Spiber Kart storefront."
+        >
+          <MarketplaceProductForm categories={categories} brands={brands} />
+        </FormPanelButton>
+      }
       rows={rows}
+      categories={categories}
+      brands={brands}
       total={total}
       page={query.page}
       pages={pages}

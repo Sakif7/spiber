@@ -18,6 +18,7 @@ import {
   generateInvoice,
   sendDocument,
 } from "@/lib/services/sales-document.service";
+import { getSalesOrderById } from "@/lib/repositories/sales.repo";
 import { writeAudit } from "@/lib/repositories/audit.repo";
 import { guardSales, salesStatus } from "../../_guard";
 
@@ -162,6 +163,16 @@ export async function POST(req: Request, { params }: Params) {
           400,
         );
       }
+      // "Create invoice" arrives here straight from a returned proposal, so
+      // move the order first — that is what issues the number and reserves the
+      // stock. If reserving fails the order stays put and no document exists.
+      const current = await getSalesOrderById(id);
+      if (current && current.status === "proposal_returned") {
+        const moved = await transitionOrder(id, "invoiced", g.actor);
+        if (!moved.ok)
+          return fail({ code: moved.code }, salesStatus(moved.code));
+      }
+
       const res = await generateInvoice(id, parsed.data, g.actor);
       if (!res.ok) return fail({ code: res.code }, salesStatus(res.code));
       await writeAudit(

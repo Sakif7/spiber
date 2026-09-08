@@ -316,6 +316,34 @@ export async function applyMovement(
     createdBy: input.createdBy ?? null,
   });
 
+  /**
+   * Receiving goods is a declaration that this thing has stock.
+   *
+   * A quotation-only Medtrade product is untracked by default, which makes the
+   * hub render a dash in every stock column. Before this, an admin could open
+   * Adjust, receive twenty units, and watch the number vanish — the stock was
+   * stored correctly but nothing on screen said so. If a human deliberately
+   * puts stock on a unit, start tracking it so what they typed is what they
+   * see. Automatic movements (sales, reservations) are excluded: those only
+   * ever touch products that are tracked already.
+   */
+  const byHand =
+    !input.source ||
+    input.source === "manual" ||
+    input.source === "set" ||
+    input.source === "bulk" ||
+    input.source === "csv";
+  if (product && byHand && (stockAfter ?? 0) > 0 && !isStockTracked(product)) {
+    try {
+      await Product.updateOne(
+        { _id: input.productId },
+        { $set: { trackStock: true } },
+      );
+    } catch (e) {
+      logger.warn("inventory: could not start tracking stock", e);
+    }
+  }
+
   if (product && stockAfter != null) {
     await alertOnThreshold(
       product,

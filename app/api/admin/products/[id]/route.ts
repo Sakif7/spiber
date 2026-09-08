@@ -5,6 +5,32 @@ import { productInputSchema } from "@/lib/schemas/catalog";
 import { softDeleteProduct } from "@/lib/repositories/products.repo";
 import { updateCatalogProduct } from "@/lib/services/catalog-admin.service";
 import { writeAudit } from "@/lib/repositories/audit.repo";
+import { getProductById } from "@/lib/repositories/products.repo";
+import {
+  productEditInitial,
+  marketplaceProductEditInitial,
+} from "@/lib/admin/edit-initial";
+
+/**
+ * One product, shaped for whichever editor its storefront uses. Variants and
+ * specs make these documents too heavy to carry on every row of the list.
+ */
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const admin = await requireAdmin();
+  if (!admin) return fail({ code: "forbidden" }, 403);
+  const { id } = await params;
+  const doc = await getProductById(id).catch(() => null);
+  if (!doc) return fail({ code: "not_found" }, 404);
+  const p = doc.toObject();
+  return ok(
+    p.storefront === "marketplace"
+      ? marketplaceProductEditInitial(p)
+      : productEditInitial(p),
+  );
+}
 
 export async function PATCH(
   req: Request,

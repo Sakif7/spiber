@@ -5,6 +5,26 @@ import { blogPostSchema } from "@/lib/schemas/blog";
 import { savePost } from "@/lib/services/blog.service";
 import { softDeletePost } from "@/lib/repositories/blog.repo";
 import { writeAudit } from "@/lib/repositories/audit.repo";
+import { getPostByIdLean } from "@/lib/repositories/blog.repo";
+import { postEditInitial } from "@/lib/admin/edit-initial";
+
+/**
+ * One post, shaped for the editor.
+ *
+ * A post's body is far too big to ride along on every row of the list, so the
+ * edit panel asks for the record when it opens.
+ */
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const admin = await requireAdmin();
+  if (!admin) return fail({ code: "forbidden" }, 403);
+  const { id } = await params;
+  const post = await getPostByIdLean(id).catch(() => null);
+  if (!post) return fail({ code: "not_found" }, 404);
+  return ok(postEditInitial(post));
+}
 
 export async function PATCH(
   req: Request,

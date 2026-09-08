@@ -143,6 +143,7 @@ export function OrderActions({
   function runPrimary() {
     if (blocked) return;
     if (primary.kind === "proposal") return setDialog({ kind: "proposal" });
+    if (primary.kind === "invoice") return setDialog({ kind: "invoice" });
     if (primary.kind === "payment") return setDialog({ kind: "payment" });
     if (primary.kind === "transition" && primary.to) {
       const to = primary.to;

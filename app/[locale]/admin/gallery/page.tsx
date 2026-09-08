@@ -1,7 +1,4 @@
 import { setRequestLocale } from "next-intl/server";
-import { Plus } from "lucide-react";
-import { Link } from "@/i18n/navigation";
-import { Button } from "@/components/ui/button";
 import { listAdminAlbums } from "@/lib/repositories/gallery.repo";
 import { localize } from "@/lib/schemas/localized";
 import { galleryStatusEnum, type GalleryStatus } from "@/lib/schemas/gallery";
@@ -17,8 +14,35 @@ import { Pagination } from "@/components/admin/ui/pagination";
 import { RowActions } from "@/components/admin/ui/row-actions";
 import { StatusBadge } from "@/components/admin/ui/status-badge";
 import { DataTable, type Column } from "@/components/admin/ui/data-table";
+import { FormPanelButton } from "@/components/admin/ui/form-panel";
+import {
+  AlbumForm,
+  type AlbumFormInitial,
+} from "@/components/admin/gallery/album-form";
+import { FormPanelTrigger } from "@/components/admin/ui/form-panel";
 
 export const dynamic = "force-dynamic";
+
+const L = (v?: { en?: string; bn?: string }) => ({
+  en: v?.en ?? "",
+  bn: v?.bn ?? "",
+});
+
+/** The list already holds the whole album, so the edit panel prefills
+    straight from the row. */
+const editInitial = (album: Row): AlbumFormInitial => ({
+  id: String(album._id),
+  title: L(album.title),
+  slug: album.slug,
+  description: L(album.description),
+  coverImage: album.coverImage ?? "",
+  date: album.date ? new Date(album.date).toISOString().slice(0, 10) : "",
+  images: (album.images ?? []).map((im) => ({
+    url: im.url,
+    caption: L(im.caption),
+  })),
+  status: album.status,
+});
 
 const STATUSES = galleryStatusEnum.options;
 
@@ -74,12 +98,13 @@ export default async function AdminGalleryPage({
       sortKey: "title",
       sortDir: "asc",
       cell: (a) => (
-        <Link
-          href={`/admin/gallery/${String(a._id)}`}
-          className="text-primary font-medium hover:underline"
+        <FormPanelTrigger
+          label={localize(a.title, "en") || "(untitled)"}
+          title="Edit album"
+          description={a.slug}
         >
-          {localize(a.title, "en") || "(untitled)"}
-        </Link>
+          <AlbumForm initial={editInitial(a)} />
+        </FormPanelTrigger>
       ),
     },
     {
@@ -135,8 +160,12 @@ export default async function AdminGalleryPage({
             actions={[
               {
                 label: "Edit album",
-                href: `/admin/gallery/${String(a._id)}`,
                 icon: "edit",
+                panel: {
+                  title: "Edit album",
+                  description: a.slug,
+                  content: <AlbumForm initial={editInitial(a)} />,
+                },
               },
             ]}
           />
@@ -151,12 +180,13 @@ export default async function AdminGalleryPage({
         title="Gallery"
         description="Photo albums for company events and milestones."
         action={
-          <Button asChild size="sm">
-            <Link href="/admin/gallery/new">
-              <Plus className="size-4" />
-              New album
-            </Link>
-          </Button>
+          <FormPanelButton
+            label="New album"
+            title="New album"
+            description="A set of photographs shown in the gallery."
+          >
+            <AlbumForm />
+          </FormPanelButton>
         }
       />
 
@@ -197,9 +227,14 @@ export default async function AdminGalleryPage({
         }
         emptyAction={
           filtered ? undefined : (
-            <Button asChild size="sm">
-              <Link href="/admin/gallery/new">New album</Link>
-            </Button>
+            <FormPanelButton
+              label="New album"
+              title="New album"
+              description="A set of photographs shown in the gallery."
+              icon={false}
+            >
+              <AlbumForm />
+            </FormPanelButton>
           )
         }
         minWidth={760}

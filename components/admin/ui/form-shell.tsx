@@ -1,3 +1,4 @@
+import { useId, isValidElement, cloneElement } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
@@ -121,7 +122,15 @@ export function FormGrid({
   );
 }
 
-/** Label + control + optional hint. `htmlFor` wires the label to the control. */
+/**
+ * Label + control + optional hint.
+ *
+ * The label is tied to the control whether or not the caller passes an id: most
+ * did not, which left two thirds of the admin's fields with no accessible name
+ * — a screen reader read out the placeholder, or nothing at all. When no
+ * `htmlFor` is given a generated id is put on the control instead, so the
+ * association is the default rather than something each form has to remember.
+ */
 export function FormField({
   label,
   htmlFor,
@@ -137,6 +146,14 @@ export function FormField({
   children: React.ReactNode;
   className?: string;
 }) {
+  const generated = useId();
+  // Only a single element child can carry an id, and never one that already
+  // has its own.
+  const child = children as React.ReactElement<{ id?: string }>;
+  const adoptable =
+    !htmlFor && label && isValidElement(child) && !child.props.id;
+  const id = htmlFor ?? (adoptable ? generated : undefined);
+
   return (
     <div className={cn("grid content-start gap-1.5", className)}>
       {label && (
@@ -144,13 +161,13 @@ export function FormField({
         // label and a LocalizedInput's taller tab strip still put their
         // controls on one baseline.
         <div className={FIELD_LABEL_ROW}>
-          <Label htmlFor={htmlFor}>
+          <Label htmlFor={id}>
             {label}
             {required && <span className="text-destructive"> *</span>}
           </Label>
         </div>
       )}
-      {children}
+      {adoptable ? cloneElement(child, { id }) : children}
       {hint && <p className="text-muted-foreground text-xs">{hint}</p>}
     </div>
   );
@@ -180,7 +197,7 @@ export function SaveBar({
   disabled?: boolean;
 }) {
   return (
-    <div className="bg-background/85 sticky bottom-0 z-10 -mx-1 flex flex-wrap items-center justify-end gap-3 border-t px-1 py-3 backdrop-blur">
+    <div className="bg-background sticky bottom-0 z-10 -mx-1 flex flex-wrap items-center justify-end gap-3 border-t px-1 py-3">
       {error && (
         <p
           role="alert"

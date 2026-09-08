@@ -1,8 +1,9 @@
 import { setRequestLocale } from "next-intl/server";
-import { Plus } from "lucide-react";
-import { Link } from "@/i18n/navigation";
-import { Button } from "@/components/ui/button";
 import { listAdminPosts } from "@/lib/repositories/blog.repo";
+import {
+  listBlogCategories,
+  listBlogTags,
+} from "@/lib/repositories/blogTaxonomy.repo";
 import { localize } from "@/lib/schemas/localized";
 import { blogStatusEnum, type BlogStatus } from "@/lib/schemas/blog";
 import {
@@ -17,6 +18,10 @@ import { Pagination } from "@/components/admin/ui/pagination";
 import { RowActions } from "@/components/admin/ui/row-actions";
 import { StatusBadge } from "@/components/admin/ui/status-badge";
 import { DataTable, type Column } from "@/components/admin/ui/data-table";
+import { FormPanelButton } from "@/components/admin/ui/form-panel";
+import { PostEditor } from "@/components/admin/blog/post-editor";
+import { PostEditorPanel } from "@/components/admin/blog/post-editor-panel";
+import { FormPanelTrigger } from "@/components/admin/ui/form-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +72,21 @@ export default async function AdminBlogPostsPage({
     rows = [];
   }
 
+  // The new-post panel writes against the same taxonomy the editor page
+  // used to load for itself.
+  const [cats, tagRows] = await Promise.all([
+    listBlogCategories().catch(() => []),
+    listBlogTags().catch(() => []),
+  ]);
+  const categories = cats.map((c) => ({
+    id: String(c._id),
+    name: localize(c.name, "en"),
+  }));
+  const tags = tagRows.map((t) => ({
+    id: String(t._id),
+    name: localize(t.name, "en"),
+  }));
+
   const columns: Column<Row>[] = [
     {
       key: "title",
@@ -74,12 +94,17 @@ export default async function AdminBlogPostsPage({
       sortKey: "title",
       sortDir: "asc",
       cell: (p) => (
-        <Link
-          href={`/admin/blog/posts/${String(p._id)}`}
-          className="text-primary font-medium hover:underline"
+        <FormPanelTrigger
+          label={localize(p.title, "en") || "(untitled)"}
+          title="Edit post"
+          description={p.slug}
         >
-          {localize(p.title, "en") || "(untitled)"}
-        </Link>
+          <PostEditorPanel
+            id={String(p._id)}
+            categories={categories}
+            tags={tags}
+          />
+        </FormPanelTrigger>
       ),
     },
     {
@@ -136,8 +161,18 @@ export default async function AdminBlogPostsPage({
             actions={[
               {
                 label: "Edit post",
-                href: `/admin/blog/posts/${String(p._id)}`,
                 icon: "edit",
+                panel: {
+                  title: "Edit post",
+                  description: p.slug,
+                  content: (
+                    <PostEditorPanel
+                      id={String(p._id)}
+                      categories={categories}
+                      tags={tags}
+                    />
+                  ),
+                },
               },
             ]}
           />
@@ -152,12 +187,13 @@ export default async function AdminBlogPostsPage({
         title="Blog posts"
         description="Blog articles — drafts, scheduled, and published."
         action={
-          <Button asChild size="sm">
-            <Link href="/admin/blog/posts/new">
-              <Plus className="size-4" />
-              New post
-            </Link>
-          </Button>
+          <FormPanelButton
+            label="New post"
+            title="New post"
+            description="A blog article — it stays a draft until you publish it."
+          >
+            <PostEditor categories={categories} tags={tags} />
+          </FormPanelButton>
         }
       />
 
@@ -199,9 +235,14 @@ export default async function AdminBlogPostsPage({
         }
         emptyAction={
           filtered ? undefined : (
-            <Button asChild size="sm">
-              <Link href="/admin/blog/posts/new">New post</Link>
-            </Button>
+            <FormPanelButton
+              label="New post"
+              title="New post"
+              description="A blog article — it stays a draft until you publish it."
+              icon={false}
+            >
+              <PostEditor categories={categories} tags={tags} />
+            </FormPanelButton>
           )
         }
         minWidth={760}

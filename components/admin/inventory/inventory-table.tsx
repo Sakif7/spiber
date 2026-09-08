@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Link, useRouter } from "@/i18n/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { PackageOpen } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DataTable, type Column } from "@/components/admin/ui/data-table";
 import { RowActions, type RowAction } from "@/components/admin/ui/row-actions";
+import { FormPanelTrigger } from "@/components/admin/ui/form-panel";
+import { ProductFormPanel } from "@/components/admin/product-form-panel";
 import { StatusBadge } from "@/components/admin/ui/status-badge";
 import type { SortDir } from "@/lib/admin/list-params";
 import { formatApiError } from "@/lib/http/form-error";
@@ -37,14 +39,23 @@ function timeAgo(iso: string): string {
  * per-unit adjust / set-to drawer. The page owns the URL state (search,
  * filters, sort, paging); this component owns only transient UI state.
  */
+/** The taxonomy the product edit panel needs, per storefront. */
+export type EditorTaxonomy = {
+  instruments: { id: string; name: string; parentId: string | null }[];
+  marketplace: { id: string; name: string; parentId: string | null }[];
+  brands: { id: string; name: string }[];
+};
+
 export function InventoryTable({
   units,
   sort,
   filtered,
+  taxonomy,
 }: {
   units: HubUnit[];
   sort: { key: string; dir: SortDir };
   filtered: boolean;
+  taxonomy: EditorTaxonomy;
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -111,7 +122,26 @@ export function InventoryTable({
         onSelect: () => openDrawer(u, "set"),
       },
       { label: "Movement history", href: u.historyHref, icon: "view" },
-      { label: "Open product", href: u.editorHref, icon: "open" },
+      {
+        label: "Edit product",
+        icon: "edit",
+        panel: {
+          title: "Edit product",
+          description: u.sku,
+          content: (
+            <ProductFormPanel
+              id={u.productId}
+              storefront={u.storefront}
+              categories={
+                u.storefront === "instruments"
+                  ? taxonomy.instruments
+                  : taxonomy.marketplace
+              }
+              brands={taxonomy.brands}
+            />
+          ),
+        },
+      },
     ];
     if (u.storefront === "instruments" && !u.seller) {
       actions.push(
@@ -173,18 +203,33 @@ export function InventoryTable({
       mobile: "primary",
       cell: (u) => (
         <div className="min-w-0">
-          <Link
-            href={u.editorHref}
-            className="text-foreground block max-w-[18rem] truncate font-medium hover:underline"
+          <FormPanelTrigger
+            label={
+              <>
+                {u.name}
+                {u.variantLabel && (
+                  <span className="text-muted-foreground font-normal">
+                    {" "}
+                    · {u.variantLabel}
+                  </span>
+                )}
+              </>
+            }
+            title="Edit product"
+            description={u.sku}
+            className="text-foreground block max-w-[18rem] truncate text-left font-medium hover:underline"
           >
-            {u.name}
-            {u.variantLabel && (
-              <span className="text-muted-foreground font-normal">
-                {" "}
-                · {u.variantLabel}
-              </span>
-            )}
-          </Link>
+            <ProductFormPanel
+              id={u.productId}
+              storefront={u.storefront}
+              categories={
+                u.storefront === "instruments"
+                  ? taxonomy.instruments
+                  : taxonomy.marketplace
+              }
+              brands={taxonomy.brands}
+            />
+          </FormPanelTrigger>
           <p className="text-muted-foreground max-w-[18rem] truncate text-xs">
             {[u.categoryName, u.brandName].filter(Boolean).join(" ·") || "—"}
           </p>

@@ -1,7 +1,5 @@
 import { setRequestLocale } from "next-intl/server";
-import { MessageSquareQuote, Plus } from "lucide-react";
-import { Link } from "@/i18n/navigation";
-import { Button } from "@/components/ui/button";
+import { MessageSquareQuote } from "lucide-react";
 import { listTestimonialsForAdminPaged } from "@/lib/repositories/testimonials.repo";
 import {
   parseListQuery,
@@ -14,6 +12,14 @@ import { Pagination } from "@/components/admin/ui/pagination";
 import { RowActions } from "@/components/admin/ui/row-actions";
 import { StatusBadge } from "@/components/admin/ui/status-badge";
 import { DataTable, type Column } from "@/components/admin/ui/data-table";
+import {
+  FormPanelButton,
+  FormPanelTrigger,
+} from "@/components/admin/ui/form-panel";
+import {
+  TestimonialForm,
+  type TestimonialInitial,
+} from "@/components/admin/testimonial-form";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +32,9 @@ const LIST: ListConfig = {
 
 type Row = {
   id: string;
+  /** Everything the form needs — these records are small, so the list
+      carries them and the edit panel opens without a round trip. */
+  initial: TestimonialInitial;
   name: string;
   role: string;
   category: string;
@@ -79,6 +88,16 @@ export default async function AdminTestimonialsPage({
     pages = res.pages;
     rows = res.items.map((d) => ({
       id: String(d._id),
+      initial: {
+        quote: d.quote,
+        name: d.name,
+        role: d.role ?? "",
+        imageSrc: d.imageSrc ?? "",
+        tone: d.tone ?? "teal",
+        category: d.category ?? "general",
+        order: d.order ?? 0,
+        published: d.published !== false,
+      },
       name: d.name,
       role: d.role ?? "",
       category: d.category ?? "general",
@@ -100,12 +119,13 @@ export default async function AdminTestimonialsPage({
       sortKey: "name",
       sortDir: "asc",
       cell: (r) => (
-        <Link
-          href={`/admin/testimonials/${r.id}`}
-          className="text-primary font-medium hover:underline"
+        <FormPanelTrigger
+          label={r.name}
+          title="Edit testimonial"
+          description={r.role || undefined}
         >
-          {r.name}
-        </Link>
+          <TestimonialForm id={r.id} initial={r.initial} />
+        </FormPanelTrigger>
       ),
     },
     {
@@ -176,8 +196,12 @@ export default async function AdminTestimonialsPage({
           actions={[
             {
               label: "Edit",
-              href: `/admin/testimonials/${r.id}`,
               icon: "edit",
+              panel: {
+                title: "Edit testimonial",
+                description: r.role || undefined,
+                content: <TestimonialForm id={r.id} initial={r.initial} />,
+              },
             },
           ]}
         />
@@ -191,12 +215,13 @@ export default async function AdminTestimonialsPage({
         title="Testimonials"
         description="Patient and partner voices shown on the homepage and the tourism hub."
         action={
-          <Button asChild size="sm">
-            <Link href="/admin/testimonials/new">
-              <Plus className="size-4" />
-              New testimonial
-            </Link>
-          </Button>
+          <FormPanelButton
+            label="New testimonial"
+            title="New testimonial"
+            description="A patient or partner voice for the homepage or the tourism hub."
+          >
+            <TestimonialForm />
+          </FormPanelButton>
         }
       />
 
@@ -254,9 +279,14 @@ export default async function AdminTestimonialsPage({
         }
         emptyAction={
           filtered ? undefined : (
-            <Button asChild size="sm">
-              <Link href="/admin/testimonials/new">New testimonial</Link>
-            </Button>
+            <FormPanelButton
+              label="New testimonial"
+              title="New testimonial"
+              description="A patient or partner voice for the homepage or the tourism hub."
+              icon={false}
+            >
+              <TestimonialForm />
+            </FormPanelButton>
           )
         }
         minWidth={760}

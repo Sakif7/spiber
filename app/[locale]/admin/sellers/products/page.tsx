@@ -1,7 +1,9 @@
 import { setRequestLocale } from "next-intl/server";
-import { Link } from "@/i18n/navigation";
 import { listPendingSellerProductsForAdmin } from "@/lib/repositories/products.repo";
 import { sellerNamesByIds } from "@/lib/repositories/sellers.repo";
+import { listBrands, listCategories } from "@/lib/repositories/taxonomy.repo";
+import { FormPanelTrigger } from "@/components/admin/ui/form-panel";
+import { ProductFormPanel } from "@/components/admin/product-form-panel";
 import { formatBDT } from "@/lib/money";
 import { asLocale } from "@/lib/i18n/intl-locale";
 import { localize } from "@/lib/schemas/localized";
@@ -72,6 +74,22 @@ export default async function AdminSellerProductsPage({
     rows = [];
   }
 
+  // A listing under review can be corrected in place, so the panel needs the
+  // marketplace taxonomy the product form offers.
+  const [catDocs, brandDocs] = await Promise.all([
+    listCategories("marketplace").catch(() => []),
+    listBrands().catch(() => []),
+  ]);
+  const categories = catDocs.map((c) => ({
+    id: String(c._id),
+    name: localize(c.name, "en"),
+    parentId: c.parentId ? String(c.parentId) : null,
+  }));
+  const brands = brandDocs.map((b) => ({
+    id: String(b._id),
+    name: localize(b.name, "en"),
+  }));
+
   const columns: Column<Row>[] = [
     {
       key: "product",
@@ -87,12 +105,19 @@ export default async function AdminSellerProductsPage({
         return (
           <div className="flex min-w-0 flex-col gap-0.5">
             <span className="flex items-center gap-2">
-              <Link
-                href={`/admin/marketplace/products/${String(r._id)}`}
-                className="text-primary truncate font-medium hover:underline"
+              <FormPanelTrigger
+                label={draftName ?? liveName}
+                title="Edit product"
+                description={r.sku}
+                className="text-primary truncate text-left font-medium hover:underline"
               >
-                {draftName ?? liveName}
-              </Link>
+                <ProductFormPanel
+                  id={String(r._id)}
+                  storefront="marketplace"
+                  categories={categories}
+                  brands={brands}
+                />
+              </FormPanelTrigger>
               <span
                 className={
                   isUpdate

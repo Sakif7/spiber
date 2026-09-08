@@ -1,7 +1,4 @@
 import { setRequestLocale } from "next-intl/server";
-import { Plus } from "lucide-react";
-import { Link } from "@/i18n/navigation";
-import { Button } from "@/components/ui/button";
 import { listAdminEvents } from "@/lib/repositories/events.repo";
 import { localize } from "@/lib/schemas/localized";
 import { eventStatusEnum, type EventStatus } from "@/lib/schemas/events";
@@ -17,8 +14,38 @@ import { Pagination } from "@/components/admin/ui/pagination";
 import { RowActions } from "@/components/admin/ui/row-actions";
 import { StatusBadge } from "@/components/admin/ui/status-badge";
 import { DataTable, type Column } from "@/components/admin/ui/data-table";
+import { FormPanelButton } from "@/components/admin/ui/form-panel";
+import {
+  EventForm,
+  type EventFormInitial,
+} from "@/components/admin/events/event-form";
+import { FormPanelTrigger } from "@/components/admin/ui/form-panel";
 
 export const dynamic = "force-dynamic";
+
+const L = (v?: { en?: string; bn?: string; ja?: string }) => ({
+  en: v?.en ?? "",
+  bn: v?.bn ?? "",
+  ja: v?.ja ?? "",
+});
+const dtLocal = (d?: Date | null) =>
+  d ? new Date(d).toISOString().slice(0, 16) : "";
+
+/** The list already holds the whole document, so the edit panel prefills
+    straight from the row. */
+const editInitial = (ev: Row): EventFormInitial => ({
+  id: String(ev._id),
+  title: L(ev.title),
+  slug: ev.slug,
+  summary: L(ev.summary),
+  description: L(ev.description),
+  coverImage: ev.coverImage ?? "",
+  startDate: dtLocal(ev.startDate),
+  endDate: dtLocal(ev.endDate),
+  location: L(ev.location),
+  registrationUrl: ev.registrationUrl ?? "",
+  status: ev.status,
+});
 
 const STATUSES = eventStatusEnum.options;
 
@@ -74,12 +101,13 @@ export default async function AdminEventsPage({
       sortKey: "title",
       sortDir: "asc",
       cell: (e) => (
-        <Link
-          href={`/admin/events/${String(e._id)}`}
-          className="text-primary font-medium hover:underline"
+        <FormPanelTrigger
+          label={localize(e.title, "en") || "(untitled)"}
+          title="Edit event"
+          description={e.slug}
         >
-          {localize(e.title, "en") || "(untitled)"}
-        </Link>
+          <EventForm initial={editInitial(e)} />
+        </FormPanelTrigger>
       ),
     },
     {
@@ -134,8 +162,12 @@ export default async function AdminEventsPage({
             actions={[
               {
                 label: "Edit event",
-                href: `/admin/events/${String(e._id)}`,
                 icon: "edit",
+                panel: {
+                  title: "Edit event",
+                  description: e.slug,
+                  content: <EventForm initial={editInitial(e)} />,
+                },
               },
             ]}
           />
@@ -150,12 +182,13 @@ export default async function AdminEventsPage({
         title="Events"
         description="Conferences, webinars, and company milestones."
         action={
-          <Button asChild size="sm">
-            <Link href="/admin/events/new">
-              <Plus className="size-4" />
-              New event
-            </Link>
-          </Button>
+          <FormPanelButton
+            label="New event"
+            title="New event"
+            description="Something happening, listed on the events page."
+          >
+            <EventForm />
+          </FormPanelButton>
         }
       />
 
@@ -196,9 +229,14 @@ export default async function AdminEventsPage({
         }
         emptyAction={
           filtered ? undefined : (
-            <Button asChild size="sm">
-              <Link href="/admin/events/new">New event</Link>
-            </Button>
+            <FormPanelButton
+              label="New event"
+              title="New event"
+              description="Something happening, listed on the events page."
+              icon={false}
+            >
+              <EventForm />
+            </FormPanelButton>
           )
         }
         minWidth={760}

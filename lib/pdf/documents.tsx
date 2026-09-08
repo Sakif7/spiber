@@ -96,36 +96,54 @@ const col = (flex: number, last = false) => ({
   ...(last ? { borderRightWidth: 0 } : {}),
 });
 
-/** The eight columns both documents share. */
+/** The columns both documents share. The proposal drops the last one: it
+    quotes a price per piece, so a "total" beside a quantity of one would only
+    repeat the figure to its left. The invoice, which is what actually gets
+    added up, keeps it. */
 const COLS = {
-  sn: 0.45,
-  product: 2.6,
-  brand: 1.3,
-  spec: 1.6,
-  qty: 0.7,
-  unit: 0.7,
-  price: 1.1,
-  total: 1.2,
+  sn: 0.4,
+  product: 2.5,
+  brand: 1.0,
+  spec: 2.2,
+  qty: 0.55,
+  unit: 0.55,
+  price: 1.05,
+  total: 1.15,
 };
 
-function TableHead() {
+/** The empty run at the left of every totals row, as one cell. */
+const TOTALS_SPAN = COLS.sn + COLS.product + COLS.brand + COLS.spec;
+
+function TableHead({ showTotal = true }: { showTotal?: boolean }) {
   return (
-    <View style={styles.tr}>
+    <View style={styles.trHead}>
       <Text style={[styles.th, col(COLS.sn)]}>S/N</Text>
       <Text style={[styles.th, col(COLS.product)]}>Product</Text>
       <Text style={[styles.th, col(COLS.brand)]}>Brand</Text>
       <Text style={[styles.th, col(COLS.spec)]}>Specification</Text>
       <Text style={[styles.th, col(COLS.qty)]}>Qty</Text>
       <Text style={[styles.th, col(COLS.unit)]}>Unit</Text>
-      <Text style={[styles.th, col(COLS.price)]}>Unit Price{"\n"}(BDT)</Text>
-      <Text style={[styles.th, col(COLS.total, true)]}>
-        Total Amount{"\n"}(BDT)
+      <Text style={[styles.th, col(COLS.price, !showTotal)]}>
+        Unit Price{"\n"}(BDT)
       </Text>
+      {showTotal && (
+        <Text style={[styles.th, col(COLS.total, true)]}>
+          Total Amount{"\n"}(BDT)
+        </Text>
+      )}
     </View>
   );
 }
 
-function LineRow({ line, n }: { line: DocumentLine; n: number }) {
+function LineRow({
+  line,
+  n,
+  showTotal = true,
+}: {
+  line: DocumentLine;
+  n: number;
+  showTotal?: boolean;
+}) {
   return (
     <View style={styles.tr}>
       <Text style={[styles.td, col(COLS.sn)]}>{n}</Text>
@@ -133,17 +151,19 @@ function LineRow({ line, n }: { line: DocumentLine; n: number }) {
         {line.description}
       </Text>
       <Text style={[styles.td, col(COLS.brand)]}>{line.brandOrigin ?? ""}</Text>
-      <Text style={[styles.td, col(COLS.spec)]}>
+      <Text style={[styles.td, styles.tdText, col(COLS.spec)]}>
         {line.specification ?? ""}
       </Text>
       <Text style={[styles.td, col(COLS.qty)]}>{line.qty}</Text>
       <Text style={[styles.td, col(COLS.unit)]}>{line.unit || "PCS"}</Text>
-      <Text style={[styles.td, styles.tdNum, col(COLS.price)]}>
+      <Text style={[styles.td, styles.tdNum, col(COLS.price, !showTotal)]}>
         {formatTaka(line.unitPriceMinor)}
       </Text>
-      <Text style={[styles.td, styles.tdNum, col(COLS.total, true)]}>
-        {formatTaka(line.lineTotalMinor)}
-      </Text>
+      {showTotal && (
+        <Text style={[styles.td, styles.tdNum, col(COLS.total, true)]}>
+          {formatTaka(line.lineTotalMinor)}
+        </Text>
+      )}
     </View>
   );
 }
@@ -222,13 +242,13 @@ export function ProposalDocument({ data }: { data: ProposalData }) {
           Product/ Service Details
         </Text>
         <View style={styles.table}>
-          <TableHead />
+          <TableHead showTotal={false} />
           {data.lines.map((l, i) => (
-            <LineRow key={i} line={l} n={i + 1} />
+            <LineRow key={i} line={l} n={i + 1} showTotal={false} />
           ))}
         </View>
 
-        <View style={{ marginTop: 16 }} wrap={false}>
+        <View style={{ marginTop: 16 }} wrap={false} minPresenceAhead={96}>
           <Text style={styles.underlineLabel}>Terms &amp; Conditions:</Text>
           <View style={{ marginTop: 6 }}>
             <Bullet>Quality products and reliable product sourcing</Bullet>
@@ -320,7 +340,12 @@ export function InvoiceDocument({ data }: { data: InvoiceData }) {
           {/* The template's totals stack. Discount, VAT and Transport appear
               only when actually charged, so a plain invoice reads exactly like
               the scanned one. */}
-          <TotalRow label="Total" value={String(totalQty)} unitsOnly />
+          <TotalRow
+            label="Total Qty"
+            value={String(totalQty)}
+            unitsOnly
+            first
+          />
           <TotalRow label="Subtotal" value={formatTaka(data.subtotalMinor)} />
           {data.discountMinor > 0 && (
             <TotalRow
@@ -340,13 +365,18 @@ export function InvoiceDocument({ data }: { data: InvoiceData }) {
               value={formatTaka(data.deliveryMinor)}
             />
           )}
-          <TotalRow label="Grand Total" value={formatTaka(data.totalMinor)} />
+          <TotalRow
+            label="Grand Total"
+            value={formatTaka(data.totalMinor)}
+            emphasis
+          />
           {data.paidMinor > 0 && (
             <TotalRow label="Paid" value={formatTaka(data.paidMinor)} />
           )}
           <TotalRow
             label="Balance Due/ Outstanding"
             value={formatTaka(balanceMinor)}
+            emphasis
             last
           />
         </View>
@@ -356,7 +386,7 @@ export function InvoiceDocument({ data }: { data: InvoiceData }) {
           {amountInWords(data.totalMinor)}
         </Text>
 
-        <View style={{ marginTop: 9 }} wrap={false}>
+        <View style={{ marginTop: 9 }} wrap={false} minPresenceAhead={96}>
           <Text style={styles.underlineLabel}>Payment Information:</Text>
           <View style={{ marginTop: 5 }}>
             <Field label="Bank Name:" value={BANK.bankName} />
@@ -368,7 +398,7 @@ export function InvoiceDocument({ data }: { data: InvoiceData }) {
           </View>
         </View>
 
-        <View style={{ marginTop: 9 }} wrap={false}>
+        <View style={{ marginTop: 9 }} wrap={false} minPresenceAhead={96}>
           <Text style={styles.underlineLabel}>Terms &amp; Condition:</Text>
           <View style={{ marginTop: 5 }}>
             <Bullet>
@@ -396,26 +426,32 @@ export function InvoiceDocument({ data }: { data: InvoiceData }) {
 }
 
 /**
- * A totals row: the first four columns stay ruled and empty, the label spans
- * Qty through Unit Price, and the figure sits under Total Amount.
+ * A totals row.
+ *
+ * The columns to the left of the label are ONE empty cell rather than four
+ * ruled ones: a stack of empty boxes running down the page was the thing that
+ * made this table read as a grid. `first` puts a full rule above, closing the
+ * items off from the sums; `emphasis` tints the figure the reader came for.
  */
 function TotalRow({
   label,
   value,
+  first = false,
   last = false,
   unitsOnly = false,
+  emphasis = false,
 }: {
   label: string;
   value: string;
+  first?: boolean;
   last?: boolean;
   unitsOnly?: boolean;
+  emphasis?: boolean;
 }) {
+  const row = first ? styles.trTotalsStart : last ? styles.trLast : styles.tr;
   return (
-    <View style={last ? styles.trLast : styles.tr}>
-      <Text style={[styles.td, col(COLS.sn)]} />
-      <Text style={[styles.td, col(COLS.product)]} />
-      <Text style={[styles.td, col(COLS.brand)]} />
-      <Text style={[styles.td, col(COLS.spec)]} />
+    <View style={row}>
+      <View style={[styles.tdSpan, col(TOTALS_SPAN)]} />
       <Text
         style={[
           styles.td,
@@ -432,6 +468,7 @@ function TotalRow({
           unitsOnly ? {} : styles.tdNum,
           col(COLS.total, true),
           styles.label,
+          emphasis ? styles.tdStrong : {},
         ]}
       >
         {value}

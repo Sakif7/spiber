@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useRouter } from "@/i18n/navigation";
+import { useAfterSave } from "@/components/admin/ui/form-panel";
 import { toast } from "sonner";
 import { Paperclip, Loader2, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -50,7 +50,7 @@ export function ExpenseForm({
   /** Set when adding a claim from a visit's page. */
   lockedVisitId?: string;
 }) {
-  const router = useRouter();
+  const afterSave = useAfterSave();
   const [v, setV] = useState<ExpenseFormValues>(
     expense ?? {
       visitId: lockedVisitId ?? "",
@@ -135,10 +135,9 @@ export function ExpenseForm({
         return;
       }
       toast.success(expense?.id ? "Claim updated." : "Claim recorded.");
-      router.push(
+      afterSave(
         `/admin/company/people/expenses/${expense?.id ?? json?.data?.id ?? ""}`,
       );
-      router.refresh();
     } finally {
       setSaving(false);
     }

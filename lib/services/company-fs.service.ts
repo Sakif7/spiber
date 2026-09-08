@@ -12,7 +12,10 @@ import {
   MAX_FOLDER_DEPTH,
   type ICompanyFolder,
 } from "@/lib/models/companyFolder";
-import type { ICompanyDocument } from "@/lib/models/companyDocument";
+import {
+  CompanyDocument,
+  type ICompanyDocument,
+} from "@/lib/models/companyDocument";
 import type { Lean } from "@/lib/models/_shared";
 import {
   getFolderById,
@@ -140,6 +143,11 @@ export type FolderNode = {
   name: string;
   parentId: string | null;
   depth: number;
+  /** Rolled up from everything beneath it, so the row is never three dashes. */
+  itemCount?: number;
+  sizeBytes?: number;
+  modifiedAt?: string | null;
+  createdByEmail?: string | null;
 };
 
 export type FileNode = {
@@ -161,7 +169,52 @@ const toFolderNode = (f: LeanFolder): FolderNode => ({
   name: f.name,
   parentId: f.parentId ? String(f.parentId) : null,
   depth: f.depth,
+  modifiedAt: f.updatedAt ? new Date(f.updatedAt).toISOString() : null,
+  createdByEmail: f.createdByEmail ?? null,
 });
+
+/**
+ * How much is inside each of these folders, at any depth.
+ *
+ * One aggregation over the denormalised `ancestors` chain rather than a walk
+ * per folder — the same index that makes subtree moves cheap. Without this the
+ * listing showed a folder's Size, Modified and Uploaded-by columns as dashes,
+ * which read like the table was broken.
+ */
+async function folderRollups(
+  ids: string[],
+): Promise<Map<string, { itemCount: number; sizeBytes: number }>> {
+  const out = new Map<string, { itemCount: number; sizeBytes: number }>();
+  if (ids.length === 0) return out;
+  const rows = await CompanyDocument.aggregate<{
+    _id: unknown;
+    itemCount: number;
+    sizeBytes: number;
+  }>([
+    {
+      $match: {
+        ancestors: { $in: ids.map((id) => new mongoose.Types.ObjectId(id)) },
+        trashedAt: null,
+        purgedAt: null,
+      },
+    },
+    { $unwind: "$ancestors" },
+    {
+      $group: {
+        _id: "$ancestors",
+        itemCount: { $sum: 1 },
+        sizeBytes: { $sum: { $ifNull: ["$size", 0] } },
+      },
+    },
+  ]).exec();
+  for (const r of rows) {
+    out.set(String(r._id), {
+      itemCount: r.itemCount,
+      sizeBytes: r.sizeBytes,
+    });
+  }
+  return out;
+}
 
 const toFileNode = (d: Lean<ICompanyDocument>): FileNode => ({
   id: String(d._id),
@@ -230,12 +283,19 @@ export async function listChildren(params: {
     ? folders.filter((f) => f.nameLower.includes(needle))
     : folders;
 
+  const nodes = visibleFolders.map(toFolderNode);
+  const rollups = await folderRollups(nodes.map((n) => n.id));
+
   return done({
     folder: folder ? toFolderNode(folder) : null,
     breadcrumb: params.folderId
       ? (await folderPath(params.folderId)).map(toFolderNode)
       : [],
-    folders: visibleFolders.map(toFolderNode),
+    folders: nodes.map((n) => ({
+      ...n,
+      itemCount: rollups.get(n.id)?.itemCount ?? 0,
+      sizeBytes: rollups.get(n.id)?.sizeBytes ?? 0,
+    })),
     files: files.map(toFileNode),
     usage: { ...usage, quotaBytes },
   });

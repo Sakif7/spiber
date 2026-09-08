@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useRouter } from "@/i18n/navigation";
+import { useAfterSave } from "@/components/admin/ui/form-panel";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,8 @@ import {
 import { SingleImageField } from "@/components/admin/upload-fields";
 import { formatApiError } from "@/lib/http/form-error";
 
-type Init = {
+/** What the edit panel prefills from. */
+export type TestimonialInitial = {
   quote?: string;
   name?: string;
   role?: string;
@@ -35,9 +36,9 @@ export function TestimonialForm({
   initial = {},
 }: {
   id?: string;
-  initial?: Init;
+  initial?: TestimonialInitial;
 }) {
-  const router = useRouter();
+  const afterSave = useAfterSave();
   const [quote, setQuote] = useState(initial.quote ?? "");
   const [name, setName] = useState(initial.name ?? "");
   const [role, setRole] = useState(initial.role ?? "");
@@ -80,8 +81,8 @@ export function TestimonialForm({
         return;
       }
       toast.success("Testimonial saved");
-      if (id) router.refresh();
-      else router.push("/admin/testimonials");
+      // Editing in place stays put; creating goes back to the list.
+      afterSave(id ? null : "/admin/testimonials");
     } catch {
       setError("Network error.");
       toast.error("Network error");
@@ -103,7 +104,7 @@ export function TestimonialForm({
         return;
       }
       toast.success("Testimonial deleted");
-      router.push("/admin/testimonials");
+      afterSave("/admin/testimonials");
     } catch {
       toast.error("Network error");
     } finally {

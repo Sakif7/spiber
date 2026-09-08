@@ -1,5 +1,4 @@
-import { Link } from "@/i18n/navigation";
-import { Button } from "@/components/ui/button";
+import { FormPanelTrigger } from "@/components/admin/ui/form-panel";
 import { DataTable, type Column } from "@/components/admin/ui/data-table";
 import {
   ListToolbar,
@@ -20,6 +19,9 @@ export type CatalogRow = {
   createdAt: string;
   /** Optional secondary descriptor (category, country, hospital…). */
   meta?: string;
+  /** The record itself, for the edit panel. These documents are small, so
+      the list carries them rather than fetching one on open. */
+  initial?: Record<string, unknown>;
 };
 
 /** The list config every tourism catalog page shares (extra filters appended). */
@@ -37,7 +39,6 @@ export const CATALOG_LIST: ListConfig = {
  */
 export function CatalogList({
   rows,
-  base,
   noun,
   nounSingular,
   metaHeader,
@@ -47,9 +48,11 @@ export function CatalogList({
   filters = [],
   searchPlaceholder,
   emptyHint,
+  newAction,
+  editTitle,
+  renderEdit,
 }: {
   rows: CatalogRow[];
-  base: string;
   /** Plural, lowercase, e.g."destinations". */
   noun: string;
   /** Singular for the New button, e.g."destination". */
@@ -64,6 +67,13 @@ export function CatalogList({
   searchPlaceholder: string;
   /** Unfiltered empty-state explanation. */
   emptyHint: string;
+  /** The New button, so the empty state offers the same panel the header does. */
+  newAction: React.ReactNode;
+  /** Panel heading when editing one row, e.g. "Edit destination". */
+  editTitle: string;
+  /** Builds the edit form for a row. Both pages are Server Components, so a
+      function may be passed here. */
+  renderEdit: (row: CatalogRow) => React.ReactNode;
 }) {
   const filtered = Boolean(
     query.q || Object.values(query.filters).some(Boolean),
@@ -76,12 +86,13 @@ export function CatalogList({
       sortKey: "name",
       sortDir: "asc",
       cell: (r) => (
-        <Link
-          href={`${base}/${r.id}`}
-          className="text-primary font-medium hover:underline"
+        <FormPanelTrigger
+          label={r.title || "(untitled)"}
+          title={editTitle}
+          description={r.slug}
         >
-          {r.title || "(untitled)"}
-        </Link>
+          {renderEdit(r)}
+        </FormPanelTrigger>
       ),
     },
     {
@@ -131,7 +142,17 @@ export function CatalogList({
       cell: (r) => (
         <RowActions
           label={`Actions for ${r.title}`}
-          actions={[{ label: "Edit", href: `${base}/${r.id}`, icon: "edit" }]}
+          actions={[
+            {
+              label: "Edit",
+              icon: "edit",
+              panel: {
+                title: editTitle,
+                description: r.slug,
+                content: renderEdit(r),
+              },
+            },
+          ]}
         />
       ),
     },
@@ -175,13 +196,7 @@ export function CatalogList({
         emptyDescription={
           filtered ? "Try clearing the search or a filter." : emptyHint
         }
-        emptyAction={
-          filtered ? undefined : (
-            <Button asChild size="sm">
-              <Link href={`${base}/new`}>New {nounSingular}</Link>
-            </Button>
-          )
-        }
+        emptyAction={filtered ? undefined : newAction}
         minWidth={720}
       />
 

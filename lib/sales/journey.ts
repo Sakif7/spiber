@@ -72,7 +72,7 @@ export function stageStates(
  */
 export type NextAction = {
   /** The transition to run, or a document to produce. */
-  kind: "proposal" | "transition" | "payment" | "none";
+  kind: "proposal" | "invoice" | "transition" | "payment" | "none";
   to?: SalesOrderStatus;
   label: string;
   /** Why this is the next step, shown under the rail. */
@@ -98,11 +98,13 @@ export function nextAction(
         hint: "Do this once the client sends the marked-up quotation back.",
       };
     case "proposal_returned":
+      // Generating the document IS creating the invoice — the status move and
+      // the PDF are one step, or the button does not do what it says.
       return {
-        kind: "transition",
+        kind: "invoice",
         to: "invoiced",
         label: "Create invoice",
-        hint: "Issues the invoice number and reserves stock for every line.",
+        hint: "Issues the invoice number, reserves stock and produces the PDF.",
       };
     case "invoiced":
       return {

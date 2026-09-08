@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { setRequestLocale } from "next-intl/server";
-import { Plus } from "lucide-react";
 import { parseListQuery, type ListConfig } from "@/lib/admin/list-params";
 import { listSalesLeads } from "@/lib/repositories/sales.repo";
 import { salesLeadStatusEnum } from "@/lib/schemas/sales-lead";
@@ -9,7 +8,8 @@ import { ListToolbar } from "@/components/admin/ui/list-toolbar";
 import { DataTable, type Column } from "@/components/admin/ui/data-table";
 import { Pagination } from "@/components/admin/ui/pagination";
 import { StatusBadge, statusTone } from "@/components/admin/ui/status-badge";
-import { Button } from "@/components/ui/button";
+import { FormPanelButton } from "@/components/admin/ui/form-panel";
+import { LeadForm } from "@/components/admin/sales/lead-form";
 
 export const dynamic = "force-dynamic";
 
@@ -123,12 +123,13 @@ export default async function SalesLeadsPage({
         title="Sales leads"
         description="Hospitals, clinics and labs the sales team sells to."
         action={
-          <Button asChild size="sm" className="gap-1.5">
-            <Link href="/admin/company/sales/leads/new">
-              <Plus className="size-4" />
-              New lead
-            </Link>
-          </Button>
+          <FormPanelButton
+            label="New lead"
+            title="New lead"
+            description="Hospitals, clinics and labs the sales team sells to."
+          >
+            <LeadForm />
+          </FormPanelButton>
         }
       />
       <ListToolbar

@@ -1,13 +1,18 @@
 import Link from "next/link";
 import { setRequestLocale } from "next-intl/server";
-import { Plus } from "lucide-react";
 import { parseListQuery, type ListConfig } from "@/lib/admin/list-params";
-import { listVisits, employeeNames } from "@/lib/repositories/expenses.repo";
+import {
+  listVisits,
+  employeeNames,
+  activeEmployeeOptions,
+} from "@/lib/repositories/expenses.repo";
+import { listSalesLeads } from "@/lib/repositories/sales.repo";
 import { AdminPageHeader } from "@/components/admin/ui/page-header";
 import { ListToolbar } from "@/components/admin/ui/list-toolbar";
 import { DataTable, type Column } from "@/components/admin/ui/data-table";
 import { Pagination } from "@/components/admin/ui/pagination";
-import { Button } from "@/components/ui/button";
+import { FormPanelButton } from "@/components/admin/ui/form-panel";
+import { VisitForm } from "@/components/admin/hr/visit-form";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +57,16 @@ export default async function VisitsPage({
   const names = await employeeNames(
     (page?.items ?? []).flatMap((v) => v.attendees.map(String)),
   ).catch(() => new Map());
+
+  // For the record-a-visit panel.
+  const [people, leadPage] = await Promise.all([
+    activeEmployeeOptions().catch(() => []),
+    listSalesLeads({ pageSize: 100 }).catch(() => null),
+  ]);
+  const leads = (leadPage?.items ?? []).map((l) => ({
+    id: String(l._id),
+    label: `${l.organisation} (${l.code})`,
+  }));
 
   const rows: Row[] = (page?.items ?? []).map((v) => ({
     id: String(v._id),
@@ -116,12 +131,13 @@ export default async function VisitsPage({
         title="Visits"
         description="Marketing and lead-generation trips, and the costs claimed against them."
         action={
-          <Button asChild size="sm" className="gap-1.5">
-            <Link href="/admin/company/people/visits/new">
-              <Plus className="size-4" />
-              Record visit
-            </Link>
-          </Button>
+          <FormPanelButton
+            label="Record visit"
+            title="Record a visit"
+            description="A trip out, and who went on it."
+          >
+            <VisitForm people={people} leads={leads} />
+          </FormPanelButton>
         }
       />
       <ListToolbar

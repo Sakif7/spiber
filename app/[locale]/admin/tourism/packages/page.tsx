@@ -1,7 +1,4 @@
 import { setRequestLocale } from "next-intl/server";
-import { Plus } from "lucide-react";
-import { Link } from "@/i18n/navigation";
-import { Button } from "@/components/ui/button";
 import { listPackages } from "@/lib/repositories/packages.repo";
 import { asLocale } from "@/lib/i18n/intl-locale";
 import { localize } from "@/lib/schemas/localized";
@@ -22,6 +19,8 @@ import {
   CatalogList,
   type CatalogRow,
 } from "@/components/admin/tourism/catalog-list";
+import { FormPanelButton } from "@/components/admin/ui/form-panel";
+import { PackageForm } from "@/components/admin/tourism/catalog-form";
 
 export const dynamic = "force-dynamic";
 
@@ -83,6 +82,9 @@ export default async function AdminPackagesPage({
     pages = res.pages;
     rows = res.items.map((r) => ({
       id: String(r._id),
+      // Small documents, so the list carries them and the edit panel
+      // opens instantly instead of fetching one.
+      initial: JSON.parse(JSON.stringify(r)) as Record<string, unknown>,
       title: localize(r.name, l),
       slug: r.slug,
       status: r.status,
@@ -93,23 +95,28 @@ export default async function AdminPackagesPage({
     rows = [];
   }
 
+  const newAction = (
+    <FormPanelButton
+      label="New package"
+      title="New package"
+      description="A treatment package bundling procedure, stay and travel."
+    >
+      <PackageForm />
+    </FormPanelButton>
+  );
+
   return (
     <div className="space-y-4">
       <AdminPageHeader
         title="Packages"
         description="Treatment packages bundling procedure, stay and travel."
-        action={
-          <Button asChild size="sm">
-            <Link href="/admin/tourism/packages/new">
-              <Plus className="size-4" />
-              New package
-            </Link>
-          </Button>
-        }
+        action={newAction}
       />
       <CatalogList
         rows={rows}
-        base="/admin/tourism/packages"
+        newAction={newAction}
+        editTitle="Edit package"
+        renderEdit={(r) => <PackageForm id={r.id} initial={r.initial} />}
         noun="packages"
         nounSingular="package"
         metaHeader="Category"

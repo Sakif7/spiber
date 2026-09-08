@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "@/i18n/navigation";
+import { useAfterSave } from "@/components/admin/ui/form-panel";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,7 +43,7 @@ function toLocalInput(v?: string | null): string {
 }
 
 export function BannerForm({ initial }: { initial?: BannerInitial }) {
-  const router = useRouter();
+  const afterSave = useAfterSave();
   const isEdit = Boolean(initial?.id);
   const [slot, setSlot] = useState(initial?.slot ?? "hero");
   const [titleEn, setTitleEn] = useState(initial?.title?.en ?? "");
@@ -106,8 +106,7 @@ export function BannerForm({ initial }: { initial?: BannerInitial }) {
     setSaving(false);
     if (res.ok && json?.ok) {
       toast.success(isEdit ? "Banner saved" : "Banner created");
-      router.push("/admin/marketplace/banners");
-      router.refresh();
+      afterSave("/admin/marketplace/banners");
     } else {
       const msg = formatApiError(json);
       setError(msg);

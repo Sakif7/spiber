@@ -1,5 +1,4 @@
 import { setRequestLocale } from "next-intl/server";
-import { Plus } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,8 +23,48 @@ import { Pagination } from "@/components/admin/ui/pagination";
 import { RowActions } from "@/components/admin/ui/row-actions";
 import { StatusBadge } from "@/components/admin/ui/status-badge";
 import { DataTable, type Column } from "@/components/admin/ui/data-table";
+import { FormPanelButton } from "@/components/admin/ui/form-panel";
+import {
+  JobForm,
+  type JobFormInitial,
+} from "@/components/admin/career/job-form";
+import { FormPanelTrigger } from "@/components/admin/ui/form-panel";
 
 export const dynamic = "force-dynamic";
+
+const L = (v?: { en?: string; bn?: string }) => ({
+  en: v?.en ?? "",
+  bn: v?.bn ?? "",
+});
+
+/** The list already holds the whole posting, so the edit panel prefills
+    straight from the row. */
+const editInitial = (job: Row): JobFormInitial => ({
+  id: String(job._id),
+  title: L(job.title),
+  slug: job.slug,
+  department: L(job.department),
+  reportsTo: L(job.reportsTo),
+  location: L(job.location),
+  employmentType: job.employmentType,
+  experience: L(job.experience),
+  vacancies: job.vacancies != null ? String(job.vacancies) : "",
+  summary: L(job.summary),
+  description: L(job.description),
+  responsibilities: L(job.responsibilities),
+  requirements: L(job.requirements),
+  preferredSkills: L(job.preferredSkills),
+  benefits: L(job.benefits),
+  applyEmail: job.applyEmail ?? "",
+  recruiterName: job.recruiterName ?? "",
+  recruiterTitle: L(job.recruiterTitle),
+  recruiterEmail: job.recruiterEmail ?? "",
+  recruiterPhone: job.recruiterPhone ?? "",
+  closesAt: job.closesAt
+    ? new Date(job.closesAt).toISOString().slice(0, 10)
+    : "",
+  status: job.status,
+});
 
 const STATUSES = jobStatusEnum.options;
 const TYPES = employmentTypeEnum.options;
@@ -103,12 +142,13 @@ export default async function AdminCareerPage({
       sortKey: "title",
       sortDir: "asc",
       cell: (j) => (
-        <Link
-          href={`/admin/career/${String(j._id)}`}
-          className="text-primary font-medium hover:underline"
+        <FormPanelTrigger
+          label={localize(j.title, "en") || "(untitled)"}
+          title="Edit job"
+          description={j.slug}
         >
-          {localize(j.title, "en") || "(untitled)"}
-        </Link>
+          <JobForm initial={editInitial(j)} />
+        </FormPanelTrigger>
       ),
     },
     {
@@ -169,8 +209,12 @@ export default async function AdminCareerPage({
             actions={[
               {
                 label: "Edit job",
-                href: `/admin/career/${String(j._id)}`,
                 icon: "edit",
+                panel: {
+                  title: "Edit job",
+                  description: j.slug,
+                  content: <JobForm initial={editInitial(j)} />,
+                },
               },
             ]}
           />
@@ -196,12 +240,13 @@ export default async function AdminCareerPage({
                 )}
               </Link>
             </Button>
-            <Button asChild size="sm">
-              <Link href="/admin/career/new">
-                <Plus className="size-4" />
-                New job
-              </Link>
-            </Button>
+            <FormPanelButton
+              label="New job"
+              title="New job"
+              description="A role to advertise on the careers page."
+            >
+              <JobForm />
+            </FormPanelButton>
           </div>
         }
       />
@@ -255,9 +300,14 @@ export default async function AdminCareerPage({
         }
         emptyAction={
           filtered ? undefined : (
-            <Button asChild size="sm">
-              <Link href="/admin/career/new">New job</Link>
-            </Button>
+            <FormPanelButton
+              label="New job"
+              title="New job"
+              description="A role to advertise on the careers page."
+              icon={false}
+            >
+              <JobForm />
+            </FormPanelButton>
           )
         }
         minWidth={760}

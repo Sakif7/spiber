@@ -6,7 +6,12 @@ import {
   getExpenseById,
   getVisitById,
   employeeNames,
+  activeEmployeeOptions,
+  listVisits,
 } from "@/lib/repositories/expenses.repo";
+import { getCompanyDocumentById } from "@/lib/repositories/company-documents.repo";
+import { FormPanelButton } from "@/components/admin/ui/form-panel";
+import { ExpenseForm } from "@/components/admin/hr/expense-form";
 import { EditorHeader } from "@/components/admin/ui/form-shell";
 import {
   DetailLayout,
@@ -15,7 +20,6 @@ import {
 } from "@/components/admin/ui/detail";
 import { StatusBadge, statusTone } from "@/components/admin/ui/status-badge";
 import { ExpenseActions } from "@/components/admin/hr/expense-actions";
-import { Button } from "@/components/ui/button";
 import { formatBDT } from "@/lib/money";
 import { monthLabel, isPayrollMonth } from "@/lib/hr/months";
 
@@ -34,10 +38,22 @@ export default async function ExpenseDetailPage({
   const expense = await getExpenseById(id).catch(() => null);
   if (!expense) notFound();
 
-  const [names, visit] = await Promise.all([
+  // A claim can only be edited while it is still awaiting a decision, so the
+  // form's data is only loaded when the panel could actually be offered.
+  const editable = expense.status === "submitted";
+  const [names, visit, people, visitPage, receipt] = await Promise.all([
     employeeNames([String(expense.employeeId)]).catch(() => new Map()),
     expense.visitId
       ? getVisitById(String(expense.visitId)).catch(() => null)
+      : Promise.resolve(null),
+    editable ? activeEmployeeOptions().catch(() => []) : Promise.resolve([]),
+    editable
+      ? listVisits({ pageSize: 100 }).catch(() => null)
+      : Promise.resolve(null),
+    editable && expense.receiptDocumentId
+      ? getCompanyDocumentById(String(expense.receiptDocumentId)).catch(
+          () => null,
+        )
       : Promise.resolve(null),
   ]);
 
@@ -59,12 +75,41 @@ export default async function ExpenseDetailPage({
         title={expense.description}
         subtitle={`${expense.ref} · ${amountLabel} · ${who}`}
         action={
-          expense.status === "submitted" ? (
-            <Button asChild size="sm" variant="outline">
-              <Link href={`/admin/company/people/expenses/${id}/edit`}>
-                Edit
-              </Link>
-            </Button>
+          editable ? (
+            <FormPanelButton
+              label="Edit"
+              title="Edit claim"
+              description={expense.ref}
+              variant="outline"
+              icon={false}
+            >
+              <ExpenseForm
+                people={people}
+                visits={(visitPage?.items ?? []).map((v) => ({
+                  id: String(v._id),
+                  label: `${day(v.visitedAt)} — ${v.purpose}`,
+                }))}
+                expense={{
+                  id,
+                  visitId: expense.visitId ? String(expense.visitId) : "",
+                  employeeId: String(expense.employeeId),
+                  category: expense.category,
+                  amount: (expense.amountMinor / 100).toString(),
+                  // Claims are stored at Dhaka midnight, so reading the day
+                  // back in UTC lands on the day before and saving would
+                  // silently walk the date backwards on every edit.
+                  spentAt: new Date(expense.spentAt).toLocaleDateString(
+                    "en-CA",
+                    { timeZone: "Asia/Dhaka" },
+                  ),
+                  description: expense.description,
+                  receiptDocumentId: expense.receiptDocumentId
+                    ? String(expense.receiptDocumentId)
+                    : "",
+                  receiptTitle: receipt?.title ?? "",
+                }}
+              />
+            </FormPanelButton>
           ) : undefined
         }
       />

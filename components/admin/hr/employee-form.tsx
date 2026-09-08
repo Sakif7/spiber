@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "@/i18n/navigation";
+import { useAfterSave } from "@/components/admin/ui/form-panel";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -61,7 +61,7 @@ const EMPTY: EmployeeFormValues = {
 } as EmployeeFormValues;
 
 export function EmployeeForm({ employee }: { employee?: EmployeeFormValues }) {
-  const router = useRouter();
+  const afterSave = useAfterSave();
   const [v, setV] = useState<EmployeeFormValues>(employee ?? EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -116,10 +116,9 @@ export function EmployeeForm({ employee }: { employee?: EmployeeFormValues }) {
         return;
       }
       toast.success(employee?.id ? "Employee updated." : "Employee added.");
-      router.push(
+      afterSave(
         `/admin/company/people/employees/${employee?.id ?? json?.data?.id ?? ""}`,
       );
-      router.refresh();
     } finally {
       setSaving(false);
     }

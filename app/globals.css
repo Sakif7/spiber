@@ -1,4 +1,9 @@
 @import "tailwindcss";
+/* The enter/exit utilities every shadcn component already references —
+   animate-in, fade-in-0, slide-in-from-*, zoom-in-95. Without this import
+   those classes resolve to nothing, which is why no dialog, dropdown,
+   popover, select or sheet in this app has ever animated. */
+@import "tw-animate-css";
 
 /* Class-based dark mode. The `.dark` class is set on <html> ONLY by the
    admin ThemeProvider (mounted in the admin layout); the public marketing
@@ -613,6 +618,13 @@ html {
   scroll-behavior: smooth;
   scrollbar-color: var(--slate-300) transparent;
   scrollbar-width: thin;
+  /* Reserve the scrollbar's space permanently.
+     Radix locks scrolling while a Select, dropdown or dialog is open, which
+     removes the scrollbar; without a reserved gutter the viewport widens by
+     its width and the WHOLE page jumps sideways — the sticky admin topbar
+     re-composites its backdrop-blur and appears to flash out. Holding the
+     gutter means opening a menu changes nothing about the layout. */
+  scrollbar-gutter: stable;
   /* Backstop: no element may cause a horizontal page scroll. `clip` (not
      `hidden`) does NOT create a scroll container, so it never breaks the
      sticky header / sticky buy-boxes / sticky filter rails inside the page.

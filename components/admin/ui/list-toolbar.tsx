@@ -96,15 +96,49 @@ export function ListToolbar({
 
   return (
     <div className={cn("space-y-2", className)}>
+      {/* Two deliberate rows instead of one long wrapping line.
+          Everything used to sit in a single `flex-wrap` row with the count and
+          sort pinned right by `ml-auto`; as soon as the filters overflowed,
+          that right-hand cluster was pushed onto its own line and hung there
+          ragged under the date inputs. Search and sort now own the top row and
+          always fit; filters wrap among themselves underneath. */}
       <div className="flex flex-wrap items-center gap-2">
         {search && (
           <ListSearch
             placeholder={search.placeholder}
             ariaLabel={search.ariaLabel}
-            className="w-full sm:w-64 lg:w-72"
+            className="w-full min-w-0 flex-1 sm:w-auto sm:max-w-sm"
           />
         )}
 
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          {pending && (
+            <Loader2
+              size={14}
+              aria-hidden
+              className="text-muted-foreground animate-spin"
+            />
+          )}
+          {typeof total === "number" && (
+            <span
+              className="text-muted-foreground text-xs whitespace-nowrap tabular-nums"
+              aria-live="polite"
+            >
+              {countLabel ?? `${total} result${total === 1 ? "" : "s"}`}
+            </span>
+          )}
+          {sort && sort.options.length > 0 && (
+            <SortControl
+              options={sort.options}
+              current={currentSort}
+              onChange={(key, dir) => set({ sort: key, dir })}
+            />
+          )}
+          {children}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         {filters.map((f) => {
           const value = searchParams.get(f.param) ?? "";
           const asSelect =
@@ -193,32 +227,6 @@ export function ListToolbar({
             />
           </div>
         )}
-
-        <div className="ml-auto flex items-center gap-2">
-          {pending && (
-            <Loader2
-              size={14}
-              aria-hidden
-              className="text-muted-foreground animate-spin"
-            />
-          )}
-          {typeof total === "number" && (
-            <span
-              className="text-muted-foreground text-xs whitespace-nowrap tabular-nums"
-              aria-live="polite"
-            >
-              {countLabel ?? `${total} result${total === 1 ? "" : "s"}`}
-            </span>
-          )}
-          {sort && sort.options.length > 0 && (
-            <SortControl
-              options={sort.options}
-              current={currentSort}
-              onChange={(key, dir) => set({ sort: key, dir })}
-            />
-          )}
-          {children}
-        </div>
       </div>
 
       {anyActive && (

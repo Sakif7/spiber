@@ -1,7 +1,4 @@
 import { setRequestLocale } from "next-intl/server";
-import { Plus } from "lucide-react";
-import { Link } from "@/i18n/navigation";
-import { Button } from "@/components/ui/button";
 import { listBannersForAdmin } from "@/lib/repositories/banners.repo";
 import { localize } from "@/lib/schemas/localized";
 import { bannerSlotEnum, type BannerSlot } from "@/lib/schemas/banner";
@@ -16,8 +13,29 @@ import { Pagination } from "@/components/admin/ui/pagination";
 import { RowActions } from "@/components/admin/ui/row-actions";
 import { StatusBadge } from "@/components/admin/ui/status-badge";
 import { DataTable, type Column } from "@/components/admin/ui/data-table";
+import { FormPanelButton } from "@/components/admin/ui/form-panel";
+import { BannerForm, type BannerInitial } from "@/components/admin/banner-form";
+import { FormPanelTrigger } from "@/components/admin/ui/form-panel";
+import { DeleteRowButton } from "@/components/admin/delete-row-button";
 
 export const dynamic = "force-dynamic";
+
+/** The list already holds the whole banner, so the edit panel prefills
+    straight from the row. */
+const editInitial = (b: Row): BannerInitial => ({
+  id: String(b._id),
+  slot: b.slot,
+  title: { en: b.title.en, bn: b.title.bn, ja: b.title.ja },
+  subtitle: b.subtitle ? { en: b.subtitle.en, bn: b.subtitle.bn } : undefined,
+  image: b.image,
+  images: b.images,
+  href: b.href,
+  cta: b.cta ? { en: b.cta.en, bn: b.cta.bn } : undefined,
+  position: b.position,
+  active: b.active,
+  startsAt: b.startsAt ? new Date(b.startsAt).toISOString() : null,
+  endsAt: b.endsAt ? new Date(b.endsAt).toISOString() : null,
+});
 
 const SLOTS = bannerSlotEnum.options;
 const SLOT_LABEL: Record<BannerSlot, string> = {
@@ -97,12 +115,13 @@ export default async function AdminBannersPage({
       sortKey: "title",
       sortDir: "asc",
       cell: (b) => (
-        <Link
-          href={`/admin/marketplace/banners/${String(b._id)}`}
-          className="text-primary font-medium hover:underline"
+        <FormPanelTrigger
+          label={localize(b.title, "en") || "(untitled)"}
+          title="Edit banner"
+          description={b.slot}
         >
-          {localize(b.title, "en") || "(untitled)"}
-        </Link>
+          <BannerForm initial={editInitial(b)} />
+        </FormPanelTrigger>
       ),
     },
     {
@@ -157,18 +176,28 @@ export default async function AdminBannersPage({
       header: "",
       align: "right",
       mobile: "actions",
-      className: "w-10",
+      className: "w-24",
       cell: (b) => (
-        <RowActions
-          label={`Actions for ${localize(b.title, "en")}`}
-          actions={[
-            {
-              label: "Edit banner",
-              href: `/admin/marketplace/banners/${String(b._id)}`,
-              icon: "edit",
-            },
-          ]}
-        />
+        <span className="flex items-center justify-end gap-1">
+          <DeleteRowButton
+            endpoint={`/api/admin/banners/${String(b._id)}`}
+            title={localize(b.title, "en")}
+          />
+          <RowActions
+            label={`Actions for ${localize(b.title, "en")}`}
+            actions={[
+              {
+                label: "Edit banner",
+                icon: "edit",
+                panel: {
+                  title: "Edit banner",
+                  description: b.slot,
+                  content: <BannerForm initial={editInitial(b)} />,
+                },
+              },
+            ]}
+          />
+        </span>
       ),
     },
   ];
@@ -179,12 +208,13 @@ export default async function AdminBannersPage({
         title="Banners"
         description="Spiber Kart promotional banners, their slots and schedules."
         action={
-          <Button asChild size="sm">
-            <Link href="/admin/marketplace/banners/new">
-              <Plus className="size-4" />
-              New banner
-            </Link>
-          </Button>
+          <FormPanelButton
+            label="New banner"
+            title="New banner"
+            description="A promotional banner, its slot and its schedule."
+          >
+            <BannerForm />
+          </FormPanelButton>
         }
       />
 
@@ -234,9 +264,14 @@ export default async function AdminBannersPage({
         }
         emptyAction={
           filtered ? undefined : (
-            <Button asChild size="sm">
-              <Link href="/admin/marketplace/banners/new">New banner</Link>
-            </Button>
+            <FormPanelButton
+              label="New banner"
+              title="New banner"
+              description="A promotional banner, its slot and its schedule."
+              icon={false}
+            >
+              <BannerForm />
+            </FormPanelButton>
           )
         }
         minWidth={800}

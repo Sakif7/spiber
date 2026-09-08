@@ -39,7 +39,10 @@ import { AdminPageHeader } from "@/components/admin/ui/page-header";
 import { ListToolbar } from "@/components/admin/ui/list-toolbar";
 import { Pagination } from "@/components/admin/ui/pagination";
 import { StatCard } from "@/components/admin/ui/stat-card";
-import { InventoryTable } from "@/components/admin/inventory/inventory-table";
+import {
+  InventoryTable,
+  type EditorTaxonomy,
+} from "@/components/admin/inventory/inventory-table";
 import { CsvReceiveButton } from "@/components/admin/inventory/csv-receive-dialog";
 import { SendDigestButton } from "@/components/admin/inventory/send-digest-button";
 import type { HubUnit } from "@/components/admin/inventory/types";
@@ -129,6 +132,11 @@ export default async function InventoryPage({
   let pages = 1;
   let kpis: StockKpis = EMPTY_KPIS;
   let categoryOptions: Option[] = [];
+  let editorTaxonomy: EditorTaxonomy = {
+    instruments: [],
+    marketplace: [],
+    brands: [],
+  };
   let brandOptions: Option[] = [];
   let lastSent: string | null = null;
   const recipient = digestRecipient();
@@ -141,6 +149,28 @@ export default async function InventoryPage({
     const brandName = new Map(
       brs.map((b) => [String(b._id), localize(b.name, "en")]),
     );
+    // For the edit panel a row opens: each editor only offers its own
+    // storefront's categories.
+    editorTaxonomy = {
+      instruments: cats
+        .filter((c) => c.storefront === "instruments")
+        .map((c) => ({
+          id: String(c._id),
+          name: localize(c.name, "en"),
+          parentId: c.parentId ? String(c.parentId) : null,
+        })),
+      marketplace: cats
+        .filter((c) => c.storefront === "marketplace")
+        .map((c) => ({
+          id: String(c._id),
+          name: localize(c.name, "en"),
+          parentId: c.parentId ? String(c.parentId) : null,
+        })),
+      brands: brs.map((b) => ({
+        id: String(b._id),
+        name: localize(b.name, "en"),
+      })),
+    };
     categoryOptions = cats.map((c) => ({
       value: String(c._id),
       label: `${localize(c.name, "en")} · ${STORE_LABEL[c.storefront] ?? c.storefront}`,
@@ -218,10 +248,7 @@ export default async function InventoryPage({
         : null,
       categoryName: u.categoryId ? (catName.get(u.categoryId) ?? null) : null,
       brandName: u.brandId ? (brandName.get(u.brandId) ?? null) : null,
-      editorHref:
-        u.storefront === "instruments"
-          ? `/admin/products/${u.productId}`
-          : `/admin/marketplace/products/${u.productId}`,
+
       historyHref: `/admin/inventory/movements?product=${u.productId}${
         u.variantId ? `&variant=${encodeURIComponent(u.variantId)}` : ""
       }`,
@@ -378,6 +405,7 @@ export default async function InventoryPage({
         units={units}
         sort={{ key: query.sort, dir: query.dir }}
         filtered={filtered}
+        taxonomy={editorTaxonomy}
       />
 
       <Pagination

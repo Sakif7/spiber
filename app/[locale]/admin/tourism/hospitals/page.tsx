@@ -1,7 +1,4 @@
 import { setRequestLocale } from "next-intl/server";
-import { Plus } from "lucide-react";
-import { Link } from "@/i18n/navigation";
-import { Button } from "@/components/ui/button";
 import { listHospitals } from "@/lib/repositories/hospitals.repo";
 import { listDestinations } from "@/lib/repositories/destinations.repo";
 import { asLocale } from "@/lib/i18n/intl-locale";
@@ -21,6 +18,8 @@ import {
   CatalogList,
   type CatalogRow,
 } from "@/components/admin/tourism/catalog-list";
+import { FormPanelButton } from "@/components/admin/ui/form-panel";
+import { HospitalForm } from "@/components/admin/tourism/catalog-form";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +69,9 @@ export default async function AdminHospitalsPage({
     pages = res.pages;
     rows = res.items.map((r) => ({
       id: String(r._id),
+      // Small documents, so the list carries them and the edit panel
+      // opens instantly instead of fetching one.
+      initial: JSON.parse(JSON.stringify(r)) as Record<string, unknown>,
       title: localize(r.name, l),
       slug: r.slug,
       status: r.status,
@@ -86,23 +88,28 @@ export default async function AdminHospitalsPage({
     rows = [];
   }
 
+  const newAction = (
+    <FormPanelButton
+      label="New hospital"
+      title="New hospital"
+      description="A partner hospital or clinic patients can be referred to."
+    >
+      <HospitalForm />
+    </FormPanelButton>
+  );
+
   return (
     <div className="space-y-4">
       <AdminPageHeader
         title="Hospitals"
         description="Partner hospitals and clinics patients can be referred to."
-        action={
-          <Button asChild size="sm">
-            <Link href="/admin/tourism/hospitals/new">
-              <Plus className="size-4" />
-              New hospital
-            </Link>
-          </Button>
-        }
+        action={newAction}
       />
       <CatalogList
         rows={rows}
-        base="/admin/tourism/hospitals"
+        newAction={newAction}
+        editTitle="Edit hospital"
+        renderEdit={(r) => <HospitalForm id={r.id} initial={r.initial} />}
         noun="hospitals"
         nounSingular="hospital"
         metaHeader="Location"

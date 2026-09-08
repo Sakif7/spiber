@@ -1,7 +1,4 @@
 import { setRequestLocale } from "next-intl/server";
-import { Plus } from "lucide-react";
-import { Link } from "@/i18n/navigation";
-import { Button } from "@/components/ui/button";
 import { listSoftwareProducts } from "@/lib/repositories/software.repo";
 import { formatBDT } from "@/lib/money";
 import { localize } from "@/lib/schemas/localized";
@@ -23,8 +20,43 @@ import { Pagination } from "@/components/admin/ui/pagination";
 import { RowActions } from "@/components/admin/ui/row-actions";
 import { StatusBadge } from "@/components/admin/ui/status-badge";
 import { DataTable, type Column } from "@/components/admin/ui/data-table";
+import { FormPanelButton } from "@/components/admin/ui/form-panel";
+import {
+  SoftwareProductForm,
+  type SoftwareFormInitial,
+} from "@/components/admin/software-product-form";
+import { FormPanelTrigger } from "@/components/admin/ui/form-panel";
 
 export const dynamic = "force-dynamic";
+
+/** The list already holds the whole product, so the edit panel prefills
+    straight from the row. */
+const editInitial = (p: Row): SoftwareFormInitial => ({
+  id: String(p._id),
+  name: { en: p.name.en, bn: p.name.bn ?? "", ja: p.name.ja ?? "" },
+  slug: p.slug,
+  description: p.description
+    ? {
+        en: p.description.en ?? "",
+        bn: p.description.bn ?? "",
+        ja: p.description.ja ?? "",
+      }
+    : { en: "", bn: "", ja: "" },
+  screenshots: p.screenshots,
+  features: p.features.map((f) => ({
+    en: f.en,
+    bn: f.bn ?? "",
+    ja: f.ja ?? "",
+  })),
+  pricingModel: p.pricingModel,
+  priceMinor: p.priceMinor,
+  demoUrl: p.demoUrl,
+  deliveryType: p.deliveryType,
+  assetKey: p.assetKey,
+  externalApp: p.externalApp,
+  affiliateRateBp: p.affiliate?.rateBp,
+  status: p.status,
+});
 
 const STATUSES = softwareStatusEnum.options;
 const PRICING = softwarePricingModelEnum.options;
@@ -106,12 +138,13 @@ export default async function AdminSoftwareProductsPage({
       sortKey: "name",
       sortDir: "asc",
       cell: (p) => (
-        <Link
-          href={`/admin/software-products/${String(p._id)}`}
-          className="text-primary font-medium hover:underline"
+        <FormPanelTrigger
+          label={localize(p.name, "en")}
+          title="Edit software product"
+          description={p.slug}
         >
-          {localize(p.name, "en")}
-        </Link>
+          <SoftwareProductForm initial={editInitial(p)} />
+        </FormPanelTrigger>
       ),
     },
     {
@@ -180,8 +213,12 @@ export default async function AdminSoftwareProductsPage({
             actions={[
               {
                 label: "Edit product",
-                href: `/admin/software-products/${String(p._id)}`,
                 icon: "edit",
+                panel: {
+                  title: "Edit software product",
+                  description: p.slug,
+                  content: <SoftwareProductForm initial={editInitial(p)} />,
+                },
               },
             ]}
           />
@@ -196,12 +233,13 @@ export default async function AdminSoftwareProductsPage({
         title="Software products"
         description="Digihealth software catalog — pricing model, delivery, and publish status."
         action={
-          <Button asChild size="sm">
-            <Link href="/admin/software-products/new">
-              <Plus className="size-4" />
-              New product
-            </Link>
-          </Button>
+          <FormPanelButton
+            label="New product"
+            title="New software product"
+            description="A Digihealth product — pricing model, delivery and publish status."
+          >
+            <SoftwareProductForm />
+          </FormPanelButton>
         }
       />
 
@@ -264,9 +302,14 @@ export default async function AdminSoftwareProductsPage({
         }
         emptyAction={
           filtered ? undefined : (
-            <Button asChild size="sm">
-              <Link href="/admin/software-products/new">New product</Link>
-            </Button>
+            <FormPanelButton
+              label="New product"
+              title="New software product"
+              description="A Digihealth product — pricing model, delivery and publish status."
+              icon={false}
+            >
+              <SoftwareProductForm />
+            </FormPanelButton>
           )
         }
         minWidth={820}

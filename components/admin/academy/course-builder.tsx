@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type CSSProperties } from "react";
-import { useRouter } from "@/i18n/navigation";
+import { useAfterSave } from "@/components/admin/ui/form-panel";
 import {
   DndContext,
   closestCenter,
@@ -189,7 +189,7 @@ function Sortable({
 }
 
 export function CourseBuilder({ initial }: { initial?: CourseBuilderInitial }) {
-  const router = useRouter();
+  const afterSave = useAfterSave();
   const isEdit = Boolean(initial?.id);
 
   const [title, setTitle] = useState<L>(initial?.title ?? emptyL());
@@ -347,8 +347,7 @@ export function CourseBuilder({ initial }: { initial?: CourseBuilderInitial }) {
     const json = await res.json().catch(() => null);
     setSaving(false);
     if (res.ok && json?.ok) {
-      router.push("/admin/courses");
-      router.refresh();
+      afterSave("/admin/courses");
     } else {
       setError(formatApiError(json));
     }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { useRouter } from "@/i18n/navigation";
+import { useAfterSave } from "@/components/admin/ui/form-panel";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -65,7 +65,7 @@ function useCatalogSubmit(
   id: string | undefined,
   listPath: string,
 ) {
-  const router = useRouter();
+  const afterSave = useAfterSave();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -89,8 +89,7 @@ function useCatalogSubmit(
         return;
       }
       toast.success("Saved");
-      if (id) router.refresh();
-      else router.push(listPath);
+      afterSave(id ? null : listPath);
     } catch {
       setError("Network error.");
       toast.error("Network error");

@@ -1,13 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Link, useRouter } from "@/i18n/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { Package } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DataTable, type Column } from "@/components/admin/ui/data-table";
 import { AdminPageHeader } from "@/components/admin/ui/page-header";
+import { FormPanelTrigger } from "@/components/admin/ui/form-panel";
+import { ProductFormPanel } from "@/components/admin/product-form-panel";
 import { ListToolbar } from "@/components/admin/ui/list-toolbar";
 import { Pagination } from "@/components/admin/ui/pagination";
 import { RowActions } from "@/components/admin/ui/row-actions";
@@ -15,6 +17,9 @@ import { StatusBadge } from "@/components/admin/ui/status-badge";
 import type { SortDir } from "@/lib/admin/list-params";
 import { formatApiError } from "@/lib/http/form-error";
 import { cn } from "@/lib/cn";
+
+type Option = { id: string; name: string };
+type CatOption = { id: string; name: string; parentId: string | null };
 
 export type ProductManagerRow = {
   id: string;
@@ -55,8 +60,9 @@ export function ProductsManager({
   storefront,
   title,
   description,
-  basePath,
-  newHref,
+  newAction,
+  categories,
+  brands,
   rows,
   total,
   page,
@@ -69,8 +75,12 @@ export function ProductsManager({
   storefront: Storefront;
   title: string;
   description?: string;
-  basePath: string;
-  newHref: string;
+  /** The New-product button, rendered by the server page so it can hand
+      the form the categories and brands it needs. */
+  newAction: React.ReactNode;
+  /** The same taxonomy, for the edit panel a row opens. */
+  categories: CatOption[];
+  brands: Option[];
   rows: ProductManagerRow[];
   total: number;
   page: number;
@@ -200,12 +210,18 @@ export function ProductsManager({
       mobile: "primary",
       cell: (p) => (
         <span className="flex items-center gap-2">
-          <Link
-            href={`${basePath}/${p.id}`}
-            className="text-primary font-medium hover:underline"
+          <FormPanelTrigger
+            label={p.name || "(untitled)"}
+            title="Edit product"
+            description={p.sku}
           >
-            {p.name || "(untitled)"}
-          </Link>
+            <ProductFormPanel
+              id={p.id}
+              storefront={storefront}
+              categories={categories}
+              brands={brands}
+            />
+          </FormPanelTrigger>
           {p.featured && (
             <span className="text-admin-2xs font-bold tracking-wide text-[var(--tone-warning-fg)]">
               ★ FEATURED
@@ -264,8 +280,19 @@ export function ProductsManager({
           actions={[
             {
               label: "Edit product",
-              href: `${basePath}/${p.id}`,
               icon: "edit",
+              panel: {
+                title: "Edit product",
+                description: p.sku,
+                content: (
+                  <ProductFormPanel
+                    id={p.id}
+                    storefront={storefront}
+                    categories={categories}
+                    brands={brands}
+                  />
+                ),
+              },
             },
           ]}
         />
@@ -278,11 +305,7 @@ export function ProductsManager({
       <AdminPageHeader
         title={title}
         description={description}
-        action={
-          <Button asChild size="sm">
-            <Link href={newHref}>New product</Link>
-          </Button>
-        }
+        action={newAction}
       />
 
       <ListToolbar
@@ -371,13 +394,7 @@ export function ProductsManager({
             ? "Try clearing the search or the status filter."
             : "Create the first product with the New product button."
         }
-        emptyAction={
-          !q && !status ? (
-            <Button asChild size="sm">
-              <Link href={newHref}>New product</Link>
-            </Button>
-          ) : undefined
-        }
+        emptyAction={!q && !status ? newAction : undefined}
         emptyIcon={Package}
         minWidth={760}
       />

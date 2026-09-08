@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "@/i18n/navigation";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,6 +12,7 @@ import {
   SaveBar,
 } from "@/components/admin/ui/form-shell";
 import { formatApiError } from "@/lib/http/form-error";
+import { useAfterSave } from "@/components/admin/ui/form-panel";
 import { suggestLeadCode } from "@/lib/schemas/sales-lead";
 
 export type LeadFormValues = {
@@ -48,7 +48,7 @@ const EMPTY: LeadFormValues = {
  * name and then left alone once saved.
  */
 export function LeadForm({ lead }: { lead?: LeadFormValues }) {
-  const router = useRouter();
+  const afterSave = useAfterSave();
   const [v, setV] = useState<LeadFormValues>(lead ?? EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,10 +88,9 @@ export function LeadForm({ lead }: { lead?: LeadFormValues }) {
         return;
       }
       toast.success(lead?.id ? "Lead updated." : "Lead created.");
-      router.push(
+      afterSave(
         `/admin/company/sales/leads/${lead?.id ?? json?.data?.id ?? ""}`,
       );
-      router.refresh();
     } finally {
       setSaving(false);
     }

@@ -1,21 +1,22 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { setRequestLocale } from "next-intl/server";
-import { Plus } from "lucide-react";
 import {
   getVisitById,
   expensesForVisit,
   employeeNames,
+  activeEmployeeOptions,
 } from "@/lib/repositories/expenses.repo";
 import { getSalesLeadById } from "@/lib/repositories/sales.repo";
 import { EditorHeader } from "@/components/admin/ui/form-shell";
+import { FormPanelButton } from "@/components/admin/ui/form-panel";
+import { ExpenseForm } from "@/components/admin/hr/expense-form";
 import {
   DetailLayout,
   DetailCard,
   DetailRow,
 } from "@/components/admin/ui/detail";
 import { StatusBadge, statusTone } from "@/components/admin/ui/status-badge";
-import { Button } from "@/components/ui/button";
 import { formatBDT } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
@@ -31,12 +32,14 @@ export default async function VisitDetailPage({
   const visit = await getVisitById(id).catch(() => null);
   if (!visit) notFound();
 
-  const [claims, names, lead] = await Promise.all([
+  const [claims, names, lead, people] = await Promise.all([
     expensesForVisit(id).catch(() => []),
     employeeNames(visit.attendees.map(String)).catch(() => new Map()),
     visit.leadId
       ? getSalesLeadById(String(visit.leadId)).catch(() => null)
       : Promise.resolve(null),
+    // For the add-a-cost panel.
+    activeEmployeeOptions().catch(() => []),
   ]);
 
   const claimNames = await employeeNames(
@@ -58,14 +61,17 @@ export default async function VisitDetailPage({
         title={visit.purpose}
         subtitle={`${visit.ref} · ${day(visit.visitedAt)}`}
         action={
-          <Button asChild size="sm" className="gap-1.5">
-            <Link
-              href={`/admin/company/people/expenses/new?visit=${String(visit._id)}`}
-            >
-              <Plus className="size-4" />
-              Add a cost
-            </Link>
-          </Button>
+          <FormPanelButton
+            label="Add a cost"
+            title="Record a cost"
+            description="Charged against this visit."
+          >
+            <ExpenseForm
+              people={people}
+              lockedVisitId={String(visit._id)}
+              visits={[{ id: String(visit._id), label: visit.purpose }]}
+            />
+          </FormPanelButton>
         }
       />
 

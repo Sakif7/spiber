@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { setRequestLocale } from "next-intl/server";
-import { Plus } from "lucide-react";
 import { parseListQuery, type ListConfig } from "@/lib/admin/list-params";
 import {
   listExpenses,
   employeeNames,
   expenseTotals,
+  activeEmployeeOptions,
+  listVisits,
 } from "@/lib/repositories/expenses.repo";
 import {
   EXPENSE_CATEGORIES,
@@ -17,9 +18,10 @@ import { DataTable, type Column } from "@/components/admin/ui/data-table";
 import { Pagination } from "@/components/admin/ui/pagination";
 import { StatusBadge, statusTone } from "@/components/admin/ui/status-badge";
 import { StatCard } from "@/components/admin/ui/stat-card";
-import { Button } from "@/components/ui/button";
 import { formatBDT } from "@/lib/money";
 import { Inbox, Wallet, Banknote } from "lucide-react";
+import { FormPanelButton } from "@/components/admin/ui/form-panel";
+import { ExpenseForm } from "@/components/admin/hr/expense-form";
 
 export const dynamic = "force-dynamic";
 
@@ -74,6 +76,18 @@ export default async function ExpensesPage({
   const names = await employeeNames(
     (page?.items ?? []).map((e) => String(e.employeeId)),
   ).catch(() => new Map());
+
+  // For the record-a-cost panel.
+  const [people, visitPage] = await Promise.all([
+    activeEmployeeOptions().catch(() => []),
+    listVisits({ pageSize: 100 }).catch(() => null),
+  ]);
+  const visitOptions = (visitPage?.items ?? []).map((v) => ({
+    id: String(v._id),
+    label: `${new Date(v.visitedAt).toLocaleDateString("en-GB", {
+      timeZone: "Asia/Dhaka",
+    })} — ${v.purpose}`,
+  }));
 
   const rows: Row[] = (page?.items ?? []).map((e) => ({
     id: String(e._id),
@@ -159,12 +173,13 @@ export default async function ExpensesPage({
         title="Expenses"
         description="Costs incurred on company business, and how each one gets paid back."
         action={
-          <Button asChild size="sm" className="gap-1.5">
-            <Link href="/admin/company/people/expenses/new">
-              <Plus className="size-4" />
-              Record a cost
-            </Link>
-          </Button>
+          <FormPanelButton
+            label="Record a cost"
+            title="Record a cost"
+            description="What was spent, by whom, and what for."
+          >
+            <ExpenseForm people={people} visits={visitOptions} />
+          </FormPanelButton>
         }
       />
 

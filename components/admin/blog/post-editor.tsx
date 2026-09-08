@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
+import { useAfterSave } from "@/components/admin/ui/form-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RichTextEditor } from "./rich-text-editor";
@@ -80,7 +81,7 @@ export function PostEditor({
   categories: Opt[];
   tags: Opt[];
 }) {
-  const router = useRouter();
+  const afterSave = useAfterSave();
   const isEdit = Boolean(initial?.id);
 
   const [title, setTitle] = useState<L>(fillL(initial?.title));
@@ -158,8 +159,7 @@ export function PostEditor({
     const json = await res.json().catch(() => null);
     setSaving(false);
     if (res.ok && json?.ok) {
-      router.push("/admin/blog/posts");
-      router.refresh();
+      afterSave("/admin/blog/posts");
     } else {
       setError(formatApiError(json));
     }

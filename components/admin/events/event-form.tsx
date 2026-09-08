@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "@/i18n/navigation";
+import { useAfterSave } from "@/components/admin/ui/form-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,7 +40,7 @@ const toL = (l?: LInit): L =>
   l ? { en: l.en ?? "", bn: l.bn ?? "", ja: l.ja ?? "" } : emptyL();
 
 export function EventForm({ initial }: { initial?: EventFormInitial }) {
-  const router = useRouter();
+  const afterSave = useAfterSave();
   const isEdit = Boolean(initial?.id);
 
   const [title, setTitle] = useState<L>(toL(initial?.title));
@@ -106,8 +106,7 @@ export function EventForm({ initial }: { initial?: EventFormInitial }) {
     const json = await res.json().catch(() => null);
     setSaving(false);
     if (res.ok && json?.ok) {
-      router.push("/admin/events");
-      router.refresh();
+      afterSave("/admin/events");
     } else {
       setError(formatApiError(json));
     }
