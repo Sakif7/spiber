@@ -108,7 +108,7 @@ export default async function AdminProvisioningPage({
       mobile: "actions",
       cell: (task) =>
         task.status === "done" ? (
-          <span className="text-[13px] font-medium text-[var(--color-success)]">
+          <span className="font-medium text-[var(--tone-success-fg)]">
             Done
           </span>
         ) : (
@@ -139,7 +139,7 @@ export default async function AdminProvisioningPage({
             kind: "pills",
             options: STATUSES.map((s) => ({
               value: s,
-              label: s.replace(/_/g, " "),
+              label: s.replace(/_/g, ""),
             })),
           },
         ]}

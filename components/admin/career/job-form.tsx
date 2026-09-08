@@ -166,7 +166,7 @@ export function JobForm({ initial }: { initial?: JobFormInitial }) {
 
   return (
     <div className="grid max-w-[860px] gap-5">
-      <section className="bg-card grid gap-4 rounded-lg p-5 shadow-[var(--shadow-sm)]">
+      <section className="bg-card grid gap-4 rounded-lg border p-5">
         <BilingualField label="Title" value={title} onChange={setTitle} />
         <div className="grid grid-cols-2 gap-4">
           <div className="grid gap-1.5">
@@ -248,7 +248,7 @@ export function JobForm({ initial }: { initial?: JobFormInitial }) {
         />
       </section>
 
-      <section className="bg-card grid gap-4 rounded-lg p-5 shadow-[var(--shadow-sm)]">
+      <section className="bg-card grid gap-4 rounded-lg border p-5">
         <BilingualField
           label="About the role (description)"
           value={description}
@@ -286,7 +286,7 @@ export function JobForm({ initial }: { initial?: JobFormInitial }) {
         />
       </section>
 
-      <section className="bg-card grid gap-4 rounded-lg p-5 shadow-[var(--shadow-sm)]">
+      <section className="bg-card grid gap-4 rounded-lg border p-5">
         <strong className="text-foreground font-[family-name:var(--font-display)] font-semibold">
           Recruiter (optional)
         </strong>
@@ -334,7 +334,7 @@ export function JobForm({ initial }: { initial?: JobFormInitial }) {
         </div>
       </section>
 
-      <section className="bg-card grid gap-4 rounded-lg p-5 shadow-[var(--shadow-sm)]">
+      <section className="bg-card grid gap-4 rounded-lg border p-5">
         <div className="grid gap-1.5">
           <Label>Status</Label>
           <Select

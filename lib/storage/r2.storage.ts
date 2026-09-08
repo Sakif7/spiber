@@ -2,6 +2,7 @@ import {
   S3Client,
   PutObjectCommand,
   GetObjectCommand,
+  DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
 import type { Storage, GetObjectResult } from "./types";
 
@@ -44,6 +45,18 @@ export function createR2Storage(): Storage {
         if (res) return res;
       }
       return null;
+    },
+    async delete({ key, private: isPrivate }) {
+      // Mirrors getObject: when the caller does not say, try both buckets, so a
+      // key written before R2_PRIVATE_BUCKET was configured is still removed.
+      const buckets =
+        isPrivate === undefined
+          ? [privateBucket, bucket]
+          : [isPrivate ? privateBucket : bucket];
+      for (const b of new Set(buckets)) {
+        // S3 DELETE is idempotent: a missing key succeeds.
+        await client.send(new DeleteObjectCommand({ Bucket: b, Key: key }));
+      }
     },
   };
 

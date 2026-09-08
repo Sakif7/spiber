@@ -10,13 +10,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
  * records, so it should take a deliberate click rather than being the first
  * thing a mis-click lands on. Both panels are rendered on the server and
  * passed in, so this component only owns which one is visible.
+ *
+ * `cleanup` is null for a plain admin — permanent deletion is super-admin
+ * only — and the tab strip then collapses to the guide alone.
  */
 export function MaintenanceTabs({
   guide,
   cleanup,
 }: {
   guide: React.ReactNode;
-  cleanup: React.ReactNode;
+  cleanup: React.ReactNode | null;
 }) {
   return (
     <Tabs defaultValue="guide" className="gap-4">
@@ -25,13 +28,15 @@ export function MaintenanceTabs({
           <BookOpen className="size-4" />
           Admin guide
         </TabsTrigger>
-        <TabsTrigger value="cleanup">
-          <Wrench className="size-4" />
-          Data cleanup
-        </TabsTrigger>
+        {cleanup && (
+          <TabsTrigger value="cleanup">
+            <Wrench className="size-4" />
+            Data cleanup
+          </TabsTrigger>
+        )}
       </TabsList>
       <TabsContent value="guide">{guide}</TabsContent>
-      <TabsContent value="cleanup">{cleanup}</TabsContent>
+      {cleanup && <TabsContent value="cleanup">{cleanup}</TabsContent>}
     </Tabs>
   );
 }

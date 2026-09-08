@@ -11,7 +11,11 @@ import {
   sortSpec,
   type RepoListQuery,
 } from "./list-query";
-import { STOCK_EXPR, TRACKED_EXPR } from "@/lib/inventory/tracking";
+import {
+  STOCK_EXPR,
+  TRACKED_EXPR,
+  AVAILABLE_EXPR,
+} from "@/lib/inventory/tracking";
 
 // Version-agnostic Mongoose filter type (Mongoose 9 renamed FilterQuery).
 type ProductFilter = NonNullable<Parameters<typeof Product.countDocuments>[0]>;
@@ -90,7 +94,9 @@ function buildQuery(params: ProductListParams): Record<string, unknown> {
   if (params.minRating != null) q.ratingAvg = { $gte: params.minRating };
   if (params.inStockOnly) {
     // In stock if the base product has stock OR any variant does.
-    q.$or = [{ stockQty: { $gt: 0 } }, { "variants.stockQty": { $gt: 0 } }];
+    // "In stock" means a shopper can actually buy it, so reserved units do
+    // not count. Needs $expr because it compares two fields of the document.
+    q.$expr = { $gt: [AVAILABLE_EXPR, 0] };
   }
   if (params.onSale) {
     // A genuine discount: an admin-entered compare-at above the current price.
@@ -416,11 +422,31 @@ export async function lowStockProducts(): Promise<Lean<IProduct>[]> {
                 $map: {
                   input: "$variants",
                   as: "v",
-                  in: { $lte: ["$$v.stockQty", "$lowStockThreshold"] },
+                  in: {
+                    $lte: [
+                      {
+                        $subtract: [
+                          { $ifNull: ["$$v.stockQty", 0] },
+                          { $ifNull: ["$$v.reservedQty", 0] },
+                        ],
+                      },
+                      "$lowStockThreshold",
+                    ],
+                  },
                 },
               },
             },
-            { $lte: ["$stockQty", "$lowStockThreshold"] },
+            {
+              $lte: [
+                {
+                  $subtract: [
+                    { $ifNull: ["$stockQty", 0] },
+                    { $ifNull: ["$reservedQty", 0] },
+                  ],
+                },
+                "$lowStockThreshold",
+              ],
+            },
           ],
         },
       },
@@ -543,7 +569,7 @@ export async function sellerProductStateCounts(sellerId: string): Promise<{
   if (!mongoose.isValidObjectId(sellerId)) return empty;
   const docs = await Product.find({ sellerId, deletedAt: null })
     .select(
-      "name approvalStatus pendingDraft stockQty lowStockThreshold status",
+      "name approvalStatus pendingDraft stockQty reservedQty lowStockThreshold status",
     )
     .lean<Lean<IProduct>[]>()
     .exec();

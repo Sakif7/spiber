@@ -5,7 +5,7 @@ import { Container } from "@/components/ui/container";
 import { Section } from "@/components/ui/section";
 import { SectionTitle } from "@/components/ui/section-title";
 import { Eyebrow } from "@/components/ui/eyebrow";
-import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { Breadcrumb } from "@/components/ui/site-breadcrumb";
 import { DotPattern } from "@/components/ui/dot-pattern";
 import {
   AnimatedTestimonials,

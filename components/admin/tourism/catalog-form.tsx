@@ -645,7 +645,7 @@ export function PackageForm({
             <SelectContent>
               {CATEGORIES.map((c) => (
                 <SelectItem key={c} value={c} className="capitalize">
-                  {c.replace(/-/g, " ")}
+                  {c.replace(/-/g, "")}
                 </SelectItem>
               ))}
             </SelectContent>

@@ -1,5 +1,5 @@
-import { getSessionUser } from "@/lib/auth/current-user";
-import { isAdmin } from "@/lib/auth/rbac";
+import { requireAdmin } from "@/lib/auth/guard";
+import { rateLimit } from "@/lib/auth/rate-limit";
 import { ok, fail } from "@/lib/http/respond";
 import { getVideoProvider } from "@/lib/video";
 import { logger } from "@/lib/log";
@@ -25,8 +25,12 @@ const ALLOWED = new Set([
 
 /** Upload a lesson video → returns the provider `uid` to store on the lesson. */
 export async function POST(req: Request) {
-  const user = await getSessionUser();
-  if (!isAdmin(user)) return fail({ code: "forbidden" }, 403);
+  const admin = await requireAdmin();
+  if (!admin) return fail({ code: "forbidden" }, 403);
+  // 200 MB per upload, so keep the ceiling low.
+  if (!rateLimit(`video-upload:${admin.sub}`, 10, 60_000).ok) {
+    return fail({ code: "rate_limited" }, 429);
+  }
 
   const form = await req.formData().catch(() => null);
   const file = form?.get("file");
@@ -52,8 +56,8 @@ export async function POST(req: Request) {
 
 /** Poll processing status: GET /api/admin/academy/videos?uid=... */
 export async function GET(req: Request) {
-  const user = await getSessionUser();
-  if (!isAdmin(user)) return fail({ code: "forbidden" }, 403);
+  const admin = await requireAdmin();
+  if (!admin) return fail({ code: "forbidden" }, 403);
 
   const uid = new URL(req.url).searchParams.get("uid");
   if (!uid) return fail({ code: "no_uid" }, 400);

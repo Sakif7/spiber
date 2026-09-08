@@ -65,14 +65,24 @@ export type StockUnit = {
   /** Unit price in poisha (variant override, else the base price); null = price on request. */
   priceMinor: number | null;
   stock: number;
+  /** Committed to an invoiced sales order; still physically on the shelf. */
+  reserved: number;
+  /** `stock - reserved` — what can still be sold. */
+  available: number;
   threshold: number;
-  /** null when the unit is not tracked. */
+  /** Low/out follow AVAILABLE stock; null when the unit is not tracked. */
   level: StockLevel | null;
   image: string | null;
   updatedAt: string;
 };
 
-export type StockUnitSort = "stock" | "name" | "sku" | "updated" | "value";
+export type StockUnitSort =
+  | "stock"
+  | "available"
+  | "name"
+  | "sku"
+  | "updated"
+  | "value";
 
 export type StockUnitListParams = {
   storefront?: Storefront;
@@ -128,6 +138,7 @@ type RawUnit = {
     options: { name: string; value: string }[] | null;
     sku: string;
     stock: number;
+    reserved?: number;
     price: number | null;
     image: string | null;
   };
@@ -173,6 +184,7 @@ function unitStages(match: Record<string, unknown>): mongoose.PipelineStage[] {
         priceMinor: 1,
         lowStockThreshold: 1,
         stockQty: 1,
+        reservedQty: 1,
         variants: 1,
         images: 1,
         updatedAt: 1,
@@ -193,6 +205,7 @@ function unitStages(match: Record<string, unknown>): mongoose.PipelineStage[] {
                   options: "$$v.options",
                   sku: "$$v.sku",
                   stock: { $ifNull: ["$$v.stockQty", 0] },
+                  reserved: { $ifNull: ["$$v.reservedQty", 0] },
                   price: { $ifNull: ["$$v.priceMinorOverride", "$priceMinor"] },
                   image: {
                     $ifNull: ["$$v.image", { $arrayElemAt: ["$images", 0] }],
@@ -206,6 +219,7 @@ function unitStages(match: Record<string, unknown>): mongoose.PipelineStage[] {
                 options: null,
                 sku: "$sku",
                 stock: { $ifNull: ["$stockQty", 0] },
+                reserved: { $ifNull: ["$reservedQty", 0] },
                 price: "$priceMinor",
                 image: { $arrayElemAt: ["$images", 0] },
               },
@@ -217,18 +231,36 @@ function unitStages(match: Record<string, unknown>): mongoose.PipelineStage[] {
     { $unwind: "$_units" },
     {
       $addFields: {
+        _available: {
+          $subtract: ["$_units.stock", { $ifNull: ["$_units.reserved", 0] }],
+        },
         _level: {
           $cond: [
             "$_tracked",
             {
               $cond: [
-                { $lte: ["$_units.stock", 0] },
+                {
+                  $lte: [
+                    {
+                      $subtract: [
+                        "$_units.stock",
+                        { $ifNull: ["$_units.reserved", 0] },
+                      ],
+                    },
+                    0,
+                  ],
+                },
                 "out",
                 {
                   $cond: [
                     {
                       $lte: [
-                        "$_units.stock",
+                        {
+                          $subtract: [
+                            "$_units.stock",
+                            { $ifNull: ["$_units.reserved", 0] },
+                          ],
+                        },
                         { $ifNull: ["$lowStockThreshold", 0] },
                       ],
                     },
@@ -251,6 +283,7 @@ function unitStages(match: Record<string, unknown>): mongoose.PipelineStage[] {
 
 const UNIT_SORTS: Record<StockUnitSort, string> = {
   stock: "_units.stock",
+  available: "_available",
   name: "name.en",
   sku: "_units.sku",
   updated: "updatedAt",
@@ -261,6 +294,8 @@ function toUnit(r: RawUnit): StockUnit {
   const u = r._units;
   const threshold = Number(r.lowStockThreshold ?? 0);
   const stock = Number(u.stock ?? 0);
+  const reserved = Number(u.reserved ?? 0);
+  const available = stock - reserved;
   return {
     key: u.variantId ? `${String(r._id)}:${u.variantId}` : String(r._id),
     productId: String(r._id),
@@ -278,8 +313,12 @@ function toUnit(r: RawUnit): StockUnit {
     trackStock: r.trackStock ?? null,
     priceMinor: u.price ?? null,
     stock,
+    reserved,
+    available,
     threshold,
-    level: r._tracked ? stockLevel(stock, threshold) : null,
+    // Selling capacity, not shelf count: stock committed to a sales order is
+    // not available, so a fully-reserved unit reads as "out".
+    level: r._tracked ? stockLevel(available, threshold) : null,
     image: u.image ?? null,
     updatedAt: r.updatedAt ? new Date(r.updatedAt).toISOString() : "",
   };
@@ -382,7 +421,7 @@ export async function resolveUnitsBySku(
     $or: [{ sku: { $in: patterns } }, { "variants.sku": { $in: patterns } }],
   })
     .select(
-      "name slug sku storefront status categoryId brandId sellerId trackStock priceMinor lowStockThreshold stockQty variants images updatedAt",
+      "name slug sku storefront status categoryId brandId sellerId trackStock priceMinor lowStockThreshold stockQty reservedQty variants images updatedAt",
     )
     .lean<
       {
@@ -399,12 +438,14 @@ export async function resolveUnitsBySku(
         priceMinor?: number | null;
         lowStockThreshold?: number;
         stockQty?: number;
+        reservedQty?: number;
         images?: string[];
         updatedAt?: Date;
         variants?: {
           id: string;
           sku: string;
           stockQty?: number;
+          reservedQty?: number;
           priceMinorOverride?: number | null;
           image?: string;
           options: { name: string; value: string }[];
@@ -438,6 +479,7 @@ export async function resolveUnitsBySku(
         const key = byLower.get(v.sku.toLowerCase());
         if (!key) continue;
         const stock = Number(v.stockQty ?? 0);
+        const reserved = Number(v.reservedQty ?? 0);
         out[key] = {
           ...common,
           key: `${common.productId}:${v.id}`,
@@ -446,7 +488,9 @@ export async function resolveUnitsBySku(
           sku: v.sku,
           priceMinor: v.priceMinorOverride ?? p.priceMinor ?? null,
           stock,
-          level: tracked ? stockLevel(stock, threshold) : null,
+          reserved,
+          available: stock - reserved,
+          level: tracked ? stockLevel(stock - reserved, threshold) : null,
           image: v.image ?? p.images?.[0] ?? null,
         };
       }
@@ -454,9 +498,12 @@ export async function resolveUnitsBySku(
       const key = byLower.get(p.sku.toLowerCase());
       if (!key) continue;
       const stock = Number(p.stockQty ?? 0);
+      const reserved = Number(p.reservedQty ?? 0);
       out[key] = {
         ...common,
         key: common.productId,
+        reserved,
+        available: stock - reserved,
         variantId: null,
         variantLabel: null,
         sku: p.sku,

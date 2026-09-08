@@ -278,7 +278,7 @@ export function MarketplaceProductForm({
             stockQty={initial?.stockQty ?? 0}
             variants={variantData.variants.map((v) => ({
               sku: v.sku,
-              label: v.options.map((o) => o.value).join(" · "),
+              label: v.options.map((o) => o.value).join(" ·"),
               stockQty: v.stockQty ?? 0,
             }))}
             tracked

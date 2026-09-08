@@ -5,6 +5,7 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { PackageOpen } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DataTable, type Column } from "@/components/admin/ui/data-table";
 import { RowActions, type RowAction } from "@/components/admin/ui/row-actions";
 import { StatusBadge } from "@/components/admin/ui/status-badge";
@@ -143,14 +144,12 @@ export function InventoryTable({
     {
       key: "select",
       header: (
-        <input
-          type="checkbox"
+        <Checkbox
           aria-label="Select all units on this page"
-          className="size-4 cursor-pointer accent-[var(--color-brand)]"
           checked={allOnPage}
-          onChange={(e) =>
+          onCheckedChange={(v) =>
             setSelected(
-              e.target.checked ? new Set(units.map((u) => u.key)) : new Set(),
+              v === true ? new Set(units.map((u) => u.key)) : new Set(),
             )
           }
         />
@@ -159,12 +158,10 @@ export function InventoryTable({
       headClassName: "w-8 pr-0",
       mobile: "hidden",
       cell: (u) => (
-        <input
-          type="checkbox"
+        <Checkbox
           aria-label={`Select ${u.sku}`}
-          className="size-4 cursor-pointer accent-[var(--color-brand)]"
           checked={selected.has(u.key)}
-          onChange={(e) => toggle(u.key, e.target.checked)}
+          onCheckedChange={(v) => toggle(u.key, v === true)}
         />
       ),
     },
@@ -189,7 +186,7 @@ export function InventoryTable({
             )}
           </Link>
           <p className="text-muted-foreground max-w-[18rem] truncate text-xs">
-            {[u.categoryName, u.brandName].filter(Boolean).join(" · ") || "—"}
+            {[u.categoryName, u.brandName].filter(Boolean).join(" ·") || "—"}
           </p>
         </div>
       ),
@@ -218,14 +215,14 @@ export function InventoryTable({
           <span className="text-muted-foreground">{u.storeLabel}</span>
           {u.seller && (
             <span
-              className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-[11px] font-medium"
+              className="bg-muted text-muted-foreground text-admin-2xs rounded px-1.5 py-0.5 font-medium"
               title={`Listed by ${u.seller.name} — stock is managed in the seller portal`}
             >
               Seller
             </span>
           )}
           {u.status !== "active" && (
-            <StatusBadge dot={false} className="px-1.5 py-0 text-[11px]">
+            <StatusBadge dot={false} className="text-admin-2xs px-1.5 py-0">
               {u.status}
             </StatusBadge>
           )}
@@ -234,9 +231,50 @@ export function InventoryTable({
     },
     {
       key: "stock",
-      header: "Stock",
+      header: "On hand",
       align: "right",
       sortKey: "stock",
+      sortDir: "asc",
+      mobile: "meta",
+      cell: (u) =>
+        u.tracked ? (
+          <span
+            className="font-mono tabular-nums"
+            title="Physically in stock, including units reserved for a sales order"
+          >
+            {u.stock}
+          </span>
+        ) : (
+          <span
+            className="text-muted-foreground"
+            title="Quotation-only product — stock is not tracked"
+          >
+            —
+          </span>
+        ),
+    },
+    {
+      key: "reserved",
+      header: "Reserved",
+      align: "right",
+      mobile: "meta",
+      cell: (u) =>
+        u.tracked && u.reserved > 0 ? (
+          <span
+            className="font-mono text-[var(--tone-warning-fg)] tabular-nums"
+            title="Committed to an invoiced sales order — still on the shelf, but not for sale"
+          >
+            {u.reserved}
+          </span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
+    },
+    {
+      key: "available",
+      header: "Available",
+      align: "right",
+      sortKey: "available",
       sortDir: "asc",
       mobile: "meta",
       cell: (u) =>
@@ -246,7 +284,7 @@ export function InventoryTable({
               <StatusBadge
                 dot={false}
                 tone={u.level === "out" ? "danger" : "warning"}
-                className="px-1.5 py-0 text-[11px]"
+                className="text-admin-2xs px-1.5 py-0"
               >
                 {LEVEL_LABEL[u.level]}
               </StatusBadge>
@@ -255,19 +293,15 @@ export function InventoryTable({
               className={cn(
                 "font-mono font-semibold tabular-nums",
                 u.level === "out" && "text-destructive",
-                u.level === "low" && "text-[var(--color-warning)]",
+                u.level === "low" && "text-[var(--tone-warning-fg)]",
               )}
+              title="What can still be sold: on hand minus reserved"
             >
-              {u.stock}
+              {u.available}
             </span>
           </span>
         ) : (
-          <span
-            className="text-muted-foreground"
-            title="Quotation-only product — stock is not tracked"
-          >
-            —
-          </span>
+          <span className="text-muted-foreground">—</span>
         ),
     },
     {
@@ -309,7 +343,7 @@ export function InventoryTable({
                 "font-mono tabular-nums",
                 u.lastMovement.qtyDelta < 0
                   ? "text-destructive"
-                  : "text-[var(--color-success)]",
+                  : "text-[var(--tone-success-fg)]",
               )}
             >
               {formatDelta(u.lastMovement.qtyDelta)}
@@ -347,8 +381,8 @@ export function InventoryTable({
   return (
     <div className="space-y-3">
       {selected.size > 0 && (
-        <div className="bg-card flex flex-wrap items-center gap-2 rounded-lg px-3 py-2 shadow-[var(--shadow-sm)]">
-          <strong className="mr-1 text-[13px]">{selected.size} selected</strong>
+        <div className="bg-card flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2">
+          <strong className="mr-1">{selected.size} selected</strong>
           <Button type="button" size="sm" onClick={() => setBulkOpen(true)}>
             <PackageOpen className="size-4" />
             Receive / adjust…

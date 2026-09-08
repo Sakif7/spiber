@@ -1,4 +1,5 @@
 import { connectToDatabase } from "@/lib/db/connect";
+import { revenueBetween, revenueByDay } from "@/lib/repositories/revenue.repo";
 import { Order } from "@/lib/models/order";
 import { Enrollment } from "@/lib/models/enrollment";
 import { Product } from "@/lib/models/product";
@@ -21,6 +22,12 @@ export type DashboardData = {
   kpis: {
     revenueMinor: number;
     revenuePrevMinor: number;
+    /** Of `revenueMinor`, how much came from the website. */
+    revenueOnlineMinor: number;
+    /** …and how much from offline sales orders. */
+    revenueManualMinor: number;
+    /** Offline sales orders counted in the window. */
+    manualOrders: number;
     orders: number;
     ordersPrev: number;
     enrollments: number;
@@ -38,7 +45,13 @@ export type DashboardData = {
     /** Tracked products at or below their low-stock threshold. */
     lowStock: number;
   };
-  revenueSeries: { day: string; revenueMinor: number; orders: number }[];
+  revenueSeries: {
+    day: string;
+    revenueMinor: number;
+    onlineMinor: number;
+    manualMinor: number;
+    orders: number;
+  }[];
   ordersByStatus: { status: string; count: number }[];
   casesByStatus: { status: string; count: number }[];
   activityMix: { key: string; label: string; count: number }[];
@@ -63,24 +76,20 @@ export type DashboardData = {
   }[];
 };
 
-function isoDay(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
+/**
+ * Revenue for a window. Delegates to the shared definition in revenue.repo so
+ * the dashboard, the reports and payroll can never diverge — and so offline
+ * sales orders are included everywhere at once.
+ */
 async function revenueInRange(start: Date, end: Date) {
-  const [a] = await Order.aggregate<{ total: number; count: number }>([
-    {
-      $match: {
-        "payment.status": "paid",
-        "payment.paidAt": { $gte: start, $lt: end },
-        status: { $nin: ["cancelled", "refunded"] },
-      },
-    },
-    {
-      $group: { _id: null, total: { $sum: "$totalMinor" }, count: { $sum: 1 } },
-    },
-  ]);
-  return { revenueMinor: a?.total ?? 0, paidOrders: a?.count ?? 0 };
+  const r = await revenueBetween(start, end);
+  return {
+    revenueMinor: r.totalMinor,
+    paidOrders: r.onlineCount + r.manualCount,
+    onlineMinor: r.onlineMinor,
+    manualMinor: r.manualMinor,
+    manualOrders: r.manualCount,
+  };
 }
 
 /**
@@ -121,24 +130,9 @@ export async function loadDashboard(now: Date): Promise<DashboardData> {
   ] = await Promise.all([
     revenueInRange(currentStart, currentEnd),
     revenueInRange(prevStart, currentStart),
-    Order.aggregate<{ _id: string; revenueMinor: number; orders: number }>([
-      {
-        $match: {
-          "payment.status": "paid",
-          "payment.paidAt": { $gte: currentStart, $lt: currentEnd },
-          status: { $nin: ["cancelled", "refunded"] },
-        },
-      },
-      {
-        $group: {
-          _id: {
-            $dateToString: { format: "%Y-%m-%d", date: "$payment.paidAt" },
-          },
-          revenueMinor: { $sum: "$totalMinor" },
-          orders: { $sum: 1 },
-        },
-      },
-    ]),
+    // Daily series from the shared revenue source, so the chart shows the
+    // same money the KPI does — online and offline together.
+    revenueByDay(currentStart, currentEnd),
     Order.countDocuments({
       createdAt: { $gte: currentStart, $lt: currentEnd },
     }),
@@ -225,17 +219,8 @@ export async function loadDashboard(now: Date): Promise<DashboardData> {
     listLowStockProducts(6),
   ]);
 
-  const seriesMap = new Map(seriesRows.map((r) => [r._id, r]));
-  const revenueSeries: DashboardData["revenueSeries"] = [];
-  for (let i = 0; i < 30; i++) {
-    const key = isoDay(new Date(currentStart.getTime() + i * DAY));
-    const hit = seriesMap.get(key);
-    revenueSeries.push({
-      day: key,
-      revenueMinor: hit?.revenueMinor ?? 0,
-      orders: hit?.orders ?? 0,
-    });
-  }
+  // revenueByDay already zero-fills every day in the window.
+  const revenueSeries: DashboardData["revenueSeries"] = seriesRows;
 
   const [orderCt, enrollCt, swCt, quoteCt, caseCt, inqCt, aptCt, trvCt, msgCt] =
     mixCounts;
@@ -258,6 +243,9 @@ export async function loadDashboard(now: Date): Promise<DashboardData> {
     kpis: {
       revenueMinor: revCurrent.revenueMinor,
       revenuePrevMinor: revPrev.revenueMinor,
+      revenueOnlineMinor: revCurrent.onlineMinor,
+      revenueManualMinor: revCurrent.manualMinor,
+      manualOrders: revCurrent.manualOrders,
       orders: orders30,
       ordersPrev,
       enrollments: enroll30,

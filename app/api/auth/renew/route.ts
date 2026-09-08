@@ -7,6 +7,7 @@ import {
   authCookieSpecs,
 } from "@/lib/auth/session";
 import { rateLimit, clientIp } from "@/lib/auth/rate-limit";
+import { isPassiveSubresource } from "@/lib/http/same-origin";
 
 /**
  * Silent session renewal for server-guarded pages (GET so it can sit in a
@@ -27,6 +28,13 @@ function safeNext(raw: string | null): string {
 }
 
 export async function GET(req: Request) {
+  // This GET rotates the session cookies, so it must not be reachable from an
+  // <img>/<script>/<iframe> on another page. It legitimately runs only as a
+  // navigation inside the proxy's redirect chain.
+  if (isPassiveSubresource(req)) {
+    return new Response("Not found", { status: 404 });
+  }
+
   const url = new URL(req.url);
   const next = safeNext(url.searchParams.get("next"));
 

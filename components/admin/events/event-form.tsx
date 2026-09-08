@@ -115,7 +115,7 @@ export function EventForm({ initial }: { initial?: EventFormInitial }) {
 
   return (
     <div className="grid max-w-[860px] gap-5">
-      <section className="bg-card grid gap-4 rounded-lg p-5 shadow-[var(--shadow-sm)]">
+      <section className="bg-card grid gap-4 rounded-lg border p-5">
         <BilingualField label="Title" value={title} onChange={setTitle} />
         <div className="grid grid-cols-2 gap-4">
           <div className="grid gap-1.5">
@@ -152,7 +152,7 @@ export function EventForm({ initial }: { initial?: EventFormInitial }) {
         </div>
       </section>
 
-      <section className="bg-card grid gap-4 rounded-lg p-5 shadow-[var(--shadow-sm)]">
+      <section className="bg-card grid gap-4 rounded-lg border p-5">
         <div className="grid grid-cols-2 gap-4">
           <div className="grid gap-1.5">
             <Label>Start date &amp; time</Label>
@@ -173,7 +173,7 @@ export function EventForm({ initial }: { initial?: EventFormInitial }) {
         </div>
       </section>
 
-      <section className="bg-card grid gap-4 rounded-lg p-5 shadow-[var(--shadow-sm)]">
+      <section className="bg-card grid gap-4 rounded-lg border p-5">
         <BilingualField
           label="Description"
           value={description}
@@ -183,7 +183,7 @@ export function EventForm({ initial }: { initial?: EventFormInitial }) {
         />
       </section>
 
-      <section className="bg-card grid gap-4 rounded-lg p-5 shadow-[var(--shadow-sm)]">
+      <section className="bg-card grid gap-4 rounded-lg border p-5">
         <div className="grid gap-1.5">
           <Label>Status</Label>
           <Select

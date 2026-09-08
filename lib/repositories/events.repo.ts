@@ -150,10 +150,12 @@ export async function updateEvent(id: string, data: Partial<IEvent>) {
   }).exec();
 }
 
-export async function softDeleteEvent(id: string) {
+/** Returns false when no such live record exists, so the route can 404. */
+export async function softDeleteEvent(id: string): Promise<boolean> {
   await connectToDatabase();
-  await Event.updateOne(
-    { _id: id },
+  const res = await Event.updateOne(
+    { _id: id, deletedAt: null },
     { $set: { deletedAt: new Date() } },
   ).exec();
+  return res.matchedCount > 0;
 }

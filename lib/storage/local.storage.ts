@@ -1,4 +1,4 @@
-import { writeFile, mkdir, stat } from "node:fs/promises";
+import { writeFile, mkdir, stat, unlink } from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import { Readable } from "node:stream";
 import path from "node:path";
@@ -135,6 +135,24 @@ export function createLocalStorage(): Storage {
         if (res) return res;
       }
       return null;
+    },
+    async delete({ key, private: isPrivate }) {
+      // Same root order as getObject, so a key written before the public/private
+      // split is still removed. A missing file is not an error: purge retries.
+      const roots =
+        isPrivate === undefined
+          ? [privateRoot, publicRoot]
+          : [isPrivate ? privateRoot : publicRoot];
+      for (const root of roots) {
+        const filePath = safeJoin(root, key);
+        if (!filePath) continue; // containment guard, as in put/getObject
+        try {
+          await unlink(filePath);
+        } catch (e) {
+          const code = (e as NodeJS.ErrnoException).code;
+          if (code !== "ENOENT") throw e;
+        }
+      }
     },
   };
 }

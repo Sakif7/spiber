@@ -66,7 +66,7 @@ export function DetailCard({
           {action && <div className="shrink-0">{action}</div>}
         </div>
       )}
-      <div className={cn("grid gap-2 px-4 py-3 text-[13px]", bodyClassName)}>
+      <div className={cn("grid gap-2 px-4 py-3", bodyClassName)}>
         {children}
       </div>
     </Card>
@@ -87,12 +87,7 @@ export function DetailRow({
   className?: string;
 }) {
   return (
-    <div
-      className={cn(
-        "flex items-start justify-between gap-4 text-[13px]",
-        className,
-      )}
-    >
+    <div className={cn("flex items-start justify-between gap-4", className)}>
       <span className="text-muted-foreground shrink-0">{label}</span>
       <span
         className={cn(
@@ -130,12 +125,7 @@ export function DetailProse({
   className?: string;
 }) {
   return (
-    <p
-      className={cn(
-        "text-foreground text-[13px] whitespace-pre-line",
-        className,
-      )}
-    >
+    <p className={cn("text-foreground whitespace-pre-line", className)}>
       {children}
     </p>
   );

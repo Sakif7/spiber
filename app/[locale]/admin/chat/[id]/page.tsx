@@ -88,7 +88,7 @@ export default async function AdminChatDetailPage({
               >
                 {m.text}
               </div>
-              <span className="text-muted-foreground text-[11px]">
+              <span className="text-muted-foreground text-admin-2xs">
                 {m.role === "user" ? "Visitor" : "Bot"}
                 {m.intent ? ` · ${m.intent}` : ""}
                 {m.at ? ` · ${new Date(m.at).toLocaleTimeString()}` : ""}

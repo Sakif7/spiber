@@ -88,8 +88,8 @@ type PlainOrder = {
 /** Table chrome copied from the shared admin DataTable so every table reads
  *  the same; the items table lives inside a detail card, so it uses the
  *  shadcn table primitives directly rather than nesting a card in a card. */
-const TH = "text-muted-foreground h-9 px-3 text-[13px] font-semibold";
-const TD = "px-3 py-2 align-middle text-[13px]";
+const TH = "text-muted-foreground h-9 px-3 font-semibold";
+const TD = "px-3 py-2 align-middle";
 
 function fmtDate(value: string | Date): string {
   const d = value instanceof Date ? value : new Date(value);
@@ -109,7 +109,7 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
       <span className="text-muted-foreground text-xs tracking-[0.06em] uppercase">
         {label}
       </span>
-      <span className="text-foreground text-[13px] font-medium">{value}</span>
+      <span className="text-foreground font-medium">{value}</span>
     </div>
   );
 }
@@ -183,7 +183,7 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
       </DetailCard>
 
       <DetailCard title="Shipping address">
-        <address className="text-foreground text-[13px] leading-relaxed not-italic">
+        <address className="text-foreground leading-relaxed not-italic">
           {o.shippingAddress.label ? (
             <div className="text-muted-foreground">
               {o.shippingAddress.label}
@@ -270,16 +270,16 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
           action={<StatusBadge>{o.refundRequest.status}</StatusBadge>}
           className={
             o.refundRequest.status === "open"
-              ? "border border-[var(--color-secondary)]"
+              ? "border-[var(--tone-warning)]"
               : undefined
           }
         >
-          <p className="text-foreground text-[13px]">
+          <p className="text-foreground">
             Requested {fmtDate(o.refundRequest.requestedAt)} —{" "}
             {o.refundRequest.reason}
           </p>
           {o.refundRequest.status === "open" ? (
-            <p className="text-muted-foreground text-[13px]">
+            <p className="text-muted-foreground">
               Settle it with the Cancel/Refund actions below — the request
               resolves automatically.
             </p>
@@ -289,9 +289,7 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
 
       <DetailCard title="Timeline">
         {o.timeline.length === 0 ? (
-          <p className="text-muted-foreground text-[13px]">
-            No timeline events.
-          </p>
+          <p className="text-muted-foreground">No timeline events.</p>
         ) : (
           <ol className="flex flex-col gap-3">
             {o.timeline.map((event, idx) => (
@@ -300,16 +298,14 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
                 className="flex flex-wrap items-baseline gap-3"
               >
                 <StatusBadge>{event.status}</StatusBadge>
-                <span className="text-muted-foreground text-[13px]">
+                <span className="text-muted-foreground">
                   {fmtDate(event.at)}
                 </span>
                 {event.note ? (
-                  <span className="text-foreground text-[13px]">
-                    — {event.note}
-                  </span>
+                  <span className="text-foreground">— {event.note}</span>
                 ) : null}
                 {event.internalNote ? (
-                  <span className="text-muted-foreground text-[13px] italic">
+                  <span className="text-muted-foreground italic">
                     (internal: {event.internalNote})
                   </span>
                 ) : null}
@@ -331,7 +327,7 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
 
 function TotalRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between text-[13px]">
+    <div className="flex justify-between">
       <span className="text-muted-foreground">{label}</span>
       <span className="text-foreground tabular-nums">{value}</span>
     </div>

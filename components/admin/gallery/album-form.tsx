@@ -223,7 +223,7 @@ export function AlbumForm({ initial }: { initial?: AlbumFormInitial }) {
         }
       >
         {images.length === 0 ? (
-          <p className="text-muted-foreground text-[13px]">
+          <p className="text-muted-foreground">
             No photos yet — add some above.
           </p>
         ) : (

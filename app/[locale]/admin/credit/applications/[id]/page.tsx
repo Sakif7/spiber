@@ -78,7 +78,7 @@ export default async function AdminCreditApplicationPage({
 
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr] lg:items-start">
         <div className="space-y-6">
-          <section className="bg-card space-y-3 rounded-lg p-5 shadow-[var(--shadow-sm)]">
+          <section className="bg-card space-y-3 rounded-lg border p-5">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-foreground font-[family-name:var(--font-display)] text-lg">
                 Application
@@ -98,7 +98,7 @@ export default async function AdminCreditApplicationPage({
             </p>
           </section>
 
-          <section className="bg-card space-y-3 rounded-lg p-5 shadow-[var(--shadow-sm)]">
+          <section className="bg-card space-y-3 rounded-lg border p-5">
             <h2 className="text-foreground font-[family-name:var(--font-display)] text-lg">
               Verification documents
             </h2>
@@ -135,7 +135,7 @@ export default async function AdminCreditApplicationPage({
           </section>
 
           {app.activity.length > 0 ? (
-            <section className="bg-card space-y-3 rounded-lg p-5 shadow-[var(--shadow-sm)]">
+            <section className="bg-card space-y-3 rounded-lg border p-5">
               <h2 className="text-foreground font-[family-name:var(--font-display)] text-lg">
                 Activity
               </h2>

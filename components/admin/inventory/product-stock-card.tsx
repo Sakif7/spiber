@@ -1,7 +1,7 @@
 import { Link } from "@/i18n/navigation";
 
 /**
- * The "Stock" card on a product editor: the current balance (base, or per
+ * The"Stock" card on a product editor: the current balance (base, or per
  * variant) and where to change it. Stock itself is never edited here — every
  * change goes through Inventory so the movement ledger stays authoritative.
  */
@@ -26,7 +26,7 @@ export function ProductStockCard({
   const historyHref = `/admin/inventory/movements?product=${productId}`;
 
   return (
-    <section className="bg-card rounded-lg p-4 shadow-[var(--shadow-sm)]">
+    <section className="bg-card rounded-lg border p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-foreground text-sm font-semibold">Stock</h2>
@@ -40,7 +40,7 @@ export function ProductStockCard({
       </div>
 
       {hasVariants && (
-        <ul className="divide-border/60 mt-3 divide-y text-[13px]">
+        <ul className="divide-border/60 mt-3 divide-y">
           {variants!.slice(0, 12).map((v) => (
             <li
               key={v.sku}
@@ -64,7 +64,7 @@ export function ProductStockCard({
         </ul>
       )}
 
-      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[13px]">
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
         <Link
           href={inventoryHref}
           className="text-primary font-medium hover:underline"

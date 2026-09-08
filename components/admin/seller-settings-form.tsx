@@ -11,12 +11,12 @@ type CategoryRow = {
   id: string;
   name: string;
   depth: number;
-  /** Current rate in %, or "" when inheriting. */
+  /** Current rate in %, or"" when inheriting. */
   rate: string;
 };
 
 /**
- * Seller-commission settings — the platform default (the "Spiber cut") plus
+ * Seller-commission settings — the platform default (the"Spiber cut") plus
  * optional per-category rates. Precedence at accrual time:
  * per-seller override → category rate (inheriting from parents) → default.
  */
@@ -86,7 +86,7 @@ export function SellerSettingsForm({
 
   return (
     <div className="space-y-6">
-      <Card className="shadow-[var(--shadow-sm)]">
+      <Card className="border">
         <CardHeader>
           <CardTitle>Platform default commission</CardTitle>
         </CardHeader>
@@ -111,7 +111,7 @@ export function SellerSettingsForm({
         </CardContent>
       </Card>
 
-      <Card className="shadow-[var(--shadow-sm)]">
+      <Card className="border">
         <CardHeader>
           <CardTitle>Per-category rates</CardTitle>
         </CardHeader>

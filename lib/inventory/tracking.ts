@@ -49,6 +49,32 @@ export const STOCK_EXPR = {
   ],
 };
 
+/** Reserved quantity of a unit as an aggregation expression. */
+export const RESERVED_EXPR = {
+  $cond: [
+    { $gt: [{ $size: { $ifNull: ["$variants", []] } }, 0] },
+    {
+      $sum: {
+        $map: {
+          input: "$variants",
+          as: "v",
+          in: { $ifNull: ["$v.reservedQty", 0] },
+        },
+      },
+    },
+    { $ifNull: ["$reservedQty", 0] },
+  ],
+};
+
+/**
+ * What can still be SOLD: on hand minus whatever is already committed to a
+ * sales order. This is the number the storefront, the cart and the low-stock
+ * rule must use; `STOCK_EXPR` remains what is physically present.
+ */
+export const AVAILABLE_EXPR = {
+  $subtract: [STOCK_EXPR, RESERVED_EXPR],
+};
+
 /** Stock of one unit (the base product or one variant); null = unknown variant. */
 export function unitStock(
   p: { stockQty?: number; variants?: { id: string; stockQty?: number }[] },
@@ -59,6 +85,35 @@ export function unitStock(
     return v ? Number(v.stockQty ?? 0) : null;
   }
   return Number(p.stockQty ?? 0);
+}
+
+/** Reserved quantity of one unit; null = unknown variant. */
+export function unitReserved(
+  p: {
+    reservedQty?: number;
+    variants?: { id: string; reservedQty?: number }[];
+  },
+  variantId: string | null | undefined,
+): number | null {
+  if (variantId) {
+    const v = p.variants?.find((x) => x.id === variantId);
+    return v ? Number(v.reservedQty ?? 0) : null;
+  }
+  return Number(p.reservedQty ?? 0);
+}
+
+/** On hand minus reserved — what a customer can still buy. */
+export function unitAvailable(
+  p: {
+    stockQty?: number;
+    reservedQty?: number;
+    variants?: { id: string; stockQty?: number; reservedQty?: number }[];
+  },
+  variantId: string | null | undefined,
+): number | null {
+  const stock = unitStock(p, variantId);
+  if (stock == null) return null;
+  return stock - (unitReserved(p, variantId) ?? 0);
 }
 
 export type StockLevel = "out" | "low" | "ok";

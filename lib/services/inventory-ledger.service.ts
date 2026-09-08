@@ -56,6 +56,9 @@ export const MOVEMENT_TYPE_LABEL: Record<MovementType, string> = {
   sale: "Sale",
   adjustment: "Adjustment",
   return: "Return",
+  reserve: "Reserved",
+  release: "Released",
+  deliver: "Delivered",
 };
 
 /** Human provenance for a movement (new `source`, else the legacy reason). */

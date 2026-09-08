@@ -29,6 +29,7 @@ import {
   NAV_ITEMS_FLAT,
   NAV_SECTIONS,
   navContextFor,
+  type AdminSection,
   type NavItem,
 } from "./nav";
 import { useAdminPrefs } from "./admin-prefs";
@@ -52,7 +53,7 @@ function captionFor(item: NavItem): string {
   const ctx = navContextFor(item.id);
   return [ctx ? NAV_SECTIONS[ctx.section].label : null, ctx?.group]
     .filter(Boolean)
-    .join(" · ");
+    .join(" ·");
 }
 
 const PAGE_ENTRIES: PageEntry[] = NAV_ITEMS_FLAT.map((item) => ({
@@ -61,6 +62,11 @@ const PAGE_ENTRIES: PageEntry[] = NAV_ITEMS_FLAT.map((item) => ({
   item,
   caption: captionFor(item),
 }));
+
+/** Plain admins don't get super-admin-only pages offered to them. */
+const ADMIN_PAGE_ENTRIES: PageEntry[] = PAGE_ENTRIES.filter(
+  (e) => !e.item.superAdminOnly,
+);
 
 function pageMatches(e: PageEntry, terms: string[]): boolean {
   const hay = `${e.item.title} ${e.item.label} ${e.caption}`.toLowerCase();
@@ -78,9 +84,14 @@ function pageMatches(e: PageEntry, terms: string[]): boolean {
 export function CommandPalette({
   open,
   onOpenChange,
+  isSuperAdmin = false,
+  section = "operations",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  isSuperAdmin?: boolean;
+  /** Recent pages are hidden in the Company section (see SidebarNav). */
+  section?: AdminSection;
 }) {
   const router = useRouter();
   const { prefs } = useAdminPrefs();
@@ -121,11 +132,17 @@ export function CommandPalette({
   }, 180);
 
   // Build the visible sections.
+  const pageEntries = isSuperAdmin ? PAGE_ENTRIES : ADMIN_PAGE_ENTRIES;
   const sections: Section[] = [];
-  if (terms.length === 0) {
+  if (terms.length === 0 && section !== "company") {
     const recent = prefs.recents
       .map((r) => NAV_BY_ID.get(r.id))
-      .filter((it): it is NavItem => Boolean(it) && it!.id !== "dashboard")
+      .filter(
+        (it): it is NavItem =>
+          Boolean(it) &&
+          it!.id !== "dashboard" &&
+          (isSuperAdmin || !it!.superAdminOnly),
+      )
       .slice(0, 5);
     if (recent.length > 0) {
       sections.push({
@@ -138,7 +155,9 @@ export function CommandPalette({
         })),
       });
     }
-    sections.push({ label: "Pages", entries: PAGE_ENTRIES });
+    sections.push({ label: "Pages", entries: pageEntries });
+  } else if (terms.length === 0) {
+    sections.push({ label: "Pages", entries: pageEntries });
   } else {
     if (records && records.query === trimmed) {
       for (const g of records.groups) {
@@ -152,7 +171,7 @@ export function CommandPalette({
         });
       }
     }
-    const pages = PAGE_ENTRIES.filter((e) => pageMatches(e, terms));
+    const pages = pageEntries.filter((e) => pageMatches(e, terms));
     if (pages.length > 0) sections.push({ label: "Pages", entries: pages });
   }
   const flat = sections.flatMap((s) => s.entries);
@@ -298,7 +317,7 @@ export function CommandPalette({
                     onClick={() => go(entry)}
                     onMouseMove={() => setIndex(i)}
                     className={cn(
-                      "flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-[13px]",
+                      "flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left",
                       isSelected
                         ? "bg-accent text-accent-foreground"
                         : "text-foreground",

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import { redirect } from "next/navigation";
 import { setRequestLocale } from "next-intl/server";
 import { getSessionUser } from "@/lib/auth/current-user";
@@ -9,6 +10,27 @@ import { NAV_BY_ID } from "@/components/admin/shell/nav";
 import { AdminThemeProvider } from "@/components/admin/theme/admin-theme-provider";
 import { AdminShell } from "@/components/admin/shell/admin-shell";
 import { SessionKeepAlive } from "@/components/auth/session-keep-alive";
+
+/**
+ * The admin has its own typeface, loaded here rather than in the public layout
+ * so no visitor to the marketing site downloads it.
+ *
+ * Plex was drawn for technical documentation and data: it stays legible at the
+ * small sizes a dense table needs, and its Mono companion sets the reference
+ * numbers and money columns so figures line up down the column.
+ */
+const plexSans = IBM_Plex_Sans({
+  variable: "--font-admin",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
+});
+const plexMono = IBM_Plex_Mono({
+  variable: "--font-admin-mono",
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  display: "swap",
+});
 
 // Admin depends on the auth cookie; never statically prerender it.
 export const dynamic = "force-dynamic";
@@ -69,7 +91,12 @@ export default async function AdminLayout({
       />
       <AdminThemeProvider>
         <SessionKeepAlive />
-        <AdminShell email={user!.email} role={role} initialPrefs={prefs}>
+        <AdminShell
+          email={user!.email}
+          role={role}
+          initialPrefs={prefs}
+          fontClassName={`${plexSans.variable} ${plexMono.variable}`}
+        >
           {children}
         </AdminShell>
       </AdminThemeProvider>

@@ -182,7 +182,7 @@ export default async function AdminOrdersPage({
           <a
             href="/api/admin/orders/export"
             download
-            className="text-primary text-[13px] font-medium hover:underline"
+            className="text-primary font-medium hover:underline"
           >
             Export CSV
           </a>

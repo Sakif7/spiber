@@ -42,6 +42,10 @@ import {
   FolderLock,
   CreditCard,
   Landmark,
+  FileSpreadsheet,
+  UsersRound,
+  Wallet,
+  ReceiptText,
   type LucideIcon,
 } from "lucide-react";
 import { routing } from "@/i18n/routing";
@@ -50,24 +54,28 @@ export type NavItem = {
   /** Stable identifier — what favourites/recents persist (never the href). */
   id: string;
   href: string;
+  /** Hidden from plain admins (the page and its API enforce this too). */
+  superAdminOnly?: boolean;
   /** Short label shown in the sidebar under its group header. */
   label: string;
   /** Unique, self-describing name for the topbar title and Ctrl+K rows
-   *  (two groups both have "Products"; only one has "Medtrade products"). */
+   *  (two groups both have"Products"; only one has"Medtrade products"). */
   title: string;
   icon: LucideIcon;
 };
 export type NavGroup = {
   label?: string;
   items: NavItem[];
-  /** Rarely used groups render behind the sidebar's "More" disclosure. */
+  /** Rarely used groups render behind the sidebar's"More" disclosure. */
   secondary?: boolean;
+  /** Whole group hidden from plain admins. */
+  superAdminOnly?: boolean;
 };
 
 /**
  * The admin is split into two sections, switched from the topbar:
- *  - "operations": the day-to-day store/division admin (default).
- *  - "company":    internal company workspace — today the secure document
+ * -"operations": the day-to-day store/division admin (default).
+ * -"company":    internal company workspace — today the secure document
  *    vault + the existing company-content tabs; the future HRM modules will
  *    add their groups here without touching the operations tree.
  */
@@ -81,6 +89,17 @@ function item(
   title: string = label,
 ): NavItem {
   return { id, href, label, title, icon };
+}
+
+/** Same as `item`, but only super-admins see it in the nav. */
+function superItem(
+  id: string,
+  href: string,
+  label: string,
+  icon: LucideIcon,
+  title: string = label,
+): NavItem {
+  return { id, href, label, title, icon, superAdminOnly: true };
 }
 
 /** Admin UI is English-first (per project conventions), so labels are literal. */
@@ -340,12 +359,63 @@ export const OPERATIONS_NAV_GROUPS: NavGroup[] = [
 export const COMPANY_NAV_GROUPS: NavGroup[] = [
   {
     items: [
-      item(
+      superItem(
         "company.documents",
         "/admin/company/documents",
         "Documents",
         FolderLock,
         "Company documents",
+      ),
+    ],
+  },
+  {
+    label: "Sales",
+    // Client pricing, negotiations and the company's revenue.
+    superAdminOnly: true,
+    items: [
+      superItem(
+        "company.leads",
+        "/admin/company/sales/leads",
+        "Leads",
+        Handshake,
+        "Sales leads",
+      ),
+      superItem(
+        "company.sales-orders",
+        "/admin/company/sales/orders",
+        "Sales orders",
+        FileSpreadsheet,
+      ),
+    ],
+  },
+  {
+    label: "People",
+    // Pay and percentages: the most sensitive data in the admin.
+    superAdminOnly: true,
+    items: [
+      superItem(
+        "company.employees",
+        "/admin/company/people/employees",
+        "Employees",
+        UsersRound,
+      ),
+      superItem(
+        "company.visits",
+        "/admin/company/people/visits",
+        "Visits",
+        MapPin,
+      ),
+      superItem(
+        "company.expenses",
+        "/admin/company/people/expenses",
+        "Expenses",
+        ReceiptText,
+      ),
+      superItem(
+        "company.payroll",
+        "/admin/company/people/payroll",
+        "Payroll",
+        Wallet,
       ),
     ],
   },
@@ -399,6 +469,40 @@ export const NAV_SECTIONS: Record<
     groups: COMPANY_NAV_GROUPS,
   },
 };
+
+/**
+ * The groups of a section that `role` may see, with hidden items removed.
+ * Groups left empty after filtering are dropped.
+ */
+export function navGroupsFor(
+  section: AdminSection,
+  isSuper: boolean,
+): NavGroup[] {
+  if (isSuper) return NAV_SECTIONS[section].groups;
+  const out: NavGroup[] = [];
+  for (const group of NAV_SECTIONS[section].groups) {
+    if (group.superAdminOnly) continue;
+    const items = group.items.filter((it) => !it.superAdminOnly);
+    if (items.length > 0) out.push({ ...group, items });
+  }
+  return out;
+}
+
+/**
+ * Where the section switcher should land. The Company section's home is the
+ * super-admin-only vault, so a plain admin would otherwise be sent straight to
+ * an access-denied card; they get the section's first visible page instead.
+ */
+export function sectionHomeFor(
+  section: AdminSection,
+  isSuper: boolean,
+): string {
+  const home = NAV_SECTIONS[section].home;
+  if (isSuper) return home;
+  const visible = navGroupsFor(section, false).flatMap((g) => g.items);
+  if (visible.some((it) => it.href === home)) return home;
+  return visible[0]?.href ?? NAV_SECTIONS.operations.home;
+}
 
 /** All items flattened — topbar title derivation + the Ctrl+K palette. */
 export const NAV_ITEMS_FLAT: NavItem[] = [
@@ -469,7 +573,7 @@ export function isNavItemActive(pathname: string, href: string): boolean {
   return activeHrefFor(pathname) === href;
 }
 
-/** Unique page title for the topbar; "Admin" when no item owns the path. */
+/** Unique page title for the topbar;"Admin" when no item owns the path. */
 export function activeTitleFor(pathname: string): string {
   return activeItemFor(pathname)?.title ?? "Admin";
 }

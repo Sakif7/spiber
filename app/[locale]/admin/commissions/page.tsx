@@ -147,7 +147,7 @@ export default async function AdminCommissionsPage({
         {summary.map((s) => (
           <div
             key={s.label}
-            className="bg-card grid gap-0.5 rounded-lg p-4 shadow-[var(--shadow-sm)]"
+            className="bg-card grid gap-0.5 rounded-lg border p-4"
           >
             <span className="text-muted-foreground font-mono text-[0.65rem] tracking-[0.12em] uppercase">
               {s.label}

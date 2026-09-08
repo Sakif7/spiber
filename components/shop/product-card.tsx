@@ -34,8 +34,15 @@ function effectivePrice(product: Lean<IProduct>): {
 
 function effectiveStock(product: Lean<IProduct>): number {
   const variants = product.variants ?? [];
-  if (variants.length === 0) return product.stockQty;
-  return variants.reduce((s, v) => s + v.stockQty, 0);
+  // Reserved units are committed to a sales order, so they are not what a
+  // shopper can buy — the card's stock badge must reflect that.
+  if (variants.length === 0) {
+    return Number(product.stockQty ?? 0) - Number(product.reservedQty ?? 0);
+  }
+  return variants.reduce(
+    (s, v) => s + (Number(v.stockQty ?? 0) - Number(v.reservedQty ?? 0)),
+    0,
+  );
 }
 
 export function ProductCard({

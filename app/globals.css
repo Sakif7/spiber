@@ -371,6 +371,18 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
+  /* The admin's type scale, as real utilities (`text-admin-sm` and friends).
+     Namespaced so they cannot collide with the marketing scale, and so the
+     off-scale `text-[13px]` that had been pasted into components 120 times has
+     somewhere legitimate to go. */
+  --text-admin-2xs: 0.6875rem;
+  --text-admin-xs: 0.75rem;
+  --text-admin-sm: 0.8125rem;
+  --text-admin-base: 0.875rem;
+  --text-admin-lg: 1rem;
+  --text-admin-xl: 1.25rem;
+  --text-admin-2xl: 1.5rem;
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -456,6 +468,141 @@
 }
 
 /* =========================================================
+   Admin token scope
+   ---------------------------------------------------------
+   The admin is a dense internal tool with different needs from the marketing
+   site, so it takes its own values for the few semantic tokens that must
+   differ, instead of bending the shared palette and changing the public site
+   with it. Everything not listed here still inherits from :root.
+
+   `.dark .admin-root` is (0,2,0) and beats both `.dark` and `.admin-root` at
+   (0,1,0), so each theme resolves as a complete set.
+   ========================================================= */
+.admin-root {
+  /* ── type ───────────────────────────────────────────────────────────────
+     IBM Plex, loaded in the admin layout. Plex Mono carries every reference
+     number, SKU and money column so figures align down the column. */
+  --font-ui: var(--font-admin), "IBM Plex Sans", system-ui, sans-serif;
+  --font-ui-mono:
+    var(--font-admin-mono), "IBM Plex Mono", ui-monospace, monospace;
+
+  /* A real scale, replacing the off-scale 13px that had been pasted into
+     components 120 times. Sizes are paired with their line height. */
+  --admin-text-2xs: 0.6875rem; /* 11px — table micro-labels, badges */
+  --admin-text-xs: 0.75rem; /* 12px — hints, meta */
+  --admin-text-sm: 0.8125rem; /* 13px — the workhorse: tables, forms */
+  --admin-text-base: 0.875rem; /* 14px — body copy in detail panes */
+  --admin-text-lg: 1rem; /* 16px — card titles */
+  --admin-text-xl: 1.25rem; /* 20px — page titles */
+  --admin-text-2xl: 1.5rem; /* 24px — the dashboard's headline figures */
+
+  /* ── density ────────────────────────────────────────────────────────────
+     Compact: 36px rows and controls, on a 4px grid. */
+  --admin-row-h: 2.25rem; /* 36px */
+  --admin-control-h: 2.25rem; /* 36px, so a control sits in a row cleanly */
+  --admin-cell-x: 0.75rem; /* 12px horizontal padding in a cell */
+
+  /* ── surfaces ───────────────────────────────────────────────────────────
+     Flat with hairline rules. Shadow is reserved for things that genuinely
+     float above the page — menus, popovers, dialogs — because stacked
+     shadows on six panels turn a dense screen to mush. */
+  --admin-line: var(--color-border);
+  --radius: 0.375rem;
+
+  /* teal-500 carries white label text at only 3.92:1, under the 4.5:1 AA bar.
+     teal-600 measures 5.63:1 and is the same hue, so buttons read as the same
+     brand colour while actually being legible. */
+  --primary: var(--teal-600);
+  --primary-foreground: #ffffff;
+  --ring: var(--teal-600);
+
+  /* the shared error red is 4.13:1 against white; this is 5.26:1 */
+  --destructive: #c33a3a;
+  --destructive-foreground: #ffffff;
+
+  /* Secondary text — nav labels, table meta, hints, placeholders — was
+     slate-500 at 3.87:1 against the page ground, under the 4.5:1 AA bar. This
+     is the lightest value of the same hue that clears it on all three admin
+     surfaces (card 5.04:1, page 4.77:1, muted fill 4.51:1), so the layer still
+     reads as quiet rather than promoted. Dark already passes at 6.23:1. */
+  --muted-foreground: #647177;
+
+  /* ── status tones ───────────────────────────────────────────────────────
+     Every status badge painted its label in the raw marketing tone over a 12%
+     tint of itself. Measured on that tint: warning 2.28:1, brand 2.20:1,
+     success 2.98:1 — every badge in the admin failed the 4.5:1 AA bar in
+     light mode. The tint keeps the vivid hue so a badge still reads as green
+     or amber at a glance; `-fg` is the same hue darkened to the LIGHTEST
+     value that clears 4.5:1 over both the card and the page ground, and it
+     paints the label and the dot. Dark mode already passed except red. */
+  --tone-success: var(--color-success);
+  --tone-success-fg: #147653;
+  --tone-warning: var(--color-warning);
+  --tone-warning-fg: #8c610d;
+  --tone-danger: var(--color-error);
+  --tone-danger-fg: #be2e2e;
+  --tone-info: var(--color-info);
+  --tone-info-fg: #2467b3;
+  --tone-brand: var(--color-brand);
+  --tone-brand-fg: #0a7274;
+  --tone-neutral: var(--color-text-muted);
+  --tone-neutral-fg: #5d696f;
+
+  /* Derived once, so no component hand-rolls a color-mix. Both are alpha
+     values, so they composite correctly over a card or the page in either
+     theme and need no dark override. */
+  --tone-fill: 12%;
+  --tone-edge: 28%;
+
+  font-family: var(--font-ui);
+  font-size: var(--admin-text-sm);
+}
+
+/* Headings inside the admin use the same face as everything else: a display
+   serif or grotesk at 13-20px only adds noise to a data tool. This overrides
+   the site-wide `--font-display` rule in @layer base. */
+.admin-root :is(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--font-ui);
+  letter-spacing: -0.011em;
+}
+
+/* Figures line up when they share a width. Applied to the mono utility and to
+   every cell that holds a number. */
+.admin-root .tabular,
+.admin-root [data-numeric="true"] {
+  font-variant-numeric: tabular-nums;
+}
+
+.dark .admin-root {
+  /* On dark the brand inverts: a light teal surface carrying near-black text,
+     which is why the foreground flips too. */
+  --primary: var(--color-brand);
+  --primary-foreground: #042b2c;
+  --ring: var(--color-brand);
+  --destructive: var(--color-error);
+  --destructive-foreground: #1a0808;
+
+  /* A hairline has to be slightly stronger on dark to read as a line at all. */
+  --admin-line: rgba(255, 255, 255, 0.14);
+  --border: rgba(255, 255, 255, 0.14);
+
+  /* The light value above is far too dark on a dark ground (3.06:1). Dark
+     keeps the shared muted token, which already measures 6.23:1 here.
+     `.admin-root` sits later in this file than `.dark` and matches at the same
+     specificity, so without this line the light value wins in both themes. */
+  --muted-foreground: var(--color-text-muted);
+
+  /* The dark tones are already light enough to carry their own tint at 4.5:1;
+     only red fell short (4.35:1), so only red moves. */
+  --tone-success-fg: var(--color-success);
+  --tone-warning-fg: var(--color-warning);
+  --tone-danger-fg: #f16c6f;
+  --tone-info-fg: var(--color-info);
+  --tone-brand-fg: var(--color-brand);
+  --tone-neutral-fg: var(--color-text-muted);
+}
+
+/* =========================================================
    Base reset + body
    ========================================================= */
 * {
@@ -501,13 +648,32 @@ body {
   p {
     margin: 0;
   }
-}
-a {
-  color: inherit;
-  text-decoration: none;
-}
-button {
-  font-family: inherit;
+
+  /* Tailwind v4's preflight sets `border: 0 solid` with no colour, so a bare
+     `border-b` paints in currentColor — near-black text, not a divider. Stock
+     shadcn ships this reset and the migration missed it, which is why table
+     rules, card edges and dropdown separators rendered as heavy dark lines
+     while the input borders beside them were correct. Controls are unaffected:
+     they carry an explicit `border-input`, which still wins. */
+  *,
+  ::before,
+  ::after,
+  ::backdrop {
+    border-color: var(--border);
+  }
+
+  /* These two MUST stay inside @layer base — see the note above. They sat one
+     line below the closing brace, and an UNLAYERED element rule beats a layered
+     utility whatever its specificity, so `a { color: inherit }` silently
+     overrode every `text-*` utility on every link in the app. That is what made
+     `<Button asChild><a>` render dark text on a teal background. */
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+  button {
+    font-family: inherit;
+  }
 }
 
 ::selection {

@@ -21,7 +21,7 @@ export function DeleteRowButton({
   const [busy, setBusy] = useState(false);
   async function remove() {
     if (busy) return;
-    if (!window.confirm(`Delete "${title}"?`)) return;
+    if (!window.confirm(`Delete"${title}"?`)) return;
     setBusy(true);
     const res = await fetch(endpoint, { method: "DELETE" });
     setBusy(false);

@@ -113,10 +113,33 @@ export const OFFICES: Office[] = [
  * TODO(client): confirm the VAT registration (BIN) and taxpayer (TIN) numbers.
  * Until they are filled in the invoice prints an em dash rather than a guess.
  */
+/**
+ * Registration details printed on invoices.
+ *
+ * The BIN is taken from the company's own commercial invoice
+ * (SPIBER/EWMCH/14-8/26-714). The TIN has not been supplied yet, and an empty
+ * value simply prints a dash rather than a wrong number.
+ */
 export const LEGAL = {
   name: "SPIBER MED LIMITED",
-  bin: "",
+  bin: "009272672-0109",
   tin: "",
+} as const;
+
+/**
+ * Where a client pays. Printed on every invoice, taken from the company's own
+ * invoice template.
+ *
+ * ⚠ These are real banking details on a client-facing document. Change them
+ * here and nowhere else, and check them before a billing run.
+ */
+export const BANK = {
+  bankName: "Eastern Bank PLC",
+  accountName: "SPIBER MED LIMITED",
+  accountNo: "1191 0700 06762",
+  branch: "Uttara Sonargaon Janapath Branch",
+  routingNo: "0952 646 93",
+  mobileFinance: "+880-1346-092-798 (B-Kash)",
 } as const;
 
 /** Shared contact channels for the "quicker way to reach us" strip + emails. */

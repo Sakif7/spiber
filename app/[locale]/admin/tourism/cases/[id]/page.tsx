@@ -114,7 +114,7 @@ export default async function AdminCaseDetailPage({
             action={
               <Link
                 href={`/admin/tourism/cases/${String(c._id)}/quotation`}
-                className="text-primary text-[13px] font-medium hover:underline"
+                className="text-primary font-medium hover:underline"
               >
                 Printable view →
               </Link>

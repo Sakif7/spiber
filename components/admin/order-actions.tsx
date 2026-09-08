@@ -42,7 +42,7 @@ const STATUS_LABEL: Record<string, string> = {
 type Props = {
   orderId: string;
   status: string;
-  /** offline | cod | credit — legacy orders report "offline". */
+  /** offline | cod | credit — legacy orders report"offline". */
   paymentMethod?: string;
   paymentStatus?: string;
 };
@@ -135,7 +135,7 @@ export function OrderActions({
   }
 
   return (
-    <section className="bg-card flex flex-col gap-4 rounded-lg p-5 shadow-[var(--shadow-sm)]">
+    <section className="bg-card flex flex-col gap-4 rounded-lg border p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-foreground font-[family-name:var(--font-display)] text-lg">
           Actions

@@ -63,7 +63,7 @@ export function SellerApplicationActions({
   }
 
   return (
-    <section className="bg-card flex flex-col gap-4 rounded-lg p-5 shadow-[var(--shadow-sm)]">
+    <section className="bg-card flex flex-col gap-4 rounded-lg border p-5">
       <h2 className="text-foreground font-[family-name:var(--font-display)] text-lg">
         Actions
       </h2>

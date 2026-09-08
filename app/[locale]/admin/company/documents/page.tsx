@@ -4,22 +4,37 @@ import { getSessionUser } from "@/lib/auth/current-user";
 import { isSuperAdmin } from "@/lib/auth/rbac";
 import { vaultConfigured } from "@/lib/crypto/vault";
 import {
-  listCompanyDocuments,
-  listCompanyDocumentFolders,
-} from "@/lib/repositories/company-documents.repo";
+  listChildren,
+  getTree,
+  type FolderNode,
+} from "@/lib/services/company-fs.service";
 import { AdminPageHeader } from "@/components/admin/ui/page-header";
-import {
-  DocumentsManager,
-  type VaultDocRow,
-} from "@/components/admin/company/documents-manager";
+import { FileManager } from "@/components/admin/company/file-manager/file-manager";
+import type { ListPayload } from "@/components/admin/company/file-manager/types";
 
 export const dynamic = "force-dynamic";
 
-/** Company document vault — SUPER-ADMIN only (the API enforces it too). */
+const EMPTY: ListPayload = {
+  folder: null,
+  breadcrumb: [],
+  folders: [],
+  files: [],
+  usage: { usedBytes: 0, trashBytes: 0, fileCount: 0, quotaBytes: 0 },
+};
+
+/**
+ * Company document vault — SUPER-ADMIN only (the API enforces it too).
+ *
+ * The first folder is rendered on the server so the page arrives complete;
+ * everything after that is fetched as JSON by the client, so moving through the
+ * tree does not reload the page.
+ */
 export default async function CompanyDocumentsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
@@ -32,7 +47,7 @@ export default async function CompanyDocumentsPage({
           title="Company documents"
           description="Encrypted file vault."
         />
-        <div className="bg-card flex items-start gap-3 rounded-lg p-4 shadow-[var(--shadow-sm)]">
+        <div className="bg-card flex items-start gap-3 rounded-lg border p-4">
           <ShieldAlert className="text-destructive mt-0.5 size-5 shrink-0" />
           <p className="text-sm">
             The vault is restricted to <strong>super-admins</strong>. Ask a
@@ -44,35 +59,39 @@ export default async function CompanyDocumentsPage({
   }
 
   const ready = vaultConfigured();
-  let rows: VaultDocRow[] = [];
-  let folders: string[] = [];
+  const sp = await searchParams;
+  const one = (k: string) => {
+    const v = sp[k];
+    return Array.isArray(v) ? v[0] : v;
+  };
+
+  let initial: ListPayload = EMPTY;
+  let tree: FolderNode[] = [];
   if (ready) {
     try {
-      const [docs, dirs] = await Promise.all([
-        listCompanyDocuments(),
-        listCompanyDocumentFolders(),
+      const [listed, folders] = await Promise.all([
+        listChildren({
+          folderId: one("folder") ?? null,
+          sort: (one("sort") as "name") ?? "name",
+          dir: (one("dir") as "asc") ?? "asc",
+          q: one("q"),
+          recursive: one("recursive") === "1",
+          trash: one("trash") === "1",
+        }),
+        getTree(),
       ]);
-      folders = dirs;
-      rows = docs.map((d) => ({
-        id: String(d._id),
-        title: d.title,
-        originalFilename: d.originalFilename,
-        contentType: d.contentType,
-        size: d.size,
-        folder: d.folder ?? null,
-        uploadedByEmail: d.uploadedByEmail ?? null,
-        createdAt: d.createdAt.toISOString(),
-      }));
+      if (listed.ok) initial = listed.data;
+      tree = folders;
     } catch {
-      rows = [];
+      initial = EMPTY;
     }
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <AdminPageHeader
         title="Company documents"
-        description="Encrypted vault for internal company files — licenses, contracts, registrations."
+        description="Encrypted vault for internal company files — licences, contracts, registrations."
       />
 
       {ready ? (
@@ -82,10 +101,10 @@ export default async function CompanyDocumentsPage({
             Encryption at rest is active. Access is super-admin only and every
             view is audited.
           </p>
-          <DocumentsManager rows={rows} folders={folders} />
+          <FileManager initial={initial} initialTree={tree} />
         </>
       ) : (
-        <div className="bg-card flex items-start gap-3 rounded-lg p-4 shadow-[var(--shadow-sm)]">
+        <div className="bg-card flex items-start gap-3 rounded-lg border p-4">
           <ShieldAlert className="mt-0.5 size-5 shrink-0 text-amber-500" />
           <div className="space-y-1 text-sm">
             <p className="font-medium">The vault key is not configured.</p>

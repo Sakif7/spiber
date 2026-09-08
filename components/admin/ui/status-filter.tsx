@@ -60,7 +60,7 @@ export function StatusFilterPills({
                 : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >
-            {s.replace(/_/g, " ")}
+            {s.replace(/_/g, "")}
           </Link>
         );
       })}

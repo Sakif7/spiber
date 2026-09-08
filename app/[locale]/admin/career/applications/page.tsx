@@ -147,7 +147,7 @@ export default async function AdminApplicationsPage({
         <span className="flex items-center justify-end gap-1">
           <a
             href={`/api/admin/career/applications/${String(a._id)}/resume`}
-            className="text-primary px-1 text-[13px] font-medium whitespace-nowrap hover:underline"
+            className="text-primary px-1 font-medium whitespace-nowrap hover:underline"
           >
             Résumé
           </a>

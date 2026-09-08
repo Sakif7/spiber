@@ -84,11 +84,11 @@ export default async function AdminEnrollmentDetail({
 
         <DetailCard title="Timeline">
           {e.timeline.length === 0 ? (
-            <p className="text-muted-foreground text-[13px]">No events.</p>
+            <p className="text-muted-foreground">No events.</p>
           ) : (
             <ul className="grid gap-2.5">
               {e.timeline.map((entry, i) => (
-                <li key={i} className="flex gap-3 text-[13px]">
+                <li key={i} className="flex gap-3">
                   <span className="text-foreground min-w-[90px] font-semibold capitalize">
                     {entry.status}
                   </span>

@@ -90,7 +90,7 @@ export function CaseActions({
   }
 
   return (
-    <section className="bg-card flex flex-col gap-4 rounded-lg p-5 shadow-[var(--shadow-sm)]">
+    <section className="bg-card flex flex-col gap-4 rounded-lg border p-5">
       <h2 className="text-foreground m-0 font-[family-name:var(--font-display)] text-lg">
         Case actions
       </h2>
@@ -192,7 +192,7 @@ export function CaseActions({
                 )
               }
             >
-              {busy === to ? "Working…" : `Move to ${to.replace(/_/g, " ")}`}
+              {busy === to ? "Working…" : `Move to ${to.replace(/_/g, "")}`}
             </Button>
           ))}
         </div>

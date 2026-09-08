@@ -9,6 +9,11 @@ export const consoleMailer: Mailer = {
       console.log(
         `\n──────── EMAIL (console transport) ────────\n` +
           `To:      ${mail.to}\n` +
+          (mail.cc ? `Cc:      ${[mail.cc].flat().join(", ")}\n` : "") +
+          (mail.replyTo ? `Reply-To: ${mail.replyTo}\n` : "") +
+          (mail.attachments?.length
+            ? `Files:   ${mail.attachments.map((a) => a.filename).join(", ")}\n`
+            : "") +
           `Subject: ${mail.subject}\n\n` +
           `${mail.text ?? mail.html}\n` +
           `───────────────────────────────────────────\n`,

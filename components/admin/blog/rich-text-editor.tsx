@@ -59,7 +59,7 @@ export function RichTextEditor({
         .rte-content pre { background: var(--color-surface-2); padding: 10px 12px; border-radius: 6px; overflow:auto; }
         .rte-content img { max-width: 100%; border-radius: 8px; }
         .rte-content a { color: var(--color-brand-deep); text-decoration: underline; }
-        .rte-content p.is-editor-empty:first-child::before { content: "Write the post…"; color: var(--color-text-subtle); float: left; height: 0; pointer-events: none; }
+        .rte-content p.is-editor-empty:first-child::before { content:"Write the post…"; color: var(--color-text-subtle); float: left; height: 0; pointer-events: none; }
       `}</style>
     </div>
   );
@@ -88,7 +88,7 @@ function B({
       onClick={onClick}
       className={cn(
         "text-muted-foreground hover:text-foreground",
-        on && "bg-card text-foreground shadow-[var(--shadow-sm)]",
+        on && "bg-card text-foreground border",
       )}
     >
       {children}

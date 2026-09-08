@@ -4,6 +4,7 @@ import { routing } from "./i18n/routing";
 import { verifyAccessToken, verifyRefreshToken } from "./lib/auth/tokens";
 import { isAdmin } from "./lib/auth/rbac";
 import { COOKIE } from "./lib/auth/session";
+import { isCrossSiteMutation } from "./lib/http/same-origin";
 
 /**
  * Next.js 16 network proxy (formerly `middleware.ts`), Node.js runtime.
@@ -17,6 +18,10 @@ import { COOKIE } from "./lib/auth/session";
  *    /api/auth/renew (which does the DB-checked rotation) instead of dumping
  *    the user on the login modal. This is what keeps long-lived sessions
  *    seamless past the 15-minute access-token TTL.
+ * 4. CSRF: refuse cross-site mutations of the admin + gated-media APIs. Those
+ *    two prefixes are matched explicitly (see `config.matcher`) and returned
+ *    early — every other API route keeps bypassing this proxy entirely, so
+ *    webhooks and public endpoints are unaffected.
  */
 const intlMiddleware = createMiddleware(routing);
 
@@ -67,9 +72,21 @@ async function renewRedirectOrNull(
 }
 
 export default async function proxy(request: NextRequest) {
-  const response = intlMiddleware(request);
-
   const { pathname } = request.nextUrl;
+
+  // API paths never get locale handling; they are matched only so that a
+  // cross-site mutation can be refused before it reaches a route handler.
+  if (pathname.startsWith("/api/")) {
+    if (isCrossSiteMutation(request)) {
+      return NextResponse.json(
+        { ok: false, error: { code: "cross_site_request" } },
+        { status: 403 },
+      );
+    }
+    return NextResponse.next();
+  }
+
+  const response = intlMiddleware(request);
   const adminReq = ADMIN_PATH.test(pathname);
   const guarded =
     adminReq || SELLER_PATH.test(pathname) || ACCOUNT_PATH.test(pathname);
@@ -95,6 +112,11 @@ export default async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Run on everything except API routes, Next internals, and static files.
-  matcher: ["/((?!api|_next|_vercel|.*\\..*).*)"],
+  matcher: [
+    // Pages: everything except API routes, Next internals, and static files.
+    "/((?!api|_next|_vercel|.*\\..*).*)",
+    // Plus the two cookie-authenticated API surfaces, for the CSRF check only.
+    "/api/admin/:path*",
+    "/api/media/:path*",
+  ],
 };

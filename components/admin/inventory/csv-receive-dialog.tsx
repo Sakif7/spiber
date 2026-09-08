@@ -5,6 +5,7 @@ import { useRouter } from "@/i18n/navigation";
 import { FileUp } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,6 +27,7 @@ import {
 import { formatApiError } from "@/lib/http/form-error";
 import { cn } from "@/lib/cn";
 import { MANUAL_TYPES, formatDelta, type ManualType } from "./types";
+import { calloutClass } from "@/components/admin/ui/tone";
 
 type PreviewLine = {
   line: number;
@@ -58,7 +60,7 @@ MKT-BP-01,24,PO 4471
 MKT-TEE-01-L-B,12`;
 
 /**
- * "Receive CSV": paste or upload `sku,qty[,reason]`, preview every line
+ *"Receive CSV": paste or upload `sku,qty[,reason]`, preview every line
  * resolved against the catalog (unknown SKUs, seller units, resulting
  * balance), then apply the valid lines in one bulk request.
  */
@@ -255,12 +257,12 @@ function CsvForm({ onClose }: { onClose: () => void }) {
             </div>
 
             {hasSeller && (
-              <label className="flex items-start gap-2 rounded-lg border border-[color-mix(in_srgb,var(--color-warning)_40%,transparent)] bg-[color-mix(in_srgb,var(--color-warning)_10%,transparent)] px-3 py-2.5 text-[13px]">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 size-4 accent-[var(--color-brand)]"
+              <label
+                className={calloutClass("warning", "flex items-start gap-2")}
+              >
+                <Checkbox
                   checked={override}
-                  onChange={(e) => setOverride(e.target.checked)}
+                  onCheckedChange={(v) => setOverride(v === true)}
                 />
                 <span>
                   Some lines target seller-managed units. Override their
@@ -269,8 +271,8 @@ function CsvForm({ onClose }: { onClose: () => void }) {
               </label>
             )}
 
-            <div className="bg-card overflow-hidden rounded-lg shadow-[var(--shadow-sm)]">
-              <table className="w-full text-[13px]">
+            <div className="bg-card overflow-hidden rounded-lg border">
+              <table className="w-full">
                 <thead>
                   <tr className="text-muted-foreground border-b text-left text-xs">
                     <th className="px-3 py-2 font-semibold">Line</th>
@@ -325,7 +327,7 @@ function CsvForm({ onClose }: { onClose: () => void }) {
                         {l.error ? (
                           <span className="text-destructive">{l.error}</span>
                         ) : (
-                          <span className="text-[var(--color-success)]">
+                          <span className="text-[var(--tone-success-fg)]">
                             Ready
                           </span>
                         )}
@@ -353,7 +355,7 @@ function CsvForm({ onClose }: { onClose: () => void }) {
             </p>
 
             {result && (
-              <p className="text-[13px] font-medium">
+              <p className="font-medium">
                 Applied {result.applied}
                 {result.failed > 0 ? `, ${result.failed} failed` : ""}. The
                 inventory list has been refreshed.
@@ -362,7 +364,7 @@ function CsvForm({ onClose }: { onClose: () => void }) {
           </>
         )}
 
-        {error && <p className="text-destructive text-[13px]">{error}</p>}
+        {error && <p className="text-destructive">{error}</p>}
       </div>
 
       <DialogFooter className="border-t px-5 py-3">

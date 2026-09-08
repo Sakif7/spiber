@@ -28,6 +28,8 @@ export interface IProductVariant {
   sku: string;
   priceMinorOverride?: number | null;
   stockQty: number;
+  /** Committed to a sales order but not yet delivered — see IProduct. */
+  reservedQty?: number;
   image?: string;
 }
 
@@ -63,6 +65,14 @@ export interface IProduct {
   /** Optional negotiation floor; when < priceMinor Medtrade shows a range. */
   floorPriceMinor?: number | null;
   stockQty: number;
+  /**
+   * Stock physically on hand but already promised to an invoiced sales order.
+   * It stays in `stockQty` (it has not left the shelf) and is subtracted when
+   * working out what is still AVAILABLE to sell, so an online checkout can
+   * never take units that are committed to a customer. Delivery moves the
+   * quantity out of both fields; cancelling releases it back.
+   */
+  reservedQty?: number;
   lowStockThreshold: number;
   /** null = default tracking rule (Kart tracked; Medtrade tracked once priced); true/false force it. */
   trackStock?: boolean | null;
@@ -115,6 +125,7 @@ const productVariantSchema = new Schema<IProductVariant>(
     sku: { type: String, required: true, trim: true },
     priceMinorOverride: { type: Number, default: null, min: 0 },
     stockQty: { type: Number, default: 0, min: 0 },
+    reservedQty: { type: Number, default: 0, min: 0 },
     image: { type: String },
   },
   { _id: false },
@@ -155,6 +166,7 @@ const productSchema = new Schema<IProduct>(
     // Optional negotiation floor; when < priceMinor Medtrade shows a range.
     floorPriceMinor: { type: Number, default: null, min: 0 },
     stockQty: { type: Number, default: 0 },
+    reservedQty: { type: Number, default: 0, min: 0 },
     lowStockThreshold: { type: Number, default: 5, min: 0 },
     // null = default tracking rule; true/false force stock tracking on/off.
     trackStock: { type: Boolean, default: null },

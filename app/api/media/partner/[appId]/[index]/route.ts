@@ -1,7 +1,7 @@
 import { getSessionUser } from "@/lib/auth/current-user";
 import { requireAdmin } from "@/lib/auth/guard";
 import { getPartnerApplicationByIdLean } from "@/lib/repositories/partnerApplications.repo";
-import { writeAudit } from "@/lib/repositories/audit.repo";
+import { auditDocumentView } from "@/lib/audit/document-view";
 import { getStorage } from "@/lib/storage";
 import { logger } from "@/lib/log";
 
@@ -42,20 +42,21 @@ export async function GET(
   if (!resource?.fileKey) return new Response("Not found", { status: 404 });
 
   const range = req.headers.get("range") ?? undefined;
-  const isInitialView = !range || /^bytes=0-/.test(range);
-  if (isInitialView) {
-    try {
-      await writeAudit({
-        actorId: admin.sub,
-        action: "partnerApplication.document_view",
-        entityType: "PartnerApplication",
-        entityId: appId,
-        after: { index: i, name: resource.name },
-      });
-    } catch (e) {
-      logger.warn("partner audit write failed; denying access", e);
-      return new Response("Audit unavailable", { status: 503 });
-    }
+  // Fail-closed audit on EVERY request. This used to run only for a request
+  // with no Range or one starting at byte 0, so `Range: bytes=1-` fetched the
+  // document with no audit row at all; auditDocumentView dedupes by time.
+  try {
+    await auditDocumentView({
+      actorId: admin.sub,
+      action: "partnerApplication.document_view",
+      entityType: "PartnerApplication",
+      entityId: appId,
+      after: { index: i, name: resource.name },
+      req,
+    });
+  } catch (e) {
+    logger.warn("partner audit write failed; denying access", e);
+    return new Response("Audit unavailable", { status: 503 });
   }
 
   const obj = await getStorage().getObject({

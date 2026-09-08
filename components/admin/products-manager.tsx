@@ -5,6 +5,7 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { Package } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DataTable, type Column } from "@/components/admin/ui/data-table";
 import { AdminPageHeader } from "@/components/admin/ui/page-header";
 import { ListToolbar } from "@/components/admin/ui/list-toolbar";
@@ -85,7 +86,7 @@ export function ProductsManager({
   const [busy, setBusy] = useState(false);
 
   // Reset the transient selection when the filter/page actually changes —
-  // React's "adjust state during render on prop change" pattern: no effect,
+  // React's"adjust state during render on prop change" pattern: no effect,
   // no remount (a remount would drop the search input's focus).
   const navKey = `${q}|${status}|${page}|${sort.key}|${sort.dir}`;
   const [prevNavKey, setPrevNavKey] = useState(navKey);
@@ -173,25 +174,21 @@ export function ProductsManager({
     {
       key: "select",
       header: (
-        <input
-          type="checkbox"
+        <Checkbox
           aria-label="Select all on page"
-          className="size-4 cursor-pointer accent-[var(--color-brand)]"
           checked={allOnPage}
-          onChange={(e) => toggleAllOnPage(e.target.checked)}
+          onCheckedChange={(v) => toggleAllOnPage(v === true)}
         />
       ),
       headClassName: "w-9",
       className: "w-9",
       mobile: "hidden",
       cell: (p) => (
-        <input
-          type="checkbox"
+        <Checkbox
           aria-label={`Select ${p.name}`}
-          className="size-4 cursor-pointer accent-[var(--color-brand)]"
           checked={allMatching || selected.has(p.id)}
           disabled={allMatching}
-          onChange={(e) => toggleOne(p.id, e.target.checked)}
+          onCheckedChange={(v) => toggleOne(p.id, v === true)}
         />
       ),
     },
@@ -210,7 +207,7 @@ export function ProductsManager({
             {p.name || "(untitled)"}
           </Link>
           {p.featured && (
-            <span className="text-[10px] font-bold tracking-wide text-[var(--color-secondary-deep)]">
+            <span className="text-admin-2xs font-bold tracking-wide text-[var(--tone-warning-fg)]">
               ★ FEATURED
             </span>
           )}
@@ -242,7 +239,7 @@ export function ProductsManager({
         <span
           className={cn(
             "font-medium tabular-nums",
-            p.lowStock && "font-bold text-[var(--color-error)]",
+            p.lowStock && "text-destructive font-bold",
           )}
         >
           {p.stock}
@@ -316,8 +313,8 @@ export function ProductsManager({
 
       {/* Bulk action bar */}
       {selectedCount > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg bg-[var(--color-brand-soft)] px-3 py-2">
-          <strong className="mr-1 text-[13px]">{selectedCount} selected</strong>
+        <div className="bg-primary/10 flex flex-wrap items-center gap-2 rounded-lg px-3 py-2">
+          <strong className="mr-1">{selectedCount} selected</strong>
           {ACTIONS.map((a) => (
             <Button
               key={a.key}
@@ -342,9 +339,9 @@ export function ProductsManager({
         </div>
       )}
 
-      {/* "Select all matching" banner */}
+      {/*"Select all matching" banner */}
       {allOnPage && !allMatching && total > rows.length && (
-        <p className="text-muted-foreground text-center text-[13px]">
+        <p className="text-muted-foreground text-center">
           All {rows.length} on this page selected.{" "}
           <button
             type="button"
@@ -363,7 +360,7 @@ export function ProductsManager({
         sort={sort}
         rowClassName={(p) =>
           allMatching || selected.has(p.id)
-            ? "bg-[var(--color-brand-soft)] hover:bg-[var(--color-brand-soft)]"
+            ? "bg-primary/10 hover:bg-primary/10"
             : undefined
         }
         empty={

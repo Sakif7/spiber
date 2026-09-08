@@ -5,6 +5,8 @@ import { routing } from "@/i18n/routing";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { FIELD_LABEL_ROW } from "@/components/admin/ui/form-shell";
+import { Segmented } from "@/components/admin/ui/segmented";
 import { cn } from "@/lib/cn";
 
 /** Partial localized value while editing (English is the only required one). */
@@ -44,7 +46,7 @@ export function LocalizedInput({
   /**
    * Accessible name when there is no visible label — repeated rows (spec 2,
    * option 3…) show the label only on the first row, so without this every
-   * other field would be announced as just "EN".
+   * other field would be announced as just"EN".
    */
   ariaLabel?: string;
   value: LocalizedValue;
@@ -58,7 +60,7 @@ export function LocalizedInput({
   className?: string;
   /**
    * Paste handler for the ENGLISH field only — lets a caller intercept a
-   * structured paste (the specs editor splits a "Key: Value" block into rows)
+   * structured paste (the specs editor splits a"Key: Value" block into rows)
    * without hijacking paste in the translation tabs.
    */
   onPasteEn?: (e: React.ClipboardEvent<HTMLInputElement>) => void;
@@ -80,8 +82,11 @@ export function LocalizedInput({
   };
 
   return (
-    <div className={cn("grid gap-1.5", className)}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    // `content-start` so this never stretches to fill a taller grid cell, and
+    // the shared label-row height so the control below sits on the same
+    // baseline as a plain FormField beside it.
+    <div className={cn("grid content-start gap-1.5", className)}>
+      <div className={cn(FIELD_LABEL_ROW, "justify-between")}>
         {label ? (
           <Label htmlFor={id}>
             {label}
@@ -90,41 +95,16 @@ export function LocalizedInput({
         ) : (
           <span />
         )}
-        <div
-          role="group"
-          aria-label={name ? `${name} language` : "Language"}
-          className="bg-muted inline-flex items-center gap-0.5 rounded-md p-0.5"
-        >
-          {locales.map((l) => {
-            const filled = Boolean(
-              (value[l as keyof LocalizedValue] ?? "").trim(),
-            );
-            const isActive = l === active;
-            return (
-              <button
-                key={l}
-                type="button"
-                aria-pressed={isActive}
-                onClick={() => setActive(l)}
-                className={cn(
-                  "flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium transition-colors",
-                  isActive
-                    ? "bg-card text-foreground shadow-[var(--shadow-sm)]"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {LOCALE_LABEL[l] ?? l.toUpperCase()}
-                <span
-                  aria-hidden
-                  className={cn(
-                    "size-1 rounded-full",
-                    filled ? "bg-[var(--color-success)]" : "bg-transparent",
-                  )}
-                />
-              </button>
-            );
-          })}
-        </div>
+        <Segmented
+          value={active}
+          onChange={setActive}
+          label={name ? `${name} language` : "Language"}
+          options={locales.map((l) => ({
+            value: l,
+            label: LOCALE_LABEL[l] ?? l.toUpperCase(),
+            dot: Boolean((value[l as keyof LocalizedValue] ?? "").trim()),
+          }))}
+        />
       </div>
       {textarea ? (
         <Textarea rows={rows} {...common} />

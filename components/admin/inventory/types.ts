@@ -11,7 +11,12 @@ export type HubUnit = {
   status: string;
   tracked: boolean;
   trackStock: boolean | null;
+  /** On hand — what a stock count finds on the shelf. */
   stock: number;
+  /** Of that, how much is committed to an invoiced sales order. */
+  reserved: number;
+  /** `stock - reserved` — what can still be sold. Drives the low/out level. */
+  available: number;
   threshold: number;
   level: "out" | "low" | "ok" | null;
   priceMinor: number | null;

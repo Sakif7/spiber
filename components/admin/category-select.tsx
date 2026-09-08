@@ -34,7 +34,7 @@ export function CategorySelect({
     : (parents[0]?.id ?? "");
   const subs = categories.filter((c) => c.parentId === parentId);
   const parentName = byId.get(parentId)?.name ?? "";
-  // "" in the sub dropdown means "assign to the parent itself".
+  //"" in the sub dropdown means"assign to the parent itself".
   const subValue = value === parentId ? "" : value;
 
   return (

@@ -127,7 +127,7 @@ export function MaintenancePanel({
   const confirmed = confirmText.trim() === name;
 
   return (
-    <div className="bg-card overflow-hidden rounded-lg shadow-[var(--shadow-sm)]">
+    <div className="bg-card overflow-hidden rounded-lg border">
       <button
         type="button"
         onClick={toggle}
@@ -142,7 +142,7 @@ export function MaintenancePanel({
               open && "rotate-90",
             )}
           />
-          <span className="text-foreground truncate text-[13px] font-semibold">
+          <span className="text-foreground truncate font-semibold">
             {label}
           </span>
           <code className="text-muted-foreground truncate font-mono text-xs">
@@ -151,7 +151,7 @@ export function MaintenancePanel({
         </span>
         <span
           className={cn(
-            "shrink-0 font-mono text-[13px] tabular-nums",
+            "shrink-0 font-mono tabular-nums",
             count > 0 ? "text-foreground" : "text-muted-foreground",
           )}
         >
@@ -162,27 +162,27 @@ export function MaintenancePanel({
       {open && (
         <div className="border-border/60 grid gap-4 border-t p-4">
           {error && (
-            <p role="alert" className="text-destructive text-[13px]">
+            <p role="alert" className="text-destructive">
               {error}
             </p>
           )}
 
           {loading ? (
-            <p className="text-muted-foreground text-[13px]">Loading…</p>
+            <p className="text-muted-foreground">Loading…</p>
           ) : rows && rows.length > 0 ? (
             <div className="grid gap-1">
               <div className="divide-border/60 divide-y">
                 {rows.map((r) => (
                   <div key={r.id} className="flex items-center gap-3 px-2 py-1">
-                    <span className="min-w-0 flex-1 truncate text-[13px]">
+                    <span className="min-w-0 flex-1 truncate">
                       {r.label}
                       {r.deleted && (
-                        <span className="ml-2 text-xs text-[var(--color-secondary-deep)]">
+                        <span className="text-admin-xs ml-2 text-[var(--tone-warning-fg)]">
                           (soft-deleted)
                         </span>
                       )}
                     </span>
-                    <code className="text-muted-foreground shrink-0 font-mono text-[11px]">
+                    <code className="text-muted-foreground text-admin-2xs shrink-0 font-mono">
                       {r.id.slice(-6)}
                     </code>
                     <Button
@@ -210,7 +210,7 @@ export function MaintenancePanel({
               )}
             </div>
           ) : (
-            <p className="text-muted-foreground text-[13px]">No records.</p>
+            <p className="text-muted-foreground">No records.</p>
           )}
 
           {/* Purge */}

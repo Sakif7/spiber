@@ -5,6 +5,12 @@ export const movementTypeEnum = z.enum([
   "sale",
   "adjustment",
   "return",
+  // Sales-order reservations. "deliver" is the moment reserved stock actually
+  // leaves; a plain negative "adjustment" remains the manual write-off, which
+  // is why this is not called that.
+  "reserve",
+  "release",
+  "deliver",
 ]);
 export type MovementType = z.infer<typeof movementTypeEnum>;
 

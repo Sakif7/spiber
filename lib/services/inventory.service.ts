@@ -14,6 +14,7 @@ import type {
 import {
   isStockTracked,
   unitStock,
+  unitReserved,
   variantLabel,
 } from "@/lib/inventory/tracking";
 import { notifyAdmins } from "./notification.service";
@@ -60,6 +61,10 @@ export type MovementInput = {
   /** Machine provenance for admin-made changes (manual | set | bulk | csv | override). */
   source?: string | null;
   refOrderId?: string;
+  /** The sales order this reservation belongs to (reserve/release/deliver). */
+  refSalesOrderId?: string;
+  /** Change to the reserved quantity; `qtyDelta` stays the change to on-hand. */
+  reservedDelta?: number;
   createdBy?: string;
   /**
    * Optimistic guard: only apply when the unit's current stock equals this
@@ -68,7 +73,10 @@ export type MovementInput = {
   expectedStock?: number;
 };
 
-export type MovementResult = { stockAfter: number | null };
+export type MovementResult = {
+  stockAfter: number | null;
+  reservedAfter?: number | null;
+};
 
 /** The slice of a product the movement service needs after an update. */
 type ProductLite = Pick<
@@ -81,18 +89,20 @@ type ProductLite = Pick<
   | "trackStock"
   | "lowStockThreshold"
   | "stockQty"
+  | "reservedQty"
   | "sellerId"
 > & {
   variants?: {
     id: string;
     sku: string;
     stockQty: number;
+    reservedQty?: number;
     options: { name: string; value: string }[];
   }[];
 };
 
 const LITE_PROJECTION =
-  "name sku storefront status priceMinor trackStock lowStockThreshold stockQty sellerId variants.id variants.sku variants.stockQty variants.options";
+  "name sku storefront status priceMinor trackStock lowStockThreshold stockQty reservedQty sellerId variants.id variants.sku variants.stockQty variants.reservedQty variants.options";
 
 async function loadProductLite(
   productId: string,
@@ -104,78 +114,189 @@ async function loadProductLite(
 }
 
 /**
+ * A guarded, single-document update of one stock unit.
+ *
+ * Every quantity rule the app has lives in this one filter, so nothing can take
+ * stock it should not:
+ *
+ *   availableAtLeast — on hand MINUS reserved must cover the amount. This is
+ *     what stops an online checkout from selling units already committed to a
+ *     sales order, and it is why a plain `stockQty >= n` filter is not enough.
+ *   reservedAtLeast  — there is a reservation big enough to release or deliver.
+ *   stockEquals      — the optimistic guard behind "set stock to N".
+ *
+ * The variant path cannot use `$elemMatch`, because `$elemMatch` may not contain
+ * `$expr` and the availability rule is a comparison BETWEEN two fields of the
+ * same array element. Instead the element is matched with a document-level
+ * `$expr` over `$map`, and the write still targets exactly that element through
+ * `arrayFilters`. It remains one atomic update of one document.
+ */
+type UnitGuard = {
+  availableAtLeast?: number;
+  reservedAtLeast?: number;
+  stockEquals?: number;
+};
+
+async function updateUnit(
+  productId: string,
+  variantId: string | null,
+  inc: { stock?: number; reserved?: number },
+  guard: UnitGuard,
+): Promise<boolean> {
+  const $inc: Record<string, number> = {};
+  if (inc.stock) $inc.stockQty = inc.stock;
+  if (inc.reserved) $inc.reservedQty = inc.reserved;
+  if (Object.keys($inc).length === 0) return true;
+
+  if (!variantId) {
+    const conditions: Record<string, unknown>[] = [];
+    if (guard.availableAtLeast !== undefined) {
+      conditions.push({
+        $gte: [
+          {
+            $subtract: [
+              { $ifNull: ["$stockQty", 0] },
+              { $ifNull: ["$reservedQty", 0] },
+            ],
+          },
+          guard.availableAtLeast,
+        ],
+      });
+    }
+    if (guard.reservedAtLeast !== undefined) {
+      conditions.push({
+        $gte: [{ $ifNull: ["$reservedQty", 0] }, guard.reservedAtLeast],
+      });
+    }
+    const filter: Record<string, unknown> = { _id: productId };
+    if (guard.stockEquals !== undefined) filter.stockQty = guard.stockEquals;
+    if (conditions.length > 0) filter.$expr = { $and: conditions };
+
+    const res = await Product.updateOne(filter, { $inc }).exec();
+    return res.modifiedCount > 0;
+  }
+
+  const elementConditions: Record<string, unknown>[] = [
+    { $eq: ["$$v.id", variantId] },
+  ];
+  if (guard.availableAtLeast !== undefined) {
+    elementConditions.push({
+      $gte: [
+        {
+          $subtract: [
+            { $ifNull: ["$$v.stockQty", 0] },
+            { $ifNull: ["$$v.reservedQty", 0] },
+          ],
+        },
+        guard.availableAtLeast,
+      ],
+    });
+  }
+  if (guard.reservedAtLeast !== undefined) {
+    elementConditions.push({
+      $gte: [{ $ifNull: ["$$v.reservedQty", 0] }, guard.reservedAtLeast],
+    });
+  }
+  if (guard.stockEquals !== undefined) {
+    elementConditions.push({ $eq: ["$$v.stockQty", guard.stockEquals] });
+  }
+
+  const variantInc: Record<string, number> = {};
+  if (inc.stock) variantInc["variants.$[v].stockQty"] = inc.stock;
+  if (inc.reserved) variantInc["variants.$[v].reservedQty"] = inc.reserved;
+
+  const res = await Product.updateOne(
+    {
+      _id: productId,
+      $expr: {
+        $anyElementTrue: {
+          $map: {
+            input: { $ifNull: ["$variants", []] },
+            as: "v",
+            in: { $and: elementConditions },
+          },
+        },
+      },
+    },
+    { $inc: variantInc },
+    { arrayFilters: [{ "v.id": variantId }] },
+  ).exec();
+  return res.modifiedCount > 0;
+}
+
+/** What each movement type is allowed to do, and what must be true first. */
+function guardFor(input: MovementInput): UnitGuard {
+  const guard: UnitGuard = {};
+  if (input.expectedStock !== undefined)
+    guard.stockEquals = input.expectedStock;
+
+  // Taking stock off the shelf — a sale, a write-off, a "set to N" downwards.
+  // Guarded on AVAILABLE, so committed stock is untouchable.
+  if (input.qtyDelta < 0 && input.type !== "deliver") {
+    guard.availableAtLeast = -input.qtyDelta;
+  }
+  // Releasing or delivering requires the reservation to actually exist.
+  if (input.reservedDelta && input.reservedDelta < 0) {
+    guard.reservedAtLeast = -input.reservedDelta;
+  }
+  // Reserving requires enough uncommitted stock.
+  if (input.reservedDelta && input.reservedDelta > 0) {
+    guard.availableAtLeast = input.reservedDelta;
+  }
+  return guard;
+}
+
+/**
  * Apply a stock change and record an audit `InventoryMovement`.
  *
- * Decrements use a conditional `$inc` (atomic, single-document) that only
- * succeeds when enough stock exists — guaranteeing no overselling without a
- * multi-document transaction (works on standalone Mongo). When `variantId` is
- * set, the same guarantee is applied to the matching `variants[]` element via an
- * `$elemMatch` guard + positional `arrayFilters` update; when it is absent, the
- * base `stockQty` path runs exactly as before (non-variant products unchanged).
+ * The update is atomic and single-document (see `updateUnit`), so there is no
+ * overselling without a multi-document transaction — which matters because the
+ * app runs on standalone Mongo.
  *
- * After the write the unit's new balance is stamped on the movement
- * (`stockAfter`) and, when the change crosses the product's low-stock
- * threshold or hits zero, the admins are notified (best-effort — an alert
- * failure never fails the movement).
+ * After the write the unit's new balances are stamped on the movement
+ * (`stockAfter`, `reservedAfter`) and, when the change crosses the product's
+ * low-stock threshold or hits zero, the admins are notified (best-effort — an
+ * alert failure never fails the movement).
  */
 export async function applyMovement(
   input: MovementInput,
 ): Promise<MovementResult> {
   await connectToDatabase();
-  if (input.qtyDelta === 0) return { stockAfter: null };
+  // A movement that changes neither stock nor reservations is a no-op. Note
+  // that a reservation legitimately has qtyDelta 0 — the units do not move —
+  // so the reserved side has to be checked here too.
+  if (input.qtyDelta === 0 && !input.reservedDelta) {
+    return { stockAfter: null };
+  }
 
   const variantId = input.variantId ?? null;
   const expected = input.expectedStock;
+  const reservedDelta = input.reservedDelta ?? 0;
   if (expected !== undefined && expected + input.qtyDelta < 0) {
     throw new InsufficientStockError(input.productId);
   }
 
-  if (input.qtyDelta < 0 || expected !== undefined) {
-    // Guarded update: enough stock for a decrement, and/or the exact balance
-    // the caller computed its delta from.
-    const need = -input.qtyDelta;
-    const guard =
-      expected !== undefined
-        ? expected
-        : input.qtyDelta < 0
-          ? { $gte: need }
-          : undefined;
-    const res = variantId
-      ? await Product.updateOne(
-          {
-            _id: input.productId,
-            variants: { $elemMatch: { id: variantId, stockQty: guard } },
-          },
-          { $inc: { "variants.$[v].stockQty": input.qtyDelta } },
-          { arrayFilters: [{ "v.id": variantId }] },
-        ).exec()
-      : await Product.updateOne(
-          { _id: input.productId, stockQty: guard },
-          { $inc: { stockQty: input.qtyDelta } },
-        ).exec();
-    if (res.modifiedCount === 0) {
-      if (expected !== undefined) throw new StockChangedError(input.productId);
-      throw new InsufficientStockError(input.productId);
-    }
-  } else if (variantId) {
-    await Product.updateOne(
-      { _id: input.productId, "variants.id": variantId },
-      { $inc: { "variants.$[v].stockQty": input.qtyDelta } },
-      { arrayFilters: [{ "v.id": variantId }] },
-    ).exec();
-  } else {
-    await Product.updateOne(
-      { _id: input.productId },
-      { $inc: { stockQty: input.qtyDelta } },
-    ).exec();
+  const applied = await updateUnit(
+    input.productId,
+    variantId,
+    { stock: input.qtyDelta, reserved: reservedDelta },
+    guardFor(input),
+  );
+  if (!applied) {
+    if (expected !== undefined) throw new StockChangedError(input.productId);
+    throw new InsufficientStockError(input.productId);
   }
 
   // Balance after the change — for the ledger and the threshold alerts.
   let product: Lean<ProductLite> | null = null;
   let stockAfter: number | null = null;
+  let reservedAfter: number | null = null;
   try {
     product = await loadProductLite(input.productId);
-    if (product) stockAfter = unitStock(product, variantId);
+    if (product) {
+      stockAfter = unitStock(product, variantId);
+      reservedAfter = unitReserved(product, variantId);
+    }
   } catch (e) {
     logger.warn("inventory: could not read stock after movement", e);
   }
@@ -187,8 +308,11 @@ export async function applyMovement(
     qtyDelta: input.qtyDelta,
     reason: input.reason,
     source: input.source ?? null,
+    reservedDelta,
+    reservedAfter,
     stockAfter,
     refOrderId: input.refOrderId ?? null,
+    refSalesOrderId: input.refSalesOrderId ?? null,
     createdBy: input.createdBy ?? null,
   });
 
@@ -197,11 +321,78 @@ export async function applyMovement(
       product,
       input.productId,
       variantId,
-      stockAfter,
-      input.qtyDelta,
+      stockAfter - (reservedAfter ?? 0),
+      // Availability moved by the stock change minus the reservation change.
+      input.qtyDelta - reservedDelta,
     );
   }
-  return { stockAfter };
+  return { stockAfter, reservedAfter };
+}
+
+// ───────────────────────── sales-order reservations ─────────────────────────
+
+type ReservationInput = {
+  productId: string;
+  variantId?: string | null;
+  qty: number;
+  refSalesOrderId: string;
+  createdBy?: string;
+  reason?: string;
+};
+
+/**
+ * Commit stock to an invoiced sales order. The units stay on the shelf — they
+ * are simply no longer available to anyone else. Throws `InsufficientStockError`
+ * when the AVAILABLE quantity cannot cover it.
+ */
+export async function reserveStock(
+  input: ReservationInput,
+): Promise<MovementResult> {
+  return applyMovement({
+    productId: input.productId,
+    variantId: input.variantId ?? null,
+    type: "reserve",
+    qtyDelta: 0,
+    reservedDelta: input.qty,
+    reason: input.reason ?? "sales order",
+    source: "sales_order",
+    refSalesOrderId: input.refSalesOrderId,
+    createdBy: input.createdBy,
+  });
+}
+
+/** Give a reservation back (the order was cancelled, reverted or amended down). */
+export async function releaseStock(
+  input: ReservationInput,
+): Promise<MovementResult> {
+  return applyMovement({
+    productId: input.productId,
+    variantId: input.variantId ?? null,
+    type: "release",
+    qtyDelta: 0,
+    reservedDelta: -input.qty,
+    reason: input.reason ?? "sales order released",
+    source: "sales_order",
+    refSalesOrderId: input.refSalesOrderId,
+    createdBy: input.createdBy,
+  });
+}
+
+/** Hand the goods over: the reserved units leave stock for good. */
+export async function deliverReserved(
+  input: ReservationInput,
+): Promise<MovementResult> {
+  return applyMovement({
+    productId: input.productId,
+    variantId: input.variantId ?? null,
+    type: "deliver",
+    qtyDelta: -input.qty,
+    reservedDelta: -input.qty,
+    reason: input.reason ?? "sales order delivered",
+    source: "sales_order",
+    refSalesOrderId: input.refSalesOrderId,
+    createdBy: input.createdBy,
+  });
 }
 
 /**
@@ -276,6 +467,10 @@ export async function adjustStock(input: {
  * "Set to N": reads the unit's balance, applies the difference with an
  * optimistic guard and retries when a sale or another admin moved the stock
  * in between — so the final balance is exactly N, never N ± a lost update.
+ *
+ * N is the ON-HAND figure (what a stock count finds on the shelf). Setting it
+ * below what is already committed to a sales order is refused, because those
+ * units are promised to someone.
  */
 export async function setStock(input: {
   productId: string;
@@ -291,6 +486,15 @@ export async function setStock(input: {
     const product = await loadProductLite(input.productId);
     const current = product ? unitStock(product, variantId) : null;
     if (current == null) throw new UnitNotFoundError(input.productId);
+
+    // Counting fewer units than are already promised to a sales order is a
+    // refusal, not a lost update — say so plainly rather than letting the
+    // optimistic guard fail four times and report a phantom race.
+    const reserved = unitReserved(product!, variantId) ?? 0;
+    if (input.targetQty < reserved) {
+      throw new InsufficientStockError(input.productId);
+    }
+
     const delta = input.targetQty - current;
     if (delta === 0) return { changed: false, stockAfter: current };
     try {

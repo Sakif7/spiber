@@ -138,7 +138,7 @@ export function VariantsEditor({
     <div className="grid gap-4">
       {/* Option definitions */}
       {options.length > 0 && (
-        <div className="divide-border/60 bg-card divide-y rounded-lg shadow-[var(--shadow-sm)]">
+        <div className="divide-border/60 bg-card divide-y rounded-lg border">
           {options.map((o, i) => (
             <div
               key={i}
@@ -213,30 +213,30 @@ export function VariantsEditor({
 
       {/* Variant rows */}
       {variants.length > 0 && (
-        <div className="bg-card overflow-hidden rounded-lg shadow-[var(--shadow-sm)]">
+        <div className="bg-card overflow-hidden rounded-lg border">
           <Table style={{ minWidth: 560 }}>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead className="text-muted-foreground h-9 px-3 text-[13px] font-semibold">
+                <TableHead className="text-muted-foreground h-9 px-3 font-semibold">
                   Variant
                 </TableHead>
-                <TableHead className="text-muted-foreground h-9 px-3 text-[13px] font-semibold">
+                <TableHead className="text-muted-foreground h-9 px-3 font-semibold">
                   SKU
                 </TableHead>
-                <TableHead className="text-muted-foreground h-9 px-3 text-[13px] font-semibold">
+                <TableHead className="text-muted-foreground h-9 px-3 font-semibold">
                   Price (BDT)
                 </TableHead>
-                <TableHead className="text-muted-foreground h-9 px-3 text-[13px] font-semibold">
+                <TableHead className="text-muted-foreground h-9 px-3 font-semibold">
                   Stock
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {variants.map((v, i) => {
-                const label = v.options.map((o) => o.value).join(" · ");
+                const label = v.options.map((o) => o.value).join(" ·");
                 return (
                   <TableRow key={sig(v.options)}>
-                    <TableCell className="px-3 py-2 align-middle text-[13px] font-medium">
+                    <TableCell className="px-3 py-2 align-middle font-medium">
                       {label}
                     </TableCell>
                     <TableCell className="px-3 py-2">

@@ -144,12 +144,14 @@ export async function updateJob(id: string, data: Partial<IJobPosting>) {
   }).exec();
 }
 
-export async function softDeleteJob(id: string) {
+/** Returns false when no such live record exists, so the route can 404. */
+export async function softDeleteJob(id: string): Promise<boolean> {
   await connectToDatabase();
-  await JobPosting.updateOne(
-    { _id: id },
+  const res = await JobPosting.updateOne(
+    { _id: id, deletedAt: null },
     { $set: { deletedAt: new Date(), status: "closed" } },
   ).exec();
+  return res.matchedCount > 0;
 }
 
 // ───────────────────────── Applications ─────────────────────────
@@ -206,12 +208,14 @@ export async function updateApplicationStatus(
   ).exec();
 }
 
-export async function softDeleteApplication(id: string) {
+/** Returns false when no such live record exists, so the route can 404. */
+export async function softDeleteApplication(id: string): Promise<boolean> {
   await connectToDatabase();
-  await JobApplication.updateOne(
-    { _id: id },
+  const res = await JobApplication.updateOne(
+    { _id: id, deletedAt: null },
     { $set: { deletedAt: new Date() } },
   ).exec();
+  return res.matchedCount > 0;
 }
 
 export async function countNewApplications() {

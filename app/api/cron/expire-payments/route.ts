@@ -43,7 +43,17 @@ async function run(req: Request) {
   return ok(result);
 }
 
+/**
+ * GET is for schedulers only, and must present the shared secret.
+ *
+ * The job used to accept a GET authorised by an admin's session cookie, which
+ * meant any page the admin visited could trigger it with an <img> tag — a
+ * cross-site request the cookie's SameSite=Lax does not stop on a top-level
+ * navigation. Admin-initiated runs now go through POST, which the proxy's
+ * same-origin check covers.
+ */
 export async function GET(req: Request) {
+  if (!secretOk(req)) return fail({ code: "forbidden" }, 403);
   return run(req);
 }
 

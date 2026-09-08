@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -23,6 +24,7 @@ import {
 } from "@/components/ui/sheet";
 import { formatApiError } from "@/lib/http/form-error";
 import { cn } from "@/lib/cn";
+import { calloutClass } from "@/components/admin/ui/tone";
 import {
   MANUAL_TYPES,
   unitTitle,
@@ -222,12 +224,10 @@ function BulkForm({
         </div>
 
         {hasSeller && (
-          <label className="flex items-start gap-2 rounded-lg border border-[color-mix(in_srgb,var(--color-warning)_40%,transparent)] bg-[color-mix(in_srgb,var(--color-warning)_10%,transparent)] px-3 py-2.5 text-[13px]">
-            <input
-              type="checkbox"
-              className="mt-0.5 size-4 accent-[var(--color-brand)]"
+          <label className={calloutClass("warning", "flex items-start gap-2")}>
+            <Checkbox
               checked={override}
-              onChange={(e) => setOverride(e.target.checked)}
+              onCheckedChange={(v) => setOverride(v === true)}
             />
             <span>
               Some of these units are seller-managed. Override their balances
@@ -236,17 +236,14 @@ function BulkForm({
           </label>
         )}
 
-        <div className="bg-card divide-border/60 divide-y rounded-lg shadow-[var(--shadow-sm)]">
+        <div className="bg-card divide-border/60 divide-y rounded-lg border">
           {units.map((u) => {
             const raw = (qty[u.key] ?? "").trim();
             const n = raw === "" ? null : Number(raw);
             const bad = n !== null && (!Number.isInteger(n) || u.stock + n < 0);
             const failure = failures.find((f) => f.unit.key === u.key);
             return (
-              <div
-                key={u.key}
-                className="flex items-center gap-3 px-3 py-2 text-[13px]"
-              >
+              <div key={u.key} className="flex items-center gap-3 px-3 py-2">
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{unitTitle(u)}</p>
                   <p className="text-muted-foreground truncate font-mono text-xs">
@@ -290,7 +287,7 @@ function BulkForm({
           })}
         </div>
 
-        {error && <p className="text-destructive text-[13px]">{error}</p>}
+        {error && <p className="text-destructive">{error}</p>}
       </div>
 
       <SheetFooter className="border-t">

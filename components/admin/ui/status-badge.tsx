@@ -1,4 +1,5 @@
 import { cn } from "@/lib/cn";
+import { TONE_DOT, TONE_EDGE, TONE_FILL, TONE_TEXT } from "./tone";
 
 export type Tone =
   | "success"
@@ -7,15 +8,6 @@ export type Tone =
   | "neutral"
   | "danger"
   | "brand";
-
-const TONE_VAR: Record<Tone, string> = {
-  success: "--color-success",
-  warning: "--color-warning",
-  info: "--color-info",
-  danger: "--color-error",
-  brand: "--color-brand",
-  neutral: "--color-text-muted",
-};
 
 /**
  * Map a free-form status string (orders, cases, enrollments, etc.) to a tone.
@@ -97,27 +89,23 @@ export function StatusBadge({
 }) {
   const resolved: Tone =
     tone ?? statusTone(typeof children === "string" ? children : "neutral");
-  const v = `var(${TONE_VAR[resolved]})`;
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap capitalize",
+        "text-admin-xs inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 font-medium whitespace-nowrap capitalize",
+        TONE_TEXT[resolved],
+        TONE_FILL[resolved],
+        TONE_EDGE[resolved],
         className,
       )}
-      style={{
-        color: v,
-        backgroundColor: `color-mix(in srgb, ${v} 12%, transparent)`,
-        borderColor: `color-mix(in srgb, ${v} 28%, transparent)`,
-      }}
     >
       {dot && (
         <span
           aria-hidden
-          className="size-1.5 rounded-full"
-          style={{ backgroundColor: v }}
+          className={cn("size-1.5 rounded-full", TONE_DOT[resolved])}
         />
       )}
-      {typeof children === "string" ? children.replace(/_/g, " ") : children}
+      {typeof children === "string" ? children.replace(/_/g, "") : children}
     </span>
   );
 }

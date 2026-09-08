@@ -11,13 +11,13 @@ import { cn } from "@/lib/cn";
 
 export type SelectOption = { value: string; label: string };
 
-/** Radix cannot hold an empty-string item value, so "no choice" gets a token. */
+/** Radix cannot hold an empty-string item value, so"no choice" gets a token. */
 const NONE = "__none";
 
 /**
  * A shadcn Select with the ergonomics of the native `<select>` the admin forms
  * used to hand-style: an options array, a string value, and an `onChange` that
- * hands back the value. `emptyLabel` adds a leading "none" choice that maps to
+ * hands back the value. `emptyLabel` adds a leading"none" choice that maps to
  * `""`, matching the `<option value="">— none —</option>` idiom it replaces.
  */
 export function SelectField({

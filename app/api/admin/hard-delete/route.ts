@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { ok, fail } from "@/lib/http/respond";
 import { parseJson } from "@/lib/http/validate";
-import { requireAdmin } from "@/lib/auth/guard";
+import { requireSuperAdmin } from "@/lib/auth/guard";
+import { rateLimit, clientIp } from "@/lib/auth/rate-limit";
 import { writeAudit } from "@/lib/repositories/audit.repo";
 import {
   isDeletable,
@@ -14,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 // Browse recent rows of a collection (for the Maintenance UI).
 export async function GET(req: Request) {
-  const admin = await requireAdmin();
+  const admin = await requireSuperAdmin();
   if (!admin) return fail({ code: "forbidden" }, 403);
   const url = new URL(req.url);
   const collection = url.searchParams.get("collection") ?? "";
@@ -34,8 +35,13 @@ const deleteSchema = z.union([
 ]);
 
 export async function POST(req: Request) {
-  const admin = await requireAdmin();
+  // Super-admin only: this is the one endpoint in the app that deletes records
+  // for real (deleteMany across 26 collections), with no soft-delete to undo
+  // it. The rate limit bounds the damage a stolen session can do in one go.
+  const admin = await requireSuperAdmin();
   if (!admin) return fail({ code: "forbidden" }, 403);
+  const rl = rateLimit(`hard-delete:${admin.sub}`, 10, 60_000);
+  if (!rl.ok) return fail({ code: "rate_limited" }, 429);
   const parsed = await parseJson(req, deleteSchema);
   if (!parsed.success) {
     return fail({ code: "invalid_input", details: parsed.issues }, 400);
@@ -55,6 +61,7 @@ export async function POST(req: Request) {
       entityType: data.collection,
       entityId: "ALL",
       after: { deletedCount: res.deletedCount },
+      ip: clientIp(req),
     });
     return ok({ deletedCount: res.deletedCount });
   }
@@ -70,6 +77,7 @@ export async function POST(req: Request) {
     entityType: data.collection,
     entityId: data.id,
     before: res.before,
+    ip: clientIp(req),
   });
   return ok({ deletedCount: res.deletedCount });
 }

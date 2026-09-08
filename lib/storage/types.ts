@@ -38,4 +38,13 @@ export interface Storage {
      */
     publicOnly?: boolean;
   }): Promise<GetObjectResult | null>;
+  /**
+   * Permanently remove an object. Deleting a key that is already gone is a
+   * no-op, so a purge can be retried safely.
+   *
+   * The app soft-deletes records, so this is only for a deliberate permanent
+   * delete (emptying the vault's trash). Without it, blobs of "deleted"
+   * documents would accumulate in storage forever.
+   */
+  delete(input: { key: string; private?: boolean }): Promise<void>;
 }

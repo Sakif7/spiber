@@ -130,7 +130,7 @@ export default async function AdminTestimonialsPage({
       header: "Photo",
       cell: (r) =>
         r.hasPhoto ? (
-          <span className="text-[var(--color-success)]">✓</span>
+          <span className="text-[var(--tone-success-fg)]">✓</span>
         ) : (
           <span className="text-muted-foreground">—</span>
         ),

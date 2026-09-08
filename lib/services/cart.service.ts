@@ -109,7 +109,11 @@ export async function getCartView(
     if (variantId && !variant) continue; // variant gone — drop
     const price = resolvePrice(p, variant);
     if (price == null) continue; // not buyable — drop
-    const stockQty = variant ? variant.stockQty : p.stockQty;
+    // Available, not on-hand: units already committed to a sales order are
+    // not for sale, so the cart must clamp against the smaller figure.
+    const stockQty = variant
+      ? Number(variant.stockQty ?? 0) - Number(variant.reservedQty ?? 0)
+      : Number(p.stockQty ?? 0) - Number(p.reservedQty ?? 0);
     const lineTotalMinor = price * it.qty;
     subtotalMinor += lineTotalMinor;
     count += it.qty;

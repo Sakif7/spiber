@@ -47,6 +47,8 @@ export const smtpMailer: Mailer = {
     await getTransport().sendMail({
       from,
       to: mail.to,
+      cc: mail.cc,
+      replyTo: mail.replyTo,
       subject: mail.subject,
       text: mail.text,
       html: mail.html,

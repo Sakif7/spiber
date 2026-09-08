@@ -124,7 +124,7 @@ export async function searchCatalog(
 
   for (const p of r.marketplace.items) {
     const base = p.priceMinor;
-    const inStock = (p.stockQty ?? 0) > 0;
+    const inStock = (p.stockQty ?? 0) - (p.reservedQty ?? 0) > 0;
     cards.push({
       kind: "product",
       title: localize(p.name, locale),

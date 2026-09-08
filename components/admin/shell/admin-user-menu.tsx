@@ -44,7 +44,7 @@ export function AdminUserMenu({
           aria-label="Account menu"
         >
           <Avatar className="size-8">
-            <AvatarFallback className="bg-primary/12 text-primary text-xs font-semibold">
+            <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
               {initial}
             </AvatarFallback>
           </Avatar>

@@ -31,9 +31,7 @@ export function SectionCard({
         <div className="border-border/60 flex items-center justify-between gap-3 border-b px-4 py-2.5">
           <div className="min-w-0 space-y-0.5">
             {title && (
-              <h2 className="text-foreground text-[13px] font-semibold">
-                {title}
-              </h2>
+              <h2 className="text-foreground font-semibold">{title}</h2>
             )}
             {description && (
               <p className="text-muted-foreground text-xs">{description}</p>

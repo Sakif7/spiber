@@ -24,7 +24,7 @@ export type BrandRow = {
  * name/slug/logo. The up/down arrows re-number the whole list 0..n-1 (so the
  * order sticks even when every row started at position 0), which drives brand
  * order everywhere: filters, dropdowns, the storefront brand strip, and the
- * "By brand" nav cascade.
+ *"By brand" nav cascade.
  */
 export function BrandList({ brands }: { brands: BrandRow[] }) {
   const router = useRouter();
@@ -54,7 +54,7 @@ export function BrandList({ brands }: { brands: BrandRow[] }) {
   }
 
   async function remove(b: BrandRow) {
-    if (!window.confirm(`Delete brand "${b.nameEn}"?`)) return;
+    if (!window.confirm(`Delete brand"${b.nameEn}"?`)) return;
     setBusy(b.id);
     try {
       const res = await fetch(`/api/admin/brands/${b.id}`, {
@@ -70,9 +70,7 @@ export function BrandList({ brands }: { brands: BrandRow[] }) {
 
   if (brands.length === 0) {
     return (
-      <p className="text-muted-foreground p-6 text-center text-[13px]">
-        No brands yet.
-      </p>
+      <p className="text-muted-foreground p-6 text-center">No brands yet.</p>
     );
   }
 
@@ -117,15 +115,10 @@ export function BrandList({ brands }: { brands: BrandRow[] }) {
                     style={{ objectFit: "contain" }}
                   />
                 ) : (
-                  <span
-                    className="text-[13px] font-bold text-[var(--color-brand-deep)]"
-                    style={{ fontFamily: "var(--font-display)" }}
-                  >
-                    {monogram}
-                  </span>
+                  <span className="text-primary font-bold">{monogram}</span>
                 )}
               </span>
-              <span className="text-foreground min-w-0 flex-1 text-[13px]">
+              <span className="text-foreground min-w-0 flex-1">
                 {b.nameEn}
                 {b.nameBn && (
                   <span className="text-muted-foreground"> · {b.nameBn}</span>

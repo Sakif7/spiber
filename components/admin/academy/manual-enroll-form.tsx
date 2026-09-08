@@ -44,7 +44,7 @@ export function ManualEnrollForm({
   }
 
   return (
-    <section className="bg-card flex flex-wrap items-end gap-3 rounded-lg p-5 shadow-[var(--shadow-sm)]">
+    <section className="bg-card flex flex-wrap items-end gap-3 rounded-lg border p-5">
       <div className="grid gap-1.5">
         <Label htmlFor="manual-course">Course</Label>
         <Select value={courseId} onValueChange={setCourseId}>

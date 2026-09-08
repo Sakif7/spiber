@@ -115,7 +115,7 @@ export function ShippingForm({
 
       {error && <p className="text-destructive m-0 text-sm">{error}</p>}
       {saved && !error && (
-        <p className="m-0 text-sm text-[color:var(--color-success)]">
+        <p className="m-0 text-sm text-[var(--tone-success-fg)]">
           Settings saved.
         </p>
       )}

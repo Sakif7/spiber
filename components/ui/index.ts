@@ -8,7 +8,7 @@
  * their files in admin/form code, not re-exported here.
  */
 export { Arrow } from "./arrow";
-export { Breadcrumb, type Crumb } from "./breadcrumb";
+export { Breadcrumb, type Crumb } from "./site-breadcrumb";
 export { CardGrid } from "./card-grid";
 export { CatalogCard } from "./catalog-card";
 export { ComingSoon } from "./coming-soon";

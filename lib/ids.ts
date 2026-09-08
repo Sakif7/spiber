@@ -57,3 +57,16 @@ export const chatConversationRef = (): string => makeId("SPM-CHAT");
 export const chatLeadNumber = (): string => makeId("SPM-LEAD");
 /** SPM-CRD-… — a Medtrade credit-facility application reference. */
 export const creditApplicationNumber = (): string => makeId("SPM-CRD");
+
+/** SPM-SL-… — a sales lead (an organisation the sales team sells to). */
+export const salesLeadNumber = (): string => makeId("SPM-SL");
+/** SPM-SO-… — an offline sales order. */
+export const salesOrderNumber = (): string => makeId("SPM-SO");
+/** SPM-EMP-… — an employee record. */
+export const employeeCode = (): string => makeId("SPM-EMP");
+
+/** A director's trip out. */
+export const visitRef = (): string => makeId("SPM-VIS");
+
+/** A cost incurred on company business, owed back to whoever paid. */
+export const expenseRef = (): string => makeId("SPM-EXP");

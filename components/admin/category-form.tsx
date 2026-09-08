@@ -148,7 +148,7 @@ export function DeleteCategoryButton({
 
   async function remove() {
     if (busy) return;
-    if (!window.confirm(`Delete category "${name}"?`)) return;
+    if (!window.confirm(`Delete category"${name}"?`)) return;
     setBusy(true);
     try {
       const res = await fetch(`/api/admin/categories/${id}`, {

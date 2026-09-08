@@ -15,7 +15,7 @@ import { useListParams } from "./use-list-params";
 import { pageWindow } from "@/lib/admin/page-window";
 
 /**
- * List-kit pagination footer: "Showing x–y of N", a page-size select, and a
+ * List-kit pagination footer:"Showing x–y of N", a page-size select, and a
  * windowed page navigator. Page changes push a history entry (back returns to
  * the previous page) and scroll to the top; the page size resets to page 1.
  */
@@ -33,7 +33,7 @@ export function Pagination({
   total: number;
   pageSize: number;
   pageSizes?: readonly number[];
-  /** Plural noun for the caption, e.g. "orders". */
+  /** Plural noun for the caption, e.g."orders". */
   noun?: string;
   className?: string;
 }) {

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/tooltip";
 import {
   NAV_BY_ID,
-  NAV_SECTIONS,
+  navGroupsFor,
   activeItemFor,
   type AdminSection,
   type NavGroup,
@@ -25,7 +25,7 @@ import { useAdminPrefs } from "./admin-prefs";
  * drawer. From top to bottom: the admin's pinned Favourites, their Recent
  * pages, the section's labelled groups (accordions — the group holding the
  * current page opens automatically, explicit open/close choices persist per
- * browser in localStorage), and rarely used groups behind a "More" disclosure.
+ * browser in localStorage), and rarely used groups behind a"More" disclosure.
  * When `collapsed`, items render icon-only with a tooltip label; accordions
  * are meaningless at that width, so every item shows.
  */
@@ -74,10 +74,13 @@ export function SidebarNav({
   section = "operations",
   collapsed = false,
   onNavigate,
+  isSuperAdmin = false,
 }: {
   section?: AdminSection;
   collapsed?: boolean;
   onNavigate?: () => void;
+  /** Plain admins never see super-admin-only entries (also enforced server-side). */
+  isSuperAdmin?: boolean;
 }) {
   const pathname = usePathname();
   const overridesRaw = useSyncExternalStore(
@@ -87,10 +90,10 @@ export function SidebarNav({
   );
   const overrides = parseOverrides(overridesRaw);
   const { prefs } = useAdminPrefs();
-  const groups = NAV_SECTIONS[section].groups;
+  const groups = navGroupsFor(section, isSuperAdmin);
   const active = activeItemFor(pathname);
 
-  // Navigating INTO a group re-opens it (and "More", when the group lives
+  // Navigating INTO a group re-opens it (and"More", when the group lives
   // there) even if the admin collapsed it earlier, so the current page is
   // never hidden inside a closed group. An explicit collapse still holds while
   // they stay on pages of that group. (Writes only to localStorage + the
@@ -215,7 +218,10 @@ export function SidebarNav({
           onNavigate={onNavigate}
         />
       )}
-      {recents.length > 0 && (
+      {/* The Company section is a small, deliberate workspace — recently
+          visited pages are noise there, so the shortcut list is Operations-only.
+          Visits are still recorded, so switching back restores the list. */}
+      {section !== "company" && recents.length > 0 && (
         <Shortcuts
           label="Recent"
           icon={Clock}
@@ -349,7 +355,7 @@ function NavLink({
       tabIndex={tabbable ? undefined : -1}
       title={shortcut ? item.title : undefined}
       className={cn(
-        "group relative flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors duration-150",
+        "group relative flex items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors duration-150",
         collapsed ? "justify-center px-0" : star && "pr-7",
         active
           ? "text-sidebar-accent-foreground font-medium"

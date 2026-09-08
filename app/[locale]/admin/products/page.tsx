@@ -60,7 +60,7 @@ export default async function AdminProductsPage({
       priceLabel:
         p.priceMinor != null ? formatBDT(p.priceMinor, "en") : "On request",
       stock: p.stockQty,
-      // Quotation-only products carry no stock, so they are never "low".
+      // Quotation-only products carry no stock, so they are never"low".
       lowStock: p.priceMinor != null && p.stockQty <= p.lowStockThreshold,
       status: p.status,
       featured: false,

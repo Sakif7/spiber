@@ -58,7 +58,7 @@ export type RowAction = {
 };
 
 /**
- * The "⋯" per-row menu for list tables: keeps rows quiet (one icon button)
+ * The"⋯" per-row menu for list tables: keeps rows quiet (one icon button)
  * while still exposing View / Edit / Delete and any entity-specific action.
  */
 export function RowActions({

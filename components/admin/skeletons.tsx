@@ -37,7 +37,7 @@ export function Skeleton({
 }
 
 /** The shared card shell: borderless, elevated, clipped (matches the real pages). */
-const card = "bg-card overflow-hidden rounded-lg shadow-[var(--shadow-sm)]";
+const card = "bg-card overflow-hidden rounded-lg border";
 
 /** Title (+ optional action button) row, matching the admin page headers. */
 function HeaderRow({ action = true }: { action?: boolean }) {
@@ -136,10 +136,7 @@ export function AdminDashboardSkeleton() {
       </div>
       <div className="grid items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-5">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div
-            key={i}
-            className="bg-card grid gap-3 rounded-lg p-5 shadow-[var(--shadow-sm)]"
-          >
+          <div key={i} className="bg-card grid gap-3 rounded-lg border p-5">
             <Skeleton width={36} height={36} radius="var(--r-md)" />
             <Skeleton width={88} height={11} />
             <Skeleton width={120} height={28} radius="var(--r-sm)" />

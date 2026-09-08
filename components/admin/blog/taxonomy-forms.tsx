@@ -97,7 +97,7 @@ export function TaxonomyDeleteButton({
   const [busy, setBusy] = useState(false);
   async function remove() {
     if (busy) return;
-    if (!window.confirm(`Delete "${name}"?`)) return;
+    if (!window.confirm(`Delete"${name}"?`)) return;
     setBusy(true);
     const res = await fetch(`/api/admin/blog/${kind}/${id}`, {
       method: "DELETE",

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -25,6 +26,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/admin/ui/status-badge";
 import { formatApiError } from "@/lib/http/form-error";
 import { cn } from "@/lib/cn";
+import { calloutClass } from "@/components/admin/ui/tone";
 import {
   LEVEL_LABEL,
   MANUAL_TYPES,
@@ -169,14 +171,14 @@ function DrawerForm({
       <div className="flex-1 space-y-5 overflow-y-auto px-4 py-4">
         <div className="bg-muted/50 flex items-center justify-between rounded-lg px-3 py-2.5">
           <div>
-            <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+            <p className="text-muted-foreground text-admin-2xs font-medium tracking-wide uppercase">
               On hand
             </p>
             <p
               className={cn(
                 "font-mono text-2xl font-bold tabular-nums",
                 unit.level === "out" && "text-destructive",
-                unit.level === "low" && "text-[var(--color-warning)]",
+                unit.level === "low" && "text-[var(--tone-warning-fg)]",
               )}
             >
               {unit.stock}
@@ -205,18 +207,16 @@ function DrawerForm({
         </div>
 
         {unit.seller && (
-          <div className="rounded-lg border border-[color-mix(in_srgb,var(--color-warning)_40%,transparent)] bg-[color-mix(in_srgb,var(--color-warning)_10%,transparent)] px-3 py-2.5 text-[13px]">
+          <div className={calloutClass("warning")}>
             <p className="font-medium">Seller-managed listing</p>
             <p className="text-muted-foreground mt-0.5">
               {unit.seller.name} manages this stock in the seller portal.
               Changing it here overrides their balance and emails them.
             </p>
-            <label className="mt-2 flex items-center gap-2 text-[13px]">
-              <input
-                type="checkbox"
-                className="size-4 accent-[var(--color-brand)]"
+            <label className="mt-2 flex items-center gap-2">
+              <Checkbox
                 checked={override}
-                onChange={(e) => setOverride(e.target.checked)}
+                onCheckedChange={(v) => setOverride(v === true)}
               />
               Override and notify the seller
             </label>
@@ -224,7 +224,7 @@ function DrawerForm({
         )}
 
         {!unit.tracked && (
-          <p className="text-muted-foreground text-[13px]">
+          <p className="text-muted-foreground">
             This unit is not tracked (quotation-only), so it never raises
             low-stock alerts. Changes are still recorded in the ledger.
           </p>
@@ -308,7 +308,7 @@ function DrawerForm({
           </div>
         </div>
 
-        {error && <p className="text-destructive text-[13px]">{error}</p>}
+        {error && <p className="text-destructive">{error}</p>}
       </div>
 
       <SheetFooter className="border-t">

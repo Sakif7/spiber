@@ -129,7 +129,7 @@ export function ProductForm({
         : undefined,
       categoryId,
       brandId: brandId || undefined,
-      // Optional — blank means "Price on request".
+      // Optional — blank means"Price on request".
       priceMinor: price.trim() ? toMinor(Number(price) || 0) : null,
       // Optional negotiation floor. Blank clears it (null), so Medtrade falls
       // back to a single price instead of a range.

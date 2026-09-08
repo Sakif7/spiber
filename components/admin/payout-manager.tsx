@@ -68,7 +68,7 @@ export function PayoutManager({
           Available to pay out
         </h2>
         {available.length === 0 ? (
-          <div className="bg-card overflow-hidden rounded-xl shadow-[var(--shadow-sm)]">
+          <div className="bg-card overflow-hidden rounded-xl border">
             <EmptyState title="No accrued earnings ready to pay out." />
           </div>
         ) : (
@@ -76,7 +76,7 @@ export function PayoutManager({
             {available.map((a) => (
               <div
                 key={a.sellerId}
-                className="bg-card flex flex-wrap items-center justify-between gap-3 rounded-xl p-4 shadow-[var(--shadow-sm)]"
+                className="bg-card flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4"
               >
                 <div className="min-w-0">
                   <div className="text-foreground font-medium">
@@ -114,7 +114,7 @@ export function PayoutManager({
           Payout history
         </h2>
         {payouts.length === 0 ? (
-          <div className="bg-card overflow-hidden rounded-xl shadow-[var(--shadow-sm)]">
+          <div className="bg-card overflow-hidden rounded-xl border">
             <EmptyState title="No payouts yet." />
           </div>
         ) : (
@@ -122,7 +122,7 @@ export function PayoutManager({
             {payouts.map((p) => (
               <div
                 key={p.id}
-                className="bg-card flex flex-wrap items-center justify-between gap-3 rounded-xl p-4 shadow-[var(--shadow-sm)]"
+                className="bg-card flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4"
               >
                 <div className="min-w-0">
                   <div className="text-primary font-mono text-xs font-medium">

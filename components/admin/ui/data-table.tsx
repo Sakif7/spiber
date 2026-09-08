@@ -28,17 +28,17 @@ export type Column<T> = {
    * and pass the resolved sort to the table via `sort`.
    */
   sortKey?: string;
-  /** Direction used when the column is first clicked (default "desc"). */
+  /** Direction used when the column is first clicked (default"desc"). */
   sortDir?: SortDir;
   /**
    * Placement of this column in the MOBILE card layout (below `md`):
-   * - "primary" — the card's title line (rendered prominently, no label)
-   * - "meta"    — a labelled `header → value` row (default)
-   * - "actions" — moved to the card's footer action row
-   * - "hidden"  — omitted from the card
+   * -"primary" — the card's title line (rendered prominently, no label)
+   * -"meta"    — a labelled `header → value` row (default)
+   * -"actions" — moved to the card's footer action row
+   * -"hidden"  — omitted from the card
    * If NO column on the table sets `mobile`, a sensible default is inferred:
-   * the first column becomes "primary", right-aligned columns become
-   * "actions", and the rest are "meta".
+   * the first column becomes"primary", right-aligned columns become
+   *"actions", and the rest are"meta".
    */
   mobile?: "primary" | "meta" | "actions" | "hidden";
 };
@@ -81,7 +81,7 @@ export function DataTable<T>({
   empty: string;
   emptyIcon?: LucideIcon;
   emptyDescription?: string;
-  /** e.g. a "New X" button — tells the admin how rows get created. */
+  /** e.g. a"New X" button — tells the admin how rows get created. */
   emptyAction?: React.ReactNode;
   minWidth?: number;
   className?: string;
@@ -89,10 +89,7 @@ export function DataTable<T>({
   if (rows.length === 0) {
     return (
       <div
-        className={cn(
-          "bg-card overflow-hidden rounded-lg shadow-[var(--shadow-sm)]",
-          className,
-        )}
+        className={cn("bg-card overflow-hidden rounded-md border", className)}
       >
         <EmptyState
           icon={emptyIcon}
@@ -144,7 +141,7 @@ export function DataTable<T>({
             <div
               key={getRowKey(row, i)}
               className={cn(
-                "bg-card flex flex-col gap-3 rounded-lg p-4 shadow-[var(--shadow-sm)]",
+                "bg-card flex flex-col gap-3 rounded-md border p-3",
                 rowClassName?.(row, i),
               )}
             >
@@ -194,7 +191,7 @@ export function DataTable<T>({
       {/* md+ : the data table (its container scrolls if columns are wide). */}
       <div
         className={cn(
-          "bg-card hidden overflow-hidden rounded-lg shadow-[var(--shadow-sm)] md:block",
+          "bg-card hidden overflow-hidden rounded-md border md:block",
           className,
         )}
       >
@@ -211,11 +208,7 @@ export function DataTable<T>({
                         : "descending"
                       : undefined
                   }
-                  className={cn(
-                    "text-muted-foreground h-9 px-3 text-[13px] font-semibold",
-                    alignClass[c.align ?? "left"],
-                    c.headClassName,
-                  )}
+                  className={cn(alignClass[c.align ?? "left"], c.headClassName)}
                 >
                   {headerContent(c)}
                 </TableHead>
@@ -231,11 +224,7 @@ export function DataTable<T>({
                 {columns.map((c) => (
                   <TableCell
                     key={c.key}
-                    className={cn(
-                      "px-3 py-2 align-middle text-[13px]",
-                      alignClass[c.align ?? "left"],
-                      c.className,
-                    )}
+                    className={cn(alignClass[c.align ?? "left"], c.className)}
                   >
                     {c.cell(row, i)}
                   </TableCell>

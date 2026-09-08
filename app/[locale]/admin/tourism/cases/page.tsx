@@ -167,7 +167,7 @@ export default async function AdminCasesPage({
             kind: "pills",
             options: STATUSES.map((s) => ({
               value: s,
-              label: s.replace(/_/g, " "),
+              label: s.replace(/_/g, ""),
             })),
           },
         ]}

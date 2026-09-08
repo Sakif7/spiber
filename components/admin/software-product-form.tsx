@@ -295,7 +295,7 @@ export function SoftwareProductForm({
             hint="Stored privately and served through the gated download route — never a public URL."
           >
             {assetKey ? (
-              <div className="flex flex-wrap items-center gap-3 text-[13px]">
+              <div className="flex flex-wrap items-center gap-3">
                 <span className="text-muted-foreground">
                   Uploaded:{" "}
                   <strong className="text-foreground">
@@ -378,7 +378,7 @@ export function SoftwareProductForm({
         description="Bullet points listed on the product page. English is required for a bullet to be saved."
       >
         {features.length > 0 && (
-          <div className="divide-border/60 bg-card divide-y rounded-lg shadow-[var(--shadow-sm)]">
+          <div className="divide-border/60 bg-card divide-y rounded-lg border">
             {features.map((f, i) => (
               <div key={i} className="flex items-end gap-3 px-3 py-3">
                 <LocalizedInput
@@ -442,7 +442,7 @@ export function SoftwareDeleteButton({
   const [busy, setBusy] = useState(false);
   async function remove() {
     if (busy) return;
-    if (!window.confirm(`Delete "${name}"?`)) return;
+    if (!window.confirm(`Delete"${name}"?`)) return;
     setBusy(true);
     const res = await fetch(`/api/admin/software-products/${id}`, {
       method: "DELETE",

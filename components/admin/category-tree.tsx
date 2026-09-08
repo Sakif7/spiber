@@ -89,7 +89,7 @@ export function CategoryTree({
   async function remove(node: TreeNode) {
     if (
       !window.confirm(
-        `Delete "${node.nameEn}"${node.children.length ? " and its subcategories?" : "?"}`,
+        `Delete"${node.nameEn}"${node.children.length ? " and its subcategories?" : "?"}`,
       )
     )
       return;
@@ -119,7 +119,7 @@ export function CategoryTree({
         >
           <span
             className={cn(
-              "text-foreground min-w-0 flex-1 text-[13px]",
+              "text-foreground min-w-0 flex-1",
               depth === 0 ? "font-semibold" : "font-normal",
             )}
           >
@@ -177,11 +177,7 @@ export function CategoryTree({
   }
 
   if (nodes.length === 0) {
-    return (
-      <p className="text-muted-foreground p-6 text-[13px]">
-        No categories yet.
-      </p>
-    );
+    return <p className="text-muted-foreground p-6">No categories yet.</p>;
   }
 
   return <div>{renderLevel(nodes, 0)}</div>;

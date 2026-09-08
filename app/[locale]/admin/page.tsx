@@ -32,7 +32,7 @@ import { DistributionList } from "@/components/admin/dashboard/distribution-list
 export const dynamic = "force-dynamic";
 
 // Full case funnel order — rendered even when a stage has zero cases, so the
-// "Tourism pipeline" panel always reads as a funnel rather than a sparse chart.
+//"Tourism pipeline" panel always reads as a funnel rather than a sparse chart.
 const CASE_FUNNEL = [
   "new",
   "reviewing",
@@ -49,6 +49,9 @@ const EMPTY: DashboardData = {
   kpis: {
     revenueMinor: 0,
     revenuePrevMinor: 0,
+    revenueOnlineMinor: 0,
+    revenueManualMinor: 0,
+    manualOrders: 0,
     orders: 0,
     ordersPrev: 0,
     enrollments: 0,
@@ -119,7 +122,7 @@ export default async function AdminDashboard({
     data.casesByStatus.map((c) => [c.status, c.count]),
   );
   const caseFunnel = CASE_FUNNEL.map((s) => ({
-    label: s.replace(/_/g, " "),
+    label: s.replace(/_/g, ""),
     count: caseCounts.get(s) ?? 0,
   }));
 
@@ -174,7 +177,12 @@ export default async function AdminDashboard({
             icon: Banknote,
             tone: "brand" as const,
             trend: trendOf(kpis.revenueMinor, kpis.revenuePrevMinor),
-            hint: "Paid orders, last 30 days",
+            // Say where the money came from: the sales team's offline orders
+            // are counted here too, and that is not obvious from one figure.
+            hint:
+              kpis.manualOrders > 0
+                ? `Incl. ${formatBDT(kpis.revenueManualMinor, "en")} from ${kpis.manualOrders} sales order${kpis.manualOrders === 1 ? "" : "s"}`
+                : "Paid orders, last 30 days",
             href: "/admin/orders?status=paid",
           },
           {
@@ -253,7 +261,7 @@ export default async function AdminDashboard({
                       a.count === 0 && "text-muted-foreground",
                     )}
                   >
-                    <span className="text-[13px]">{a.label}</span>
+                    <span className="">{a.label}</span>
                     <span className="flex shrink-0 items-center gap-1.5">
                       {a.count > 0 ? (
                         <StatusBadge tone="warning" dot={false}>
@@ -340,7 +348,7 @@ export default async function AdminDashboard({
                         </span>
                       </span>
                       <span className="flex shrink-0 items-center gap-2">
-                        <span className="text-foreground text-[13px] font-medium tabular-nums">
+                        <span className="text-foreground font-medium tabular-nums">
                           {formatBDT(o.totalMinor, "en")}
                         </span>
                         <StatusBadge dot={false}>{o.status}</StatusBadge>
@@ -376,7 +384,7 @@ export default async function AdminDashboard({
                       className={listLink}
                     >
                       <span className="min-w-0">
-                        <span className="text-foreground block truncate text-[13px]">
+                        <span className="text-foreground block truncate">
                           {c.patient}
                         </span>
                         <span className="text-muted-foreground block truncate text-xs">
@@ -438,14 +446,14 @@ export default async function AdminDashboard({
                       className={listLink}
                     >
                       <span className="min-w-0">
-                        <span className="text-foreground block truncate text-[13px]">
+                        <span className="text-foreground block truncate">
                           {p.name}
                         </span>
                         <span className="text-muted-foreground block truncate font-mono text-xs">
                           {p.sku} · {STORE_LABEL[p.storefront] ?? p.storefront}
                         </span>
                       </span>
-                      <span className="flex shrink-0 items-center gap-2 text-[13px] tabular-nums">
+                      <span className="flex shrink-0 items-center gap-2 tabular-nums">
                         <span
                           className={cn(
                             "font-mono font-semibold",

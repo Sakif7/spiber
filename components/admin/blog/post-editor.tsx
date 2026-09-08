@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RichTextEditor } from "./rich-text-editor";
 import { formatApiError } from "@/lib/http/form-error";
-import { cn } from "@/lib/cn";
 import type { BlogStatus } from "@/lib/schemas/blog";
 import { LocalizedInput, type LocalizedValue } from "../ui/localized-input";
 import { SelectField } from "../ui/select-field";
@@ -18,6 +17,7 @@ import {
   SaveBar,
 } from "../ui/form-shell";
 import { SingleImageField } from "../upload-fields";
+import { Segmented, TogglePill } from "@/components/admin/ui/segmented";
 
 type L = { en: string; bn: string; ja: string };
 type Opt = { id: string; name: string };
@@ -240,37 +240,16 @@ export function PostEditor({
         title="Body"
         description="English is required; the translations are optional and fall back to English."
         action={
-          <div
-            role="group"
-            aria-label="Body language"
-            className="bg-muted inline-flex items-center gap-0.5 rounded-md p-0.5"
-          >
-            {BODY_TABS.map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                aria-pressed={bodyTab === t.key}
-                onClick={() => setBodyTab(t.key)}
-                className={cn(
-                  "flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium transition-colors",
-                  bodyTab === t.key
-                    ? "bg-card text-foreground shadow-[var(--shadow-sm)]"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {t.label}
-                <span
-                  aria-hidden
-                  className={cn(
-                    "size-1 rounded-full",
-                    bodyFilled[t.key]
-                      ? "bg-[var(--color-success)]"
-                      : "bg-transparent",
-                  )}
-                />
-              </button>
-            ))}
-          </div>
+          <Segmented
+            value={bodyTab}
+            onChange={setBodyTab}
+            label="Body language"
+            options={BODY_TABS.map((t) => ({
+              value: t.key,
+              label: t.label,
+              dot: bodyFilled[t.key],
+            }))}
+          />
         }
       >
         {/* All three stay mounted so switching a tab never resets the editor. */}
@@ -290,7 +269,7 @@ export function PostEditor({
         description="Tags drive the related-posts rail and the tag archive pages."
       >
         {tags.length === 0 ? (
-          <p className="text-muted-foreground text-[13px]">
+          <p className="text-muted-foreground">
             No tags yet — add some under Blog → Taxonomy.
           </p>
         ) : (
@@ -298,24 +277,17 @@ export function PostEditor({
             {tags.map((tg) => {
               const on = tagIds.includes(tg.id);
               return (
-                <button
+                <TogglePill
                   key={tg.id}
-                  type="button"
-                  aria-pressed={on}
+                  active={on}
                   onClick={() =>
                     setTagIds((ids) =>
                       on ? ids.filter((x) => x !== tg.id) : [...ids, tg.id],
                     )
                   }
-                  className={cn(
-                    "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-                    on
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground",
-                  )}
                 >
                   {tg.name}
-                </button>
+                </TogglePill>
               );
             })}
           </div>
@@ -384,7 +356,7 @@ export function PostDeleteButton({ id, title }: { id: string; title: string }) {
   const [busy, setBusy] = useState(false);
   async function remove() {
     if (busy) return;
-    if (!window.confirm(`Delete "${title}"?`)) return;
+    if (!window.confirm(`Delete"${title}"?`)) return;
     setBusy(true);
     const res = await fetch(`/api/admin/blog/posts/${id}`, {
       method: "DELETE",

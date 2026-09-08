@@ -87,7 +87,7 @@ export default async function AdminQuotationDetailPage({
                 {localize(it.productSnapshot.name, asLocale(locale))}
                 {it.productSnapshot.variantOptions &&
                 it.productSnapshot.variantOptions.length > 0
-                  ? ` (${it.productSnapshot.variantOptions.map((o) => o.value).join(" · ")})`
+                  ? ` (${it.productSnapshot.variantOptions.map((o) => o.value).join(" ·")})`
                   : ""}
                 <span className="text-muted-foreground ml-2 font-mono text-xs">
                   {it.productSnapshot.sku}

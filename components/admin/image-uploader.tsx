@@ -72,7 +72,7 @@ export function ImageUploader({
         busy={busy}
         label={value.length > 0 ? "Add image" : "Upload image"}
       />
-      {error && <p className="text-destructive text-[13px]">{error}</p>}
+      {error && <p className="text-destructive">{error}</p>}
     </div>
   );
 }

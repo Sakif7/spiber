@@ -34,7 +34,7 @@ export function StatusDonut({
   const total = data.reduce((s, d) => s + d.count, 0);
   const slices = data.map((d) => ({
     ...d,
-    label: d.status.replace(/_/g, " "),
+    label: d.status.replace(/_/g, ""),
     fill: TONE_VAR[statusTone(d.status)],
   }));
 

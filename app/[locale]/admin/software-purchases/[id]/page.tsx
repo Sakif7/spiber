@@ -87,7 +87,7 @@ export default async function AdminPurchaseDetailPage({
 
         <DetailCard title="Timeline">
           {p.timeline.map((tl, i) => (
-            <div key={i} className="flex justify-between gap-4 text-[13px]">
+            <div key={i} className="flex justify-between gap-4">
               <span className="text-foreground">{tl.status}</span>
               <span className="text-muted-foreground min-w-0 text-right">
                 {new Date(tl.at).toLocaleString()}

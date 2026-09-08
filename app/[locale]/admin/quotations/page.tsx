@@ -165,7 +165,7 @@ export default async function AdminQuotationsPage({
           // eslint-disable-next-line @next/next/no-html-link-for-pages -- API CSV download, not a page route
           <a
             href="/api/admin/quotations/export"
-            className="text-primary text-[13px] font-medium hover:underline"
+            className="text-primary font-medium hover:underline"
           >
             Export CSV
           </a>

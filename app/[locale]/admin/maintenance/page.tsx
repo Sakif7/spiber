@@ -1,4 +1,6 @@
 import { setRequestLocale } from "next-intl/server";
+import { getSessionUser } from "@/lib/auth/current-user";
+import { isSuperAdmin } from "@/lib/auth/rbac";
 import { TriangleAlert } from "lucide-react";
 import { MaintenancePanel } from "@/components/admin/maintenance-panel";
 import { MaintenanceTabs } from "@/components/admin/maintenance-tabs";
@@ -17,25 +19,26 @@ export default async function AdminMaintenancePage({
   const { locale } = await params;
   setRequestLocale(locale);
 
+  // Permanent deletion is super-admin only (the API enforces it too). A plain
+  // admin gets the guide alone rather than a tab that would 403 on every click.
+  const canCleanUp = isSuperAdmin(await getSessionUser());
+
   let collections: Awaited<ReturnType<typeof countDeletable>> = [];
-  try {
-    collections = await countDeletable();
-  } catch {
-    collections = [];
+  if (canCleanUp) {
+    try {
+      collections = await countDeletable();
+    } catch {
+      collections = [];
+    }
   }
 
   const guide = (
     <div className="grid gap-4">
       <div>
-        <h2
-          className="text-foreground text-lg font-bold tracking-tight"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
+        <h2 className="text-foreground text-lg font-bold tracking-tight">
           {ADMIN_GUIDE.title}
         </h2>
-        <p className="text-muted-foreground mt-1 text-[13px]">
-          {ADMIN_GUIDE.lede}
-        </p>
+        <p className="text-muted-foreground mt-1">{ADMIN_GUIDE.lede}</p>
         {ADMIN_GUIDE.updated && (
           <p className="text-muted-foreground mt-1 text-xs">
             {ADMIN_GUIDE.updated}
@@ -46,14 +49,14 @@ export default async function AdminMaintenancePage({
     </div>
   );
 
-  const cleanup = (
+  const cleanup = !canCleanUp ? null : (
     <div className="grid gap-4">
       <div className="border-destructive/50 bg-destructive/5 flex items-start gap-3 rounded-lg border p-4">
         <TriangleAlert
           aria-hidden
           className="text-destructive mt-0.5 size-4 shrink-0"
         />
-        <div className="text-foreground text-[13px]">
+        <div className="text-foreground">
           <strong className="font-medium">Danger zone.</strong> Everywhere else
           the app uses recoverable soft-delete. Deletes here are{" "}
           <strong className="text-destructive">irreversible</strong> and are not

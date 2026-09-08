@@ -70,7 +70,7 @@ export default async function AdminReviewsPage({
           <p className="text-foreground text-sm font-medium">
             No {active} reviews.
           </p>
-          <p className="text-muted-foreground text-[13px]">
+          <p className="text-muted-foreground">
             {active === "pending"
               ? "New customer reviews wait here until you approve or reject them."
               : "Switch the status filter to see other reviews."}
@@ -87,7 +87,7 @@ export default async function AdminReviewsPage({
                     {r.authorName}
                   </span>
                   {r.verifiedPurchase && (
-                    <span className="text-xs font-semibold text-[var(--color-success)]">
+                    <span className="text-admin-xs font-semibold text-[var(--tone-success-fg)]">
                       ✓ Verified purchase
                     </span>
                   )}
@@ -103,9 +103,7 @@ export default async function AdminReviewsPage({
                     {r.title}
                   </p>
                 )}
-                <p className="text-foreground text-[13px] whitespace-pre-line">
-                  {r.body}
-                </p>
+                <p className="text-foreground whitespace-pre-line">{r.body}</p>
                 {active === "pending" && (
                   <div className="pt-1">
                     <ReviewModeration reviewId={String(r._id)} />

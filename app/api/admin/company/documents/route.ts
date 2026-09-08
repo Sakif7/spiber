@@ -1,12 +1,13 @@
 import { randomBytes } from "crypto";
 import { requireSuperAdmin } from "@/lib/auth/guard";
 import { getSessionUser } from "@/lib/auth/current-user";
-import { rateLimit } from "@/lib/auth/rate-limit";
+import { rateLimit, clientIp } from "@/lib/auth/rate-limit";
 import { ok, fail } from "@/lib/http/respond";
 import { getStorage } from "@/lib/storage";
 import { getVaultKey, encryptVaultBlob } from "@/lib/crypto/vault";
 import { createCompanyDocument } from "@/lib/repositories/company-documents.repo";
 import { writeAudit } from "@/lib/repositories/audit.repo";
+import { mimeMatchesBytes, extensionMatches } from "@/lib/uploads/sniff";
 
 export const dynamic = "force-dynamic";
 
@@ -74,8 +75,21 @@ export async function POST(req: Request) {
     .slice(0, 80);
 
   const plain = Buffer.from(await file.arrayBuffer());
+  // The allowlist above tests the CLIENT-DECLARED type. Confirm the bytes agree
+  // and that the filename does not contradict them, so a renamed binary cannot
+  // be stored and later served back under a trusted Content-Type.
+  if (!mimeMatchesBytes(file.type, plain)) {
+    return fail({ code: "bad_type" }, 415);
+  }
+  if (!extensionMatches(file.type, file.name)) {
+    return fail({ code: "bad_type" }, 415);
+  }
+
   const blob = encryptVaultBlob(plain, key);
-  const storageKey = `company-vault/${Date.now()}-${randomBytes(6).toString("hex")}.bin`;
+  // 128 bits of crypto-random: the blob is unreadable without the vault key,
+  // but the key should not be the only thing standing between a leaked private
+  // root and the file.
+  const storageKey = `company-vault/${randomBytes(16).toString("hex")}.bin`;
 
   await getStorage().put({
     key: storageKey,
@@ -102,6 +116,7 @@ export async function POST(req: Request) {
     entityType: "CompanyDocument",
     entityId: String(doc._id),
     after: { title, filename: file.name, size: file.size, folder },
+    ip: clientIp(req),
   });
 
   return ok({ id: String(doc._id), title });

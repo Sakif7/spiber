@@ -41,6 +41,9 @@ const TYPE_TONE: Record<MovementType, Tone> = {
   sale: "info",
   adjustment: "neutral",
   return: "warning",
+  reserve: "warning",
+  release: "neutral",
+  deliver: "info",
 };
 const STORE_LABEL: Record<string, string> = {
   instruments: "Medtrade",
@@ -186,7 +189,9 @@ export default async function StockMovementsPage({
         <span
           className={cn(
             "font-mono font-semibold tabular-nums",
-            m.qtyDelta < 0 ? "text-destructive" : "text-[var(--color-success)]",
+            m.qtyDelta < 0
+              ? "text-destructive"
+              : "text-[var(--tone-success-fg)]",
           )}
         >
           {m.qtyDelta > 0 ? `+${m.qtyDelta}` : m.qtyDelta}

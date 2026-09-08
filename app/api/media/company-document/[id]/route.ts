@@ -1,7 +1,8 @@
 import { getSessionUser } from "@/lib/auth/current-user";
 import { requireSuperAdmin } from "@/lib/auth/guard";
+import { rateLimit } from "@/lib/auth/rate-limit";
 import { getCompanyDocumentById } from "@/lib/repositories/company-documents.repo";
-import { writeAudit } from "@/lib/repositories/audit.repo";
+import { auditDocumentView } from "@/lib/audit/document-view";
 import { getStorage } from "@/lib/storage";
 import { getVaultKey, decryptVaultBlob } from "@/lib/crypto/vault";
 import { logger } from "@/lib/log";
@@ -28,25 +29,32 @@ export async function GET(
     });
   }
 
+  // This route decrypts the whole file into memory on every request (GCM
+  // cannot stream partials), so an unbounded caller is a memory amplifier as
+  // well as an audit-log flood.
+  if (!rateLimit(`vault-read:${admin.sub}`, 60, 60_000).ok) {
+    return new Response("Too many requests", { status: 429 });
+  }
+
   const doc = await getCompanyDocumentById(id).catch(() => null);
   if (!doc) return new Response("Not found", { status: 404 });
 
   const range = req.headers.get("range") ?? undefined;
-  const isInitialView = !range || /^bytes=0-/.test(range);
-  if (isInitialView) {
-    // Fail-closed audit: no audit row, no document.
-    try {
-      await writeAudit({
-        actorId: admin.sub,
-        action: "companyDocument.view",
-        entityType: "CompanyDocument",
-        entityId: id,
-        after: { title: doc.title, filename: doc.originalFilename },
-      });
-    } catch (e) {
-      logger.warn("company-document audit write failed; denying access", e);
-      return new Response("Audit unavailable", { status: 503 });
-    }
+  // Fail-closed audit on EVERY request. This used to run only for a request
+  // with no Range or one starting at byte 0, so `Range: bytes=1-` fetched the
+  // document with no audit row at all; auditDocumentView dedupes by time.
+  try {
+    await auditDocumentView({
+      actorId: admin.sub,
+      action: "companyDocument.view",
+      entityType: "CompanyDocument",
+      entityId: id,
+      after: { title: doc.title, filename: doc.originalFilename },
+      req,
+    });
+  } catch (e) {
+    logger.warn("company-document audit write failed; denying access", e);
+    return new Response("Audit unavailable", { status: 503 });
   }
 
   const key = getVaultKey();

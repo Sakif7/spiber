@@ -23,7 +23,7 @@ export type BrandFormValue = {
  * Create OR edit a brand. Pass `brand` to edit an existing one (PATCHes
  * `/api/admin/brands/[id]`); omit it to create (POST). Both flows accept a
  * logo/icon image, uploaded via the shared `SingleImageField`. The logo drives
- * the "Shop by brand" grid and the storefront brand strip.
+ * the"Shop by brand" grid and the storefront brand strip.
  */
 export function BrandForm({
   brand,
@@ -137,7 +137,7 @@ export function BrandDeleteButton({ id, name }: { id: string; name: string }) {
 
   async function remove() {
     if (busy) return;
-    const ok = window.confirm(`Delete brand "${name}"?`);
+    const ok = window.confirm(`Delete brand"${name}"?`);
     if (!ok) return;
     setBusy(true);
     const res = await fetch(`/api/admin/brands/${id}`, { method: "DELETE" });

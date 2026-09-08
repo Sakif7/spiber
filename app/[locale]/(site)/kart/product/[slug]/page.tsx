@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
+import { unitAvailable } from "@/lib/inventory/tracking";
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { Truck, ShieldCheck, Store } from "lucide-react";
 import { Container } from "@/components/ui/container";
-import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { Breadcrumb } from "@/components/ui/site-breadcrumb";
 import { CardGrid } from "@/components/ui/card-grid";
 import { JsonLd } from "@/components/ui/json-ld";
 import { RecentlyViewed } from "@/components/ui/recently-viewed";
@@ -122,7 +123,8 @@ export default async function MarketplaceProductDetail({
     id: v.id,
     options: v.options,
     priceMinor: v.priceMinorOverride ?? product.priceMinor,
-    stockQty: v.stockQty,
+    // Available to buy: reserved units belong to a sales order already.
+    stockQty: Number(v.stockQty ?? 0) - Number(v.reservedQty ?? 0),
     sku: v.sku,
   }));
 
@@ -142,7 +144,10 @@ export default async function MarketplaceProductDetail({
   // otherwise it would be flagged invalid (priceless items keep the breadcrumb).
   const priceUrl = `${localeBase}/kart/product/${slug}`;
   const inStock =
-    product.stockQty > 0 || product.variants.some((v) => v.stockQty > 0);
+    unitAvailable(product, null)! > 0 ||
+    product.variants.some(
+      (v) => Number(v.stockQty ?? 0) - Number(v.reservedQty ?? 0) > 0,
+    );
   const availability = inStock
     ? "https://schema.org/InStock"
     : "https://schema.org/OutOfStock";
@@ -297,7 +302,7 @@ export default async function MarketplaceProductDetail({
               productId={productId}
               basePriceMinor={product.priceMinor}
               compareAtMinor={product.compareAtMinor ?? null}
-              baseStockQty={product.stockQty}
+              baseStockQty={unitAvailable(product, null) ?? 0}
               options={options}
               variants={variants}
               locale={l}

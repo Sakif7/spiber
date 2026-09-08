@@ -87,7 +87,7 @@ export default async function AdminPartnerDetailPage({
                   href={`/api/media/partner/${String(a._id)}/${i}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="border-border text-primary hover:bg-muted flex items-center gap-2.5 rounded-md border px-3 py-2 text-[13px] no-underline"
+                  className="border-border text-primary hover:bg-muted flex items-center gap-2.5 rounded-md border px-3 py-2 no-underline"
                 >
                   <FileText size={16} aria-hidden />
                   <span className="break-all">{d.name}</span>

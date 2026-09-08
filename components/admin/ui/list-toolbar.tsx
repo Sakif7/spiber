@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { ListSearch } from "./list-search";
 import { useListParams } from "./use-list-params";
+import { TogglePill } from "@/components/admin/ui/segmented";
 
 export type FilterOption = { value: string; label: string; count?: number };
 export type FilterDef = {
@@ -21,7 +22,7 @@ export type FilterDef = {
   param: string;
   label: string;
   options: FilterOption[];
-  /** Caption of the "everything" choice. */
+  /** Caption of the"everything" choice. */
   allLabel?: string;
   /** Pills for short lists, a select for long ones (auto: >6 → select). */
   kind?: "pills" | "select";
@@ -41,7 +42,7 @@ const ALL = "__all";
  * the controls simply reflect it: search (`q`), filters (their own params),
  * an optional date range (`from`/`to`), the sort key/direction (`sort`/`dir`)
  * and the result count. Active search/filters render as removable chips with
- * a Reset. Put page actions (export, "New X") in `children` — they sit on the
+ * a Reset. Put page actions (export,"New X") in `children` — they sit on the
  * right of the first row.
  */
 export function ListToolbar({
@@ -63,7 +64,7 @@ export function ListToolbar({
   currentSort?: { key: string; dir: SortDir };
   dateRange?: boolean;
   total?: number;
-  /** Pre-formatted count caption from the server, e.g. "12 orders". */
+  /** Pre-formatted count caption from the server, e.g."12 orders". */
   countLabel?: string;
   children?: React.ReactNode;
   className?: string;
@@ -118,7 +119,7 @@ export function ListToolbar({
             >
               <SelectTrigger
                 size="sm"
-                className="h-8 w-auto min-w-36 gap-1.5 text-[13px]"
+                className="h-8 w-auto min-w-36 gap-1.5"
                 aria-label={f.label}
               >
                 <span className="text-muted-foreground">{f.label}:</span>
@@ -179,7 +180,7 @@ export function ListToolbar({
               max={to || undefined}
               aria-label="From date"
               onChange={(e) => set({ from: e.target.value || undefined })}
-              className="h-8 w-[9.5rem] text-[13px]"
+              className="h-8 w-[9.5rem]"
             />
             <span className="text-muted-foreground text-xs">to</span>
             <Input
@@ -188,7 +189,7 @@ export function ListToolbar({
               min={from || undefined}
               aria-label="To date"
               onChange={(e) => set({ to: e.target.value || undefined })}
-              className="h-8 w-[9.5rem] text-[13px]"
+              className="h-8 w-[9.5rem]"
             />
           </div>
         )}
@@ -265,19 +266,9 @@ function Pill({
   children: React.ReactNode;
 }) {
   return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={cn(
-        "rounded-full border px-2.5 py-1 text-xs font-medium whitespace-nowrap capitalize transition-colors",
-        active
-          ? "border-primary bg-primary text-primary-foreground"
-          : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground",
-      )}
-    >
+    <TogglePill active={active} onClick={onClick} className="capitalize">
       {children}
-    </button>
+    </TogglePill>
   );
 }
 
@@ -319,7 +310,7 @@ function SortControl({
       >
         <SelectTrigger
           size="sm"
-          className="h-8 w-auto gap-1.5 text-[13px]"
+          className="h-8 w-auto gap-1.5"
           aria-label="Sort by"
         >
           <span className="text-muted-foreground">Sort:</span>

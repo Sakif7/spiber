@@ -136,7 +136,7 @@ const STATUS_OPTIONS = [
   { value: "archived", label: "Archived" },
 ];
 
-/** Small uppercase caption used for "Module 1" / lesson type chips. */
+/** Small uppercase caption used for"Module 1" / lesson type chips. */
 function Eyebrow({
   children,
   className,
@@ -147,7 +147,7 @@ function Eyebrow({
   return (
     <span
       className={cn(
-        "text-muted-foreground font-mono text-[11px] tracking-[0.12em] uppercase",
+        "text-muted-foreground text-admin-2xs font-mono tracking-[0.12em] uppercase",
         className,
       )}
     >
@@ -449,7 +449,7 @@ export function CourseBuilder({ initial }: { initial?: CourseBuilderInitial }) {
         }
       >
         {modules.length === 0 ? (
-          <p className="text-muted-foreground py-2 text-[13px]">
+          <p className="text-muted-foreground py-2">
             No modules yet. A course can be saved as a draft without them.
           </p>
         ) : (
@@ -480,7 +480,7 @@ export function CourseBuilder({ initial }: { initial?: CourseBuilderInitial }) {
                             <GripVertical className="size-4" />
                           </Button>
                           <Eyebrow>Module {mi + 1}</Eyebrow>
-                          <span className="text-foreground min-w-0 truncate text-[13px] font-medium">
+                          <span className="text-foreground min-w-0 truncate font-medium">
                             {m.title.en || "Untitled module"}
                           </span>
                           <div className="ml-auto flex items-center gap-1">
@@ -662,13 +662,11 @@ function LessonCard({
           <GripVertical className="size-3.5" />
         </Button>
         <Eyebrow className="text-primary">{lesson.type}</Eyebrow>
-        <span className="text-foreground min-w-0 truncate text-[13px]">
+        <span className="text-foreground min-w-0 truncate">
           {lesson.title.en || "Untitled lesson"}
         </span>
         {lesson.isFreePreview && (
-          <Eyebrow className="text-[var(--color-secondary-deep)]">
-            · preview
-          </Eyebrow>
+          <Eyebrow className="text-[var(--tone-info-fg)]">· preview</Eyebrow>
         )}
         <div className="ml-auto flex items-center gap-1">
           <Button
@@ -774,7 +772,7 @@ function VideoField({
       hint="Streamed through the enrollment-gated media route — never a public URL."
     >
       {lesson.videoUid ? (
-        <div className="flex flex-wrap items-center gap-3 text-[13px]">
+        <div className="flex flex-wrap items-center gap-3">
           <span className="text-muted-foreground">
             Uploaded · status:{" "}
             <strong className="text-foreground">
@@ -942,7 +940,7 @@ function QuizEditor({
                       checked={q.correctOptionId === o.id}
                       onChange={() => patchQ(q.id, { correctOptionId: o.id })}
                       aria-label={`Option ${oi + 1} is correct`}
-                      className="mb-2.5 size-4 shrink-0 accent-[var(--color-brand)]"
+                      className="accent-primary mb-2.5 size-4 shrink-0"
                     />
                     <LocalizedInput
                       className="min-w-0 flex-1"

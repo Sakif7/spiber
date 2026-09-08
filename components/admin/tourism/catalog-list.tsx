@@ -50,9 +50,9 @@ export function CatalogList({
 }: {
   rows: CatalogRow[];
   base: string;
-  /** Plural, lowercase, e.g. "destinations". */
+  /** Plural, lowercase, e.g."destinations". */
   noun: string;
-  /** Singular for the New button, e.g. "destination". */
+  /** Singular for the New button, e.g."destination". */
   nounSingular: string;
   /** Header for the optional meta column (omitted when not given). */
   metaHeader?: string;

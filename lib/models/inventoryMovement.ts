@@ -1,5 +1,5 @@
 import mongoose, { Schema, type Model } from "mongoose";
-import type { MovementType } from "@/lib/schemas/inventory";
+import { movementTypeEnum, type MovementType } from "@/lib/schemas/inventory";
 
 export interface IInventoryMovement {
   productId: mongoose.Types.ObjectId;
@@ -11,9 +11,19 @@ export interface IInventoryMovement {
   reason?: string;
   /** Machine provenance for admin-made changes: manual | set | bulk | csv | override. */
   source?: string | null;
+  /**
+   * Change to the RESERVED quantity, alongside `qtyDelta` (which always means
+   * the change to stock on hand). A reserve is `qtyDelta 0 / reservedDelta +n`,
+   * a release the reverse, and a delivery moves both down together — so summing
+   * `qtyDelta` over the ledger still reconstructs `stockQty` exactly as before.
+   */
+  reservedDelta?: number;
+  reservedAfter?: number | null;
   /** The unit's on-hand stock right after this movement (null on legacy rows). */
   stockAfter?: number | null;
   refOrderId?: mongoose.Types.ObjectId | null;
+  /** The sales order that reserved, released or took this stock. */
+  refSalesOrderId?: mongoose.Types.ObjectId | null;
   createdBy?: mongoose.Types.ObjectId | null;
   createdAt: Date;
 }
@@ -29,14 +39,24 @@ const inventoryMovementSchema = new Schema<IInventoryMovement>(
     variantId: { type: String, default: null },
     type: {
       type: String,
-      enum: ["purchase", "sale", "adjustment", "return"],
+      // Derived from the Zod enum so the two cannot drift: a type added to the
+      // schema but not here fails validation only at runtime.
+      enum: movementTypeEnum.options,
       required: true,
     },
     qtyDelta: { type: Number, required: true },
     reason: { type: String },
     source: { type: String, default: null },
+    reservedDelta: { type: Number, default: 0 },
+    reservedAfter: { type: Number, default: null },
     stockAfter: { type: Number, default: null },
     refOrderId: { type: Schema.Types.ObjectId, ref: "Order", default: null },
+    refSalesOrderId: {
+      type: Schema.Types.ObjectId,
+      ref: "SalesOrder",
+      default: null,
+      index: true,
+    },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
   },
   {

@@ -1,7 +1,10 @@
-import { getSessionUser } from "@/lib/auth/current-user";
-import { isAdmin } from "@/lib/auth/rbac";
+import { randomBytes } from "node:crypto";
+import { requireAdmin } from "@/lib/auth/guard";
+import { rateLimit } from "@/lib/auth/rate-limit";
 import { ok, fail } from "@/lib/http/respond";
 import { getStorage } from "@/lib/storage";
+import { mimeMatchesBytes, extensionFor } from "@/lib/uploads/sniff";
+import { writeAudit } from "@/lib/repositories/audit.repo";
 
 export const dynamic = "force-dynamic";
 
@@ -21,8 +24,13 @@ const ALLOWED = new Set([
  * Returns the raw storage KEY (never a public URL).
  */
 export async function POST(req: Request) {
-  const user = await getSessionUser();
-  if (!isAdmin(user)) return fail({ code: "forbidden" }, 403);
+  // DB-validated: these are patient and partner documents, so a demoted admin
+  // riding a still-valid access token must not be able to add to them.
+  const admin = await requireAdmin();
+  if (!admin) return fail({ code: "forbidden" }, 403);
+  if (!rateLimit(`tourism-upload:${admin.sub}`, 30, 60_000).ok) {
+    return fail({ code: "rate_limited" }, 429);
+  }
 
   const form = await req.formData().catch(() => null);
   const file = form?.get("file");
@@ -30,17 +38,31 @@ export async function POST(req: Request) {
   if (file.size > MAX_BYTES) return fail({ code: "too_large" }, 413);
   if (!ALLOWED.has(file.type)) return fail({ code: "bad_type" }, 415);
 
-  const ext = file.name.includes(".")
-    ? file.name
-        .split(".")
-        .pop()!
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, "")
-    : "bin";
-  const rand = Math.random().toString(36).slice(2, 10);
-  const key = `tourism/${Date.now()}-${rand}.${ext}`;
   const body = Buffer.from(await file.arrayBuffer());
+  // The declared type is client-supplied; confirm the bytes agree.
+  if (!mimeMatchesBytes(file.type, body)) {
+    return fail({ code: "bad_type" }, 415);
+  }
+
+  const ext = extensionFor(file.type) ?? "bin";
+  const rand = randomBytes(16).toString("hex");
+  const key = `tourism/${Date.now()}-${rand}.${ext}`;
 
   await getStorage().put({ key, body, contentType: file.type, private: true });
+
+  await writeAudit({
+    actorId: admin.sub,
+    action: "upload.create",
+    entityType: "Upload",
+    entityId: key,
+    after: {
+      filename: file.name.slice(0, 200),
+      size: file.size,
+      contentType: file.type,
+      visibility: "private",
+      area: "tourism",
+    },
+  });
+
   return ok({ key, name: file.name, contentType: file.type });
 }

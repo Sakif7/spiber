@@ -121,7 +121,7 @@ export function SingleImageField({
           </Button>
         )}
       </div>
-      {error && <p className="text-destructive text-[13px]">{error}</p>}
+      {error && <p className="text-destructive">{error}</p>}
     </div>
   );
 }

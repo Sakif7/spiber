@@ -47,7 +47,11 @@ export async function DELETE(
   if (!admin) return fail({ code: "forbidden" }, 403);
   const { id } = await params;
 
-  await softDeleteEvent(id);
+  // An unknown or already-deleted id is a 404, not a silent success with an
+  // audit row claiming something was deleted.
+  const deleted = await softDeleteEvent(id).catch(() => false);
+  if (!deleted) return fail({ code: "not_found" }, 404);
+
   await writeAudit({
     actorId: admin.sub,
     action: "event.delete",

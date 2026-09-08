@@ -35,8 +35,8 @@ export function SpecsEditor({
 
   /**
    * Smart paste: if a multi-line block where EVERY non-empty line is a clean
-   * "Key: Value" pair is pasted into a spec field, split it into separate
-   * specs (replacing the row being pasted into). Single-line or "messy"
+   *"Key: Value" pair is pasted into a spec field, split it into separate
+   * specs (replacing the row being pasted into). Single-line or"messy"
    * pastes fall through to the normal paste so we never hijack ordinary input.
    */
   const handleSmartPaste = (
@@ -71,7 +71,7 @@ export function SpecsEditor({
   return (
     <div className="grid gap-3">
       {value.length > 0 && (
-        <div className="divide-border/60 bg-card divide-y rounded-lg shadow-[var(--shadow-sm)]">
+        <div className="divide-border/60 bg-card divide-y rounded-lg border">
           {value.map((row, i) => (
             <div
               key={i}
@@ -147,7 +147,7 @@ export function SpecsEditor({
             placeholder={"Model: ECG-100\nColor: White\nWeight: 4.2 kg"}
             rows={5}
             aria-label="Specs to import"
-            className="font-mono text-[13px]"
+            className="font-mono"
           />
           <div className="flex flex-wrap items-center gap-3">
             <Button

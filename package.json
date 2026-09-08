@@ -26,7 +26,9 @@
     "prepare": "husky",
     "migrate-cart-storefront": "node scripts/migrate-cart-storefront.mjs",
     "qa-medtrade": "node scripts/qa-medtrade-fixture.mjs",
-    "audit-medtrade": "node scripts/audit-medtrade-readiness.mjs"
+    "audit-medtrade": "node scripts/audit-medtrade-readiness.mjs",
+    "migrate-vault-folders": "node scripts/migrate-company-vault-folders.mjs",
+    "make-pdf-assets": "node scripts/make-pdf-assets.mjs"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,mjs,cjs}": [
@@ -44,12 +46,15 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^5.4.0",
+    "@react-pdf/renderer": "^4.9.0",
     "@tanstack/react-query": "^5.100.14",
     "@tiptap/extension-image": "^3.24.0",
     "@tiptap/extension-link": "^3.24.0",
     "@tiptap/pm": "^3.24.0",
     "@tiptap/react": "^3.24.0",
     "@tiptap/starter-kit": "^3.24.0",
+    "@types/archiver": "^8.0.0",
+    "archiver": "^8.0.0",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

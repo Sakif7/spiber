@@ -23,8 +23,10 @@ import { AdminUserMenu } from "./admin-user-menu";
 import { CommandPalette } from "./command-palette";
 import { NotificationBell } from "./notification-bell";
 import { AdminPrefsProvider, useAdminPrefs } from "./admin-prefs";
+import { Segmented } from "@/components/admin/ui/segmented";
 import {
   NAV_SECTIONS,
+  sectionHomeFor,
   activeItemFor,
   sectionForPath,
   type AdminSection,
@@ -87,31 +89,17 @@ function SectionSwitcher({
   className?: string;
 }) {
   return (
-    <div
-      role="group"
-      aria-label="Admin section"
-      className={cn(
-        "bg-muted flex shrink-0 items-center gap-0.5 rounded-full p-0.5",
-        className,
-      )}
-    >
-      {(Object.keys(NAV_SECTIONS) as AdminSection[]).map((key) => (
-        <button
-          key={key}
-          type="button"
-          aria-pressed={section === key}
-          onClick={() => onSwitch(key)}
-          className={cn(
-            "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
-            section === key
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          {NAV_SECTIONS[key].label}
-        </button>
-      ))}
-    </div>
+    <Segmented
+      value={section}
+      onChange={onSwitch}
+      label="Admin section"
+      size="md"
+      className={className}
+      options={(Object.keys(NAV_SECTIONS) as AdminSection[]).map((key) => ({
+        value: key,
+        label: NAV_SECTIONS[key].label,
+      }))}
+    />
   );
 }
 
@@ -119,17 +107,20 @@ export function AdminShell({
   email,
   role,
   initialPrefs,
+  fontClassName,
   children,
 }: {
   email: string;
   role?: string;
   /** Server-loaded favourites/recents (no flash of an empty sidebar block). */
   initialPrefs?: AdminPrefs;
+  /** next/font variables for the admin typeface, set on the root element. */
+  fontClassName?: string;
   children: React.ReactNode;
 }) {
   return (
     <AdminPrefsProvider initial={initialPrefs}>
-      <ShellInner email={email} role={role}>
+      <ShellInner email={email} role={role} fontClassName={fontClassName}>
         {children}
       </ShellInner>
     </AdminPrefsProvider>
@@ -137,10 +128,12 @@ export function AdminShell({
 }
 
 function ShellInner({
+  fontClassName,
   email,
   role,
   children,
 }: {
+  fontClassName?: string;
   email: string;
   role?: string;
   children: React.ReactNode;
@@ -149,8 +142,10 @@ function ShellInner({
   const router = useRouter();
   const { theme } = useAdminTheme();
   const { recordVisit } = useAdminPrefs();
+  // Presentation only — every super-admin page and route re-checks server-side.
+  const isSuperAdmin = role === "super_admin";
   // Read the persisted collapse preference without a hydration mismatch or a
-  // setState-in-effect (the SSR snapshot is always "expanded").
+  // setState-in-effect (the SSR snapshot is always"expanded").
   const collapsed = useSyncExternalStore(
     subscribeCollapse,
     readCollapse,
@@ -192,16 +187,25 @@ function ShellInner({
   }
 
   function switchSection(target: AdminSection) {
-    if (target !== section) router.push(NAV_SECTIONS[target].home);
+    // Land on a page this admin can actually open: the Company section's home
+    // is the super-admin-only vault.
+    if (target !== section) {
+      router.push(sectionHomeFor(target, isSuperAdmin));
+    }
     setMobileOpen(false);
   }
 
   return (
     <MotionConfig reducedMotion="user">
       <TooltipProvider delayDuration={120}>
+        {/* `.admin-root` carries the admin's whole token scope — typeface,
+            type scale, density, hairline colour, radius and primary — so no
+            component needs to restate any of it. */}
         <div
-          className="admin-root bg-background text-foreground flex min-h-[100dvh] text-[13px]"
-          style={{ ["--radius" as string]: "0.5rem" }}
+          className={cn(
+            "admin-root bg-background text-foreground flex min-h-[100dvh]",
+            fontClassName,
+          )}
         >
           {/* Desktop sidebar */}
           <motion.aside
@@ -219,7 +223,11 @@ function ShellInner({
               <Brand collapsed={collapsed} />
             </div>
             <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
-              <SidebarNav section={section} collapsed={collapsed} />
+              <SidebarNav
+                section={section}
+                collapsed={collapsed}
+                isSuperAdmin={isSuperAdmin}
+              />
             </div>
             <div
               className={cn(
@@ -281,6 +289,7 @@ function ShellInner({
                     <SidebarNav
                       section={section}
                       onNavigate={() => setMobileOpen(false)}
+                      isSuperAdmin={isSuperAdmin}
                     />
                   </div>
                 </SheetContent>
@@ -309,7 +318,7 @@ function ShellInner({
                 size="sm"
                 onClick={() => setPaletteOpen(true)}
                 aria-label="Search records and admin pages (Ctrl+K)"
-                className="text-muted-foreground hidden h-8 items-center gap-2 px-2.5 text-[13px] font-normal sm:flex lg:w-56 lg:justify-start"
+                className="text-muted-foreground hidden h-8 items-center gap-2 px-2.5 font-normal sm:flex lg:w-56 lg:justify-start"
               >
                 <Search className="size-4" />
                 <span className="hidden lg:inline">Search…</span>
@@ -335,7 +344,12 @@ function ShellInner({
             <main className="flex-1 px-4 py-5 sm:px-5 lg:px-6">{children}</main>
           </div>
         </div>
-        <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
+        <CommandPalette
+          open={paletteOpen}
+          onOpenChange={setPaletteOpen}
+          isSuperAdmin={isSuperAdmin}
+          section={section}
+        />
         <Toaster position="top-right" theme={theme} richColors closeButton />
       </TooltipProvider>
     </MotionConfig>

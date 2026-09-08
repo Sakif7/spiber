@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
+import { unitAvailable } from "@/lib/inventory/tracking";
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { Truck, BadgeCheck } from "lucide-react";
 import { Container } from "@/components/ui/container";
-import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { Breadcrumb } from "@/components/ui/site-breadcrumb";
 import { CardGrid } from "@/components/ui/card-grid";
 import { JsonLd } from "@/components/ui/json-ld";
 import { RecentlyViewed } from "@/components/ui/recently-viewed";
@@ -111,7 +112,7 @@ export default async function ProductDetail({
           priceCurrency: "BDT",
           price: fromMinor(product.priceMinor).toFixed(2),
           availability:
-            product.stockQty > 0
+            (unitAvailable(product, null) ?? 0) > 0
               ? "https://schema.org/InStock"
               : "https://schema.org/OutOfStock",
           url: `${localeBase}/medtrade/product/${slug}`,
@@ -256,7 +257,7 @@ export default async function ProductDetail({
             {product.priceMinor != null ? (
               <MedtradeBuyBox
                 productId={productId}
-                stockQty={product.stockQty}
+                stockQty={unitAvailable(product, null) ?? 0}
               />
             ) : (
               <AddToQuoteBox productId={productId} />

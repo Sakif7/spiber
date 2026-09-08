@@ -204,6 +204,8 @@ export default async function InventoryPage({
       tracked: u.tracked,
       trackStock: u.trackStock,
       stock: u.stock,
+      reserved: u.reserved,
+      available: u.available,
       threshold: u.threshold,
       level: u.level,
       priceMinor: u.priceMinor,

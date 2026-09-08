@@ -4,7 +4,7 @@ import { Eyebrow } from "./eyebrow";
 import { Reveal } from "./reveal";
 import { HeroCarousel } from "./hero-carousel";
 import { ParticleField } from "./particle-field";
-import { Breadcrumb, type Crumb } from "./breadcrumb";
+import { Breadcrumb, type Crumb } from "./site-breadcrumb";
 import { heroPosition } from "@/lib/hero-images";
 
 type Stat = { value: string; label: string };

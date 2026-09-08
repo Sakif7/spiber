@@ -46,8 +46,11 @@ export function buildProductBullets(
   if (product.sku) fillers.push({ label: opts.labels.sku, value: product.sku });
   const stock =
     (product.variants?.length ?? 0) > 0
-      ? product.variants.reduce((s, v) => s + v.stockQty, 0)
-      : product.stockQty;
+      ? product.variants.reduce(
+          (s, v) => s + (Number(v.stockQty ?? 0) - Number(v.reservedQty ?? 0)),
+          0,
+        )
+      : Number(product.stockQty ?? 0) - Number(product.reservedQty ?? 0);
   fillers.push({
     label: opts.labels.availability,
     value: stock > 0 ? opts.labels.inStock : opts.labels.outOfStock,

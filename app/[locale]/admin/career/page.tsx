@@ -190,7 +190,7 @@ export default async function AdminCareerPage({
               <Link href="/admin/career/applications">
                 Applications
                 {newApps > 0 && (
-                  <span className="bg-secondary ml-1 inline-grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold text-white">
+                  <span className="bg-secondary text-admin-2xs ml-1 inline-grid h-5 min-w-5 place-items-center rounded-full px-1.5 font-bold text-white">
                     {newApps}
                   </span>
                 )}

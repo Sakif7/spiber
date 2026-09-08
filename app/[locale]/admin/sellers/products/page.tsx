@@ -96,8 +96,8 @@ export default async function AdminSellerProductsPage({
               <span
                 className={
                   isUpdate
-                    ? "rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800"
-                    : "rounded-full bg-teal-100 px-2 py-0.5 text-[11px] font-semibold text-teal-800"
+                    ? "text-admin-2xs rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-800"
+                    : "text-admin-2xs rounded-full bg-teal-100 px-2 py-0.5 font-semibold text-teal-800"
                 }
               >
                 {isUpdate ? "Update" : "New listing"}

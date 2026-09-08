@@ -42,7 +42,7 @@ export default async function AdminAppointmentDetailPage({
         subtitle={
           <span className="flex flex-wrap items-center gap-2">
             <span className="font-mono text-xs">
-              {a.type.replace(/_/g, " ")}
+              {a.type.replace(/_/g, "")}
             </span>
             <StatusBadge>{a.status}</StatusBadge>
             <span className="font-mono text-xs">
