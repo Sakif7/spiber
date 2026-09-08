@@ -6,13 +6,20 @@
  * `async_hooks` and `dns`. Keeping them here means a form can render the
  * choices without the schema coming with it.
  */
+/**
+ * What a claim can be for.
+ *
+ * "Vehicle" and "Transport" were both really fuel, so a director had to guess
+ * which one to pick and the totals split across three headings that meant the
+ * same thing. One heading now covers running a vehicle.
+ */
 export const EXPENSE_CATEGORIES = [
   "meal",
+  "courier",
+  "delivery",
   "fuel",
-  "vehicle",
-  "transport",
-  "accommodation",
-  "other",
+  "gift",
+  "commissioning",
 ] as const;
 export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
 
@@ -28,9 +35,9 @@ export type ExpenseSettlement = "payroll" | "direct";
 
 export const EXPENSE_CATEGORY_LABEL: Record<ExpenseCategory, string> = {
   meal: "Meal",
+  courier: "Courier",
+  delivery: "Delivery",
   fuel: "Fuel",
-  vehicle: "Vehicle",
-  transport: "Transport",
-  accommodation: "Accommodation",
-  other: "Other",
+  gift: "Gift",
+  commissioning: "Commissioning",
 };
