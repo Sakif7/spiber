@@ -30,7 +30,8 @@
     "migrate-vault-folders": "node scripts/migrate-company-vault-folders.mjs",
     "make-pdf-assets": "node scripts/make-pdf-assets.mjs",
     "wipe-data": "node scripts/wipe-operational-data.mjs",
-    "pdf-preview": "vitest run --config vitest.preview.config.ts"
+    "pdf-preview": "vitest run --config vitest.preview.config.ts",
+    "dev:sandbox": "node scripts/dev-sandbox.mjs"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,mjs,cjs}": [

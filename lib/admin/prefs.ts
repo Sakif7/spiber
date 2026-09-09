@@ -8,6 +8,11 @@
  * nav.ts`), never by href, so a route rename doesn't orphan a favourite.
  */
 
+import {
+  sanitizeSheetLayout,
+  type SalesSheetLayout,
+} from "@/lib/admin/sales-sheet";
+
 export const MAX_FAVOURITES = 24;
 export const MAX_RECENTS = 8;
 
@@ -17,9 +22,20 @@ export type AdminPrefs = {
   favourites: string[];
   /** Newest first. */
   recents: AdminRecent[];
+  /**
+   * How this admin has arranged the sales spreadsheet. Stored here rather
+   * than in the browser so the arrangement follows them between machines —
+   * an accounts manager who has set their columns once should not have to do
+   * it again on the office desktop.
+   */
+  salesSheet?: SalesSheetLayout | null;
 };
 
-export const EMPTY_PREFS: AdminPrefs = { favourites: [], recents: [] };
+export const EMPTY_PREFS: AdminPrefs = {
+  favourites: [],
+  recents: [],
+  salesSheet: null,
+};
 
 /** Add the id when absent, remove it when present (order preserved). */
 export function toggleFavourite(favourites: string[], id: string): string[] {
@@ -51,6 +67,7 @@ export function sanitizePrefs(
   const obj = (raw && typeof raw === "object" ? raw : {}) as {
     favourites?: unknown;
     recents?: unknown;
+    salesSheet?: unknown;
   };
   const favourites: string[] = [];
   if (Array.isArray(obj.favourites)) {
@@ -78,5 +95,8 @@ export function sanitizePrefs(
   return {
     favourites: favourites.slice(0, MAX_FAVOURITES),
     recents: recents.slice(0, MAX_RECENTS),
+    // Absent until the admin has arranged the sheet; sanitised on the way out
+    // so a layout saved by older code can never break the page.
+    salesSheet: obj.salesSheet ? sanitizeSheetLayout(obj.salesSheet) : null,
   };
 }

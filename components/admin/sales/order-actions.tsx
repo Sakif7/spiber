@@ -55,6 +55,7 @@ type Dialogs =
   | { kind: "none" }
   | { kind: "proposal" }
   | { kind: "invoice" }
+  | { kind: "withholding" }
   | { kind: "payment" }
   | { kind: "send"; docKind: "proposal" | "invoice"; version: number };
 
@@ -71,6 +72,8 @@ export function OrderActions({
   invoices,
   defaultPaymentDays,
   blockers = [],
+  withholding = false,
+  hasMultiples = false,
 }: {
   id: string;
   status: SalesOrderStatus;
@@ -79,6 +82,10 @@ export function OrderActions({
   proposals: VersionRow[];
   invoices: VersionRow[];
   defaultPaymentDays: number;
+  /** Whether AIT has already been recorded, so the menu says update. */
+  withholding?: boolean;
+  /** True when any line is for more than one, which is when the choice matters. */
+  hasMultiples?: boolean;
   /** Reasons the next step cannot run yet; disables the primary action. */
   blockers?: string[];
 }) {
@@ -106,6 +113,16 @@ export function OrderActions({
   const [mailSubject, setMailSubject] = useState("");
   const [mailBody, setMailBody] = useState("");
   const [confirmRecipient, setConfirmRecipient] = useState(false);
+  // AIT fields. The rate is what a client quotes; the amount is what their
+  // deduction slip actually says, and wins when both are given.
+  const [aitRate, setAitRate] = useState("5");
+  const [aitAmount, setAitAmount] = useState("");
+  const [aitCert, setAitCert] = useState(false);
+  // A proposal quotes a rate. Only worth asking when a line is for more than
+  // one — with everything at qty 1 the two choices print the same paper.
+  const [quantityMode, setQuantityMode] = useState<"single" | "ordered">(
+    "single",
+  );
 
   async function post(body: Record<string, unknown>, okMessage: string) {
     setBusy(true);
@@ -210,6 +227,15 @@ export function OrderActions({
                 </DropdownMenuItem>
               )}
 
+              {(status === "invoiced" || status === "delivered") && (
+                <DropdownMenuItem
+                  onSelect={() => setDialog({ kind: "withholding" })}
+                >
+                  <FileText className="size-4" />
+                  {withholding ? "Update AIT withheld" : "Record AIT withheld"}
+                </DropdownMenuItem>
+              )}
+
               {status !== "draft" && status !== "cancelled" && (
                 <>
                   <DropdownMenuSeparator />
@@ -291,6 +317,44 @@ export function OrderActions({
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-3">
+            {hasMultiples && (
+              <fieldset className="grid gap-2 rounded-md border p-3">
+                <legend className="px-1 text-sm font-medium">
+                  Quantities on this quotation
+                </legend>
+                <label className="flex items-start gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="qty-mode"
+                    className="mt-1"
+                    checked={quantityMode === "single"}
+                    onChange={() => setQuantityMode("single")}
+                  />
+                  <span>
+                    <strong>Quote per piece</strong>
+                    <span className="text-muted-foreground block text-xs">
+                      Every line shows a quantity of 1 at its unit rate. The
+                      client orders the quantity they want.
+                    </span>
+                  </span>
+                </label>
+                <label className="flex items-start gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="qty-mode"
+                    className="mt-1"
+                    checked={quantityMode === "ordered"}
+                    onChange={() => setQuantityMode("ordered")}
+                  />
+                  <span>
+                    <strong>Show the quantities entered</strong>
+                    <span className="text-muted-foreground block text-xs">
+                      Prints what is on the order, with each line totalled.
+                    </span>
+                  </span>
+                </label>
+              </fieldset>
+            )}
             <div className="grid gap-1.5">
               <Label htmlFor="p-subject">Subject</Label>
               <Input
@@ -323,13 +387,96 @@ export function OrderActions({
               disabled={busy}
               onClick={() =>
                 post(
-                  { action: "proposal", subject, intro },
+                  {
+                    action: "proposal",
+                    subject,
+                    intro,
+                    quantityMode: hasMultiples ? quantityMode : undefined,
+                  },
                   "Proposal generated.",
                 )
               }
             >
               {busy && <Loader2 className="size-4 animate-spin" />}
               Generate
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Record what the buyer withheld */}
+      <Dialog
+        open={dialog.kind === "withholding"}
+        onOpenChange={(o) => !o && setDialog({ kind: "none" })}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>AIT withheld by the client</DialogTitle>
+            <DialogDescription>
+              The buyer keeps this back and pays it to the government against
+              our income tax. It changes what lands in the bank, not what we
+              earned, so it never touches profit — and it comes back when the
+              certificate arrives.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-1.5">
+              <Label htmlFor="ait-rate">Rate (%)</Label>
+              <Input
+                id="ait-rate"
+                value={aitRate}
+                onChange={(e) => setAitRate(e.target.value)}
+                inputMode="decimal"
+              />
+              <p className="text-muted-foreground text-xs">
+                Applied to the invoice total.
+              </p>
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="ait-amount">Or the exact amount (৳)</Label>
+              <Input
+                id="ait-amount"
+                value={aitAmount}
+                onChange={(e) => setAitAmount(e.target.value)}
+                inputMode="decimal"
+                placeholder="From their deduction slip"
+              />
+            </div>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={aitCert}
+              onChange={(e) => setAitCert(e.target.checked)}
+            />
+            The withholding certificate has been received
+          </label>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDialog({ kind: "none" })}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={busy}
+              onClick={() =>
+                post(
+                  {
+                    action: "withholding",
+                    aitRateBp: aitAmount.trim()
+                      ? undefined
+                      : Math.round((Number(aitRate) || 0) * 100),
+                    aitMinor: aitAmount.trim()
+                      ? Math.round((Number(aitAmount) || 0) * 100)
+                      : undefined,
+                    certificateReceived: aitCert,
+                  },
+                  "AIT recorded.",
+                )
+              }
+            >
+              Record
             </Button>
           </DialogFooter>
         </DialogContent>

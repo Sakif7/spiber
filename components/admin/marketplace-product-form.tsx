@@ -32,6 +32,7 @@ export type MarketplaceProductInitial = {
   brandId?: string;
   priceMinor?: number | null;
   compareAtMinor?: number | null;
+  costPriceMinor?: number | null;
   lowStockThreshold?: number;
   /** Read-only here — stock is changed in Inventory. */
   stockQty?: number;
@@ -90,6 +91,11 @@ export function MarketplaceProductForm({
       ? String(fromMinor(initial.compareAtMinor))
       : "",
   );
+  const [costPrice, setCostPrice] = useState(
+    initial?.costPriceMinor != null
+      ? String(fromMinor(initial.costPriceMinor))
+      : "",
+  );
   const [lowStock, setLowStock] = useState(
     String(initial?.lowStockThreshold ?? 5),
   );
@@ -127,6 +133,8 @@ export function MarketplaceProductForm({
       brandId: brandId || undefined,
       priceMinor: price.trim() ? toMinor(Number(price) || 0) : null,
       compareAtMinor: compareAt.trim() ? toMinor(Number(compareAt) || 0) : null,
+      // Blank clears it: "we have not said" is not "it was free".
+      costPriceMinor: costPrice.trim() ? toMinor(Number(costPrice) || 0) : null,
       lowStockThreshold: Number(lowStock) || 0,
       status,
       featured,
@@ -259,6 +267,19 @@ export function MarketplaceProductForm({
               value={compareAt}
               placeholder="Optional"
               onChange={(e) => setCompareAt(e.target.value)}
+            />
+          </FormField>
+          <FormField
+            label="Cost price (BDT, optional)"
+            htmlFor="kart-cost"
+            hint="What a unit costs us. Drives gross profit on the sales report; an order copies it when it sells."
+          >
+            <Input
+              id="kart-cost"
+              type="number"
+              value={costPrice}
+              placeholder="What we pay for one"
+              onChange={(e) => setCostPrice(e.target.value)}
             />
           </FormField>
           <FormField label="Low-stock threshold" htmlFor="kart-low-stock">

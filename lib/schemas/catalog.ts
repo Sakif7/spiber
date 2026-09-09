@@ -133,6 +133,15 @@ export const productSchema = z.object({
   // Optional "was"/RRP price. When set above `priceMinor`, storefronts show a
   // strikethrough + "Sale" badge (the saving = compareAt − price).
   compareAtMinor: z.number().int().nonnegative().nullable().optional(),
+  /**
+   * What the goods cost US, per unit. Optional, because a catalogue entry can
+   * exist before anyone has bought any.
+   *
+   * An order takes a COPY of this at the moment of sale rather than reading it
+   * back later — otherwise correcting a supplier price next month would
+   * silently rewrite the profit on every sale already reported.
+   */
+  costPriceMinor: z.number().int().nonnegative().nullable().optional(),
   // Optional negotiation floor (Medtrade). When set below `priceMinor` the
   // storefront shows "৳floor – ৳list" as a negotiable range and the RFQ pipeline
   // tells admins how far they may discount. Never charged automatically —

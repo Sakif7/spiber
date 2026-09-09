@@ -29,6 +29,7 @@ export type ProductFormInitial = {
   brandId?: string;
   priceMinor?: number;
   floorPriceMinor?: number | null;
+  costPriceMinor?: number | null;
   lowStockThreshold?: number;
   /** Read-only here — stock is changed in Inventory. */
   stockQty?: number;
@@ -91,6 +92,11 @@ export function ProductForm({
       ? String(fromMinor(initial.floorPriceMinor))
       : "",
   );
+  const [costPrice, setCostPrice] = useState(
+    initial?.costPriceMinor != null
+      ? String(fromMinor(initial.costPriceMinor))
+      : "",
+  );
   const [lowStock, setLowStock] = useState(
     String(initial?.lowStockThreshold ?? 5),
   );
@@ -136,6 +142,9 @@ export function ProductForm({
       floorPriceMinor: floorPrice.trim()
         ? toMinor(Number(floorPrice) || 0)
         : null,
+      // Blank clears it: "we have not said" is not the same as "it was free",
+      // and the report shows the difference.
+      costPriceMinor: costPrice.trim() ? toMinor(Number(costPrice) || 0) : null,
       lowStockThreshold: Number(lowStock) || 0,
       // null = default rule (tracked once priced); true/false force it.
       trackStock:
@@ -259,6 +268,19 @@ export function ProductForm({
               value={floorPrice}
               placeholder="Lowest negotiable price"
               onChange={(e) => setFloorPrice(e.target.value)}
+            />
+          </FormField>
+          <FormField
+            label="Cost price (BDT, optional)"
+            htmlFor="product-cost"
+            hint="What a unit costs us. Drives gross profit on the sales report; an order copies it at the moment of sale, so changing it here never alters a sale already made."
+          >
+            <Input
+              id="product-cost"
+              type="number"
+              value={costPrice}
+              placeholder="What we pay for one"
+              onChange={(e) => setCostPrice(e.target.value)}
             />
           </FormField>
         </FormGrid>

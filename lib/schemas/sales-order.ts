@@ -86,6 +86,15 @@ export const salesOrderItemSchema = z
     specification: z.string().trim().max(300).optional().or(z.literal("")),
     unit: z.string().trim().max(40).optional().or(z.literal("")),
     unitPriceMinor: z.number().int().min(0),
+    /**
+     * What this line cost us, per unit.
+     *
+     * Free to type on every line: an inventory pick prefills it from the
+     * product, an external item is whatever the supplier charged for this
+     * order. Null means nobody has said yet, which the report shows as a gap
+     * rather than as free goods.
+     */
+    unitCostMinor: z.number().int().min(0).nullable().optional(),
     qty: z.number().int().min(1).max(100000),
   })
   .superRefine((v, ctx) => {
@@ -98,6 +107,55 @@ export const salesOrderItemSchema = z
     }
   });
 export type SalesOrderItemInput = z.infer<typeof salesOrderItemSchema>;
+
+/**
+ * What the buyer is keeping back.
+ *
+ * Either figure may be given: a rate is the usual case ("we deduct 5%"), and
+ * an explicit amount covers a deduction slip that does not divide cleanly.
+ * The service works out whichever was not supplied.
+ */
+export const withholdingSchema = z
+  .object({
+    aitRateBp: z.number().int().min(0).max(10000).optional(),
+    aitMinor: z.number().int().min(0).optional(),
+    vdsMinor: z.number().int().min(0).nullable().optional(),
+    certificateReceived: z.boolean().optional(),
+    certificateRef: z.string().trim().max(120).optional(),
+    note: z.string().trim().max(500).optional(),
+  })
+  .refine((v) => v.aitRateBp !== undefined || v.aitMinor !== undefined, {
+    message: "give a rate or an amount",
+  });
+export type WithholdingInput = z.infer<typeof withholdingSchema>;
+
+/** One cost carried by the order as a whole, rather than by a line. */
+export const orderCostSchema = z.object({
+  id: z.string().trim().max(40).optional(),
+  label: z.string().trim().min(1, "give it a name").max(120),
+  amountMinor: z.number().int().min(0),
+  note: z.string().trim().max(300).optional(),
+});
+export const orderCostsSchema = z.object({
+  costs: z.array(orderCostSchema).max(40),
+  /** Why, when this changes a sale that is already invoiced. */
+  reason: z.string().trim().max(300).optional(),
+});
+export type OrderCostsInput = z.infer<typeof orderCostsSchema>;
+
+/** Correcting what a line cost us, after the order has been locked. */
+export const amendCostsSchema = z.object({
+  lines: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1),
+        unitCostMinor: z.number().int().min(0).nullable(),
+      }),
+    )
+    .max(200),
+  reason: z.string().trim().min(1, "say why").max(300),
+});
+export type AmendCostsInput = z.infer<typeof amendCostsSchema>;
 
 export const salesOrderTermsSchema = z.object({
   deliveryDays: z.number().int().min(0).max(365).default(2),
@@ -153,6 +211,15 @@ export const proposalGenerateSchema = z.object({
   subject: z.string().trim().max(200).optional().or(z.literal("")),
   intro: z.string().trim().max(1500).optional().or(z.literal("")),
   terms: salesOrderTermsSchema.partial().optional(),
+  /**
+   * How quantities are shown on the quotation.
+   *
+   * A proposal quotes a rate, and the client decides how many they want — so
+   * the usual thing to send is a per-piece price with a quantity of one, even
+   * when the order was drafted with ten. "ordered" prints what was actually
+   * entered, for the times the quantity is part of what is being agreed.
+   */
+  quantityMode: z.enum(["single", "ordered"]).optional(),
 });
 export type ProposalGenerateInput = z.infer<typeof proposalGenerateSchema>;
 

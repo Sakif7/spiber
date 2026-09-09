@@ -64,6 +64,8 @@ export interface IProduct {
   compareAtMinor?: number | null;
   /** Optional negotiation floor; when < priceMinor Medtrade shows a range. */
   floorPriceMinor?: number | null;
+  /** What a unit costs us. Copied onto an order line when it sells. */
+  costPriceMinor?: number | null;
   stockQty: number;
   /**
    * Stock physically on hand but already promised to an invoiced sales order.
@@ -165,6 +167,8 @@ const productSchema = new Schema<IProduct>(
     compareAtMinor: { type: Number, default: null, min: 0 },
     // Optional negotiation floor; when < priceMinor Medtrade shows a range.
     floorPriceMinor: { type: Number, default: null, min: 0 },
+    // What a unit costs us; the basis of gross profit on the sales report.
+    costPriceMinor: { type: Number, default: null, min: 0 },
     stockQty: { type: Number, default: 0 },
     reservedQty: { type: Number, default: 0, min: 0 },
     lowStockThreshold: { type: Number, default: 5, min: 0 },

@@ -14,6 +14,15 @@ export interface IOrderItem {
     name: LocalizedDoc;
     sku: string;
     priceMinor: number;
+    /**
+     * What the unit cost us when this sold.
+     *
+     * Frozen here beside the price it sold at, so a later correction to the
+     * product's cost cannot rewrite the profit on a sale already reported.
+     * Null for anything sold before costs were recorded, and for a seller's
+     * own listing, where the cost is theirs and not ours.
+     */
+    costPriceMinor?: number | null;
     image?: string;
     /** null = no variant; else the Product.variants[].id purchased. */
     variantId?: string | null;
@@ -104,6 +113,7 @@ const orderItemSchema = new Schema<IOrderItem>(
       name: { ...localizedDef },
       sku: { type: String, required: true },
       priceMinor: { type: Number, required: true },
+      costPriceMinor: { type: Number, default: null },
       image: { type: String },
       variantId: { type: String, default: null },
       variantOptions: {

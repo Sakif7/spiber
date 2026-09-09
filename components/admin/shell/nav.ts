@@ -47,6 +47,7 @@ import {
   Wallet,
   ReceiptText,
   type LucideIcon,
+  ChartNoAxesCombined,
 } from "lucide-react";
 import { routing } from "@/i18n/routing";
 
@@ -385,6 +386,12 @@ export const COMPANY_NAV_GROUPS: NavGroup[] = [
         "/admin/company/sales/orders",
         "Sales orders",
         FileSpreadsheet,
+      ),
+      superItem(
+        "company.sales-report",
+        "/admin/company/sales/report",
+        "Sales report",
+        ChartNoAxesCombined,
       ),
     ],
   },

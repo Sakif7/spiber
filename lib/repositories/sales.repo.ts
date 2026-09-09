@@ -349,6 +349,8 @@ export type SalesLineDetail = {
   description: string;
   specification: string;
   brandOrigin: string;
+  /** What a unit costs us, to prefill the line's cost. Null if never set. */
+  costPriceMinor: number | null;
 };
 
 export async function salesLineDetails(
@@ -362,7 +364,7 @@ export async function salesLineDetails(
 
   await connectToDatabase();
   const products = await Product.find({ _id: { $in: ids.map(oid) } })
-    .select("name description specs brandId")
+    .select("name description specs brandId costPriceMinor")
     .lean<
       {
         _id: mongoose.Types.ObjectId;
@@ -370,6 +372,7 @@ export async function salesLineDetails(
         description?: { en?: string };
         specs?: { key?: { en?: string }; value?: { en?: string } }[];
         brandId?: mongoose.Types.ObjectId | null;
+        costPriceMinor?: number | null;
       }[]
     >()
     .exec();
@@ -419,6 +422,7 @@ export async function salesLineDetails(
       // blurb ("A quality product available on the Spiber Marketplace.") for
       // anything that had one, and duplicated the name into both columns for
       // anything that did not.
+      costPriceMinor: p.costPriceMinor ?? null,
       description: name || description,
       // Real specs first; the catalogue description is the equipment TYPE and
       // is the honest fallback. Never the name again — that is the column to

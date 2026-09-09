@@ -7,11 +7,17 @@ import {
   proposalGenerateSchema,
   invoiceGenerateSchema,
   sendDocumentSchema,
+  withholdingSchema,
+  orderCostsSchema,
+  amendCostsSchema,
 } from "@/lib/schemas/sales-order";
 import {
   amendOrder,
   transitionOrder,
   recordPayment,
+  recordWithholding,
+  setOrderCosts,
+  amendLineCosts,
 } from "@/lib/services/sales-order.service";
 import {
   generateProposal,
@@ -153,6 +159,87 @@ export async function POST(req: Request, { params }: Params) {
         req,
       );
       return ok(res.data);
+    }
+
+    case "costs": {
+      const parsed = orderCostsSchema.safeParse(body);
+      if (!parsed.success) {
+        return fail(
+          { code: "invalid_input", details: parsed.error.issues },
+          400,
+        );
+      }
+      const res = await setOrderCosts(id, parsed.data, g.actor);
+      if (!res.ok) return fail({ code: res.code }, salesStatus(res.code));
+      await writeAudit(
+        {
+          actorId: g.actor.sub,
+          action: "salesOrder.costs.set",
+          entityType: "SalesOrder",
+          entityId: id,
+          after: {
+            costs: parsed.data.costs.map((c) => ({
+              label: c.label,
+              amountMinor: c.amountMinor,
+            })),
+            reason: parsed.data.reason ?? null,
+          },
+        },
+        req,
+      );
+      return ok({ id });
+    }
+
+    case "amend-costs": {
+      const parsed = amendCostsSchema.safeParse(body);
+      if (!parsed.success) {
+        return fail(
+          { code: "invalid_input", details: parsed.error.issues },
+          400,
+        );
+      }
+      // What the line cost us is ours alone; the invoice the client holds is
+      // untouched by this, which is why it is allowed after the order locks.
+      const res = await amendLineCosts(id, parsed.data, g.actor);
+      if (!res.ok) return fail({ code: res.code }, salesStatus(res.code));
+      await writeAudit(
+        {
+          actorId: g.actor.sub,
+          action: "salesOrder.costs.amend",
+          entityType: "SalesOrder",
+          entityId: id,
+          after: { lines: parsed.data.lines, reason: parsed.data.reason },
+        },
+        req,
+      );
+      return ok(res.data);
+    }
+
+    case "withholding": {
+      const parsed = withholdingSchema.safeParse(body);
+      if (!parsed.success) {
+        return fail(
+          { code: "invalid_input", details: parsed.error.issues },
+          400,
+        );
+      }
+      const res = await recordWithholding(id, parsed.data, g.actor);
+      if (!res.ok) return fail({ code: res.code }, salesStatus(res.code));
+      await writeAudit(
+        {
+          actorId: g.actor.sub,
+          action: "salesOrder.withholding.record",
+          entityType: "SalesOrder",
+          entityId: id,
+          after: {
+            aitRateBp: res.data.withholding?.aitRateBp,
+            aitMinor: res.data.withholding?.aitMinor,
+            certificateReceived: res.data.withholding?.certificateReceived,
+          },
+        },
+        req,
+      );
+      return ok({ id });
     }
 
     case "invoice": {

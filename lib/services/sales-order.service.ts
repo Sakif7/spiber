@@ -12,6 +12,9 @@ import {
   type SalesOrderCreateInput,
   type SalesOrderUpdateInput,
   type SalesOrderPaymentInput,
+  type WithholdingInput,
+  type OrderCostsInput,
+  type AmendCostsInput,
 } from "@/lib/schemas/sales-order";
 import {
   createSalesOrder,
@@ -114,6 +117,12 @@ function toItems(
       specification: raw.specification || null,
       unit: raw.unit || null,
       unitPriceMinor: raw.unitPriceMinor,
+      // Undefined means the caller sent no opinion, so keep what the line already
+      // said; null is a deliberate "we do not know what this cost".
+      unitCostMinor:
+        raw.unitCostMinor === undefined
+          ? (prior?.unitCostMinor ?? null)
+          : raw.unitCostMinor,
       qty: raw.qty,
       lineTotalMinor: raw.unitPriceMinor * raw.qty,
       // Reservations are moved deliberately below; they never follow an edit
@@ -462,6 +471,161 @@ export async function transitionOrder(
  * the goods arrive, and occasionally before they leave. This is the only thing
  * that puts a sales order into the revenue figures.
  */
+/**
+ * Record what the buyer is withholding.
+ *
+ * This happens AFTER the invoice has gone out: the client receives the bill,
+ * says they are deducting 5% AIT, and the figure is written here. The invoice
+ * keeps its number and is reissued as a new version showing the deduction and
+ * what is now payable, so the payment they send matches the paper we hold.
+ *
+ * Nothing about revenue changes. The withheld money is still ours — it sits
+ * with the tax office against our own income tax and returns with the
+ * certificate — so it must never reach gross profit.
+ */
+/**
+ * What this sale cost us beyond the goods.
+ *
+ * Delivery, a courier, installation, a commission — money spent on the job
+ * that never appears on the client's invoice. Kept as a list on the order so
+ * the report can say what the sale actually made rather than what the goods
+ * margin flattered it to.
+ *
+ * Editable at any point in the order's life, including long after it is paid,
+ * because a freight bill often arrives weeks later. Every change is audited by
+ * the route, and a reason is recorded on the order's own history.
+ */
+export async function setOrderCosts(
+  id: string,
+  input: OrderCostsInput,
+  actor: Actor,
+): Promise<SalesResult<Lean<ISalesOrder>>> {
+  const order = await getSalesOrderById(id);
+  if (!order) return fail("not_found");
+
+  const now = new Date();
+  const existing = new Map((order.costs ?? []).map((c) => [c.id, c]));
+  const costs = input.costs.map((c) => {
+    const prior = c.id ? existing.get(c.id) : undefined;
+    return {
+      id: c.id ?? lineId(),
+      label: c.label,
+      amountMinor: c.amountMinor,
+      note: c.note || null,
+      // Keep who first entered it; only new rows get today's stamp.
+      addedAt: prior?.addedAt ?? now,
+      addedBy: prior?.addedBy ?? actor.sub,
+    };
+  });
+
+  await updateSalesOrder(id, { costs });
+
+  const total = costs.reduce((t, c) => t + c.amountMinor, 0);
+  await addSalesOrderActivity(id, {
+    authorId: actor.sub,
+    body: `Order costs set: ${costs.length} item${costs.length === 1 ? "" : "s"}, ${(
+      total / 100
+    ).toLocaleString(
+      "en-BD",
+    )} total${input.reason ? ` — ${input.reason}` : ""}`,
+  });
+
+  const fresh = await getSalesOrderById(id);
+  return fresh ? done(fresh) : fail("not_found");
+}
+
+/**
+ * Correct what a line cost us, after the order can no longer be edited.
+ *
+ * The invoice is a document the client already holds, so nothing about what
+ * they were charged may change here — only our own cost, which never appeared
+ * on it. That is the whole reason this is a separate action from editing the
+ * order: it cannot touch price, quantity or description, so it cannot put the
+ * report out of step with the paper.
+ *
+ * A reason is required, and the before/after of every line that moved goes on
+ * the order's history as well as the audit log.
+ */
+export async function amendLineCosts(
+  id: string,
+  input: AmendCostsInput,
+  actor: Actor,
+): Promise<SalesResult<{ changed: number }>> {
+  const order = await getSalesOrderById(id);
+  if (!order) return fail("not_found");
+
+  const wanted = new Map(input.lines.map((l) => [l.id, l.unitCostMinor]));
+  const changes: string[] = [];
+  const items = order.items.map((i) => {
+    if (!wanted.has(i.id)) return i;
+    const next = wanted.get(i.id) ?? null;
+    const prev = i.unitCostMinor ?? null;
+    if (next === prev) return i;
+    changes.push(
+      `${i.description}: ${prev == null ? "—" : (prev / 100).toLocaleString("en-BD")} → ${
+        next == null ? "—" : (next / 100).toLocaleString("en-BD")
+      }`,
+    );
+    return { ...i, unitCostMinor: next };
+  });
+
+  if (!changes.length) return done({ changed: 0 });
+
+  await updateSalesOrder(id, { items });
+  await addSalesOrderActivity(id, {
+    authorId: actor.sub,
+    body: `Costs amended (${input.reason}) — ${changes.join("; ")}`,
+  });
+  return done({ changed: changes.length });
+}
+
+export async function recordWithholding(
+  id: string,
+  input: WithholdingInput,
+  actor: Actor,
+): Promise<SalesResult<Lean<ISalesOrder>>> {
+  const order = await getSalesOrderById(id);
+  if (!order) return fail("not_found");
+  if (order.status === "draft" || order.status === "proposal_generated") {
+    // Nothing has been billed, so there is nothing to withhold against.
+    return fail("invalid_transition");
+  }
+
+  // The client quotes a rate against the whole bill, so that is what it is
+  // applied to. An explicit amount wins when one is given, because a deduction
+  // slip is the fact and the rate is only how it was described.
+  const rateBp = input.aitRateBp ?? 0;
+  const aitMinor =
+    input.aitMinor ?? Math.round((order.totalMinor * rateBp) / 10000);
+  const aitRateBp =
+    input.aitRateBp ??
+    (order.totalMinor > 0
+      ? Math.round((aitMinor / order.totalMinor) * 10000)
+      : 0);
+
+  await updateSalesOrder(id, {
+    withholding: {
+      aitRateBp,
+      aitMinor,
+      vdsMinor: input.vdsMinor ?? null,
+      certificateReceived: input.certificateReceived ?? false,
+      certificateRef: input.certificateRef || null,
+      note: input.note || null,
+      recordedAt: new Date(),
+      recordedBy: actor.sub,
+    },
+  });
+  await addSalesOrderActivity(id, {
+    authorId: actor.sub,
+    body: `AIT recorded: ${(aitRateBp / 100).toFixed(2)}% withheld${
+      input.certificateReceived ? " · certificate received" : ""
+    }`,
+  });
+
+  const fresh = await getSalesOrderById(id);
+  return fresh ? done(fresh) : fail("not_found");
+}
+
 export async function recordPayment(
   id: string,
   input: SalesOrderPaymentInput,

@@ -49,6 +49,7 @@ export async function GET(req: Request) {
         description: d?.description ?? u.name,
         specification: d?.specification ?? u.name,
         brandOrigin: d?.brandOrigin ?? "",
+        costPriceMinor: d?.costPriceMinor ?? null,
       };
     }),
   });

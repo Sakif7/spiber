@@ -62,7 +62,11 @@ export async function getAdminPrefsRaw(id: string) {
 /** Replace the admin prefs wholesale (the API computes the next value). */
 export async function setAdminPrefs(
   id: string,
-  prefs: { favourites: string[]; recents: { id: string; at: Date }[] },
+  prefs: {
+    favourites: string[];
+    recents: { id: string; at: Date }[];
+    salesSheet?: unknown;
+  },
 ) {
   await connectToDatabase();
   await User.updateOne({ _id: id }, { $set: { adminPrefs: prefs } }).exec();

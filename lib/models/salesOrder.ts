@@ -26,10 +26,59 @@ export interface ISalesOrderItem {
   specification?: string | null;
   unit?: string | null;
   unitPriceMinor: number;
+  /** What the line cost us per unit; null until someone says. */
+  unitCostMinor?: number | null;
   qty: number;
   lineTotalMinor: number;
   /** How much of this line is currently reserved in inventory. */
   reservedQty: number;
+}
+
+/**
+ * Tax the buyer keeps back and pays to the government on our behalf.
+ *
+ * This is never known when the invoice goes out. The client receives the bill,
+ * tells us they will withhold (typically 5%), and only then is it recorded —
+ * which is why it lives here as its own event rather than as a rate on the
+ * order from the start.
+ *
+ * It is NOT a cost. The money is ours; it sits with the tax office against our
+ * income tax and comes back with the certificate. It changes what lands in the
+ * bank, not what we earned, and the report keeps those two apart.
+ */
+export interface ISalesOrderWithholding {
+  /** As quoted by the client, in basis points (500 = 5%). */
+  aitRateBp: number;
+  /** What they actually deducted. */
+  aitMinor: number;
+  /** VAT deducted at source, where the buyer does that too. */
+  vdsMinor?: number | null;
+  /** The certificate is what makes it reclaimable, so track whether it came. */
+  certificateReceived: boolean;
+  certificateRef?: string | null;
+  note?: string | null;
+  recordedAt: Date;
+  recordedBy?: Types.ObjectId | string | null;
+}
+
+/**
+ * A cost this order carried that no single line did.
+ *
+ * Getting the goods to the hospital, a courier, an installation charge, a
+ * commission — real money spent on this sale that never appeared on an
+ * invoice. Without these, "gross profit" is the most flattering number in the
+ * business and nobody can say what the job actually made.
+ *
+ * Free-form on purpose: the label is whatever it was, because the list of
+ * things a sale costs is not knowable in advance.
+ */
+export interface ISalesOrderCost {
+  id: string;
+  label: string;
+  amountMinor: number;
+  note?: string | null;
+  addedAt: Date;
+  addedBy?: Types.ObjectId | string | null;
 }
 
 export interface ISalesOrderTerms {
@@ -112,6 +161,10 @@ export interface ISalesOrder {
   vatMinor: number;
   totalMinor: number;
   terms: ISalesOrderTerms;
+  /** Set once the client tells us what they are keeping back. */
+  withholding?: ISalesOrderWithholding | null;
+  /** What this sale cost us beyond the goods themselves. */
+  costs?: ISalesOrderCost[];
   status: SalesOrderStatus;
   payment: {
     status: "unpaid" | "paid";
@@ -147,9 +200,38 @@ const itemSchema = new Schema<ISalesOrderItem>(
     specification: { type: String, default: null },
     unit: { type: String, default: null },
     unitPriceMinor: { type: Number, required: true, min: 0 },
+    // Null, not 0: "nobody has told us" and "it was free" are different, and
+    // the report must not book a 100% margin on the first of those.
+    unitCostMinor: { type: Number, default: null, min: 0 },
     qty: { type: Number, required: true, min: 1 },
     lineTotalMinor: { type: Number, required: true, min: 0 },
     reservedQty: { type: Number, default: 0, min: 0 },
+  },
+  { _id: false },
+);
+
+const orderCostSchema = new Schema<ISalesOrderCost>(
+  {
+    id: { type: String, required: true },
+    label: { type: String, required: true },
+    amountMinor: { type: Number, required: true, min: 0 },
+    note: { type: String, default: null },
+    addedAt: { type: Date, required: true },
+    addedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+  },
+  { _id: false },
+);
+
+const withholdingSchema = new Schema<ISalesOrderWithholding>(
+  {
+    aitRateBp: { type: Number, required: true, min: 0, max: 10000 },
+    aitMinor: { type: Number, required: true, min: 0 },
+    vdsMinor: { type: Number, default: null, min: 0 },
+    certificateReceived: { type: Boolean, default: false },
+    certificateRef: { type: String, default: null },
+    note: { type: String, default: null },
+    recordedAt: { type: Date, required: true },
+    recordedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
   },
   { _id: false },
 );
@@ -220,6 +302,8 @@ const salesOrderSchema = new Schema<ISalesOrder>(
     vatMinor: { type: Number, default: 0 },
     totalMinor: { type: Number, default: 0 },
     terms: { type: termsSchema, default: () => ({}) },
+    withholding: { type: withholdingSchema, default: null },
+    costs: { type: [orderCostSchema], default: [] },
     status: { type: String, required: true, default: "draft", index: true },
     payment: {
       status: { type: String, enum: ["unpaid", "paid"], default: "unpaid" },

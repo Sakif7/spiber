@@ -6,6 +6,9 @@ import type { Address } from "@/lib/schemas/order";
 export interface IAdminPrefs {
   favourites: string[];
   recents: { id: string; at: Date }[];
+  /** How this admin arranged the sales spreadsheet. Free-form on purpose:
+      the columns it names are validated on read, not by the database. */
+  salesSheet?: unknown;
 }
 
 export interface IUser {
@@ -57,6 +60,7 @@ const adminPrefsDef = new Schema<IAdminPrefs>(
   {
     favourites: { type: [String], default: [] },
     recents: { type: [adminRecentDef], default: [] },
+    salesSheet: { type: Schema.Types.Mixed, default: null },
   },
   { _id: false },
 );

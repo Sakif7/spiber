@@ -262,6 +262,11 @@ export async function placeOrder(
       name: l.product.name,
       sku: l.variant?.sku ?? l.product.sku,
       priceMinor: l.priceMinor,
+      // Frozen at the moment of sale. A seller's listing costs us nothing —
+      // their margin is theirs — so only a house product carries one.
+      costPriceMinor: l.product.sellerId
+        ? null
+        : (l.product.costPriceMinor ?? null),
       image: l.variant?.image ?? l.product.images[0],
       variantId: l.variantId,
       variantOptions: l.variant?.options ?? [],

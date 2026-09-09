@@ -11,6 +11,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { FormSection, FormField } from "@/components/admin/ui/form-shell";
 import { formatApiError } from "@/lib/http/form-error";
 import { priceSalesOrder } from "@/lib/schemas/sales-order";
@@ -30,6 +37,14 @@ export type EditorLine = {
   unit: string;
   /** Taka, as typed. */
   unitPrice: string;
+  /**
+   * What the line costs US, in taka as typed.
+   *
+   * Prefilled from the catalogue when a product is picked, and free to type on
+   * an external item that was bought in for this order. Always editable: the
+   * price actually paid to a supplier is not always the price on the product.
+   */
+  unitCost: string;
   qty: string;
   /** What inventory says is still available, for a visible warning. */
   available?: number | null;
@@ -42,6 +57,7 @@ type ProductHit = {
   variantLabel: string | null;
   sku: string;
   priceMinor: number | null;
+  costPriceMinor: number | null;
   onHand: number;
   reserved: number;
   available: number;
@@ -65,6 +81,7 @@ const emptyExternal = (): EditorLine => ({
   specification: "",
   unit: "",
   unitPrice: "",
+  unitCost: "",
   qty: "1",
 });
 
@@ -104,6 +121,10 @@ export function OrderEditor({
   const [vatPercent, setVatPercent] = useState(String(initialVatRateBp / 100));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Asked just before the proposal is produced, and only when it changes what
+  // the paper says — everything at qty 1 prints identically either way.
+  const [askQty, setAskQty] = useState(false);
+  const hasMultiples = lines.some((l) => (Number(l.qty) || 0) > 1);
 
   const totals = useMemo(
     () =>
@@ -167,6 +188,7 @@ export function OrderEditor({
           : hit.specification,
         unit: "pcs",
         unitPrice: fromMinor(hit.priceMinor),
+        unitCost: fromMinor(hit.costPriceMinor),
         qty: "1",
         available: hit.tracked ? hit.available : null,
       },
@@ -179,7 +201,10 @@ export function OrderEditor({
    * the generate action, fill that dialog. For a new order the proposal is
    * almost always the next thing, so it is offered here as one step.
    */
-  async function save(thenGenerateProposal = false) {
+  async function save(
+    thenGenerateProposal = false,
+    quantityMode: "single" | "ordered" = "ordered",
+  ) {
     setSaving(true);
     setError(null);
     try {
@@ -195,6 +220,9 @@ export function OrderEditor({
           specification: l.specification,
           unit: l.unit,
           unitPriceMinor: toMinor(l.unitPrice),
+          // Blank means nobody has said what it cost, which the report shows
+          // as a gap rather than as a 100% margin.
+          unitCostMinor: l.unitCost.trim() ? toMinor(l.unitCost) : null,
           qty: Number(l.qty) || 1,
         })),
         discountMinor: toMinor(discount),
@@ -225,7 +253,7 @@ export function OrderEditor({
         const gen = await fetch(`/api/admin/company/sales/orders/${savedId}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "proposal" }),
+          body: JSON.stringify({ action: "proposal", quantityMode }),
         });
         if (gen.ok) {
           toast.success("Proposal generated.");
@@ -277,21 +305,27 @@ export function OrderEditor({
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] border-collapse">
+            <table className="w-full min-w-[1040px] border-collapse">
               <thead>
-                {/* Widths are proportioned to what each column actually holds.
-                    Description used to be the only flexible column, so it took
-                    every spare pixel — ~870px for "Air Fryer 5L" — while
-                    Specification sat at 128px and truncated real content.
-                    Description and Specification now share the slack 2:1. */}
+                {/* The three text columns used to be sized as percentages of
+                    the table — 34/14/22 — which left the seven numeric ones to
+                    share whatever was left. In the sidebar layout that was
+                    about 240px for 568px of intent, so the browser crushed
+                    them and a cost of 138,000 rendered as "13".
+
+                    The numbers now have real widths that cannot be taken from
+                    them, the text columns share what remains, and the whole
+                    table has a min-width so it scrolls rather than compresses
+                    on a narrow screen. */}
                 <tr className="text-muted-foreground border-b text-left">
                   <th className="w-8 py-2">#</th>
-                  <th className="w-[34%] py-2">Description</th>
-                  <th className="w-[14%] py-2">Brand/Origin</th>
-                  <th className="w-[22%] py-2">Specification</th>
-                  <th className="w-20 py-2">Unit</th>
-                  <th className="w-28 py-2 text-right">Unit price</th>
-                  <th className="w-20 py-2 text-right">Qty</th>
+                  <th className="w-[26%] py-2">Description</th>
+                  <th className="w-[13%] py-2">Brand/Origin</th>
+                  <th className="w-[19%] py-2">Specification</th>
+                  <th className="w-16 py-2">Unit</th>
+                  <th className="w-24 py-2 text-right">Unit cost</th>
+                  <th className="w-24 py-2 text-right">Unit price</th>
+                  <th className="w-16 py-2 text-right">Qty</th>
                   <th className="w-28 py-2 text-right">Total</th>
                   <th className="w-10 py-2" />
                 </tr>
@@ -362,6 +396,18 @@ export function OrderEditor({
                           onChange={(e) => setLine(i, { unit: e.target.value })}
                           disabled={!canEdit}
                           className="h-8"
+                        />
+                      </td>
+                      <td className="py-1 pr-2">
+                        <Input
+                          value={l.unitCost}
+                          onChange={(e) =>
+                            setLine(i, { unitCost: e.target.value })
+                          }
+                          disabled={!canEdit}
+                          inputMode="decimal"
+                          placeholder="—"
+                          className="h-8 text-right"
                         />
                       </td>
                       <td className="py-1 pr-2">
@@ -510,7 +556,12 @@ export function OrderEditor({
               </Button>
             ) : (
               <>
-                <Button onClick={() => save(true)} disabled={saving || !ready}>
+                <Button
+                  onClick={() =>
+                    hasMultiples ? setAskQty(true) : void save(true)
+                  }
+                  disabled={saving || !ready}
+                >
                   {saving && <Loader2 className="size-4 animate-spin" />}
                   Create and generate proposal
                 </Button>
@@ -530,6 +581,55 @@ export function OrderEditor({
           )}
         </div>
       )}
+
+      {/* A proposal quotes a rate, so the usual thing to send is a per-piece
+          price — but the order may have been drafted with real quantities.
+          Only asked when the two would print differently. */}
+      <Dialog open={askQty} onOpenChange={setAskQty}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>How should quantities appear?</DialogTitle>
+            <DialogDescription>
+              Some lines are for more than one. This changes the quotation only
+              — the order keeps the quantities you entered.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2">
+            <Button
+              variant="outline"
+              className="h-auto justify-start py-3 text-left"
+              disabled={saving}
+              onClick={() => {
+                setAskQty(false);
+                void save(true, "single");
+              }}
+            >
+              <span>
+                <strong className="block">Quote per piece</strong>
+                <span className="text-muted-foreground text-xs">
+                  Every line shows a quantity of 1 at its unit rate.
+                </span>
+              </span>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-auto justify-start py-3 text-left"
+              disabled={saving}
+              onClick={() => {
+                setAskQty(false);
+                void save(true, "ordered");
+              }}
+            >
+              <span>
+                <strong className="block">Show the quantities entered</strong>
+                <span className="text-muted-foreground text-xs">
+                  Prints what is on the order, with each line totalled.
+                </span>
+              </span>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

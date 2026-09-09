@@ -11,6 +11,7 @@ import {
   DetailRow,
 } from "@/components/admin/ui/detail";
 import { OrderEditor } from "@/components/admin/sales/order-editor";
+import { OrderCostsPanel } from "@/components/admin/sales/order-costs-panel";
 import { StageRail } from "@/components/admin/sales/stage-rail";
 import { blockers } from "@/lib/sales/journey";
 import {
@@ -92,6 +93,10 @@ export default async function SalesOrderPage({
       )}
 
       <DetailLayout
+        /* A narrow, fixed sidebar rather than a share of the width: the items
+           table has nine columns of its own and every point the aside takes is
+           one the numbers lose. */
+        className="lg:grid-cols-[minmax(0,1fr)_340px]"
         aside={
           <>
             <OrderActions
@@ -102,6 +107,8 @@ export default async function SalesOrderPage({
               proposals={order.proposals.map(toVersion)}
               invoices={order.invoices.map(toVersion)}
               defaultPaymentDays={order.terms.paymentDays}
+              withholding={Boolean(order.withholding)}
+              hasMultiples={order.items.some((i) => i.qty > 1)}
               blockers={orderBlockers}
             />
 
@@ -125,6 +132,28 @@ export default async function SalesOrderPage({
                 </Link>
               </DetailRow>
             </DetailCard>
+
+            <OrderCostsPanel
+              orderId={id}
+              initialCosts={(order.costs ?? []).map((c) => ({
+                id: c.id,
+                label: c.label,
+                amountMinor: c.amountMinor,
+              }))}
+              lines={order.items.map((i) => ({
+                id: i.id,
+                description: i.description,
+                unitCostMinor: i.unitCostMinor ?? null,
+              }))}
+              grossProfitMinor={
+                order.subtotalMinor -
+                order.discountMinor -
+                order.items.reduce(
+                  (t, i) => t + (i.unitCostMinor ?? 0) * i.qty,
+                  0,
+                )
+              }
+            />
 
             <DetailCard title="Money">
               <DetailRow label="Subtotal">
@@ -184,6 +213,8 @@ export default async function SalesOrderPage({
             specification: i.specification ?? "",
             unit: i.unit ?? "",
             unitPrice: String(i.unitPriceMinor / 100),
+            unitCost:
+              i.unitCostMinor != null ? String(i.unitCostMinor / 100) : "",
             qty: String(i.qty),
           }))}
           initialDiscount={order.discountMinor}

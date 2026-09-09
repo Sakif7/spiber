@@ -99,16 +99,30 @@ function stripReservation(item: ISalesOrder["items"][number]) {
   return rest;
 }
 
-const toLines = (order: Lean<ISalesOrder>): DocumentLine[] =>
-  order.items.map((i) => ({
-    description: i.description,
-    brandOrigin: i.brandOrigin ?? null,
-    specification: i.specification ?? null,
-    unit: i.unit ?? null,
-    unitPriceMinor: i.unitPriceMinor,
-    qty: i.qty,
-    lineTotalMinor: i.lineTotalMinor,
-  }));
+/**
+ * The lines a document prints.
+ *
+ * `quantityMode: "single"` quotes one of each at the unit rate, which is what a
+ * proposal usually is — the price per piece, for the client to order against.
+ * The stored order keeps the quantities that were entered either way; this
+ * only changes what the paper says.
+ */
+const toLines = (
+  order: Lean<ISalesOrder>,
+  quantityMode: "single" | "ordered" = "ordered",
+): DocumentLine[] =>
+  order.items.map((i) => {
+    const qty = quantityMode === "single" ? 1 : i.qty;
+    return {
+      description: i.description,
+      brandOrigin: i.brandOrigin ?? null,
+      specification: i.specification ?? null,
+      unit: i.unit ?? null,
+      unitPriceMinor: i.unitPriceMinor,
+      qty,
+      lineTotalMinor: i.unitPriceMinor * qty,
+    };
+  });
 
 /**
  * File a generated PDF in the vault, under Sales / <organisation> / <kind>s.
@@ -196,7 +210,7 @@ export async function generateProposal(
         to: proposalTo,
         subject,
         intro,
-        lines: toLines(order),
+        lines: toLines(order, input.quantityMode ?? "ordered"),
         terms,
         signatory: await signatory(),
       },

@@ -97,12 +97,23 @@ export type RegisterFormValues = z.infer<typeof registerFormSchema>;
  * replace the favourites list, record one visit, or both. Ids are validated
  * against the nav registry server-side.
  */
+export const salesSheetLayoutSchema = z.object({
+  columns: z.array(z.string().trim().min(1).max(32)).max(32),
+  groupBy: z.enum(["invoice", "client", "none"]),
+  clientSubtotals: z.boolean(),
+});
+
 export const adminPrefsUpdateSchema = z
   .object({
     favourites: z.array(z.string().trim().min(1).max(64)).max(24).optional(),
     recent: z.string().trim().min(1).max(64).optional(),
+    salesSheet: salesSheetLayoutSchema.optional(),
   })
-  .refine((d) => d.favourites !== undefined || d.recent !== undefined, {
-    message: "Nothing to update",
-  });
+  .refine(
+    (d) =>
+      d.favourites !== undefined ||
+      d.recent !== undefined ||
+      d.salesSheet !== undefined,
+    { message: "Nothing to update" },
+  );
 export type AdminPrefsUpdateInput = z.infer<typeof adminPrefsUpdateSchema>;
