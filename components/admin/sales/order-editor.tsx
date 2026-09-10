@@ -45,10 +45,34 @@ export type EditorLine = {
    * price actually paid to a supplier is not always the price on the product.
    */
   unitCost: string;
+  /**
+   * VAT for this line, as typed — a percentage or a taka figure, per
+   * `vatMode`. Blank means "not set on this line".
+   *
+   * Setting it on ANY line takes the whole order out of the configured rate
+   * and onto per-line VAT, at which point a blank line carries none. The
+   * editor says so where it can be read.
+   */
+  vatValue: string;
+  vatMode: "percent" | "amount";
   qty: string;
   /** What inventory says is still available, for a visible warning. */
   available?: number | null;
 };
+
+/** What a line contributes to pricing, from what was typed into it. */
+function vatOf(l: EditorLine): {
+  vatRateBp?: number | null;
+  vatAmountMinor?: number | null;
+} {
+  const raw = l.vatValue.trim();
+  if (raw === "") return {};
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) return {};
+  return l.vatMode === "percent"
+    ? { vatRateBp: Math.round(n * 100) }
+    : { vatAmountMinor: Math.round(n * 100) };
+}
 
 type ProductHit = {
   productId: string;
@@ -82,6 +106,8 @@ const emptyExternal = (): EditorLine => ({
   unit: "",
   unitPrice: "",
   unitCost: "",
+  vatValue: "",
+  vatMode: "percent",
   qty: "1",
 });
 
@@ -100,6 +126,7 @@ export function OrderEditor({
   initialDelivery = 0,
   initialReferenceNo = "",
   initialVatRateBp,
+  initialAitRateBp = 0,
   canEdit,
 }: {
   orderId?: string;
@@ -111,6 +138,8 @@ export function OrderEditor({
   /** The client's own purchase-order reference. */
   initialReferenceNo?: string;
   initialVatRateBp: number;
+  /** Expected withholding. Printed on the invoice; never added to the total. */
+  initialAitRateBp?: number;
   canEdit: boolean;
 }) {
   const router = useRouter();
@@ -118,7 +147,10 @@ export function OrderEditor({
   const [discount, setDiscount] = useState(fromMinor(initialDiscount));
   const [delivery, setDelivery] = useState(fromMinor(initialDelivery));
   const [referenceNo, setReferenceNo] = useState(initialReferenceNo);
-  const [vatPercent, setVatPercent] = useState(String(initialVatRateBp / 100));
+  // The order-level rate comes from settings and is shown, not edited: VAT is
+  // now either that rate on the whole invoice, or set line by line.
+  const vatRateBp = initialVatRateBp;
+  const [aitPercent, setAitPercent] = useState(String(initialAitRateBp / 100));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Asked just before the proposal is produced, and only when it changes what
@@ -132,12 +164,13 @@ export function OrderEditor({
         items: lines.map((l) => ({
           unitPriceMinor: toMinor(l.unitPrice),
           qty: Number(l.qty) || 0,
+          ...vatOf(l),
         })),
         discountMinor: toMinor(discount),
         deliveryMinor: toMinor(delivery),
-        vatRateBp: Math.round((Number(vatPercent) || 0) * 100),
+        vatRateBp,
       }),
-    [lines, discount, delivery, vatPercent],
+    [lines, discount, delivery, vatRateBp],
   );
 
   /**
@@ -189,6 +222,8 @@ export function OrderEditor({
         unit: "pcs",
         unitPrice: fromMinor(hit.priceMinor),
         unitCost: fromMinor(hit.costPriceMinor),
+        vatValue: "",
+        vatMode: "percent",
         qty: "1",
         available: hit.tracked ? hit.available : null,
       },
@@ -223,12 +258,19 @@ export function OrderEditor({
           // Blank means nobody has said what it cost, which the report shows
           // as a gap rather than as a 100% margin.
           unitCostMinor: l.unitCost.trim() ? toMinor(l.unitCost) : null,
+          // Null, not omitted: an amend has to be able to CLEAR a line's VAT,
+          // and the service reads undefined as "no opinion".
+          vatRateBp: vatOf(l).vatRateBp ?? null,
+          vatAmountMinor: vatOf(l).vatAmountMinor ?? null,
           qty: Number(l.qty) || 1,
         })),
         discountMinor: toMinor(discount),
         deliveryMinor: toMinor(delivery),
         referenceNo,
-        vatRateBp: Math.round((Number(vatPercent) || 0) * 100),
+        // Not editable here — it is the configured rate, carried through
+        // unchanged so an amend cannot silently re-rate the order.
+        vatRateBp,
+        aitRateBp: Math.round((Number(aitPercent) || 0) * 100),
       };
 
       const res = await fetch(
@@ -270,8 +312,15 @@ export function OrderEditor({
         }
       }
 
-      router.push(`/admin/company/sales/orders/${savedId}`);
-      router.refresh();
+      if (orderId) {
+        // Already on this order's page. Pushing the URL we are on races the
+        // refresh and can leave the panels beside the editor showing the
+        // figures from before the save — which reads as "the amendment did
+        // not work" even though it did.
+        router.refresh();
+      } else {
+        router.push(`/admin/company/sales/orders/${savedId}`);
+      }
     } finally {
       setSaving(false);
     }
@@ -305,7 +354,7 @@ export function OrderEditor({
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1040px] border-collapse">
+            <table className="w-full min-w-[1180px] border-collapse">
               <thead>
                 {/* The three text columns used to be sized as percentages of
                     the table — 34/14/22 — which left the seven numeric ones to
@@ -323,9 +372,13 @@ export function OrderEditor({
                   <th className="w-[13%] py-2">Brand/Origin</th>
                   <th className="w-[19%] py-2">Specification</th>
                   <th className="w-16 py-2">Unit</th>
-                  <th className="w-24 py-2 text-right">Unit cost</th>
-                  <th className="w-24 py-2 text-right">Unit price</th>
-                  <th className="w-16 py-2 text-right">Qty</th>
+                  {/* pr-5 = the cell's pr-2 plus the input's own 12px of
+                      padding; without it the heading floats right of its
+                      figures. VAT needs the width of its unit toggle too. */}
+                  <th className="w-24 py-2 pr-5 text-right">Unit cost</th>
+                  <th className="w-24 py-2 pr-5 text-right">Unit price</th>
+                  <th className="w-36 py-2 pr-14 text-right">VAT</th>
+                  <th className="w-16 py-2 pr-5 text-right">Qty</th>
                   <th className="w-28 py-2 text-right">Total</th>
                   <th className="w-10 py-2" />
                 </tr>
@@ -431,6 +484,45 @@ export function OrderEditor({
                         )}
                       </td>
                       <td className="py-1 pr-2">
+                        <div className="flex items-center gap-1">
+                          <Input
+                            value={l.vatValue}
+                            onChange={(e) =>
+                              setLine(i, { vatValue: e.target.value })
+                            }
+                            disabled={!canEdit}
+                            inputMode="decimal"
+                            placeholder="—"
+                            aria-label={`VAT for line ${i + 1}`}
+                            className="h-8 text-right"
+                          />
+                          {/* One box, two meanings. A separate column for each
+                              would be two mostly-empty columns, and the client
+                              enters VAT one way or the other, never both. */}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={!canEdit}
+                            aria-label={
+                              l.vatMode === "percent"
+                                ? "VAT entered as a percentage; switch to an amount"
+                                : "VAT entered as an amount; switch to a percentage"
+                            }
+                            className="h-8 w-8 shrink-0 px-0 font-mono"
+                            onClick={() =>
+                              setLine(i, {
+                                vatMode:
+                                  l.vatMode === "percent"
+                                    ? "amount"
+                                    : "percent",
+                              })
+                            }
+                          >
+                            {l.vatMode === "percent" ? "%" : "৳"}
+                          </Button>
+                        </div>
+                      </td>
+                      <td className="py-1 pr-2">
                         <Input
                           value={l.qty}
                           onChange={(e) => setLine(i, { qty: e.target.value })}
@@ -508,10 +600,13 @@ export function OrderEditor({
               inputMode="decimal"
             />
           </FormField>
-          <FormField label="VAT (%)" hint="0 leaves VAT off the invoice.">
+          <FormField
+            label="AIT (%)"
+            hint="What the client withholds. Printed on the invoice; never added to the total."
+          >
             <Input
-              value={vatPercent}
-              onChange={(e) => setVatPercent(e.target.value)}
+              value={aitPercent}
+              onChange={(e) => setAitPercent(e.target.value)}
               disabled={!canEdit}
               inputMode="decimal"
             />
@@ -531,7 +626,11 @@ export function OrderEditor({
           )}
           {totals.vatMinor > 0 && (
             <TotalRow
-              label={`VAT (${vatPercent || 0}%)`}
+              label={
+                totals.perLineVat
+                  ? "VAT (per line)"
+                  : `VAT (${vatRateBp / 100}%)`
+              }
               value={money(totals.vatMinor)}
             />
           )}

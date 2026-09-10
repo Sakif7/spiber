@@ -1,5 +1,5 @@
 import mongoose, { Schema, type Model, type Types } from "mongoose";
-import type { SalesLeadStatus } from "@/lib/schemas/sales-lead";
+import type { SalesLeadStatus, LeadReason } from "@/lib/schemas/sales-lead";
 
 /**
  * An organisation Spiber Med sells to offline: a hospital, clinic or lab.
@@ -29,6 +29,20 @@ export interface ISalesLead {
   phone: string;
   email?: string | null;
   address: string;
+  /** District slug (see `lib/bd/districts`). The address alone cannot be filtered. */
+  area?: string | null;
+  /** Who brought the lead in, when it was one of ours. */
+  sourceEmployeeId?: Types.ObjectId | string | null;
+  /**
+   * The referrer's name as it should read.
+   *
+   * Set for a typed name, and also snapshotted when an employee is picked, so
+   * a list of leads renders without a join per row.
+   */
+  sourceName?: string | null;
+  /** What they are asking for; more than one is normal. */
+  reasons?: LeadReason[];
+  reasonNote?: string | null;
   /** Defaults for the proposal's "To" block, e.g. "Director" / "Procurement". */
   addresseeTitle?: string | null;
   addresseeDept?: string | null;
@@ -63,6 +77,15 @@ const salesLeadSchema = new Schema<ISalesLead>(
     phone: { type: String, required: true, trim: true },
     email: { type: String, lowercase: true, trim: true, default: null },
     address: { type: String, required: true, trim: true },
+    area: { type: String, default: null, index: true },
+    sourceEmployeeId: {
+      type: Schema.Types.ObjectId,
+      ref: "Employee",
+      default: null,
+    },
+    sourceName: { type: String, default: null, trim: true },
+    reasons: { type: [String], default: [] },
+    reasonNote: { type: String, default: null },
     addresseeTitle: { type: String, default: null },
     addresseeDept: { type: String, default: null },
     remark: { type: String, default: null },

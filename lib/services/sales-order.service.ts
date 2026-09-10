@@ -24,6 +24,7 @@ import {
   addSalesOrderActivity,
   outstandingReservations,
   getSalesLeadById,
+  currentProductPrices,
 } from "@/lib/repositories/sales.repo";
 import {
   reserveStock,
@@ -123,6 +124,12 @@ function toItems(
         raw.unitCostMinor === undefined
           ? (prior?.unitCostMinor ?? null)
           : raw.unitCostMinor,
+      // As entered: a rate, or a figure, or neither. `vatMinor` below is what
+      // it works out at, and is filled in by `totalsFor` once every line is
+      // known — one line's VAT decides whether ANY line has its own.
+      vatRateBp: raw.vatRateBp ?? null,
+      vatAmountMinor: raw.vatAmountMinor ?? null,
+      vatMinor: 0,
       qty: raw.qty,
       lineTotalMinor: raw.unitPriceMinor * raw.qty,
       // Reservations are moved deliberately below; they never follow an edit
@@ -132,14 +139,49 @@ function toItems(
   });
 }
 
-function totalsFor(
+/**
+ * Price the order and stamp each line with the VAT it carries.
+ *
+ * Returns the items as well as the totals because per-line VAT can only be
+ * settled once every line is in hand: a single line with its own rate takes
+ * the whole order out of order-rate mode, and the others then owe nothing.
+ * Callers must persist the returned `items`, not the ones they passed in.
+ */
+function priceOrder(
   items: ISalesOrderItem[],
   discountMinor: number,
   vatRateBp: number,
   deliveryMinor = 0,
-) {
-  return priceSalesOrder({ items, discountMinor, vatRateBp, deliveryMinor });
+): { items: ISalesOrderItem[]; totals: OrderTotals } {
+  const priced = priceSalesOrder({
+    items,
+    discountMinor,
+    vatRateBp,
+    deliveryMinor,
+  });
+  return {
+    items: items.map((it, i) => ({
+      ...it,
+      // In order-rate mode the VAT belongs to the order, not to any line.
+      vatMinor: priced.perLineVat ? (priced.lineVatMinor[i] ?? 0) : 0,
+    })),
+    totals: {
+      subtotalMinor: priced.subtotalMinor,
+      discountMinor: priced.discountMinor,
+      vatMinor: priced.vatMinor,
+      deliveryMinor: priced.deliveryMinor,
+      totalMinor: priced.totalMinor,
+    },
+  };
 }
+
+type OrderTotals = {
+  subtotalMinor: number;
+  discountMinor: number;
+  vatMinor: number;
+  deliveryMinor: number;
+  totalMinor: number;
+};
 
 // ─────────────────────────── create and amend ───────────────────────────
 
@@ -150,10 +192,9 @@ export async function createOrder(
   const lead = await getSalesLeadById(input.leadId);
   if (!lead) return fail("lead_not_found");
 
-  const items = toItems(input.items);
   const vatRateBp = input.vatRateBp ?? 0;
-  const totals = totalsFor(
-    items,
+  const { items, totals } = priceOrder(
+    toItems(input.items),
     input.discountMinor ?? 0,
     vatRateBp,
     input.deliveryMinor ?? 0,
@@ -174,6 +215,7 @@ export async function createOrder(
     items,
     ...totals,
     vatRateBp,
+    aitRateBp: input.aitRateBp ?? 0,
     referenceNo: input.referenceNo || null,
     terms,
     status: "draft",
@@ -285,11 +327,17 @@ export async function amendOrder(
     }
   }
 
-  const totals = totalsFor(nextItems, discountMinor, vatRateBp, deliveryMinor);
+  const { items: pricedItems, totals } = priceOrder(
+    nextItems,
+    discountMinor,
+    vatRateBp,
+    deliveryMinor,
+  );
   const updated = await updateSalesOrder(id, {
-    items: nextItems,
+    items: pricedItems,
     ...totals,
     vatRateBp,
+    ...(input.aitRateBp !== undefined ? { aitRateBp: input.aitRateBp } : {}),
     ...(input.referenceNo !== undefined
       ? { referenceNo: input.referenceNo }
       : {}),
@@ -303,6 +351,130 @@ export async function amendOrder(
     body: "Order amended",
   });
   return done(updated);
+}
+
+/**
+ * Raise the same order again for the same client.
+ *
+ * A hospital that liked what it bought asks for it again, and quoting them for
+ * something they have already agreed to is a step nobody needs. The copy is a
+ * fresh draft — its own number, its own invoice number when it gets one — and
+ * it can be invoiced without a proposal.
+ *
+ * Prices come across as they were AGREED, not as the catalogue reads today:
+ * re-pricing a repeat would quietly change a deal neither side renegotiated.
+ * Where the catalogue has since moved, the difference is reported so somebody
+ * decides on purpose.
+ */
+export async function repeatOrder(
+  sourceId: string,
+  actor: Actor,
+): Promise<
+  SalesResult<{
+    order: Lean<ISalesOrder>;
+    /** Lines whose catalogue price is no longer the one being copied. */
+    priceChanges: {
+      description: string;
+      wasMinor: number;
+      nowMinor: number;
+    }[];
+  }>
+> {
+  const source = await getSalesOrderById(sourceId);
+  if (!source) return fail("not_found");
+  if (source.items.length === 0) return fail("no_items");
+
+  const lead = await getSalesLeadById(String(source.leadId));
+  if (!lead) return fail("lead_not_found");
+
+  // Fresh line ids: the copy is its own order, and sharing an id with the
+  // order it came from would tangle the two reservation ledgers together.
+  const items: ISalesOrderItem[] = source.items.map((i) => ({
+    ...i,
+    id: lineId(),
+    reservedQty: 0,
+  }));
+
+  // Best effort: a catalogue lookup that fails must not stop the repeat. The
+  // copy is still correct, it just cannot report what has moved.
+  const catalogue = await currentProductPrices(
+    items.map((i) => String(i.productId ?? "")),
+  ).catch(() => new Map<string, number | null>());
+
+  const priceChanges: {
+    description: string;
+    wasMinor: number;
+    nowMinor: number;
+  }[] = [];
+  for (const i of items) {
+    if (i.kind !== "inventory" || !i.productId) continue;
+    const key = i.variantId
+      ? `${String(i.productId)}:${i.variantId}`
+      : String(i.productId);
+    const now = catalogue.get(key);
+    if (typeof now === "number" && now !== i.unitPriceMinor) {
+      priceChanges.push({
+        description: i.description,
+        wasMinor: i.unitPriceMinor,
+        nowMinor: now,
+      });
+    }
+  }
+
+  const { items: priced, totals } = priceOrder(
+    items,
+    source.discountMinor,
+    source.vatRateBp,
+    source.deliveryMinor ?? 0,
+  );
+
+  const doc = await createSalesOrder({
+    number: salesOrderNumber(),
+    leadId: String(lead._id),
+    // Taken from the lead as it reads NOW: the client may have moved offices
+    // or changed the person who signs since the order being copied.
+    leadSnapshot: {
+      organisation: lead.organisation,
+      code: lead.code,
+      contactName: lead.contactName,
+      phone: lead.phone,
+      email: lead.email ?? null,
+      address: lead.address,
+    },
+    items: priced,
+    ...totals,
+    vatRateBp: source.vatRateBp,
+    aitRateBp: source.aitRateBp ?? 0,
+    // The client's old purchase-order number belongs to the old order.
+    referenceNo: null,
+    terms: source.terms,
+    status: "draft",
+    note: source.note ?? null,
+    createdBy: actor.sub,
+  });
+
+  const id = String(doc._id);
+  await addSalesOrderActivity(id, {
+    authorId: actor.sub,
+    body: `Repeated from ${source.number}`,
+    to: "draft",
+  });
+  if (priceChanges.length > 0) {
+    await addSalesOrderActivity(id, {
+      authorId: actor.sub,
+      body: `Copied at the agreed prices. The catalogue has since changed on ${priceChanges.length} line${priceChanges.length === 1 ? "" : "s"}: ${priceChanges
+        .map(
+          (c) =>
+            `${c.description} ${(c.wasMinor / 100).toFixed(2)} → ${(c.nowMinor / 100).toFixed(2)}`,
+        )
+        .join("; ")}`,
+    });
+  }
+
+  return done({
+    order: doc.toObject() as Lean<ISalesOrder>,
+    priceChanges,
+  });
 }
 
 // ───────────────────────────── transitions ─────────────────────────────

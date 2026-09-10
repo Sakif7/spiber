@@ -7,6 +7,7 @@ import { addDays } from "@/lib/pdf/format";
 import {
   ProposalDocument,
   InvoiceDocument,
+  ChallanDocument,
   type DocumentLine,
   type Signatory,
 } from "@/lib/pdf/documents";
@@ -19,7 +20,6 @@ import {
   getSalesOrderById,
   getSalesLeadById,
   updateSalesOrder,
-  pushDocumentVersion,
   addSalesOrderActivity,
   markVersionEmailed,
 } from "@/lib/repositories/sales.repo";
@@ -33,9 +33,15 @@ import {
   type Actor,
 } from "@/lib/services/company-fs.service";
 import { vaultConfigured } from "@/lib/crypto/vault";
+import { effectiveVatRateBp } from "@/lib/schemas/sales-order";
+import {
+  nextChallanSeq,
+  formatChallanNumber,
+} from "@/lib/services/invoice-number.service";
 import type {
   ProposalGenerateInput,
   InvoiceGenerateInput,
+  ChallanGenerateInput,
   SendDocumentInput,
 } from "@/lib/schemas/sales-order";
 
@@ -48,7 +54,7 @@ import type {
  * sent — the old version stays reproducible, marked superseded.
  */
 
-export type DocKind = "proposal" | "invoice";
+export type DocKind = "proposal" | "invoice" | "challan";
 
 export type DocError =
   | "not_found"
@@ -113,6 +119,8 @@ const toLines = (
 ): DocumentLine[] =>
   order.items.map((i) => {
     const qty = quantityMode === "single" ? 1 : i.qty;
+    const lineTotalMinor = i.unitPriceMinor * qty;
+    const rateBp = effectiveVatRateBp(i);
     return {
       description: i.description,
       brandOrigin: i.brandOrigin ?? null,
@@ -120,7 +128,16 @@ const toLines = (
       unit: i.unit ?? null,
       unitPriceMinor: i.unitPriceMinor,
       qty,
-      lineTotalMinor: i.unitPriceMinor * qty,
+      lineTotalMinor,
+      vatRateBp: rateBp,
+      // At the ordered quantity, print the figure the order was priced with —
+      // a VAT typed as an amount must not drift by a poisha through a
+      // round-trip via its implied rate. A quote-per-piece proposal is showing
+      // a different quantity, so there the rate is what carries over.
+      vatMinor:
+        qty === i.qty
+          ? (i.vatMinor ?? 0)
+          : Math.round((lineTotalMinor * rateBp) / 10000),
     };
   });
 
@@ -131,6 +148,13 @@ const toLines = (
  * must not be blocked because the archive is unavailable. A failure is logged
  * and the version simply has no vault link.
  */
+/** Where each kind is filed in the company vault. */
+const VAULT_FOLDER: Record<DocKind, string> = {
+  proposal: "Proposals",
+  invoice: "Invoices",
+  challan: "Delivery challans",
+};
+
 async function fileInVault(
   order: Lean<ISalesOrder>,
   kind: DocKind,
@@ -140,11 +164,7 @@ async function fileInVault(
 ): Promise<string | null> {
   try {
     const folder = await ensureFolderPath(
-      [
-        "Sales",
-        order.leadSnapshot.organisation,
-        kind === "proposal" ? "Proposals" : "Invoices",
-      ],
+      ["Sales", order.leadSnapshot.organisation, VAULT_FOLDER[kind]],
       actor,
     );
     if (!folder.ok) return null;
@@ -179,6 +199,7 @@ export async function generateProposal(
 
   const lead = await getSalesLeadById(String(order.leadId));
   const version = order.proposals.length + 1;
+  const quantityMode = input.quantityMode ?? "ordered";
   const date = new Date();
   const terms = { ...order.terms, ...(input.terms ?? {}) };
   const subject =
@@ -210,7 +231,7 @@ export async function generateProposal(
         to: proposalTo,
         subject,
         intro,
-        lines: toLines(order, input.quantityMode ?? "ordered"),
+        lines: toLines(order, quantityMode),
         terms,
         signatory: await signatory(),
       },
@@ -230,16 +251,24 @@ export async function generateProposal(
       discountMinor: order.discountMinor,
       vatRateBp: order.vatRateBp,
       vatMinor: order.vatMinor,
+      aitRateBp: order.aitRateBp ?? 0,
       totalMinor: order.totalMinor,
       terms,
       addressee,
       subject,
       intro,
+      quantityMode,
     },
     documentId,
     emailedTo: [],
   };
-  await pushDocumentVersion(orderId, "proposals", entry);
+  // Any earlier proposal is superseded, exactly as an earlier invoice is: two
+  // unmarked proposals side by side is how the wrong one gets sent.
+  const proposals = order.proposals.map((v) =>
+    v.supersededAt ? v : { ...v, supersededAt: new Date() },
+  );
+  proposals.push(entry);
+  await updateSalesOrder(orderId, { proposals });
   if (order.status === "draft") {
     await updateSalesOrder(orderId, { status: "proposal_generated" });
   }
@@ -329,6 +358,7 @@ export async function generateInvoice(
         vatMinor: order.vatMinor,
         deliveryMinor: order.deliveryMinor ?? 0,
         totalMinor: order.totalMinor,
+        aitRateBp: order.aitRateBp ?? 0,
         // Only whole-order payment is tracked, so this is all or nothing.
         paidMinor: order.payment.status === "paid" ? order.totalMinor : 0,
         paymentDays,
@@ -355,6 +385,7 @@ export async function generateInvoice(
       deliveryMinor: order.deliveryMinor ?? 0,
       vatRateBp: order.vatRateBp,
       vatMinor: order.vatMinor,
+      aitRateBp: order.aitRateBp ?? 0,
       totalMinor: order.totalMinor,
       paidMinor: order.payment.status === "paid" ? order.totalMinor : 0,
       referenceNo: order.referenceNo ?? null,
@@ -384,7 +415,123 @@ export async function generateInvoice(
   return done({ version, invoiceNumber, documentId });
 }
 
+// ─────────────────────────── delivery challan ───────────────────────────
+
+/**
+ * Produce the note that travels with the goods.
+ *
+ * Available once the order is invoiced, because a challan without an invoice
+ * behind it is stock leaving the building against nothing. One number per
+ * order: producing it again — to add a vehicle registration, say — supersedes
+ * the previous version rather than issuing a second challan, since two
+ * challans for one delivery is how goods get counted twice at the gate.
+ */
+export async function generateChallan(
+  orderId: string,
+  input: ChallanGenerateInput,
+  actor: Actor,
+): Promise<
+  DocResult<{
+    version: number;
+    challanNumber: string;
+    documentId: string | null;
+  }>
+> {
+  if (!vaultConfigured()) return fail("vault_not_configured");
+  const order = await getSalesOrderById(orderId);
+  if (!order) return fail("not_found");
+  if (order.items.length === 0) return fail("no_items");
+  if (order.status !== "invoiced" && order.status !== "delivered") {
+    return fail("not_invoiced");
+  }
+
+  const existing = order.challans ?? [];
+  const version = existing.length + 1;
+  const date = input.date ? new Date(input.date) : new Date();
+  const dispatchNote = input.dispatchNote?.trim() || null;
+
+  const challanNumber =
+    order.challanNumber ??
+    formatChallanNumber({
+      code: order.leadSnapshot.code,
+      date,
+      seq: await nextChallanSeq(),
+    });
+
+  const pdf = await renderPdf(
+    React.createElement(ChallanDocument, {
+      data: {
+        challanNumber,
+        date,
+        invoiceNumber: order.invoiceNumber ?? null,
+        referenceNo: order.referenceNo ?? null,
+        deliverTo: {
+          organisation: order.leadSnapshot.organisation,
+          address: order.leadSnapshot.address,
+          contactPerson: order.leadSnapshot.contactName ?? null,
+          phone: order.leadSnapshot.phone ?? null,
+          email: order.leadSnapshot.email ?? null,
+        },
+        lines: toLines(order),
+        dispatchNote,
+      },
+    }),
+  );
+
+  const filename = `Challan ${challanNumber.replaceAll("/", "-")}.pdf`;
+  const documentId = await fileInVault(order, "challan", filename, pdf, actor);
+
+  const challans = existing.map((v) =>
+    v.supersededAt ? v : { ...v, supersededAt: new Date() },
+  );
+  challans.push({
+    version,
+    generatedAt: new Date(),
+    generatedBy: actor.sub,
+    snapshot: {
+      items: order.items.map(stripReservation),
+      subtotalMinor: order.subtotalMinor,
+      discountMinor: order.discountMinor,
+      deliveryMinor: order.deliveryMinor ?? 0,
+      vatRateBp: order.vatRateBp,
+      vatMinor: order.vatMinor,
+      totalMinor: order.totalMinor,
+      referenceNo: order.referenceNo ?? null,
+      terms: order.terms,
+      invoiceNumber: order.invoiceNumber ?? null,
+      challanNumber,
+      dispatchNote,
+      deliveryDate: date,
+      quantityMode: "ordered",
+    },
+    documentId,
+    emailedTo: [],
+  });
+
+  await updateSalesOrder(orderId, { challans, challanNumber });
+  await addSalesOrderActivity(orderId, {
+    authorId: actor.sub,
+    body: `Delivery challan ${challanNumber} generated (v${version})`,
+  });
+
+  return done({ version, challanNumber, documentId });
+}
+
 // ─────────────────────────── serve + send ───────────────────────────
+
+/** Which array on the order holds a given kind of document. */
+const listKey = (kind: DocKind) =>
+  kind === "proposal"
+    ? ("proposals" as const)
+    : kind === "invoice"
+      ? ("invoices" as const)
+      : ("challans" as const);
+
+const KIND_LABEL: Record<DocKind, string> = {
+  proposal: "Proposal",
+  invoice: "Invoice",
+  challan: "Delivery challan",
+};
 
 /** Re-render a stored version, so an old document reproduces exactly. */
 export async function renderVersion(
@@ -394,20 +541,36 @@ export async function renderVersion(
 ): Promise<DocResult<{ pdf: Buffer; filename: string }>> {
   const order = await getSalesOrderById(orderId);
   if (!order) return fail("not_found");
-  const list = kind === "proposal" ? order.proposals : order.invoices;
+  const list = order[listKey(kind)] ?? [];
   const entry = list.find((v) => v.version === version);
   if (!entry) return fail("not_found");
 
   const snap = entry.snapshot;
-  const lines: DocumentLine[] = snap.items.map((i) => ({
-    description: i.description,
-    brandOrigin: i.brandOrigin ?? null,
-    specification: i.specification ?? null,
-    unit: i.unit ?? null,
-    unitPriceMinor: i.unitPriceMinor,
-    qty: i.qty,
-    lineTotalMinor: i.lineTotalMinor,
-  }));
+  // Straight from the snapshot, including the VAT each line carried: this
+  // reproduces a document a client already holds, so nothing here may be
+  // recomputed from today's order.
+  // A proposal quoted per piece printed a quantity of one on every line. The
+  // snapshot keeps the order's real quantities, so the mode has to be applied
+  // again here or the reproduction is not the document that was sent.
+  const perPiece = snap.quantityMode === "single";
+  const lines: DocumentLine[] = snap.items.map((i) => {
+    const qty = perPiece ? 1 : i.qty;
+    const lineTotalMinor = perPiece ? i.unitPriceMinor : i.lineTotalMinor;
+    const rateBp = effectiveVatRateBp(i);
+    return {
+      description: i.description,
+      brandOrigin: i.brandOrigin ?? null,
+      specification: i.specification ?? null,
+      unit: i.unit ?? null,
+      unitPriceMinor: i.unitPriceMinor,
+      qty,
+      lineTotalMinor,
+      vatRateBp: rateBp,
+      vatMinor: perPiece
+        ? Math.round((lineTotalMinor * rateBp) / 10000)
+        : (i.vatMinor ?? 0),
+    };
+  });
   const who = await signatory();
 
   if (kind === "proposal") {
@@ -439,6 +602,32 @@ export async function renderVersion(
     });
   }
 
+  if (kind === "challan") {
+    const pdf = await renderPdf(
+      React.createElement(ChallanDocument, {
+        data: {
+          challanNumber: snap.challanNumber ?? order.number,
+          date: new Date(snap.deliveryDate ?? entry.generatedAt),
+          invoiceNumber: snap.invoiceNumber ?? null,
+          referenceNo: snap.referenceNo ?? null,
+          deliverTo: {
+            organisation: order.leadSnapshot.organisation,
+            address: order.leadSnapshot.address,
+            contactPerson: order.leadSnapshot.contactName ?? null,
+            phone: order.leadSnapshot.phone ?? null,
+            email: order.leadSnapshot.email ?? null,
+          },
+          lines,
+          dispatchNote: snap.dispatchNote ?? null,
+        },
+      }),
+    );
+    return done({
+      pdf,
+      filename: `Challan ${(snap.challanNumber ?? order.number).replaceAll("/", "-")}.pdf`,
+    });
+  }
+
   const pdf = await renderPdf(
     React.createElement(InvoiceDocument, {
       data: {
@@ -463,6 +652,7 @@ export async function renderVersion(
         discountMinor: snap.discountMinor,
         vatRateBp: snap.vatRateBp,
         vatMinor: snap.vatMinor,
+        aitRateBp: snap.aitRateBp ?? 0,
         deliveryMinor: snap.deliveryMinor ?? 0,
         totalMinor: snap.totalMinor,
         // Reprints show what was paid AT THE TIME, not what is paid now: the
@@ -541,14 +731,14 @@ export async function sendDocument(
 
   await markVersionEmailed(
     orderId,
-    kind === "proposal" ? "proposals" : "invoices",
+    listKey(kind),
     version,
     input.to,
     actor.sub,
   );
   await addSalesOrderActivity(orderId, {
     authorId: actor.sub,
-    body: `${kind === "proposal" ? "Proposal" : "Invoice"} v${version} emailed to ${input.to}`,
+    body: `${KIND_LABEL[kind]} v${version} emailed to ${input.to}`,
   });
 
   return done({ to: input.to });

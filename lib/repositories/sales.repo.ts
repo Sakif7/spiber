@@ -1,11 +1,7 @@
 import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/db/connect";
 import { SalesLead, type ISalesLead } from "@/lib/models/salesLead";
-import {
-  SalesOrder,
-  type ISalesOrder,
-  type IDocumentVersion,
-} from "@/lib/models/salesOrder";
+import { SalesOrder, type ISalesOrder } from "@/lib/models/salesOrder";
 import type { SalesOrderStatus } from "@/lib/schemas/sales-order";
 import { InventoryMovement } from "@/lib/models/inventoryMovement";
 import { Product } from "@/lib/models/product";
@@ -30,9 +26,34 @@ const LEAD_SORT: Record<string, string> = {
   status: "status",
   activity: "lastActivityAt",
   code: "code",
+  area: "area",
 };
 
-export type LeadListParams = RepoListQuery & { status?: string };
+export type LeadListParams = RepoListQuery & {
+  status?: string;
+  /** District slug. */
+  area?: string;
+  /** `client` = has paid at least one invoice; `lead` = has not, yet. */
+  type?: string;
+  /** One of the lead-reason enum values. */
+  reason?: string;
+};
+
+/**
+ * The leads that have paid us.
+ *
+ * A client is not a flag someone sets — it is a fact about their orders, so it
+ * is derived every time rather than stored. That way it can never be wrong,
+ * and reversing a payment takes the badge away by itself.
+ */
+export async function paidLeadIds(): Promise<string[]> {
+  await connectToDatabase();
+  const ids = await SalesOrder.distinct("leadId", {
+    "payment.status": "paid",
+    deletedAt: null,
+  }).exec();
+  return (ids as mongoose.Types.ObjectId[]).map(String);
+}
 
 export async function listSalesLeads(
   params: LeadListParams = {},
@@ -40,6 +61,12 @@ export async function listSalesLeads(
   await connectToDatabase();
   const filter: Record<string, unknown> = { deletedAt: null };
   if (params.status && params.status !== "all") filter.status = params.status;
+  if (params.area && params.area !== "all") filter.area = params.area;
+  if (params.reason && params.reason !== "all") filter.reasons = params.reason;
+  if (params.type === "client" || params.type === "lead") {
+    const paid = (await paidLeadIds()).map(oid);
+    filter._id = params.type === "client" ? { $in: paid } : { $nin: paid };
+  }
   applyPartialSearch(filter, params.search, [
     "organisation",
     "code",
@@ -47,6 +74,7 @@ export async function listSalesLeads(
     "phone",
     "email",
     "leadNumber",
+    "sourceName",
   ]);
   applyDateRange(filter, params.from, params.to);
   return paginate<ISalesLead>(SalesLead, filter, {
@@ -248,22 +276,10 @@ export async function addSalesOrderActivity(
   ).exec();
 }
 
-export async function pushDocumentVersion(
-  id: string,
-  kind: "proposals" | "invoices",
-  version: IDocumentVersion,
-): Promise<void> {
-  await connectToDatabase();
-  await SalesOrder.updateOne(
-    { _id: id },
-    { $push: { [kind]: version } },
-  ).exec();
-}
-
 /** Record that a document version was emailed, without touching the snapshot. */
 export async function markVersionEmailed(
   id: string,
-  kind: "proposals" | "invoices",
+  kind: "proposals" | "invoices" | "challans",
   version: number,
   to: string,
   by: string,
@@ -352,6 +368,47 @@ export type SalesLineDetail = {
   /** What a unit costs us, to prefill the line's cost. Null if never set. */
   costPriceMinor: number | null;
 };
+
+/**
+ * What the catalogue asks for these products today.
+ *
+ * Used when an order is repeated: the copy keeps the price that was agreed
+ * last time, and the admin is told which lines the catalogue has since moved
+ * away from. Silently re-pricing would change a deal nobody renegotiated;
+ * silently keeping an old price would sell at last year's rate.
+ */
+export async function currentProductPrices(
+  productIds: string[],
+): Promise<Map<string, number | null>> {
+  const out = new Map<string, number | null>();
+  const ids = [
+    ...new Set(productIds.filter((id) => mongoose.isValidObjectId(id))),
+  ];
+  if (!ids.length) return out;
+
+  await connectToDatabase();
+  const products = await Product.find({ _id: { $in: ids.map(oid) } })
+    .select("priceMinor variants")
+    .lean<
+      {
+        _id: mongoose.Types.ObjectId;
+        priceMinor?: number | null;
+        variants?: { id: string; priceMinorOverride?: number | null }[];
+      }[]
+    >()
+    .exec();
+
+  for (const p of products) {
+    out.set(String(p._id), p.priceMinor ?? null);
+    for (const v of p.variants ?? []) {
+      out.set(
+        `${String(p._id)}:${v.id}`,
+        v.priceMinorOverride ?? p.priceMinor ?? null,
+      );
+    }
+  }
+  return out;
+}
 
 export async function salesLineDetails(
   productIds: string[],

@@ -47,6 +47,11 @@ export async function createLead(
       phone: input.phone,
       email: clean(input.email),
       address: input.address,
+      area: clean(input.area),
+      sourceEmployeeId: clean(input.sourceEmployeeId),
+      sourceName: clean(input.sourceName),
+      reasons: input.reasons ?? [],
+      reasonNote: clean(input.reasonNote),
       addresseeTitle: clean(input.addresseeTitle),
       addresseeDept: clean(input.addresseeDept),
       remark: clean(input.remark),
@@ -82,6 +87,16 @@ export async function updateLead(
   if (input.phone !== undefined) patch.phone = input.phone;
   if (input.email !== undefined) patch.email = clean(input.email);
   if (input.address !== undefined) patch.address = input.address;
+  if (input.area !== undefined) patch.area = clean(input.area);
+  if (input.sourceEmployeeId !== undefined) {
+    patch.sourceEmployeeId = clean(input.sourceEmployeeId);
+  }
+  if (input.sourceName !== undefined)
+    patch.sourceName = clean(input.sourceName);
+  if (input.reasons !== undefined) patch.reasons = input.reasons;
+  if (input.reasonNote !== undefined) {
+    patch.reasonNote = clean(input.reasonNote);
+  }
   if (input.addresseeTitle !== undefined) {
     patch.addresseeTitle = clean(input.addresseeTitle);
   }

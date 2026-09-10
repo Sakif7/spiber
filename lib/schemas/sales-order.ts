@@ -31,7 +31,9 @@ export const SALES_ORDER_TRANSITIONS: Record<
   SalesOrderStatus,
   SalesOrderStatus[]
 > = {
-  draft: ["proposal_generated", "cancelled"],
+  // Straight to invoiced is deliberate: a client who has bought this before
+  // does not need quoting again, and a repeat order goes out on an invoice.
+  draft: ["proposal_generated", "invoiced", "cancelled"],
   proposal_generated: ["proposal_returned", "draft", "cancelled"],
   proposal_returned: ["invoiced", "proposal_generated", "draft", "cancelled"],
   invoiced: ["delivered", "proposal_returned", "cancelled"],
@@ -95,6 +97,18 @@ export const salesOrderItemSchema = z
      * rather than as free goods.
      */
     unitCostMinor: z.number().int().min(0).nullable().optional(),
+    /**
+     * VAT for this line, entered either way.
+     *
+     * A rate is the usual case; an amount covers the line whose VAT was agreed
+     * as a figure and does not divide cleanly. Exactly one of the two is ever
+     * set — the editor offers one box and a unit toggle.
+     *
+     * Setting either on ANY line switches the whole order to per-line VAT:
+     * see `priceSalesOrder`.
+     */
+    vatRateBp: z.number().int().min(0).max(10000).nullable().optional(),
+    vatAmountMinor: z.number().int().min(0).nullable().optional(),
     qty: z.number().int().min(1).max(100000),
   })
   .superRefine((v, ctx) => {
@@ -103,6 +117,13 @@ export const salesOrderItemSchema = z
         code: "custom",
         path: ["productId"],
         message: "pick a product from inventory",
+      });
+    }
+    if (v.vatRateBp != null && v.vatAmountMinor != null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["vatRateBp"],
+        message: "give VAT as a rate or an amount, not both",
       });
     }
   });
@@ -174,6 +195,15 @@ export const salesOrderCreateSchema = z.object({
   referenceNo: z.string().trim().max(60).optional().or(z.literal("")),
   /** Overrides the configured VAT rate for this order; omitted = use settings. */
   vatRateBp: z.number().int().min(0).max(10000).optional(),
+  /**
+   * The rate the client is expected to withhold at source.
+   *
+   * Informational: AIT is the buyer's deduction from what they pay us, not a
+   * charge we add, so it never moves the invoice total. It prints so the
+   * client's accounts department can see the figure we are expecting, and what
+   * they actually deducted is recorded later against `withholding`.
+   */
+  aitRateBp: z.number().int().min(0).max(10000).optional(),
   terms: salesOrderTermsSchema.partial().optional(),
   note: z.string().trim().max(2000).optional(),
 });
@@ -231,6 +261,14 @@ export const invoiceGenerateSchema = z.object({
 });
 export type InvoiceGenerateInput = z.infer<typeof invoiceGenerateSchema>;
 
+/** Fields the admin can set when producing the delivery challan. */
+export const challanGenerateSchema = z.object({
+  date: z.iso.datetime().optional(),
+  /** Vehicle, driver, courier — free text, because it is whatever it was. */
+  dispatchNote: z.string().trim().max(300).optional().or(z.literal("")),
+});
+export type ChallanGenerateInput = z.infer<typeof challanGenerateSchema>;
+
 export const sendDocumentSchema = z.object({
   to: z.email("must be a valid email"),
   subject: z.string().trim().min(1, "is required").max(200),
@@ -244,12 +282,66 @@ export function lineTotal(unitPriceMinor: number, qty: number): number {
   return unitPriceMinor * qty;
 }
 
+/** A line, as far as pricing is concerned. */
+export type PricedLine = {
+  unitPriceMinor: number;
+  qty: number;
+  vatRateBp?: number | null;
+  vatAmountMinor?: number | null;
+};
+
+/** Did anyone set VAT on this line themselves? */
+const hasOwnVat = (l: PricedLine) =>
+  l.vatRateBp != null || l.vatAmountMinor != null;
+
 /**
- * VAT applies to the goods after any discount, never to a figure that already
- * includes tax and never to the transport charge.
+ * VAT for one line, from whichever way it was entered.
+ *
+ * Charged on the line's own total, deliberately NOT on its share of an
+ * order-level discount: the figure printed in the VAT column has to be the one
+ * a reader gets by applying the printed rate to the printed line total, or the
+ * document invites a query it cannot answer.
+ */
+export function lineVat(l: PricedLine): number {
+  if (l.vatAmountMinor != null)
+    return Math.max(0, Math.round(l.vatAmountMinor));
+  if (l.vatRateBp != null) {
+    return Math.round(
+      (lineTotal(l.unitPriceMinor, l.qty) * l.vatRateBp) / 10000,
+    );
+  }
+  return 0;
+}
+
+/**
+ * What the line's VAT works out at as a percentage, however it was entered.
+ * Used to decide whether the document needs a per-line VAT column at all.
+ */
+export function effectiveVatRateBp(l: PricedLine): number {
+  if (l.vatRateBp != null) return l.vatRateBp;
+  const total = lineTotal(l.unitPriceMinor, l.qty);
+  if (l.vatAmountMinor != null && total > 0) {
+    return Math.round((l.vatAmountMinor * 10000) / total);
+  }
+  return 0;
+}
+
+/**
+ * Price the order.
+ *
+ * Two modes, and which one applies is decided by the lines rather than by a
+ * switch someone has to remember to set:
+ *
+ *  - **Order rate** (the usual case): nobody has touched VAT on a line, so the
+ *    configured rate is charged on the goods after the discount — never on a
+ *    figure that already includes tax, and never on the transport charge.
+ *  - **Per line**: the moment ANY line carries its own VAT, the order rate
+ *    stops applying and the total becomes the sum of the lines. A line left
+ *    blank in this mode carries no VAT, which is the client's instruction and
+ *    is why the editor says so plainly.
  */
 export function priceSalesOrder(input: {
-  items: { unitPriceMinor: number; qty: number }[];
+  items: PricedLine[];
   discountMinor: number;
   vatRateBp: number;
   /** Transport / delivery, billed on top. Optional so existing callers are unchanged. */
@@ -260,6 +352,9 @@ export function priceSalesOrder(input: {
   vatMinor: number;
   deliveryMinor: number;
   totalMinor: number;
+  /** VAT per line, in item order. Empty unless the order is in per-line mode. */
+  lineVatMinor: number[];
+  perLineVat: boolean;
 } {
   const subtotalMinor = input.items.reduce(
     (sum, i) => sum + lineTotal(i.unitPriceMinor, i.qty),
@@ -267,15 +362,21 @@ export function priceSalesOrder(input: {
   );
   const discountMinor = Math.min(input.discountMinor, subtotalMinor);
   const base = subtotalMinor - discountMinor;
-  // VAT is charged on the discounted GOODS, never on the delivery charge —
-  // the same rule the Medtrade storefront applies to shipping.
-  const vatMinor = Math.round((base * input.vatRateBp) / 10000);
   const deliveryMinor = Math.max(0, input.deliveryMinor ?? 0);
+
+  const perLineVat = input.items.some(hasOwnVat);
+  const lineVatMinor = perLineVat ? input.items.map(lineVat) : [];
+  const vatMinor = perLineVat
+    ? lineVatMinor.reduce((sum, v) => sum + v, 0)
+    : Math.round((base * input.vatRateBp) / 10000);
+
   return {
     subtotalMinor,
     discountMinor,
     vatMinor,
     deliveryMinor,
     totalMinor: base + vatMinor + deliveryMinor,
+    lineVatMinor,
+    perLineVat,
   };
 }

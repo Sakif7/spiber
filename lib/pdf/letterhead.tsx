@@ -23,6 +23,10 @@ import { LEGAL, CONTACT, OFFICES } from "@/lib/contact";
  * listing both offices, the two-tone rule beneath, and the "empowering
  * healthcare" band across the foot of the page.
  *
+ * Marked `fixed`, so it repeats on every page: this is stationery, and a
+ * second page of a proposal on blank paper is not the company's letterhead.
+ * The footer band and the watermark already worked this way.
+ *
  * Deliberately NOT reproduced: the round company seal and the handwritten
  * signature that appear on the scans. A generated document carries the
  * signature LINE and the name; the seal and signature go on by hand, which is
@@ -222,7 +226,22 @@ export const styles = StyleSheet.create({
     marginTop: 10,
   },
   signBox: { width: 215 },
-  signLine: { borderTopWidth: 1, borderColor: RULE, paddingTop: 4 },
+  /**
+   * The ruled line, at half the box.
+   *
+   * A rule running the full 215pt read as a divider across the foot of the
+   * page rather than as somewhere to sign; the client marked it to be cut
+   * back. The name block below still uses the whole box, so a long line like
+   * "SPIBER MED LIMITED" is not forced to wrap.
+   */
+  signLine: {
+    width: 107,
+    borderTopWidth: 1,
+    borderColor: RULE,
+    paddingTop: 4,
+  },
+  /** "Approved By" / "Received By", centred on the rule above it. */
+  signLabel: { width: 107, textAlign: "center" },
 });
 
 /**
@@ -328,7 +347,7 @@ export function Letterhead() {
   const regional = OFFICES[1];
 
   return (
-    <View>
+    <View fixed>
       <View style={styles.head}>
         <View style={styles.edgeBar} />
         <View style={styles.logoWrap}>
@@ -465,28 +484,36 @@ export function SignOffRow({
       <View style={styles.signBox}>
         <View style={{ height: 26 }} />
         <View style={styles.signLine}>
-          <Text style={[styles.small, styles.label]}>{left}</Text>
-          {signatory ? (
-            <>
-              <Text style={styles.small}>{signatory.name}</Text>
-              <Text style={styles.small}>{signatory.title}</Text>
-              <Text style={styles.small}>{LEGAL.name}</Text>
-              {signatory.phone ? (
-                <Text style={styles.small}>Contact: {signatory.phone}</Text>
-              ) : null}
-              {signatory.email ? (
-                <Text style={styles.small}>E-mail: {signatory.email}</Text>
-              ) : null}
-            </>
-          ) : null}
+          <Text style={[styles.small, styles.label, styles.signLabel]}>
+            {left}
+          </Text>
         </View>
+        {signatory ? (
+          /* Ranged left under the rule: a centred address block reads as a
+             title page, and the client asked for the name to stay put. */
+          <View style={{ paddingTop: 2 }}>
+            <Text style={styles.small}>{signatory.name}</Text>
+            {/* The designation carries the authority the signature claims,
+                so it is the line set in bold. */}
+            <Text style={[styles.small, styles.label]}>{signatory.title}</Text>
+            <Text style={styles.small}>{LEGAL.name}</Text>
+            {signatory.phone ? (
+              <Text style={styles.small}>Contact: {signatory.phone}</Text>
+            ) : null}
+            {signatory.email ? (
+              <Text style={styles.small}>E-mail: {signatory.email}</Text>
+            ) : null}
+          </View>
+        ) : null}
       </View>
 
       {right ? (
         <View style={styles.signBox}>
           <View style={{ height: 26 }} />
           <View style={styles.signLine}>
-            <Text style={[styles.small, styles.label]}>{right}</Text>
+            <Text style={[styles.small, styles.label, styles.signLabel]}>
+              {right}
+            </Text>
           </View>
         </View>
       ) : null}

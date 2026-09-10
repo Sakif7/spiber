@@ -49,6 +49,42 @@ export async function nextInvoiceSeq(): Promise<number> {
   return seq;
 }
 
+/**
+ * Delivery challans get their own running series.
+ *
+ * Separate from the invoice counter on purpose: a challan is a goods
+ * movement, not a bill, and the two are filed and audited apart. Sharing one
+ * counter would leave gaps in both series that nobody could account for.
+ */
+const CHALLAN_COUNTER_ID = "salesChallan";
+
+export async function nextChallanSeq(): Promise<number> {
+  await connectToDatabase();
+  const doc = await Counter.findOneAndUpdate(
+    { _id: CHALLAN_COUNTER_ID },
+    { $inc: { seq: 1 }, $setOnInsert: { _id: CHALLAN_COUNTER_ID } },
+    { upsert: true, returnDocument: "after", setDefaultsOnInsert: true },
+  ).lean<{ seq: number }>();
+  return doc?.seq ?? 1;
+}
+
+/**
+ * The printed challan number, in the same shape as the invoice so the two read
+ * as one family of documents:
+ *
+ *   SPIBER/DC/EWMCH/14-8/26-12
+ */
+export function formatChallanNumber(input: {
+  code: string;
+  date: Date;
+  seq: number;
+}): string {
+  const { day, month, year } = dhakaParts(input.date);
+  const yy = String(year % 100).padStart(2, "0");
+  const code = input.code.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return `SPIBER/DC/${code}/${day}-${month}/${yy}-${input.seq}`;
+}
+
 /** The number the NEXT invoice would get, for display in settings. */
 export async function peekInvoiceSeq(): Promise<number> {
   await connectToDatabase();

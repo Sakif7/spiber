@@ -6,6 +6,9 @@ import {
   getSalesLeadById,
   listSalesOrders,
 } from "@/lib/repositories/sales.repo";
+import { activeEmployeeOptions } from "@/lib/repositories/expenses.repo";
+import { LEAD_REASON_LABEL } from "@/lib/schemas/sales-lead";
+import { districtLabel } from "@/lib/bd/districts";
 import { formatBDT } from "@/lib/money";
 import { LeadForm } from "@/components/admin/sales/lead-form";
 import { LeadStatusPanel } from "@/components/admin/sales/lead-status-panel";
@@ -33,9 +36,19 @@ export default async function LeadDetailPage({
   const lead = await getSalesLeadById(id);
   if (!lead) notFound();
 
-  const orders = await listSalesOrders({ leadId: id, pageSize: 10 }).catch(
-    () => null,
+  const [orders, employees] = await Promise.all([
+    listSalesOrders({ leadId: id, pageSize: 10 }).catch(() => null),
+    activeEmployeeOptions().catch(() => []),
+  ]);
+
+  /**
+   * A client is an organisation that has paid us — derived from their orders
+   * rather than stored, so it cannot drift out of step with the money.
+   */
+  const isClient = (orders?.items ?? []).some(
+    (o) => o.payment?.status === "paid",
   );
+  const reasons = lead.reasons ?? [];
 
   return (
     <div className="grid gap-6">
@@ -49,8 +62,9 @@ export default async function LeadDetailPage({
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-foreground text-2xl font-bold tracking-tight">
+          <h1 className="text-foreground flex flex-wrap items-center gap-2 text-2xl font-bold tracking-tight">
             {lead.organisation}
+            {isClient && <StatusBadge tone="success">Client</StatusBadge>}
           </h1>
           <p className="text-muted-foreground mt-1">
             {lead.leadNumber} · code{" "}
@@ -119,9 +133,24 @@ export default async function LeadDetailPage({
           <DetailRow label="Phone">{lead.phone}</DetailRow>
           <DetailRow label="Email">{lead.email ?? "—"}</DetailRow>
           <DetailRow label="Address">{lead.address}</DetailRow>
+          <DetailRow label="Region">
+            {districtLabel(lead.area) ?? "—"}
+          </DetailRow>
+          <DetailRow label="Lead source">{lead.sourceName ?? "—"}</DetailRow>
+          <DetailRow label="Lead reason">
+            {reasons.length > 0
+              ? reasons.map((r) => LEAD_REASON_LABEL[r]).join(", ")
+              : "—"}
+            {lead.reasonNote ? (
+              <span className="text-muted-foreground block text-xs">
+                {lead.reasonNote}
+              </span>
+            ) : null}
+          </DetailRow>
         </DetailCard>
 
         <LeadForm
+          employees={employees}
           lead={{
             id,
             organisation: lead.organisation,
@@ -130,6 +159,13 @@ export default async function LeadDetailPage({
             phone: lead.phone,
             email: lead.email ?? "",
             address: lead.address,
+            area: lead.area ?? "",
+            sourceEmployeeId: lead.sourceEmployeeId
+              ? String(lead.sourceEmployeeId)
+              : "",
+            sourceName: lead.sourceName ?? "",
+            reasons,
+            reasonNote: lead.reasonNote ?? "",
             addresseeTitle: lead.addresseeTitle ?? "",
             addresseeDept: lead.addresseeDept ?? "",
             remark: lead.remark ?? "",

@@ -6,6 +6,7 @@ import {
   salesOrderPaymentSchema,
   proposalGenerateSchema,
   invoiceGenerateSchema,
+  challanGenerateSchema,
   sendDocumentSchema,
   withholdingSchema,
   orderCostsSchema,
@@ -18,10 +19,12 @@ import {
   recordWithholding,
   setOrderCosts,
   amendLineCosts,
+  repeatOrder,
 } from "@/lib/services/sales-order.service";
 import {
   generateProposal,
   generateInvoice,
+  generateChallan,
   sendDocument,
 } from "@/lib/services/sales-document.service";
 import { getSalesOrderById } from "@/lib/repositories/sales.repo";
@@ -250,11 +253,16 @@ export async function POST(req: Request, { params }: Params) {
           400,
         );
       }
-      // "Create invoice" arrives here straight from a returned proposal, so
-      // move the order first — that is what issues the number and reserves the
-      // stock. If reserving fails the order stays put and no document exists.
+      // "Create invoice" arrives here straight from a returned proposal — or
+      // from a draft, when a repeat order is going out without being quoted
+      // again. Move the order first: that is what issues the number and
+      // reserves the stock. If reserving fails the order stays put and no
+      // document exists.
       const current = await getSalesOrderById(id);
-      if (current && current.status === "proposal_returned") {
+      if (
+        current &&
+        (current.status === "proposal_returned" || current.status === "draft")
+      ) {
         const moved = await transitionOrder(id, "invoiced", g.actor);
         if (!moved.ok)
           return fail({ code: moved.code }, salesStatus(moved.code));
@@ -278,8 +286,64 @@ export async function POST(req: Request, { params }: Params) {
       return ok(res.data);
     }
 
+    case "repeat": {
+      const res = await repeatOrder(id, g.actor);
+      if (!res.ok) return fail({ code: res.code }, salesStatus(res.code));
+      const newId = String(res.data.order._id);
+      await writeAudit(
+        {
+          actorId: g.actor.sub,
+          action: "salesOrder.repeat",
+          entityType: "SalesOrder",
+          entityId: newId,
+          after: {
+            copiedFrom: id,
+            items: res.data.order.items.length,
+            priceChanges: res.data.priceChanges.length,
+          },
+        },
+        req,
+      );
+      return ok({
+        id: newId,
+        number: res.data.order.number,
+        priceChanges: res.data.priceChanges,
+      });
+    }
+
+    case "challan": {
+      const parsed = challanGenerateSchema.safeParse(body);
+      if (!parsed.success) {
+        return fail(
+          { code: "invalid_input", details: parsed.error.issues },
+          400,
+        );
+      }
+      const res = await generateChallan(id, parsed.data, g.actor);
+      if (!res.ok) return fail({ code: res.code }, salesStatus(res.code));
+      await writeAudit(
+        {
+          actorId: g.actor.sub,
+          action: "salesOrder.challan.generate",
+          entityType: "SalesOrder",
+          entityId: id,
+          after: {
+            version: res.data.version,
+            challanNumber: res.data.challanNumber,
+          },
+        },
+        req,
+      );
+      return ok(res.data);
+    }
+
     case "send": {
-      const kind = body.kind === "invoice" ? "invoice" : "proposal";
+      const kind =
+        body.kind === "invoice"
+          ? "invoice"
+          : body.kind === "challan"
+            ? "challan"
+            : "proposal";
       const version = Number(body.version);
       if (!Number.isInteger(version) || version < 1) {
         return fail({ code: "invalid_input" }, 400);

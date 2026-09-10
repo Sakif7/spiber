@@ -28,6 +28,18 @@ export interface ISalesOrderItem {
   unitPriceMinor: number;
   /** What the line cost us per unit; null until someone says. */
   unitCostMinor?: number | null;
+  /**
+   * VAT set against this line, as it was entered: a rate, or a figure.
+   *
+   * Null on both means nobody touched VAT here. If EVERY line is null the
+   * order-level rate applies to the invoice as a whole; the moment one line is
+   * set, the order switches to per-line VAT and an untouched line carries
+   * none. `priceSalesOrder` owns that rule.
+   */
+  vatRateBp?: number | null;
+  vatAmountMinor?: number | null;
+  /** What this line's VAT works out at. Zero unless the order is per-line. */
+  vatMinor?: number;
   qty: number;
   lineTotalMinor: number;
   /** How much of this line is currently reserved in inventory. */
@@ -101,6 +113,7 @@ export interface IDocumentVersion {
     deliveryMinor?: number;
     vatRateBp: number;
     vatMinor: number;
+    aitRateBp?: number;
     totalMinor: number;
     /** What had been paid when the document was produced. */
     paidMinor?: number;
@@ -115,9 +128,21 @@ export interface IDocumentVersion {
     };
     subject?: string | null;
     intro?: string | null;
+    /**
+     * How the quantities were printed on THIS document.
+     *
+     * A proposal quoted per piece shows a quantity of one on every line while
+     * the order behind it holds the real ones. Without this, re-opening the
+     * stored proposal reproduces it with the order's quantities — a different
+     * document from the one the client was sent.
+     */
+    quantityMode?: "single" | "ordered" | null;
     invoiceNumber?: string | null;
     invoiceDate?: Date | null;
     deliveryDate?: Date | null;
+    challanNumber?: string | null;
+    /** Vehicle, driver or courier, as written on the day. */
+    dispatchNote?: string | null;
     amountInWords?: string | null;
   };
   /** The filed PDF in the company vault. */
@@ -159,6 +184,14 @@ export interface ISalesOrder {
   /** Snapshotted when the order is invoiced, so a later rate change is not retroactive. */
   vatRateBp: number;
   vatMinor: number;
+  /**
+   * The rate we expect the client to withhold at source.
+   *
+   * Never part of the total. AIT is the buyer's deduction from what they pay
+   * us, so adding it to an invoice would overstate what they owe; it prints as
+   * a note, and what they actually deducted is recorded on `withholding`.
+   */
+  aitRateBp?: number;
   totalMinor: number;
   terms: ISalesOrderTerms;
   /** Set once the client tells us what they are keeping back. */
@@ -180,6 +213,16 @@ export interface ISalesOrder {
   deliveredAt?: Date | null;
   proposals: IDocumentVersion[];
   invoices: IDocumentVersion[];
+  /**
+   * The delivery note that travels with the goods.
+   *
+   * One number per order, like the invoice: producing it again — to add a
+   * vehicle registration, say — is a new version of the same challan, not a
+   * second one, because two challans for one delivery is how goods get counted
+   * twice at a hospital's gate.
+   */
+  challans?: IDocumentVersion[];
+  challanNumber?: string | null;
   activity: ISalesOrderActivity[];
   note?: string | null;
   createdBy: Types.ObjectId | string;
@@ -203,6 +246,9 @@ const itemSchema = new Schema<ISalesOrderItem>(
     // Null, not 0: "nobody has told us" and "it was free" are different, and
     // the report must not book a 100% margin on the first of those.
     unitCostMinor: { type: Number, default: null, min: 0 },
+    vatRateBp: { type: Number, default: null, min: 0, max: 10000 },
+    vatAmountMinor: { type: Number, default: null, min: 0 },
+    vatMinor: { type: Number, default: 0, min: 0 },
     qty: { type: Number, required: true, min: 1 },
     lineTotalMinor: { type: Number, required: true, min: 0 },
     reservedQty: { type: Number, default: 0, min: 0 },
@@ -300,6 +346,7 @@ const salesOrderSchema = new Schema<ISalesOrder>(
     referenceNo: { type: String, default: null, trim: true },
     vatRateBp: { type: Number, default: 0 },
     vatMinor: { type: Number, default: 0 },
+    aitRateBp: { type: Number, default: 0, min: 0, max: 10000 },
     totalMinor: { type: Number, default: 0 },
     terms: { type: termsSchema, default: () => ({}) },
     withholding: { type: withholdingSchema, default: null },
@@ -318,6 +365,8 @@ const salesOrderSchema = new Schema<ISalesOrder>(
     deliveredAt: { type: Date, default: null },
     proposals: { type: [versionSchema], default: [] },
     invoices: { type: [versionSchema], default: [] },
+    challans: { type: [versionSchema], default: [] },
+    challanNumber: { type: String, default: null },
     activity: { type: [activitySchema], default: [] },
     note: { type: String, default: null },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },

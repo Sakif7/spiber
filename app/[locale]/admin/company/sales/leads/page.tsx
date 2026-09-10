@@ -1,8 +1,15 @@
 import Link from "next/link";
 import { setRequestLocale } from "next-intl/server";
 import { parseListQuery, type ListConfig } from "@/lib/admin/list-params";
-import { listSalesLeads } from "@/lib/repositories/sales.repo";
-import { salesLeadStatusEnum } from "@/lib/schemas/sales-lead";
+import { listSalesLeads, paidLeadIds } from "@/lib/repositories/sales.repo";
+import { activeEmployeeOptions } from "@/lib/repositories/expenses.repo";
+import {
+  salesLeadStatusEnum,
+  leadReasonEnum,
+  LEAD_REASON_LABEL,
+  type LeadReason,
+} from "@/lib/schemas/sales-lead";
+import { DISTRICT_OPTIONS, districtLabel } from "@/lib/bd/districts";
 import { AdminPageHeader } from "@/components/admin/ui/page-header";
 import { ListToolbar } from "@/components/admin/ui/list-toolbar";
 import { DataTable, type Column } from "@/components/admin/ui/data-table";
@@ -14,9 +21,9 @@ import { LeadForm } from "@/components/admin/sales/lead-form";
 export const dynamic = "force-dynamic";
 
 const LIST: ListConfig = {
-  sortable: ["date", "organisation", "status", "activity", "code"],
+  sortable: ["date", "organisation", "status", "activity", "code", "area"],
   defaultSort: "activity",
-  filters: ["status", "from", "to"],
+  filters: ["status", "from", "to", "area", "type", "reason"],
 };
 
 type Row = {
@@ -26,6 +33,11 @@ type Row = {
   contact: string;
   phone: string;
   email: string | null;
+  area: string | null;
+  source: string | null;
+  reasons: LeadReason[];
+  /** Derived, never stored: this organisation has paid at least one invoice. */
+  isClient: boolean;
   status: string;
   createdAt: string;
 };
@@ -45,16 +57,24 @@ export default async function SalesLeadsPage({
   setRequestLocale(locale);
   const query = parseListQuery(await searchParams, LIST);
 
-  const page = await listSalesLeads({
-    search: query.q,
-    status: query.filters.status,
-    from: query.filters.from,
-    to: query.filters.to,
-    sort: query.sort,
-    dir: query.dir,
-    page: query.page,
-    pageSize: query.pageSize,
-  }).catch(() => null);
+  const [page, paid, employees] = await Promise.all([
+    listSalesLeads({
+      search: query.q,
+      status: query.filters.status,
+      area: query.filters.area,
+      type: query.filters.type,
+      reason: query.filters.reason,
+      from: query.filters.from,
+      to: query.filters.to,
+      sort: query.sort,
+      dir: query.dir,
+      page: query.page,
+      pageSize: query.pageSize,
+    }).catch(() => null),
+    paidLeadIds().catch(() => [] as string[]),
+    activeEmployeeOptions().catch(() => []),
+  ]);
+  const paidSet = new Set(paid);
 
   const rows: Row[] = (page?.items ?? []).map((l) => ({
     id: String(l._id),
@@ -63,6 +83,12 @@ export default async function SalesLeadsPage({
     contact: l.contactName,
     phone: l.phone,
     email: l.email ?? null,
+    area: districtLabel(l.area),
+    source: l.sourceName ?? null,
+    // `.lean()` applies no defaults, so a lead saved before this field
+    // existed reads back undefined rather than an empty array.
+    reasons: l.reasons ?? [],
+    isClient: paidSet.has(String(l._id)),
     status: l.status,
     createdAt: new Date(l.createdAt).toLocaleDateString(),
   }));
@@ -73,12 +99,15 @@ export default async function SalesLeadsPage({
       header: "Organisation",
       sortKey: "organisation",
       cell: (r) => (
-        <Link
-          href={`/admin/company/sales/leads/${r.id}`}
-          className="text-primary font-medium hover:underline"
-        >
-          {r.organisation}
-        </Link>
+        <span className="flex flex-wrap items-center gap-1.5">
+          <Link
+            href={`/admin/company/sales/leads/${r.id}`}
+            className="text-primary font-medium hover:underline"
+          >
+            {r.organisation}
+          </Link>
+          {r.isClient && <StatusBadge tone="success">Client</StatusBadge>}
+        </span>
       ),
     },
     {
@@ -87,6 +116,17 @@ export default async function SalesLeadsPage({
       sortKey: "code",
       mobile: "meta",
       cell: (r) => <span className="font-mono text-xs">{r.code}</span>,
+    },
+    {
+      key: "area",
+      header: "Region",
+      sortKey: "area",
+      mobile: "meta",
+      cell: (r) => (
+        <span className={r.area ? "" : "text-muted-foreground"}>
+          {r.area ?? "—"}
+        </span>
+      ),
     },
     {
       key: "contact",
@@ -98,6 +138,33 @@ export default async function SalesLeadsPage({
           <span className="text-muted-foreground block text-xs">{r.phone}</span>
         </span>
       ),
+    },
+    {
+      key: "source",
+      header: "Source",
+      mobile: "meta",
+      cell: (r) => (
+        <span className={r.source ? "" : "text-muted-foreground"}>
+          {r.source ?? "—"}
+        </span>
+      ),
+    },
+    {
+      key: "reason",
+      header: "Reason",
+      mobile: "meta",
+      cell: (r) =>
+        r.reasons.length === 0 ? (
+          <span className="text-muted-foreground">—</span>
+        ) : (
+          <span className="flex flex-wrap gap-1">
+            {r.reasons.map((x) => (
+              <StatusBadge key={x} tone="neutral">
+                {LEAD_REASON_LABEL[x]}
+              </StatusBadge>
+            ))}
+          </span>
+        ),
     },
     {
       key: "status",
@@ -128,13 +195,21 @@ export default async function SalesLeadsPage({
             title="New lead"
             description="Hospitals, clinics and labs the sales team sells to."
           >
-            <LeadForm />
+            <LeadForm employees={employees} />
           </FormPanelButton>
         }
       />
       <ListToolbar
-        search={{ placeholder: "Search organisation, code, contact…" }}
+        search={{ placeholder: "Search organisation, code, contact, source…" }}
         filters={[
+          {
+            param: "type",
+            label: "Type",
+            options: [
+              { value: "client", label: "Clients (have paid)" },
+              { value: "lead", label: "Leads (not yet)" },
+            ],
+          },
           {
             param: "status",
             label: "Status",
@@ -143,11 +218,25 @@ export default async function SalesLeadsPage({
               label: label(s),
             })),
           },
+          {
+            param: "area",
+            label: "Region",
+            options: DISTRICT_OPTIONS,
+          },
+          {
+            param: "reason",
+            label: "Reason",
+            options: leadReasonEnum.options.map((r) => ({
+              value: r,
+              label: LEAD_REASON_LABEL[r],
+            })),
+          },
         ]}
         sort={{
           options: [
             { value: "activity", label: "Last activity" },
             { value: "organisation", label: "Organisation", defaultDir: "asc" },
+            { value: "area", label: "Region", defaultDir: "asc" },
             { value: "date", label: "Date added" },
           ],
         }}
@@ -161,7 +250,7 @@ export default async function SalesLeadsPage({
         rows={rows}
         getRowKey={(r) => r.id}
         empty="No leads yet — add the first organisation."
-        minWidth={760}
+        minWidth={1060}
       />
       {page && page.pages > 1 && (
         <Pagination

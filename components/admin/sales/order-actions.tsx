@@ -11,6 +11,7 @@ import {
   MoreHorizontal,
   Send,
 } from "lucide-react";
+import { Truck, Copy, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -40,10 +41,20 @@ import {
   type SalesOrderStatus,
   type SalesPaymentMethod,
 } from "@/lib/schemas/sales-order";
-import { nextAction } from "@/lib/sales/journey";
+import { nextAction, goesBackwards } from "@/lib/sales/journey";
+
+/** The three documents an order produces. */
+type DocKind = "proposal" | "invoice" | "challan";
 
 export type VersionRow = {
   version: number;
+  /**
+   * The order has been amended since this was produced, so the figures on it
+   * are no longer the ones the order holds. Worth saying out loud: the whole
+   * point of a stored version is that it does NOT follow the order, and
+   * without a mark there is nothing to tell one apart from a current one.
+   */
+  stale?: boolean;
   generatedAt: string;
   invoiceNumber?: string | null;
   emailedTo: string[];
@@ -57,7 +68,9 @@ type Dialogs =
   | { kind: "invoice" }
   | { kind: "withholding" }
   | { kind: "payment" }
-  | { kind: "send"; docKind: "proposal" | "invoice"; version: number };
+  | { kind: "send"; docKind: DocKind; version: number }
+  | { kind: "revert"; to: SalesOrderStatus }
+  | { kind: "challan" };
 
 /**
  * Everything an admin does to a sales order once it exists: move it along,
@@ -70,6 +83,7 @@ export function OrderActions({
   leadEmail,
   proposals,
   invoices,
+  challans,
   defaultPaymentDays,
   blockers = [],
   withholding = false,
@@ -81,6 +95,7 @@ export function OrderActions({
   leadEmail: string | null;
   proposals: VersionRow[];
   invoices: VersionRow[];
+  challans: VersionRow[];
   defaultPaymentDays: number;
   /** Whether AIT has already been recorded, so the menu says update. */
   withholding?: boolean;
@@ -104,6 +119,7 @@ export function OrderActions({
   );
   const [deliveryDate, setDeliveryDate] = useState("");
   const [paymentDays, setPaymentDays] = useState(String(defaultPaymentDays));
+  const [dispatchNote, setDispatchNote] = useState("");
   // Payment fields
   const [method, setMethod] = useState<SalesPaymentMethod>("bank");
   const [reference, setReference] = useState("");
@@ -170,6 +186,32 @@ export function OrderActions({
       );
     }
   }
+  /**
+   * Copy this order into a new draft for the same client.
+   *
+   * Lands the admin on the copy — that is the thing they are about to work
+   * on — and says plainly where the catalogue has moved away from the prices
+   * being carried over, rather than re-pricing behind their back.
+   */
+  async function repeat() {
+    const data = await post({ action: "repeat" }, "Order copied.");
+    if (!data || typeof data !== "object") return;
+    const { id: newId, priceChanges } = data as {
+      id?: string;
+      priceChanges?: {
+        description: string;
+        wasMinor: number;
+        nowMinor: number;
+      }[];
+    };
+    if (priceChanges?.length) {
+      toast.warning(
+        `Copied at the agreed prices. The catalogue has changed on ${priceChanges.length} line${priceChanges.length === 1 ? "" : "s"}.`,
+      );
+    }
+    if (newId) router.push(`/admin/company/sales/orders/${newId}`);
+  }
+
   const docHref = (kind: string, version: number, download = false) =>
     `/api/admin/company/sales/orders/${id}/documents/${kind}/${version}${download ? "?download=1" : ""}`;
 
@@ -206,7 +248,25 @@ export function OrderActions({
                 <MoreHorizontal className="size-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuContent align="end" className="w-60">
+              {/* Selling the same thing again. Available from any order that
+                  has lines, because "they want that again" happens at every
+                  stage, including years later. */}
+              <DropdownMenuLabel>This order</DropdownMenuLabel>
+              <DropdownMenuItem onSelect={() => void repeat()}>
+                <Copy className="size-4" />
+                Repeat this order
+              </DropdownMenuItem>
+              {status === "draft" && (
+                <DropdownMenuItem
+                  onSelect={() => setDialog({ kind: "invoice" })}
+                >
+                  <Receipt className="size-4" />
+                  Invoice without a proposal
+                </DropdownMenuItem>
+              )}
+
+              <DropdownMenuSeparator />
               <DropdownMenuLabel>Documents</DropdownMenuLabel>
               <DropdownMenuItem
                 onSelect={() => setDialog({ kind: "proposal" })}
@@ -216,6 +276,16 @@ export function OrderActions({
                   ? "Regenerate proposal"
                   : "Generate proposal"}
               </DropdownMenuItem>
+              {(status === "invoiced" || status === "delivered") && (
+                <DropdownMenuItem
+                  onSelect={() => setDialog({ kind: "challan" })}
+                >
+                  <Truck className="size-4" />
+                  {challans.length > 0
+                    ? "Regenerate delivery challan"
+                    : "Delivery challan"}
+                </DropdownMenuItem>
+              )}
               {(status === "invoiced" || status === "delivered") && (
                 <DropdownMenuItem
                   onSelect={() => setDialog({ kind: "invoice" })}
@@ -259,10 +329,15 @@ export function OrderActions({
                       key={s}
                       variant={s === "cancelled" ? "destructive" : "default"}
                       onSelect={() =>
-                        post(
-                          { action: "transition", to: s },
-                          `Moved to ${SALES_ORDER_STATUS_LABEL[s].toLowerCase()}.`,
-                        )
+                        // Going BACKWARDS asks first. A misclick here is the
+                        // kind that is only noticed later, when the order is
+                        // sitting in a stage nobody remembers moving it to.
+                        goesBackwards(status, s)
+                          ? setDialog({ kind: "revert", to: s })
+                          : post(
+                              { action: "transition", to: s },
+                              `Moved to ${SALES_ORDER_STATUS_LABEL[s].toLowerCase()}.`,
+                            )
                       }
                     >
                       {SALES_ORDER_STATUS_LABEL[s]}
@@ -301,6 +376,21 @@ export function OrderActions({
           setTo(leadEmail ?? "");
           setConfirmRecipient(false);
           setDialog({ kind: "send", docKind: "invoice", version });
+        }}
+      />
+      <DocumentList
+        title="Delivery challans"
+        kind="challan"
+        rows={challans}
+        docHref={docHref}
+        onSend={(version) => {
+          setMailSubject("Delivery challan from Spiber Med Limited");
+          setMailBody(
+            "Please find the delivery challan for your order attached.",
+          );
+          setTo(leadEmail ?? "");
+          setConfirmRecipient(false);
+          setDialog({ kind: "send", docKind: "challan", version });
         }}
       />
 
@@ -553,6 +643,107 @@ export function OrderActions({
         </DialogContent>
       </Dialog>
 
+      {/* Delivery challan */}
+      <Dialog
+        open={dialog.kind === "challan"}
+        onOpenChange={(o) => !o && setDialog({ kind: "none" })}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Delivery challan</DialogTitle>
+            <DialogDescription>
+              The note that travels with the goods. It lists quantities only —
+              no prices — and is signed for on delivery.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-1.5">
+            <Label htmlFor="c-dispatch">Dispatch note (optional)</Label>
+            <Input
+              id="c-dispatch"
+              value={dispatchNote}
+              onChange={(e) => setDispatchNote(e.target.value)}
+              maxLength={300}
+              placeholder="Vehicle, driver or courier"
+            />
+            <p className="text-muted-foreground text-admin-xs">
+              {challans.length > 0
+                ? "Regenerating replaces the current challan and keeps the same number."
+                : "Takes the next number in the challan series."}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDialog({ kind: "none" })}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={busy}
+              onClick={() =>
+                post(
+                  {
+                    action: "challan",
+                    dispatchNote: dispatchNote.trim() || undefined,
+                  },
+                  "Delivery challan generated.",
+                )
+              }
+            >
+              {busy && <Loader2 className="size-4 animate-spin" />}
+              Generate
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Moving an order back down the pipeline */}
+      <Dialog
+        open={dialog.kind === "revert"}
+        onOpenChange={(o) => !o && setDialog({ kind: "none" })}
+      >
+        <DialogContent className="max-w-md" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle>
+              Move back to{" "}
+              {dialog.kind === "revert"
+                ? SALES_ORDER_STATUS_LABEL[dialog.to].toLowerCase()
+                : ""}
+              ?
+            </DialogTitle>
+            <DialogDescription>
+              {dialog.kind === "revert" && dialog.to === "draft"
+                ? "The order goes back to being edited. Any proposal already sent stays on file, and the client still holds their copy."
+                : "This undoes the step the order is on. Anything already sent to the client stays on file."}
+              {status === "invoiced" &&
+                " Leaving the invoiced stage also releases the stock this order was holding."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDialog({ kind: "none" })}
+            >
+              Keep it where it is
+            </Button>
+            <Button
+              disabled={busy}
+              onClick={() => {
+                if (dialog.kind !== "revert") return;
+                const to = dialog.to;
+                void post(
+                  { action: "transition", to },
+                  `Moved to ${SALES_ORDER_STATUS_LABEL[to].toLowerCase()}.`,
+                );
+              }}
+            >
+              {busy ? <Loader2 className="size-4 animate-spin" /> : null}
+              Move back
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Payment */}
       <Dialog
         open={dialog.kind === "payment"}
@@ -744,7 +935,7 @@ function DocumentList({
   onSend,
 }: {
   title: string;
-  kind: "proposal" | "invoice";
+  kind: DocKind;
   rows: VersionRow[];
   docHref: (kind: string, version: number, download?: boolean) => string;
   onSend: (version: number) => void;
@@ -768,6 +959,11 @@ function DocumentList({
                 {v.superseded && (
                   <span className="text-muted-foreground ml-2 text-xs">
                     superseded
+                  </span>
+                )}
+                {!v.superseded && v.stale && (
+                  <span className="ml-2 text-xs text-[var(--tone-warning-fg)]">
+                    does not match the order
                   </span>
                 )}
               </p>

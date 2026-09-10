@@ -9,6 +9,7 @@ import {
 import { getMedtradeCommerceSettings } from "@/lib/services/shop-settings.service";
 import { OrderEditor } from "@/components/admin/sales/order-editor";
 import { LeadPicker } from "@/components/admin/sales/lead-picker";
+import { activeEmployeeOptions } from "@/lib/repositories/expenses.repo";
 
 export const dynamic = "force-dynamic";
 
@@ -25,12 +26,13 @@ export default async function NewSalesOrderPage({
   const sp = await searchParams;
   const leadId = typeof sp.lead === "string" ? sp.lead : undefined;
 
-  const [lead, leads, commerce] = await Promise.all([
+  const [lead, leads, commerce, employees] = await Promise.all([
     leadId ? getSalesLeadById(leadId) : Promise.resolve(null),
     listSalesLeads({ pageSize: 100, sort: "activity", dir: "desc" }).catch(
       () => null,
     ),
     getMedtradeCommerceSettings().catch(() => ({ vatRateBp: 0, aitRateBp: 0 })),
+    activeEmployeeOptions().catch(() => []),
   ]);
   if (leadId && !lead) notFound();
 
@@ -61,6 +63,7 @@ export default async function NewSalesOrderPage({
             initialLines={[]}
             initialDiscount={0}
             initialVatRateBp={commerce.vatRateBp}
+            initialAitRateBp={commerce.aitRateBp}
             canEdit
           />
         </>
@@ -72,6 +75,7 @@ export default async function NewSalesOrderPage({
             code: l.code,
             contact: l.contactName,
           }))}
+          employees={employees}
         />
       )}
     </div>

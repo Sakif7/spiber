@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isDistrictId } from "@/lib/bd/districts";
 
 /**
  * Leads: the organisations the sales team sells to offline.
@@ -52,6 +53,23 @@ export function statusesBelow(target: SalesLeadStatus): SalesLeadStatus[] {
   );
 }
 
+/**
+ * What the lead is asking for.
+ *
+ * A hospital commonly wants more than one of these at once, so it is a set
+ * rather than a single choice, and the free-text detail sits alongside it
+ * rather than hiding behind an "Other" option — even "Equipment" is worth a
+ * line saying which equipment.
+ */
+export const leadReasonEnum = z.enum(["software", "equipment", "consumable"]);
+export type LeadReason = z.infer<typeof leadReasonEnum>;
+
+export const LEAD_REASON_LABEL: Record<LeadReason, string> = {
+  software: "Software",
+  equipment: "Equipment",
+  consumable: "Consumable",
+};
+
 const CODE_RE = /^[A-Z0-9]{2,8}$/;
 
 export const salesLeadCreateSchema = z.object({
@@ -65,6 +83,31 @@ export const salesLeadCreateSchema = z.object({
   phone: z.string().trim().min(1, "is required").max(40),
   email: z.email("must be a valid email").optional().or(z.literal("")),
   address: z.string().trim().min(1, "is required").max(400),
+  /**
+   * Region, chosen from the country's 64 districts.
+   *
+   * Kept apart from `address` on purpose: the address is one free-text line,
+   * so "Chattogram 4203" and "Ctg." are the same place to a reader and nothing
+   * at all to a filter. Stored as the district's slug.
+   */
+  area: z
+    .string()
+    .trim()
+    .refine((v) => v === "" || isDistrictId(v), "pick a region")
+    .optional(),
+  /**
+   * Who brought the lead in. Usually one of ours, but a referral from a
+   * consultant or an existing client is just as real, so a typed name is
+   * accepted where no employee fits.
+   */
+  sourceEmployeeId: z
+    .string()
+    .regex(/^[0-9a-fA-F]{24}$/, "must be an id")
+    .nullish()
+    .or(z.literal("")),
+  sourceName: z.string().trim().max(120).optional().or(z.literal("")),
+  reasons: z.array(leadReasonEnum).max(3).optional(),
+  reasonNote: z.string().trim().max(500).optional().or(z.literal("")),
   addresseeTitle: z.string().trim().max(120).optional().or(z.literal("")),
   addresseeDept: z.string().trim().max(160).optional().or(z.literal("")),
   remark: z.string().trim().max(2000).optional().or(z.literal("")),

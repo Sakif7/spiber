@@ -6,7 +6,7 @@ import { guardSales } from "../../../../../_guard";
 export const dynamic = "force-dynamic";
 
 /**
- * Serve one stored version of a proposal or invoice as a PDF.
+ * Serve one stored version of a proposal, invoice or delivery challan as a PDF.
  *
  * Re-rendered from the version's own snapshot, so an old document reproduces
  * exactly as it was sent even after the order has been amended. Access is
@@ -22,7 +22,7 @@ export async function GET(
   if (!g.ok) return g.res;
 
   const { id, kind, version } = await params;
-  if (kind !== "proposal" && kind !== "invoice") {
+  if (kind !== "proposal" && kind !== "invoice" && kind !== "challan") {
     return new Response("Not found", { status: 404 });
   }
   const v = Number.parseInt(version, 10);

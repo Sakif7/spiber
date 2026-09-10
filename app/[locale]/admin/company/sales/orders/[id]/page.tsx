@@ -14,6 +14,7 @@ import { OrderEditor } from "@/components/admin/sales/order-editor";
 import { OrderCostsPanel } from "@/components/admin/sales/order-costs-panel";
 import { StageRail } from "@/components/admin/sales/stage-rail";
 import { blockers } from "@/lib/sales/journey";
+import { documentMatchesOrder } from "@/lib/sales/document-state";
 import {
   OrderActions,
   type VersionRow,
@@ -34,6 +35,10 @@ export default async function SalesOrderPage({
   if (!order) notFound();
 
   const canEdit = EDITABLE_STATUSES.includes(order.status);
+  /** One line carrying its own VAT takes the whole order off the order rate. */
+  const perLineVat = order.items.some(
+    (i) => i.vatRateBp != null || i.vatAmountMinor != null,
+  );
   // What stops the next step, in the words of whoever has to fix it. Shared by
   // the rail (which lists them) and the actions panel (which disables on them).
   const orderBlockers = blockers(
@@ -45,6 +50,21 @@ export default async function SalesOrderPage({
     })),
     canEdit,
   );
+  /**
+   * The order as it stands, for comparison against what each document says.
+   *
+   * A stored document deliberately does not follow the order — a client holds
+   * a printed copy — so after an amendment the two disagree, and nothing on
+   * screen said which was which. Now they do.
+   */
+  const liveSnapshot = {
+    items: order.items.map((i) => ({
+      description: i.description,
+      unitPriceMinor: i.unitPriceMinor,
+      qty: i.qty,
+    })),
+    totalMinor: order.totalMinor,
+  };
   const toVersion = (v: (typeof order.proposals)[number]): VersionRow => ({
     version: v.version,
     generatedAt: new Date(v.generatedAt).toISOString(),
@@ -52,7 +72,31 @@ export default async function SalesOrderPage({
     emailedTo: v.emailedTo ?? [],
     emailedAt: v.emailedAt ? new Date(v.emailedAt).toISOString() : null,
     superseded: Boolean(v.supersededAt),
+    stale: !documentMatchesOrder(
+      {
+        items: (v.snapshot?.items ?? []).map((i) => ({
+          description: i.description,
+          unitPriceMinor: i.unitPriceMinor,
+          qty: i.qty,
+        })),
+        totalMinor: v.snapshot?.totalMinor ?? 0,
+        quantityMode: v.snapshot?.quantityMode ?? null,
+      },
+      liveSnapshot,
+    ),
   });
+
+  const proposalRows = order.proposals.map(toVersion);
+  const invoiceRows = order.invoices.map(toVersion);
+  // Orders raised before challans existed read back undefined, not [].
+  const challanRows = (order.challans ?? []).map(toVersion);
+  /** The one a client would be sent if someone clicked Email right now. */
+  const current = (rows: VersionRow[]) =>
+    [...rows].reverse().find((r) => !r.superseded);
+  const staleDocs = [
+    current(invoiceRows)?.stale ? "invoice" : null,
+    current(proposalRows)?.stale ? "proposal" : null,
+  ].filter(Boolean) as string[];
 
   return (
     <div className="grid gap-6">
@@ -92,6 +136,15 @@ export default async function SalesOrderPage({
         </p>
       )}
 
+      {staleDocs.length > 0 && (
+        <p className="-mt-2 rounded-md border border-[color-mix(in_srgb,var(--tone-warning)_var(--tone-edge),transparent)] bg-[color-mix(in_srgb,var(--tone-warning)_var(--tone-fill),transparent)] px-3 py-2 text-[var(--tone-warning-fg)]">
+          The order has changed since the {staleDocs.join(" and the ")} was
+          generated, so {staleDocs.length > 1 ? "they show" : "it shows"} the
+          earlier figures. Generate a new one before sending anything to the
+          client.
+        </p>
+      )}
+
       <DetailLayout
         /* A narrow, fixed sidebar rather than a share of the width: the items
            table has nine columns of its own and every point the aside takes is
@@ -104,8 +157,9 @@ export default async function SalesOrderPage({
               status={order.status}
               paymentStatus={order.payment.status}
               leadEmail={order.leadSnapshot.email ?? null}
-              proposals={order.proposals.map(toVersion)}
-              invoices={order.invoices.map(toVersion)}
+              proposals={proposalRows}
+              invoices={invoiceRows}
+              challans={challanRows}
               defaultPaymentDays={order.terms.paymentDays}
               withholding={Boolean(order.withholding)}
               hasMultiples={order.items.some((i) => i.qty > 1)}
@@ -165,7 +219,13 @@ export default async function SalesOrderPage({
                 </DetailRow>
               )}
               {order.vatMinor > 0 && (
-                <DetailRow label={`VAT (${order.vatRateBp / 100}%)`}>
+                <DetailRow
+                  label={
+                    perLineVat
+                      ? "VAT (per line)"
+                      : `VAT (${order.vatRateBp / 100}%)`
+                  }
+                >
                   {formatBDT(order.vatMinor, "en")}
                 </DetailRow>
               )}
@@ -215,12 +275,26 @@ export default async function SalesOrderPage({
             unitPrice: String(i.unitPriceMinor / 100),
             unitCost:
               i.unitCostMinor != null ? String(i.unitCostMinor / 100) : "",
+            // Shown back the way it was entered: a rate stays a rate, a figure
+            // stays a figure, so re-saving cannot quietly convert one to the
+            // other and move the total.
+            vatValue:
+              i.vatAmountMinor != null
+                ? String(i.vatAmountMinor / 100)
+                : i.vatRateBp != null
+                  ? String(i.vatRateBp / 100)
+                  : "",
+            vatMode:
+              i.vatAmountMinor != null
+                ? ("amount" as const)
+                : ("percent" as const),
             qty: String(i.qty),
           }))}
           initialDiscount={order.discountMinor}
           initialDelivery={order.deliveryMinor ?? 0}
           initialReferenceNo={order.referenceNo ?? ""}
           initialVatRateBp={order.vatRateBp}
+          initialAitRateBp={order.aitRateBp ?? 0}
           canEdit={canEdit}
         />
       </DetailLayout>

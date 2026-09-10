@@ -6,7 +6,10 @@ import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { FormSection } from "@/components/admin/ui/form-shell";
 import { FormPanelButton } from "@/components/admin/ui/form-panel";
-import { LeadForm } from "@/components/admin/sales/lead-form";
+import {
+  LeadForm,
+  type SourceEmployee,
+} from "@/components/admin/sales/lead-form";
 
 type LeadRow = {
   id: string;
@@ -16,7 +19,13 @@ type LeadRow = {
 };
 
 /** Choose who the order is for, before anything else can be entered. */
-export function LeadPicker({ leads }: { leads: LeadRow[] }) {
+export function LeadPicker({
+  leads,
+  employees = [],
+}: {
+  leads: LeadRow[];
+  employees?: SourceEmployee[];
+}) {
   const [q, setQ] = useState("");
   const needle = q.trim().toLowerCase();
   const shown = needle
@@ -38,7 +47,7 @@ export function LeadPicker({ leads }: { leads: LeadRow[] }) {
           description="Add the client this order is for."
           variant="outline"
         >
-          <LeadForm />
+          <LeadForm employees={employees} />
         </FormPanelButton>
       }
     >

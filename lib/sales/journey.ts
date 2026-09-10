@@ -79,6 +79,25 @@ export type NextAction = {
   hint: string;
 };
 
+/**
+ * Is moving from `from` to `to` a step BACK down the pipeline?
+ *
+ * Cancelling is not: it is an ending, and it already carries its own warning.
+ * Everything else that moves an order to an earlier stage undoes work that has
+ * been done — a generated invoice, a sent proposal — and is worth confirming.
+ */
+export function goesBackwards(
+  from: SalesOrderStatus,
+  to: SalesOrderStatus,
+): boolean {
+  if (to === "cancelled") return false;
+  const at = (s: SalesOrderStatus) =>
+    SALES_JOURNEY.findIndex((stage) => stage.status === s);
+  const a = at(from);
+  const b = at(to);
+  return a >= 0 && b >= 0 && b < a;
+}
+
 export function nextAction(
   status: SalesOrderStatus,
   paymentStatus: "unpaid" | "paid",
