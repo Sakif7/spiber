@@ -42,6 +42,11 @@ import {
   type SalesPaymentMethod,
 } from "@/lib/schemas/sales-order";
 import { nextAction, goesBackwards } from "@/lib/sales/journey";
+import {
+  useUnsavedChanges,
+  hasUnsavedChanges,
+  saveUnsavedChanges,
+} from "@/components/admin/ui/unsaved-changes";
 
 /** The three documents an order produces. */
 type DocKind = "proposal" | "invoice" | "challan";
@@ -140,7 +145,48 @@ export function OrderActions({
     "single",
   );
 
-  async function post(body: Record<string, unknown>, okMessage: string) {
+  /**
+   * Actions that read the ORDER'S LINES, so acting on unsaved ones would
+   * produce a document, a reservation or a copy from figures nobody has
+   * committed. Recording a payment or a withholding does not read them, so
+   * those are left alone.
+   */
+  const READS_LINES = new Set([
+    "proposal",
+    "invoice",
+    "challan",
+    "transition",
+    "repeat",
+  ]);
+
+  async function post(
+    body: Record<string, unknown>,
+    okMessage: string,
+    /** Set by the retry below, which has just saved and must not be stopped
+        again by a flag React has not caught up with yet. */
+    afterSaving = false,
+  ) {
+    if (
+      !afterSaving &&
+      hasUnsavedChanges() &&
+      READS_LINES.has(String(body.action))
+    ) {
+      // The exact trap that lost a cost price in production: the figure is on
+      // screen, it is not in the database, and the document would go out
+      // without it.
+      toast.warning("The items have unsaved changes.", {
+        description:
+          "Save them first, or this will use the figures already stored.",
+        action: {
+          label: "Save and continue",
+          onClick: async () => {
+            await saveUnsavedChanges();
+            await post(body, okMessage, true);
+          },
+        },
+      });
+      return null;
+    }
     setBusy(true);
     try {
       const res = await fetch(`/api/admin/company/sales/orders/${id}`, {
@@ -169,6 +215,7 @@ export function OrderActions({
    * legally do. The primary button runs the first; the menu holds the rest,
    * including the reverts and the cancel.
    */
+  const unsaved = useUnsavedChanges();
   const primary = nextAction(status, paymentStatus);
   const blocked = blockers.length > 0;
   const otherMoves = next.filter((s) => s !== primary.to);
@@ -218,6 +265,12 @@ export function OrderActions({
   return (
     <>
       <DetailCard title="Status">
+        {unsaved && (
+          <p className="text-admin-xs mb-3 rounded-md border border-[color-mix(in_srgb,var(--tone-warning)_var(--tone-edge),transparent)] bg-[color-mix(in_srgb,var(--tone-warning)_var(--tone-fill),transparent)] px-3 py-2 text-[var(--tone-warning-fg)]">
+            The items have unsaved changes. Save them before generating a
+            document, or it will show the figures already stored.
+          </p>
+        )}
         {/* ONE primary action. Everything else an order can legally do stays
             available in the menu beside it — a column of eight equal buttons
             told nobody which one to press. */}

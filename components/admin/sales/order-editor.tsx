@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { toast } from "sonner";
-import { Plus, Search, Trash2, Loader2 } from "lucide-react";
+import { Plus, Search, Trash2, Loader2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FormSection, FormField } from "@/components/admin/ui/form-shell";
+import { useUnsavedGuard } from "@/components/admin/ui/unsaved-changes";
 import { formatApiError } from "@/lib/http/form-error";
 import { priceSalesOrder } from "@/lib/schemas/sales-order";
 import { blockers } from "@/lib/sales/journey";
@@ -230,6 +231,82 @@ export function OrderEditor({
     ]);
 
   /**
+   * The order exactly as a save would send it.
+   *
+   * Shared by the save itself and by the unsaved-changes check, so the two can
+   * never disagree about what counts as an edit — and so a difference of
+   * FORMATTING ("60" against "60.00") is not mistaken for one, since both
+   * sides are compared after conversion to poisha.
+   */
+  function buildPayload() {
+    return {
+      items: lines.map((l) => ({
+        id: l.id,
+        kind: l.kind,
+        productId: l.productId ?? undefined,
+        variantId: l.variantId ?? undefined,
+        sku: l.sku ?? undefined,
+        description: l.description,
+        brandOrigin: l.brandOrigin,
+        specification: l.specification,
+        unit: l.unit,
+        unitPriceMinor: toMinor(l.unitPrice),
+        // Blank means nobody has said what it cost, which the report shows
+        // as a gap rather than as a 100% margin.
+        unitCostMinor: l.unitCost.trim() ? toMinor(l.unitCost) : null,
+        // Null, not omitted: an amend has to be able to CLEAR a line's VAT,
+        // and the service reads undefined as "no opinion".
+        vatRateBp: vatOf(l).vatRateBp ?? null,
+        vatAmountMinor: vatOf(l).vatAmountMinor ?? null,
+        qty: Number(l.qty) || 1,
+      })),
+      discountMinor: toMinor(discount),
+      deliveryMinor: toMinor(delivery),
+      referenceNo,
+      // Not editable here — it is the configured rate, carried through
+      // unchanged so an amend cannot silently re-rate the order.
+      vatRateBp,
+      aitRateBp: Math.round((Number(aitPercent) || 0) * 100),
+    };
+  }
+
+  /**
+   * Is there anything typed here that the database does not have?
+   *
+   * Compared against the props the server just rendered, so a successful save
+   * clears it by itself: the save refreshes the page, the props come back with
+   * the new figures, and the two sides match again.
+   */
+  const dirty =
+    JSON.stringify(buildPayload()) !==
+    JSON.stringify({
+      items: initialLines.map((l) => ({
+        id: l.id,
+        kind: l.kind,
+        productId: l.productId ?? undefined,
+        variantId: l.variantId ?? undefined,
+        sku: l.sku ?? undefined,
+        description: l.description,
+        brandOrigin: l.brandOrigin,
+        specification: l.specification,
+        unit: l.unit,
+        unitPriceMinor: toMinor(l.unitPrice),
+        unitCostMinor: l.unitCost.trim() ? toMinor(l.unitCost) : null,
+        vatRateBp: vatOf(l).vatRateBp ?? null,
+        vatAmountMinor: vatOf(l).vatAmountMinor ?? null,
+        qty: Number(l.qty) || 1,
+      })),
+      discountMinor: initialDiscount,
+      deliveryMinor: initialDelivery,
+      referenceNo: initialReferenceNo,
+      vatRateBp: initialVatRateBp,
+      aitRateBp: initialAitRateBp,
+    });
+
+  // Publishes to the panels beside this one, and guards a browser reload.
+  useUnsavedGuard(dirty && Boolean(orderId), () => save());
+
+  /**
    * Save, and optionally produce the proposal in the same click.
    *
    * Creating an order used to be: fill this in, save, land on the order, find
@@ -243,35 +320,7 @@ export function OrderEditor({
     setSaving(true);
     setError(null);
     try {
-      const payload = {
-        items: lines.map((l) => ({
-          id: l.id,
-          kind: l.kind,
-          productId: l.productId ?? undefined,
-          variantId: l.variantId ?? undefined,
-          sku: l.sku ?? undefined,
-          description: l.description,
-          brandOrigin: l.brandOrigin,
-          specification: l.specification,
-          unit: l.unit,
-          unitPriceMinor: toMinor(l.unitPrice),
-          // Blank means nobody has said what it cost, which the report shows
-          // as a gap rather than as a 100% margin.
-          unitCostMinor: l.unitCost.trim() ? toMinor(l.unitCost) : null,
-          // Null, not omitted: an amend has to be able to CLEAR a line's VAT,
-          // and the service reads undefined as "no opinion".
-          vatRateBp: vatOf(l).vatRateBp ?? null,
-          vatAmountMinor: vatOf(l).vatAmountMinor ?? null,
-          qty: Number(l.qty) || 1,
-        })),
-        discountMinor: toMinor(discount),
-        deliveryMinor: toMinor(delivery),
-        referenceNo,
-        // Not editable here — it is the configured rate, carried through
-        // unchanged so an amend cannot silently re-rate the order.
-        vatRateBp,
-        aitRateBp: Math.round((Number(aitPercent) || 0) * 100),
-      };
+      const payload = buildPayload();
 
       const res = await fetch(
         orderId
@@ -649,10 +698,22 @@ export function OrderEditor({
             {/* On a NEW order the proposal is nearly always the next thing, so
                 it is the primary button and saves a whole round trip. */}
             {orderId ? (
-              <Button onClick={() => save()} disabled={saving || !ready}>
-                {saving && <Loader2 className="size-4 animate-spin" />}
-                Save changes
-              </Button>
+              <>
+                <Button onClick={() => save()} disabled={saving || !ready}>
+                  {saving && <Loader2 className="size-4 animate-spin" />}
+                  Save changes
+                </Button>
+                {/* Typed figures live in the browser until this button is
+                    pressed, and everything else on the page leaves them
+                    looking saved. Say so, right beside the button that fixes
+                    it. */}
+                {dirty && (
+                  <span className="text-admin-xs inline-flex items-center gap-1.5 font-medium text-[var(--tone-warning-fg)]">
+                    <AlertTriangle className="size-3.5" aria-hidden />
+                    Unsaved changes
+                  </span>
+                )}
+              </>
             ) : (
               <>
                 <Button
