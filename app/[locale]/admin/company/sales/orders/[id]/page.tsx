@@ -71,6 +71,7 @@ export default async function SalesOrderPage({
     invoiceNumber: v.snapshot?.invoiceNumber ?? null,
     emailedTo: v.emailedTo ?? [],
     emailedAt: v.emailedAt ? new Date(v.emailedAt).toISOString() : null,
+    templateVersion: v.templateRef?.version ?? 0,
     superseded: Boolean(v.supersededAt),
     stale: !documentMatchesOrder(
       {

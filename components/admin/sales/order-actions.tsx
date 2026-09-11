@@ -64,6 +64,8 @@ export type VersionRow = {
   invoiceNumber?: string | null;
   emailedTo: string[];
   emailedAt: string | null;
+  /** The PDF template it was drawn with; 0 = the built-in layout. */
+  templateVersion?: number;
   superseded: boolean;
 };
 
@@ -1025,6 +1027,8 @@ function DocumentList({
                 {v.emailedAt
                   ? ` · sent to ${v.emailedTo.join(",")}`
                   : " · not sent"}
+                {v.templateVersion != null &&
+                  ` · layout ${v.templateVersion === 0 ? "built-in" : `v${v.templateVersion}`}`}
               </p>
             </div>
             <div className="flex gap-1">

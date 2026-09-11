@@ -46,6 +46,7 @@ import {
   UsersRound,
   Wallet,
   ReceiptText,
+  LayoutTemplate,
   type LucideIcon,
   ChartNoAxesCombined,
 } from "lucide-react";
@@ -366,6 +367,13 @@ export const COMPANY_NAV_GROUPS: NavGroup[] = [
         "Documents",
         FolderLock,
         "Company documents",
+      ),
+      superItem(
+        "company.pdf-templates",
+        "/admin/company/pdf-templates",
+        "PDF templates",
+        LayoutTemplate,
+        "PDF document templates",
       ),
     ],
   },

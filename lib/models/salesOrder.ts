@@ -152,6 +152,12 @@ export interface IDocumentVersion {
   emailedBy?: Types.ObjectId | string | null;
   /** Set when a later version replaced this one (an amended invoice). */
   supersededAt?: Date | null;
+  /**
+   * Which published PDF template drew this version, so a reprint reproduces
+   * it exactly. Absent (generated before templates existed) or version 0
+   * means the built-in layout.
+   */
+  templateRef?: { kind: string; version: number } | null;
 }
 
 export interface ISalesOrderActivity {
@@ -307,6 +313,15 @@ const versionSchema = new Schema<IDocumentVersion>(
     emailedAt: { type: Date, default: null },
     emailedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
     supersededAt: { type: Date, default: null },
+    // `default: undefined` so re-saving an old row never materialises an
+    // empty object where "no template" is meant.
+    templateRef: {
+      type: new Schema(
+        { kind: { type: String }, version: { type: Number } },
+        { _id: false },
+      ),
+      default: undefined,
+    },
   },
   { _id: false },
 );

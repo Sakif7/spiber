@@ -33,6 +33,10 @@ import {
   type Actor,
 } from "@/lib/services/company-fs.service";
 import { vaultConfigured } from "@/lib/crypto/vault";
+import {
+  getCurrentTemplate,
+  getTemplateForRender,
+} from "@/lib/services/pdf-template.service";
 import { effectiveVatRateBp } from "@/lib/schemas/sales-order";
 import {
   nextChallanSeq,
@@ -223,8 +227,11 @@ export async function generateProposal(
     email: order.leadSnapshot.email ?? null,
   };
 
+  const tpl = await getCurrentTemplate("proposal");
   const pdf = await renderPdf(
     React.createElement(ProposalDocument, {
+      template: tpl.template,
+      assets: tpl.assets,
       data: {
         proposalNo: order.number,
         date,
@@ -261,6 +268,7 @@ export async function generateProposal(
     },
     documentId,
     emailedTo: [],
+    templateRef: { kind: tpl.kind, version: tpl.version },
   };
   // Any earlier proposal is superseded, exactly as an earlier invoice is: two
   // unmarked proposals side by side is how the wrong one gets sent.
@@ -331,8 +339,11 @@ export async function generateInvoice(
       seq: await nextInvoiceSeq(),
     });
 
+  const tpl = await getCurrentTemplate("invoice");
   const pdf = await renderPdf(
     React.createElement(InvoiceDocument, {
+      template: tpl.template,
+      assets: tpl.assets,
       data: {
         invoiceNumber,
         invoiceDate,
@@ -400,6 +411,7 @@ export async function generateInvoice(
     },
     documentId,
     emailedTo: [],
+    templateRef: { kind: tpl.kind, version: tpl.version },
   });
 
   await updateSalesOrder(orderId, {
@@ -458,8 +470,11 @@ export async function generateChallan(
       seq: await nextChallanSeq(),
     });
 
+  const tpl = await getCurrentTemplate("challan");
   const pdf = await renderPdf(
     React.createElement(ChallanDocument, {
+      template: tpl.template,
+      assets: tpl.assets,
       data: {
         challanNumber,
         date,
@@ -506,6 +521,7 @@ export async function generateChallan(
     },
     documentId,
     emailedTo: [],
+    templateRef: { kind: tpl.kind, version: tpl.version },
   });
 
   await updateSalesOrder(orderId, { challans, challanNumber });
@@ -572,10 +588,15 @@ export async function renderVersion(
     };
   });
   const who = await signatory();
+  // The template it was drawn with, never today's: the layout is part of what
+  // the client received.
+  const tpl = await getTemplateForRender(kind, entry.templateRef?.version);
 
   if (kind === "proposal") {
     const pdf = await renderPdf(
       React.createElement(ProposalDocument, {
+        template: tpl.template,
+        assets: tpl.assets,
         data: {
           proposalNo: order.number,
           date: new Date(entry.generatedAt),
@@ -605,6 +626,8 @@ export async function renderVersion(
   if (kind === "challan") {
     const pdf = await renderPdf(
       React.createElement(ChallanDocument, {
+        template: tpl.template,
+        assets: tpl.assets,
         data: {
           challanNumber: snap.challanNumber ?? order.number,
           date: new Date(snap.deliveryDate ?? entry.generatedAt),
@@ -630,6 +653,8 @@ export async function renderVersion(
 
   const pdf = await renderPdf(
     React.createElement(InvoiceDocument, {
+      template: tpl.template,
+      assets: tpl.assets,
       data: {
         invoiceNumber: snap.invoiceNumber ?? order.number,
         invoiceDate: new Date(snap.invoiceDate ?? entry.generatedAt),

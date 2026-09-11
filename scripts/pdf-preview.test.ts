@@ -1,12 +1,17 @@
 /**
- * Render the proposal and the invoice with sample data, so the letterhead and
- * watermark can be looked at rather than guessed at.
+ * Render every document with sample data, so the letterhead and watermark can
+ * be looked at rather than guessed at.
  * Run with: npm run pdf-preview
  */
 import { it } from "vitest";
 import fs from "node:fs";
 import { renderPdf } from "@/lib/pdf/render";
-import { ProposalDocument, InvoiceDocument } from "@/lib/pdf/documents";
+import {
+  ProposalDocument,
+  InvoiceDocument,
+  ChallanDocument,
+} from "@/lib/pdf/documents";
+import { PayslipDocument } from "@/lib/pdf/payslip";
 
 const OUT = "public/_preview";
 fs.mkdirSync(OUT, { recursive: true });
@@ -50,7 +55,7 @@ const signatory = {
 
 const terms = { deliveryDays: 2, validityDays: 7, paymentDays: 30 };
 
-it("renders the proposal and the invoice for inspection", async () => {
+it("renders every document for inspection", async () => {
   const proposal = await renderPdf(
     ProposalDocument({
       data: {
@@ -91,5 +96,43 @@ it("renders the proposal and the invoice for inspection", async () => {
   );
   fs.writeFileSync(OUT + "/invoice.pdf", invoice);
 
-  console.log("wrote proposal.pdf and invoice.pdf");
+  const challan = await renderPdf(
+    ChallanDocument({
+      data: {
+        challanNumber: "SPIBER/DC/EWMCH/14-8/26-3",
+        date: new Date("2026-09-09"),
+        invoiceNumber: "SPIBER/EWMCH/14-8/26-714",
+        deliverTo: to,
+        lines,
+        dispatchNote: "Dhaka Metro-Ta 11-2233, driver Mr. Rahim",
+      },
+    }) as never,
+  );
+  fs.writeFileSync(OUT + "/challan.pdf", challan);
+
+  const payslip = await renderPdf(
+    PayslipDocument({
+      data: {
+        month: "2026-08",
+        monthLabel: "August 2026",
+        employee: {
+          name: "Dr. Md Jahidul Islam",
+          code: "EMP-001",
+          designation: "Managing Director",
+        },
+        revenueMinor: 1_00_00_000,
+        onlineMinor: 40_00_000,
+        manualMinor: 60_00_000,
+        rateBp: 1250,
+        amountMinor: 12_50_000,
+        approvedAt: new Date("2026-09-03"),
+        paidAt: new Date("2026-09-05"),
+        reference: "TRX-88",
+        signatory,
+      },
+    }) as never,
+  );
+  fs.writeFileSync(OUT + "/payslip.pdf", payslip);
+
+  console.log("wrote proposal, invoice, challan and payslip PDFs");
 }, 60000);

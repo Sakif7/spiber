@@ -4,6 +4,7 @@ import { monthLabel } from "@/lib/hr/months";
 import { renderPdf } from "@/lib/pdf/render";
 import { PayslipDocument } from "@/lib/pdf/payslip";
 import { getSetting } from "@/lib/repositories/settings.repo";
+import { getCurrentTemplate } from "@/lib/services/pdf-template.service";
 import { CONTACT } from "@/lib/contact";
 import { auditDocumentView } from "@/lib/audit/document-view";
 import { logger } from "@/lib/log";
@@ -46,8 +47,13 @@ export async function GET(
     email?: string;
   }>("sales.signatory").catch(() => null);
 
+  // Payslips are not filed or versioned, so a re-opened one is drawn with
+  // whatever template is current — unlike the sales documents.
+  const tpl = await getCurrentTemplate("payslip");
   const pdf = await renderPdf(
     React.createElement(PayslipDocument, {
+      template: tpl.template,
+      assets: tpl.assets,
       data: {
         month,
         monthLabel: monthLabel(month),
