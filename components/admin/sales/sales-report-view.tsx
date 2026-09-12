@@ -124,7 +124,7 @@ export function SalesReportView({
         "Cost",
         "Gross profit",
         "AIT withheld",
-        "After AIT",
+        "Cash after AIT",
       ],
     ];
     for (const c of report.clients) {
@@ -224,22 +224,18 @@ export function SalesReportView({
             minor={t.orderCostMinor}
             hint="Delivery, courier, installation"
           />
+          {/* The eye lands here, so this card says what actually arrived. A
+              reader who stops at "Net profit" must not walk away thinking that
+              figure is in the bank when the buyer kept some of it back. */}
           <Figure
             label="Net profit"
             minor={t.netMinor}
-            hint={`After order costs and ${taka(t.expensesMinor)} of client visits`}
-            tone="good"
-          />
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Figure
-            label="After AIT"
-            minor={t.netCashMinor}
             hint={
               t.aitMinor > 0
-                ? `Net profit less ${taka(t.aitMinor)} withheld — cash in hand, not earnings`
-                : "Nothing withheld in this period, so the same as net profit"
+                ? `After order costs. ${taka(t.aitMinor)} was withheld at source — ${taka(t.netCashMinor)} reached the bank`
+                : `After order costs and ${taka(t.expensesMinor)} of client visits`
             }
+            tone="good"
           />
         </div>
 
@@ -296,7 +292,7 @@ export function SalesReportView({
                   </th>
                   <th className="px-4 py-2.5 text-right font-semibold">AIT</th>
                   <th className="px-4 py-2.5 text-right font-semibold">
-                    After AIT
+                    Cash after AIT
                   </th>
                 </tr>
               </thead>
@@ -470,7 +466,7 @@ export function SalesReportView({
       {/* ── cash, kept apart from profit ── */}
       <section className="space-y-3">
         <h2 className="text-admin-lg font-semibold">Cash and tax</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <Figure
             label="VAT collected"
             minor={t.vatMinor}
@@ -480,6 +476,15 @@ export function SalesReportView({
             label="AIT withheld"
             minor={t.aitMinor}
             hint="Reclaimable against income tax — an asset, not a cost"
+          />
+          <Figure
+            label="Cash after AIT"
+            minor={t.netCashMinor}
+            hint={
+              t.aitMinor > 0
+                ? "Net profit less what was withheld — the rest returns with the certificate"
+                : "Nothing withheld, so the same as net profit"
+            }
           />
           <Figure
             label="Transport billed"

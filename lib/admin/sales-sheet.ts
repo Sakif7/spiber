@@ -76,7 +76,7 @@ export const SHEET_COLUMNS: SheetColumn[] = [
   { key: "orderCosts", label: "Order costs", align: "right", kind: "money" },
   { key: "clientCosts", label: "Client costs", align: "right", kind: "money" },
   { key: "ait", label: "AIT withheld", align: "right", kind: "money" },
-  { key: "netCash", label: "After AIT", align: "right", kind: "money" },
+  { key: "netCash", label: "Cash after AIT", align: "right", kind: "money" },
 ];
 
 const BY_KEY = new Map(SHEET_COLUMNS.map((c) => [c.key, c]));
