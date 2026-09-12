@@ -25,7 +25,11 @@ export type SheetColumnKey =
   | "revenue"
   | "cost"
   | "profit"
-  | "margin";
+  | "margin"
+  | "orderCosts"
+  | "clientCosts"
+  | "ait"
+  | "netCash";
 
 export type SheetColumn = {
   key: SheetColumnKey;
@@ -69,12 +73,41 @@ export const SHEET_COLUMNS: SheetColumn[] = [
   { key: "cost", label: "Cost", align: "right", kind: "money" },
   { key: "profit", label: "Gross profit", align: "right", kind: "money" },
   { key: "margin", label: "Margin", align: "right", kind: "percent" },
+  { key: "orderCosts", label: "Order costs", align: "right", kind: "money" },
+  { key: "clientCosts", label: "Client costs", align: "right", kind: "money" },
+  { key: "ait", label: "AIT withheld", align: "right", kind: "money" },
+  { key: "netCash", label: "After AIT", align: "right", kind: "money" },
 ];
 
 const BY_KEY = new Map(SHEET_COLUMNS.map((c) => [c.key, c]));
 
 /** Only these are added up; the rest are blank on a subtotal row. */
-const SUMMED: SheetColumnKey[] = ["qty", "revenue", "cost", "profit"];
+const SUMMED: SheetColumnKey[] = [
+  "qty",
+  "revenue",
+  "cost",
+  "profit",
+  "orderCosts",
+  "clientCosts",
+  "ait",
+  "netCash",
+];
+
+/**
+ * Figures that belong to the ORDER, not to any line on it.
+ *
+ * AIT is withheld on the bill as a whole and order costs are carried by the
+ * job, so there is no honest way to split either across lines — dividing by
+ * line count would invent a number and repeating it on every row would sum to
+ * several times the truth. They are therefore blank on line rows and appear
+ * only where the arithmetic is real: the subtotal and the total.
+ */
+const ORDER_LEVEL: SheetColumnKey[] = [
+  "orderCosts",
+  "clientCosts",
+  "ait",
+  "netCash",
+];
 
 export type SalesSheetLayout = {
   /** Visible columns, in the order they are shown. */
@@ -98,6 +131,10 @@ export const DEFAULT_SHEET_LAYOUT: SalesSheetLayout = {
     "revenue",
     "cost",
     "profit",
+    "orderCosts",
+    "clientCosts",
+    "ait",
+    "netCash",
   ],
   groupBy: "invoice",
   clientSubtotals: true,
@@ -187,6 +224,11 @@ export function buildSheet(
           cost: line.costMinor,
           profit: line.profitMinor,
           margin: marginOf(line.profitMinor, line.revenueMinor),
+          // Order-level: carried by the bill, not by this line. See ORDER_LEVEL.
+          orderCosts: null,
+          clientCosts: null,
+          ait: null,
+          netCash: null,
         };
 
         // Inside a group the shared cells are written once. Across groups they
@@ -224,6 +266,10 @@ export function buildSheet(
           profit: client.profitMinor,
           margin:
             marginOf(client.profitMinor, client.revenueMinor) ?? undefined,
+          orderCosts: client.orderCostMinor,
+          clientCosts: client.expensesMinor,
+          ait: client.aitMinor,
+          netCash: client.netCashMinor,
         },
       });
     }
@@ -248,6 +294,10 @@ export function buildSheet(
         cost: t.costMinor,
         profit: t.profitMinor,
         margin: marginOf(t.profitMinor, t.revenueMinor) ?? undefined,
+        orderCosts: t.orderCostMinor,
+        clientCosts: t.expensesMinor,
+        ait: t.aitMinor,
+        netCash: t.netCashMinor,
       },
     });
   }
@@ -258,6 +308,11 @@ export function buildSheet(
 /** Which of the visible columns carry a figure on a subtotal line. */
 export function isSummed(key: SheetColumnKey): boolean {
   return SUMMED.includes(key) || key === "margin";
+}
+
+/** True for a column that only carries a figure on a subtotal or total row. */
+export function isOrderLevel(key: SheetColumnKey): boolean {
+  return ORDER_LEVEL.includes(key);
 }
 
 export function columnsFor(layout: SalesSheetLayout): SheetColumn[] {

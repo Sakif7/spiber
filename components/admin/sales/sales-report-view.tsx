@@ -71,6 +71,12 @@ function Figure({
  * AIT lives in the second and never the first. It is withheld against our own
  * income tax and reclaimed with the certificate, so treating it as a cost
  * would understate profit AND pay for the same tax twice at year end.
+ *
+ * "After AIT" is the bridge between the two, and is a CASH figure wearing a
+ * profit's clothes: net profit less what the buyer kept back, i.e. what is in
+ * our hands before the certificate brings the rest home. It is labelled and
+ * hinted as cash everywhere it appears precisely because the temptation is to
+ * read the smaller number as the truer one. It is not — it is the earlier one.
  */
 export function SalesReportView({
   report,
@@ -117,11 +123,13 @@ export function SalesReportView({
         "Revenue",
         "Cost",
         "Gross profit",
+        "AIT withheld",
+        "After AIT",
       ],
     ];
     for (const c of report.clients) {
       for (const o of c.orders) {
-        for (const l of o.lines) {
+        for (const [li, l] of o.lines.entries()) {
           rows.push([
             c.name,
             o.ref,
@@ -135,6 +143,10 @@ export function SalesReportView({
             taka(l.revenueMinor),
             taka(l.costMinor),
             taka(l.profitMinor),
+            // Order-level, so written once against the order's first line:
+            // repeating it down the rows would sum to several times the truth.
+            li === 0 ? taka(o.aitMinor) : "",
+            li === 0 ? taka(o.netCashMinor) : "",
           ]);
         }
       }
@@ -219,6 +231,17 @@ export function SalesReportView({
             tone="good"
           />
         </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Figure
+            label="After AIT"
+            minor={t.netCashMinor}
+            hint={
+              t.aitMinor > 0
+                ? `Net profit less ${taka(t.aitMinor)} withheld — cash in hand, not earnings`
+                : "Nothing withheld in this period, so the same as net profit"
+            }
+          />
+        </div>
 
         {t.linesMissingCost > 0 && (
           <p className="flex items-start gap-2 rounded-md border border-[var(--tone-warning-fg)]/30 bg-[var(--tone-warning)]/10 p-3 text-sm">
@@ -245,7 +268,7 @@ export function SalesReportView({
         <section className="space-y-3">
           <h2 className="text-admin-lg font-semibold">By client</h2>
           <div className="bg-card overflow-x-auto rounded-lg shadow-[var(--shadow-sm)]">
-            <table className="w-full min-w-[860px] text-sm">
+            <table className="w-full min-w-[1000px] text-sm">
               <thead>
                 <tr className="text-muted-foreground border-b text-left">
                   <th className="px-4 py-2.5 font-semibold">Client</th>
@@ -271,13 +294,17 @@ export function SalesReportView({
                   <th className="px-4 py-2.5 text-right font-semibold">
                     Net profit
                   </th>
+                  <th className="px-4 py-2.5 text-right font-semibold">AIT</th>
+                  <th className="px-4 py-2.5 text-right font-semibold">
+                    After AIT
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {report.clients.length === 0 && (
                   <tr>
                     <td
-                      colSpan={9}
+                      colSpan={11}
                       className="text-muted-foreground px-4 py-8 text-center"
                     >
                       Nothing was paid for in this period.
@@ -339,6 +366,12 @@ export function SalesReportView({
                         <td className="px-4 py-2.5 text-right font-semibold tabular-nums">
                           {taka(c.netMinor)}
                         </td>
+                        <td className="text-muted-foreground px-4 py-2.5 text-right tabular-nums">
+                          {c.aitMinor > 0 ? taka(c.aitMinor) : "—"}
+                        </td>
+                        <td className="px-4 py-2.5 text-right font-semibold tabular-nums">
+                          {taka(c.netCashMinor)}
+                        </td>
                       </tr>
 
                       {isOpen &&
@@ -384,6 +417,12 @@ export function SalesReportView({
                               <td className="px-4 py-2 text-right font-medium tabular-nums">
                                 {taka(o.netMinor)}
                               </td>
+                              <td className="text-muted-foreground px-4 py-2 text-right tabular-nums">
+                                {o.aitMinor > 0 ? taka(o.aitMinor) : "—"}
+                              </td>
+                              <td className="px-4 py-2 text-right font-medium tabular-nums">
+                                {taka(o.netCashMinor)}
+                              </td>
                             </tr>
                             {o.lines.map((l, li) => (
                               <tr
@@ -414,7 +453,7 @@ export function SalesReportView({
                                 <td className="px-4 py-1.5 text-right tabular-nums">
                                   {taka(l.profitMinor)}
                                 </td>
-                                <td colSpan={4} />
+                                <td colSpan={6} />
                               </tr>
                             ))}
                           </Fragment>

@@ -63,6 +63,19 @@ export interface ISalesOrderWithholding {
   aitRateBp: number;
   /** What they actually deducted. */
   aitMinor: number;
+  /**
+   * Where this figure came from.
+   *
+   * `expected` is derived from the order's own AIT rate when the invoice is
+   * generated, so the report is right the moment the bill goes out instead of
+   * waiting on a second action nobody remembers to run. `confirmed` is a
+   * human reading the client's deduction slip, and always wins: regenerating
+   * an invoice refreshes an expected figure and never touches a confirmed one.
+   *
+   * Optional because rows written before this existed were all entered by
+   * hand — read it as `?? "confirmed"` so they are never overwritten.
+   */
+  source?: "expected" | "confirmed";
   /** VAT deducted at source, where the buyer does that too. */
   vdsMinor?: number | null;
   /** The certificate is what makes it reclaimable, so track whether it came. */
@@ -278,6 +291,11 @@ const withholdingSchema = new Schema<ISalesOrderWithholding>(
   {
     aitRateBp: { type: Number, required: true, min: 0, max: 10000 },
     aitMinor: { type: Number, required: true, min: 0 },
+    source: {
+      type: String,
+      enum: ["expected", "confirmed"],
+      default: "confirmed",
+    },
     vdsMinor: { type: Number, default: null, min: 0 },
     certificateReceived: { type: Boolean, default: false },
     certificateRef: { type: String, default: null },

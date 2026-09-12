@@ -2,7 +2,7 @@
 
 The operating manual for this repo. Read it in full at the start of every
 session; it is short on purpose. The history of _why_ things are the way they
-are is in `docs/decision-log.md` — grep it before re-investigating anything.
+are is in `.docs/decision-log.md` — grep it before re-investigating anything.
 
 ## What this is
 
@@ -74,7 +74,7 @@ These are the things the owner has had to repeat. Treat them as hard rules.
 
 - `CLAUDE.md` holds **rules and gotchas only**. When you learn something the
   next session must know, add one line to the right section here and the full
-  story to `docs/decision-log.md`. Never paste a session narrative into this
+  story to `.docs/decision-log.md`. Never paste a session narrative into this
   file.
 
 ## Locked decisions (do NOT re-ask)
@@ -86,7 +86,11 @@ These are the things the owner has had to repeat. Treat them as hard rules.
   conditional updates + compensation.
 - **Money = integer poisha.** VAT is charged on goods after discount, never on
   shipping/transport. AIT is what the _buyer withholds_ — informational only,
-  never added to a total.
+  never added to a total, and **never a cost**: it is reclaimed with the
+  certificate, so it stays out of profit and shows as cash ("After AIT").
+  **AIT is charged on goods after discount** — same base as VAT, never on the
+  VAT-inclusive total; `aitOnGoods` in `lib/schemas/sales-order.ts` is the one
+  place that is decided, for the PDF and the books alike.
 - **Payments:** pluggable `PaymentProvider`; default `manual` (offline). A
   `dev` sandbox gateway exists locally. An unrecognised provider name
   **throws** — never silently falls back. Real gateway not yet wired.
@@ -207,6 +211,11 @@ tests`, `npm test`, and the browser pass above. Then `git status`.
 - Mongoose strips `createdAt` from `$set` (use the raw driver to age a row in
   tests); pipeline updates need `{ updatePipeline: true }`; `$in` works in
   partial-index filters; `null` inside `$in` also matches an absent field.
+- A sales order carries AIT **twice**: `aitRateBp` (what we expect, printed on
+  the invoice) and `withholding` (what the report reads). `generateInvoice`
+  writes the second from the first as `source: "expected"`; the `…` menu writes
+  `source: "confirmed"` and a regenerated invoice must never overwrite that.
+  Absent `source` means confirmed — old rows were all typed by a person.
 - `catalog-admin.service.updateProductWithStock` rebuilds `variants[]` — copy
   `reservedQty` across or reservations are erased.
 - Use `returnDocument: "after"`, not `new: true`.
@@ -323,6 +332,6 @@ clip }` that makes body the sticky containing block: a menu inside a sticky
 
 ## History
 
-`docs/decision-log.md` — every session since 2026-06-02, newest last: what was
+`.docs/decision-log.md` — every session since 2026-06-02, newest last: what was
 built, what broke, the measurements, and the fixtures left in the local DB.
 Append there; distil here.

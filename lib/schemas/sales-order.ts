@@ -380,3 +380,29 @@ export function priceSalesOrder(input: {
     perLineVat,
   };
 }
+
+/**
+ * The base AIT is withheld on, and the amount it comes to.
+ *
+ * Goods after discount, before VAT and before transport. AIT is deducted from
+ * what the goods are worth; VAT is the government's already and transport is a
+ * pass-through, so neither belongs in the base.
+ *
+ * The one place this is decided. The invoice PDF prints it and the report
+ * records it, and if the two used different bases the paper the client holds
+ * would disagree with our own books on every order that carries VAT.
+ */
+export function aitBaseMinor(subtotalMinor: number, discountMinor: number) {
+  return Math.max(0, (subtotalMinor || 0) - (discountMinor || 0));
+}
+
+export function aitOnGoods(
+  subtotalMinor: number,
+  discountMinor: number,
+  rateBp: number,
+) {
+  if (!rateBp) return 0;
+  return Math.round(
+    (aitBaseMinor(subtotalMinor, discountMinor) * rateBp) / 10000,
+  );
+}

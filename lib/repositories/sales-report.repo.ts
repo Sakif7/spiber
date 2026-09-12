@@ -67,6 +67,15 @@ export type ReportOrder = {
   orderCosts: { label: string; amountMinor: number }[];
   /** Gross profit less those costs: what the job actually made. */
   netMinor: number;
+  /**
+   * Net profit less the AIT the buyer kept back.
+   *
+   * The cash view of the same job: what is actually in our hands today, before
+   * the withheld tax comes back with the certificate. Deliberately NOT profit —
+   * see the note on `SalesReportView` — and kept as a separate figure so one
+   * never quietly becomes the other.
+   */
+  netCashMinor: number;
   linesMissingCost: number;
   lines: ReportLine[];
 };
@@ -88,6 +97,8 @@ export type ReportClient = {
   expensesMinor: number;
   /** Gross profit less order costs and the visits spent winning them. */
   netMinor: number;
+  /** That net, less AIT withheld: the cash side. Never profit. */
+  netCashMinor: number;
   linesMissingCost: number;
 };
 
@@ -104,6 +115,7 @@ export type SalesReport = {
     orderCostMinor: number;
     expensesMinor: number;
     netMinor: number;
+    netCashMinor: number;
     orders: number;
     linesMissingCost: number;
   };
@@ -177,6 +189,11 @@ async function offlineOrders(range: ReportRange): Promise<ReportOrder[]> {
         amountMinor: num(c.amountMinor),
       })),
       netMinor: revenueMinor - costMinor - orderCostMinor,
+      netCashMinor:
+        revenueMinor -
+        costMinor -
+        orderCostMinor -
+        num(o.withholding?.aitMinor),
       linesMissingCost: lines.filter((l) => l.unitCostMinor == null).length,
       lines,
     };
@@ -238,6 +255,7 @@ async function onlineOrders(range: ReportRange): Promise<ReportOrder[]> {
       orderCostMinor: 0,
       orderCosts: [],
       netMinor: revenueMinor - costMinor,
+      netCashMinor: revenueMinor - costMinor,
       linesMissingCost: lines.filter((l) => l.unitCostMinor == null).length,
       lines,
     };
@@ -347,6 +365,7 @@ export async function salesReport(range: ReportRange): Promise<SalesReport> {
         orderCostMinor: 0,
         expensesMinor: 0,
         netMinor: 0,
+        netCashMinor: 0,
         linesMissingCost: 0,
       };
       clients.set(key, c);
@@ -382,6 +401,7 @@ export async function salesReport(range: ReportRange): Promise<SalesReport> {
     }
     c.expensesMinor = expenses.get(c.key) ?? 0;
     c.netMinor = c.profitMinor - c.orderCostMinor - c.expensesMinor;
+    c.netCashMinor = c.netMinor - c.aitMinor;
     c.orders.sort((a, b) => (a.paidAt ?? "").localeCompare(b.paidAt ?? ""));
   }
 
@@ -413,12 +433,14 @@ export async function salesReport(range: ReportRange): Promise<SalesReport> {
       orderCostMinor: 0,
       expensesMinor: 0,
       netMinor: 0,
+      netCashMinor: 0,
       orders: 0,
       linesMissingCost: 0,
     },
   );
   totals.netMinor =
     totals.profitMinor - totals.orderCostMinor - totals.expensesMinor;
+  totals.netCashMinor = totals.netMinor - totals.aitMinor;
 
   return {
     range: { start: range.start.toISOString(), end: range.end.toISOString() },

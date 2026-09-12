@@ -37,7 +37,7 @@ import {
   getCurrentTemplate,
   getTemplateForRender,
 } from "@/lib/services/pdf-template.service";
-import { effectiveVatRateBp } from "@/lib/schemas/sales-order";
+import { aitOnGoods, effectiveVatRateBp } from "@/lib/schemas/sales-order";
 import {
   nextChallanSeq,
   formatChallanNumber,
@@ -297,6 +297,44 @@ export async function generateProposal(
  * the order is amended, so a corrected invoice gets a NEW number and the old
  * version is marked superseded rather than rewritten.
  */
+/**
+ * The AIT we expect the client to keep back, recorded as the invoice goes out.
+ *
+ * The order carries the rate the client quoted, and until now that rate only
+ * printed on the paper — the report read a separate `withholding` record that
+ * a second, easily-missed menu action had to write, so a bill sent at 5% showed
+ * zero AIT withheld until someone remembered. Issuing the invoice is the moment
+ * the expectation becomes real, so it is written here.
+ *
+ * A figure a person entered from the client's deduction slip is `confirmed` and
+ * is never touched: regenerating a corrected invoice refreshes only our own
+ * expectation. Returns nothing to change when there is no rate, which leaves an
+ * order with no AIT exactly as it was.
+ */
+function expectedWithholding(
+  order: Lean<ISalesOrder>,
+  actor: Actor,
+): Partial<Pick<ISalesOrder, "withholding">> {
+  const rateBp = order.aitRateBp ?? 0;
+  const existing = order.withholding;
+  if (existing && (existing.source ?? "confirmed") === "confirmed") return {};
+  if (!rateBp) return existing ? { withholding: null } : {};
+
+  return {
+    withholding: {
+      aitRateBp: rateBp,
+      aitMinor: aitOnGoods(order.subtotalMinor, order.discountMinor, rateBp),
+      vdsMinor: existing?.vdsMinor ?? null,
+      certificateReceived: existing?.certificateReceived ?? false,
+      certificateRef: existing?.certificateRef ?? null,
+      note: existing?.note ?? null,
+      source: "expected",
+      recordedAt: new Date(),
+      recordedBy: actor.sub,
+    },
+  };
+}
+
 export async function generateInvoice(
   orderId: string,
   input: InvoiceGenerateInput,
@@ -418,6 +456,7 @@ export async function generateInvoice(
     invoices,
     invoiceNumber,
     invoicedAt: order.invoicedAt ?? invoiceDate,
+    ...expectedWithholding(order, actor),
   });
   await addSalesOrderActivity(orderId, {
     authorId: actor.sub,

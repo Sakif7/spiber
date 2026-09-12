@@ -7,6 +7,8 @@ import {
   SALES_ORDER_TRANSITIONS,
   EDITABLE_STATUSES,
   priceSalesOrder,
+  aitBaseMinor,
+  aitOnGoods,
   type SalesOrderStatus,
   type SalesOrderItemInput,
   type SalesOrderCreateInput,
@@ -763,22 +765,24 @@ export async function recordWithholding(
     return fail("invalid_transition");
   }
 
-  // The client quotes a rate against the whole bill, so that is what it is
-  // applied to. An explicit amount wins when one is given, because a deduction
-  // slip is the fact and the rate is only how it was described.
+  // A rate is applied to the goods after discount — the same base the invoice
+  // prints, so our books and the client's paper never disagree. An explicit
+  // amount wins when one is given, because a deduction slip is the fact and
+  // the rate is only how it was described.
+  const base = aitBaseMinor(order.subtotalMinor, order.discountMinor);
   const rateBp = input.aitRateBp ?? 0;
   const aitMinor =
-    input.aitMinor ?? Math.round((order.totalMinor * rateBp) / 10000);
+    input.aitMinor ??
+    aitOnGoods(order.subtotalMinor, order.discountMinor, rateBp);
   const aitRateBp =
-    input.aitRateBp ??
-    (order.totalMinor > 0
-      ? Math.round((aitMinor / order.totalMinor) * 10000)
-      : 0);
+    input.aitRateBp ?? (base > 0 ? Math.round((aitMinor / base) * 10000) : 0);
 
   await updateSalesOrder(id, {
     withholding: {
       aitRateBp,
       aitMinor,
+      // A person read the client's slip; the invoice must never overwrite it.
+      source: "confirmed" as const,
       vdsMinor: input.vdsMinor ?? null,
       certificateReceived: input.certificateReceived ?? false,
       certificateRef: input.certificateRef || null,

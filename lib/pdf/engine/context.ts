@@ -1,5 +1,6 @@
 import { LEGAL, BANK, CONTACT, OFFICES } from "@/lib/contact";
 import { amountInWords } from "@/lib/money-words";
+import { aitOnGoods } from "@/lib/schemas/sales-order";
 import {
   needsVatColumn,
   type ChallanData,
@@ -73,13 +74,13 @@ export function buildProposalContext(data: ProposalData): RenderContext {
 export function buildInvoiceContext(data: InvoiceData): RenderContext {
   const balanceMinor = Math.max(0, data.totalMinor - data.paidMinor);
   const totalQty = data.lines.reduce((n, l) => n + l.qty, 0);
-  // Same base as the storefront invoice uses: the goods after any discount,
-  // before VAT. Display only — the template says so beside it.
-  const aitMinor = data.aitRateBp
-    ? Math.round(
-        ((data.subtotalMinor - data.discountMinor) * data.aitRateBp) / 10000,
-      )
-    : 0;
+  // Goods after discount, before VAT — the one place that base is decided.
+  // Display only: the template says so beside it, never added to the total.
+  const aitMinor = aitOnGoods(
+    data.subtotalMinor,
+    data.discountMinor,
+    data.aitRateBp ?? 0,
+  );
   return {
     invoiceNumber: data.invoiceNumber,
     invoiceDate: data.invoiceDate,
