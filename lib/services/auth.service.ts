@@ -265,8 +265,15 @@ export async function changePassword(
 
 export async function resetPassword(
   input: PasswordResetConfirmInput,
-): Promise<{ ok: boolean }> {
-  const claims = await verifyPurposeToken(input.token, "reset");
+): Promise<{ ok: false } | { ok: true; sub: string; invite: boolean }> {
+  // The same form serves a forgotten password and a new employee's invite;
+  // the token's purpose says which, and an invite is accepted the same way.
+  let invite = false;
+  let claims = await verifyPurposeToken(input.token, "reset");
+  if (!claims) {
+    claims = await verifyPurposeToken(input.token, "invite");
+    invite = claims !== null;
+  }
   if (!claims) return { ok: false };
   const doc = await findUserById(claims.sub);
   if (!doc) return { ok: false };
@@ -275,5 +282,5 @@ export async function resetPassword(
   if ((doc.tokenVersion ?? 0) !== claims.tokenVersion) return { ok: false };
   const passwordHash = await hashPassword(input.password);
   await updatePasswordHash(claims.sub, passwordHash); // bumps tokenVersion
-  return { ok: true };
+  return { ok: true, sub: claims.sub, invite };
 }

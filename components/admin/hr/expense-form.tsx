@@ -43,12 +43,20 @@ export function ExpenseForm({
   people,
   visits,
   lockedVisitId,
+  endpoint = "/api/admin/company/people/expenses",
+  receiptEndpoint = "/api/admin/company/people/expenses/receipt",
+  afterHref = "/admin/company/people/expenses",
 }: {
   expense?: ExpenseFormValues;
   people: PersonOption[];
   visits: VisitOption[];
   /** Set when adding a claim from a visit's page. */
   lockedVisitId?: string;
+  /** The employee portal posts to its own scoped routes. With exactly one
+   *  person in `people` the "Paid by" choice is fixed to them. */
+  endpoint?: string;
+  receiptEndpoint?: string;
+  afterHref?: string;
 }) {
   const afterSave = useAfterSave();
   const [v, setV] = useState<ExpenseFormValues>(
@@ -80,7 +88,7 @@ export function ExpenseForm({
       const body = new FormData();
       body.set("file", file);
       body.set("spentAt", v.spentAt);
-      const res = await fetch("/api/admin/company/people/expenses/receipt", {
+      const res = await fetch(receiptEndpoint, {
         method: "POST",
         body,
       });
@@ -120,9 +128,7 @@ export function ExpenseForm({
         receiptDocumentId: v.receiptDocumentId || null,
       };
       const res = await fetch(
-        expense?.id
-          ? `/api/admin/company/people/expenses/${expense.id}`
-          : "/api/admin/company/people/expenses",
+        expense?.id ? `${endpoint}/${expense.id}` : endpoint,
         {
           method: expense?.id ? "PATCH" : "POST",
           headers: { "Content-Type": "application/json" },
@@ -135,9 +141,7 @@ export function ExpenseForm({
         return;
       }
       toast.success(expense?.id ? "Claim updated." : "Claim recorded.");
-      afterSave(
-        `/admin/company/people/expenses/${expense?.id ?? json?.data?.id ?? ""}`,
-      );
+      afterSave(`${afterHref}/${expense?.id ?? json?.data?.id ?? ""}`);
     } finally {
       setSaving(false);
     }
@@ -156,6 +160,7 @@ export function ExpenseForm({
               onChange={(value) => set("employeeId", value)}
               placeholder="Choose a person"
               options={people.map((p) => ({ value: p.id, label: p.name }))}
+              disabled={people.length === 1}
             />
           </FormField>
           <FormField label="Category" required>

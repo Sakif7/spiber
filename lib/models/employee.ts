@@ -17,13 +17,37 @@ export interface IEmployeeBank {
   routingNumber?: string | null;
 }
 
+/**
+ * Something that happened to a person's access: a login created, an invite
+ * sent, a mailbox provisioned, a password revealed. The audit log has the
+ * same facts; this is the copy the employee page shows without a join.
+ */
+export interface IEmployeeEvent {
+  at: Date;
+  actorId?: Types.ObjectId | string | null;
+  action: string;
+  note?: string | null;
+}
+
 export interface IEmployee {
   code: string;
   name: string;
+  /** Their own, personal address — where the portal invite is sent. */
   email?: string | null;
+  /**
+   * The one company address: `name@spibermed.com`. It is the portal login
+   * and the mailbox, provisioned when the record is created. Absent on a
+   * record from before unified mail existed.
+   */
+  businessEmail?: string | null;
   phone?: string | null;
-  /** Optional link to an admin account, so a person is not duplicated. */
+  /** The portal account (role `employee`), created with the record. */
   userId?: Types.ObjectId | string | null;
+  /** When the set-password invite was last sent to the personal address. */
+  invitedAt?: Date | null;
+  /** When they first set a password (the invite was used). */
+  inviteAcceptedAt?: Date | null;
+  activity?: IEmployeeEvent[];
   designation: string;
   kind: "director" | "staff";
   /**
@@ -54,13 +78,32 @@ const bankSchema = new Schema<IEmployeeBank>(
   { _id: false },
 );
 
+const eventSchema = new Schema<IEmployeeEvent>(
+  {
+    at: { type: Date, required: true },
+    actorId: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    action: { type: String, required: true },
+    note: { type: String, default: null },
+  },
+  { _id: false },
+);
+
 const employeeSchema = new Schema<IEmployee>(
   {
     code: { type: String, required: true, unique: true },
     name: { type: String, required: true, trim: true },
     email: { type: String, lowercase: true, trim: true, default: null },
+    businessEmail: {
+      type: String,
+      lowercase: true,
+      trim: true,
+      default: null,
+    },
     phone: { type: String, default: null },
     userId: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    invitedAt: { type: Date, default: null },
+    inviteAcceptedAt: { type: Date, default: null },
+    activity: { type: [eventSchema], default: [] },
     designation: { type: String, required: true, trim: true },
     kind: { type: String, enum: ["director", "staff"], default: "director" },
     payScheme: {
@@ -84,6 +127,17 @@ employeeSchema.index({ deletedAt: 1, status: 1, name: 1 });
 employeeSchema.index(
   { userId: 1 },
   { unique: true, partialFilterExpression: { userId: { $type: "objectId" } } },
+);
+// One company address per living record; a soft-deleted person frees theirs.
+employeeSchema.index(
+  { businessEmail: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      businessEmail: { $type: "string" },
+      deletedAt: null,
+    },
+  },
 );
 
 export const Employee: Model<IEmployee> =

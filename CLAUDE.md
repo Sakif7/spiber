@@ -133,6 +133,30 @@ These are the things the owner has had to repeat. Treat them as hard rules.
   revenue) and computed the old way until `migrate-share-rates-to-shares`
   rewrites them.
 - **Super-admin only:** Documents vault, Sales, People/HR, hard-delete.
+- **Employees have one company address.** Creating an Employee creates
+  `businessEmail` (= portal login = mailbox on the company mail server), the
+  `employee`-role User and a 24 h invite to the **personal** `email`. The app
+  reads/sends mail through ONE Dovecot master user (env), never a
+  per-employee password; the mailbox's own password is stored encrypted
+  (`Mailbox.passwordCiphertext`, vault key) only for phone setup, and
+  revealing it is audited. Mailboxes are created via the `MAIL_PROVISIONER`
+  seam (`http` = the `ops/mail-provisioner` sidecar in the Coolify mail
+  stack; `memory` for tests/sandbox; an unknown name throws, unset in prod
+  throws when first needed). Reading goes through `MAIL_STORE` (`imap` = the
+  company server via `MAIL_MASTER_USER/PASSWORD`, login `<mailbox>*<master>`;
+  `memory` = fixtures). A `Mailbox` row decides who may open what: owner,
+  `assignedUserIds` (shared), or any super admin — the last is audited
+  (`mail.mailbox.open`); trash/junk moves are audited too. Bodies are
+  sanitised server-side (`lib/mail/sanitize.ts`): remote images blocked
+  until asked, `cid:` images served via the attachment route. Sending
+  goes through `MAIL_TRANSPORT` (`smtp` as `<mailbox>*<master>` on 465;
+  `memory`): composed once, delivered, the same bytes filed in Sent, audited
+  (`mail.message.send`). **Employee portal** (`(staff)/me/*`,
+  `lib/services/me.service.ts`): every read is scoped to the person (leads
+  assigned/sourced, orders created or on their leads, visits attended, own
+  claims, own payroll line); portal writes (`/api/admin/me/*`) pin the
+  employee from the session, never from the body. Roundcube stays as a
+  fallback. Plan + status: log 2026-09-13.
 - **Seed data: none in prod.** Empty catalogues show "Coming soon".
 
 ## Stack
@@ -162,19 +186,20 @@ Code at repo root, `@/* → ./*`.
 
 ## Where things live
 
-| Area            | Path                                                                                                                                                                           |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Public site     | `app/[locale]/(site)/…` — `medtrade`, `kart`, `digihealth`, `medacademy`, `tourism`, `health-corner`, `blog`, `account`, `become-a-seller`                                     |
-| Admin           | `app/[locale]/admin/…` (Operations ⇄ Company sections; nav in `components/admin/shell/nav.ts`)                                                                                 |
-| Seller portal   | `app/[locale]/seller/…`                                                                                                                                                        |
-| APIs            | `app/api/…` (`/api/admin/*`, `/api/media/*` gated streams, `/api/cron/*` bearer `CRON_SECRET`)                                                                                 |
-| Domain          | `lib/models` · `lib/schemas` · `lib/repositories` · `lib/services`                                                                                                             |
-| Shared admin UI | `components/admin/ui/*` (form-shell, data-table, list kit, detail, select-field, localized-input, unsaved-changes)                                                             |
-| PDFs            | `lib/pdf/engine/*` (schema `lib/schemas/pdf-template.ts`, defaults, blocks, fixtures) · `lib/pdf/{documents,payslip}.tsx` wrappers · editor `components/admin/pdf-templates/*` |
-| Pluggable seams | `lib/payments` · `lib/storage` · `lib/video` · `lib/mailer` · `lib/travel` · `lib/chat` · `lib/fulfillment`                                                                    |
-| i18n            | `messages/{en,bn,ja}.json`, `i18n/routing.ts` is the locale source of truth                                                                                                    |
-| Tests           | `tests/*.test.ts` (vitest, serial; **gitignored** along with `e2e/`)                                                                                                           |
-| Scripts         | `scripts/*.mjs` — all dry-run by default, `--commit` to write, refuse non-local hosts without `--force-prod`                                                                   |
+| Area            | Path                                                                                                                                                                                                                                                                                                    |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Public site     | `app/[locale]/(site)/…` — `medtrade`, `kart`, `digihealth`, `medacademy`, `tourism`, `health-corner`, `blog`, `account`, `become-a-seller`                                                                                                                                                              |
+| Admin           | `app/[locale]/admin/(ops)/…` (Operations ⇄ Company, admin-only layout) · `admin/(staff)/me` (employee portal, `requireEmployee`); nav in `components/admin/shell/nav.ts` (`NavViewer`)                                                                                                                  |
+| Mail seam       | `lib/mail/{address,config,credentials,sanitize}.ts` · `lib/mail/provisioner/*` (accounts) · `lib/mail/store/*` (reading; `MAIL_STORE` imap or memory, Dovecot master user) · `lib/services/mail*.ts` · pages `(staff)/mail`, `(staff)/me/mail`, `(ops)/company/mail` · sidecar `ops/mail-provisioner/*` |
+| Seller portal   | `app/[locale]/seller/…`                                                                                                                                                                                                                                                                                 |
+| APIs            | `app/api/…` (`/api/admin/*`, `/api/media/*` gated streams, `/api/cron/*` bearer `CRON_SECRET`)                                                                                                                                                                                                          |
+| Domain          | `lib/models` · `lib/schemas` · `lib/repositories` · `lib/services`                                                                                                                                                                                                                                      |
+| Shared admin UI | `components/admin/ui/*` (form-shell, data-table, list kit, detail, select-field, localized-input, unsaved-changes)                                                                                                                                                                                      |
+| PDFs            | `lib/pdf/engine/*` (schema `lib/schemas/pdf-template.ts`, defaults, blocks, fixtures) · `lib/pdf/{documents,payslip}.tsx` wrappers · editor `components/admin/pdf-templates/*`                                                                                                                          |
+| Pluggable seams | `lib/payments` · `lib/storage` · `lib/video` · `lib/mailer` · `lib/travel` · `lib/chat` · `lib/fulfillment`                                                                                                                                                                                             |
+| i18n            | `messages/{en,bn,ja}.json`, `i18n/routing.ts` is the locale source of truth                                                                                                                                                                                                                             |
+| Tests           | `tests/*.test.ts` (vitest, serial; **gitignored** along with `e2e/`)                                                                                                                                                                                                                                    |
+| Scripts         | `scripts/*.mjs` — all dry-run by default, `--commit` to write, refuse non-local hosts without `--force-prod`                                                                                                                                                                                            |
 
 Useful scripts: `dev:sandbox` (ephemeral app), `create-admin`, `sync-indexes`,
 `reset-seed` (destructive, local), `migrate-*`, `qa-medtrade`, `audit-medtrade`,
@@ -229,6 +254,15 @@ tests`, `npm test`, and the browser pass above. Then `git status`.
 - `catalog-admin.service.updateProductWithStock` rebuilds `variants[]` — copy
   `reservedQty` across or reservations are erased.
 - Use `returnDocument: "after"`, not `new: true`.
+- **A Buffer field read with `.lean()` is a BSON `Binary`**, and
+  `Buffer.from(binary)` returns garbage without throwing — go through
+  `ciphertextToBuffer` (`lib/mail/credentials.ts`) or its `.buffer`.
+- Next refuses a re-exported segment config (`export { dynamic } from …`) —
+  declare it again in the re-exporting page.
+- `/admin/*` pages are guarded by the `(ops)` route-group layout (admin role)
+  and `(staff)` pages by `requireEmployee`; the root admin layout only
+  requires _staff_. A new admin page tree goes under `(ops)`, never beside
+  it. The proxy sends an employee on an ops URL to `/admin/me`.
 - `templateRef` absent or `version: 0` on a document version means the built-in
   layout — never backfill it; `getTemplateForRender` is the one choke point.
 

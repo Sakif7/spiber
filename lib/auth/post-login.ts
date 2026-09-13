@@ -3,7 +3,7 @@
  * standalone /login page and the auth modal, so the two can never drift apart.
  */
 import { routing } from "@/i18n/routing";
-import { isAdmin, isSeller } from "@/lib/auth/rbac";
+import { isAdmin, isEmployee, isSeller } from "@/lib/auth/rbac";
 import type { Role } from "@/lib/schemas/user";
 
 /** The subset of the login response this module needs. */
@@ -52,6 +52,9 @@ export function postLoginDestination(
   }
   const claims = { roles: (user.roles ?? []) as Role[] };
   if (isAdmin(claims)) return "/admin";
+  // An employee who is not an admin lands on their own desk, never on the
+  // operations dashboard the proxy would bounce them from.
+  if (isEmployee(claims)) return "/admin/me";
   if (isSeller(claims)) return "/seller";
   return null;
 }

@@ -1162,7 +1162,12 @@
       "submitting": "Updating…",
       "success": "Your password has been updated. You can now sign in.",
       "error": "This reset link is invalid or has expired.",
-      "missingToken": "This reset link is missing its token."
+      "missingToken": "This reset link is missing its token.",
+      "inviteTitle": "Set your password",
+      "inviteDescription": "Welcome to Spiber Med. Choose a password for your account and company mailbox.",
+      "inviteSubmit": "Set password",
+      "inviteSuccess": "Your password is set. Sign in to open your desk.",
+      "signIn": "Sign in"
     }
   },
   "admin": {

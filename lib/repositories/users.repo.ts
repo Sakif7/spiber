@@ -87,3 +87,18 @@ export async function userNamesByIds(
     rows.map((r) => [String(r._id), r.name || r.email]),
   );
 }
+
+/**
+ * Lock or unlock an account. Locking also bumps tokenVersion so every
+ * outstanding refresh token dies with it — "disable" means out now, not at
+ * the next access-token expiry.
+ */
+export async function setUserDisabled(id: string, disabled: boolean) {
+  await connectToDatabase();
+  await User.updateOne(
+    { _id: id },
+    disabled
+      ? { $set: { disabled: true }, $inc: { tokenVersion: 1 } }
+      : { $set: { disabled: false } },
+  ).exec();
+}

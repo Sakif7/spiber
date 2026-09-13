@@ -27,6 +27,8 @@ import { Segmented } from "@/components/admin/ui/segmented";
 import {
   NAV_SECTIONS,
   sectionHomeFor,
+  sectionsFor,
+  type NavViewer,
   activeItemFor,
   sectionForPath,
   type AdminSection,
@@ -81,13 +83,17 @@ function Brand({ collapsed }: { collapsed: boolean }) {
  *  Company side — its modules will just add groups to that nav tree). */
 function SectionSwitcher({
   section,
+  sections,
   onSwitch,
   className,
 }: {
   section: AdminSection;
+  /** What this viewer may switch between; one section means no switcher. */
+  sections: AdminSection[];
   onSwitch: (s: AdminSection) => void;
   className?: string;
 }) {
+  if (sections.length < 2) return null;
   return (
     <Segmented
       value={section}
@@ -95,7 +101,7 @@ function SectionSwitcher({
       label="Admin section"
       size="md"
       className={className}
-      options={(Object.keys(NAV_SECTIONS) as AdminSection[]).map((key) => ({
+      options={sections.map((key) => ({
         value: key,
         label: NAV_SECTIONS[key].label,
       }))}
@@ -106,12 +112,15 @@ function SectionSwitcher({
 export function AdminShell({
   email,
   role,
+  viewer,
   initialPrefs,
   fontClassName,
   children,
 }: {
   email: string;
   role?: string;
+  /** Presentation only — every page and route re-checks server-side. */
+  viewer: NavViewer;
   /** Server-loaded favourites/recents (no flash of an empty sidebar block). */
   initialPrefs?: AdminPrefs;
   /** next/font variables for the admin typeface, set on the root element. */
@@ -120,7 +129,12 @@ export function AdminShell({
 }) {
   return (
     <AdminPrefsProvider initial={initialPrefs}>
-      <ShellInner email={email} role={role} fontClassName={fontClassName}>
+      <ShellInner
+        email={email}
+        role={role}
+        viewer={viewer}
+        fontClassName={fontClassName}
+      >
         {children}
       </ShellInner>
     </AdminPrefsProvider>
@@ -131,19 +145,20 @@ function ShellInner({
   fontClassName,
   email,
   role,
+  viewer,
   children,
 }: {
   fontClassName?: string;
   email: string;
   role?: string;
+  viewer: NavViewer;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const { theme } = useAdminTheme();
   const { recordVisit } = useAdminPrefs();
-  // Presentation only — every super-admin page and route re-checks server-side.
-  const isSuperAdmin = role === "super_admin";
+  const sections = sectionsFor(viewer);
   // Read the persisted collapse preference without a hydration mismatch or a
   // setState-in-effect (the SSR snapshot is always"expanded").
   const collapsed = useSyncExternalStore(
@@ -155,9 +170,9 @@ function ShellInner({
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   // The active section is derived from the route — no separate state to drift.
-  const section = sectionForPath(pathname);
+  const section = sectionForPath(pathname, viewer);
   const active = activeItemFor(pathname);
-  const title = active?.title ?? "Admin";
+  const title = active?.title ?? (viewer.isAdmin ? "Admin" : "My desk");
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -174,7 +189,7 @@ function ShellInner({
   // never the dashboard itself).
   const lastRecorded = useRef<string | null>(null);
   useEffect(() => {
-    if (!active || active.id === "dashboard") return;
+    if (!active || active.id === "dashboard" || active.id === "me.desk") return;
     if (lastRecorded.current === active.id) return;
     lastRecorded.current = active.id;
     recordVisit(active.id);
@@ -190,7 +205,7 @@ function ShellInner({
     // Land on a page this admin can actually open: the Company section's home
     // is the super-admin-only vault.
     if (target !== section) {
-      router.push(sectionHomeFor(target, isSuperAdmin));
+      router.push(sectionHomeFor(target, viewer));
     }
     setMobileOpen(false);
   }
@@ -226,7 +241,7 @@ function ShellInner({
               <SidebarNav
                 section={section}
                 collapsed={collapsed}
-                isSuperAdmin={isSuperAdmin}
+                viewer={viewer}
               />
             </div>
             <div
@@ -282,6 +297,7 @@ function ShellInner({
                   <div className="border-sidebar-border flex justify-center border-b px-4 py-2">
                     <SectionSwitcher
                       section={section}
+                      sections={sections}
                       onSwitch={switchSection}
                     />
                   </div>
@@ -289,7 +305,7 @@ function ShellInner({
                     <SidebarNav
                       section={section}
                       onNavigate={() => setMobileOpen(false)}
-                      isSuperAdmin={isSuperAdmin}
+                      viewer={viewer}
                     />
                   </div>
                 </SheetContent>
@@ -309,6 +325,7 @@ function ShellInner({
 
               <SectionSwitcher
                 section={section}
+                sections={sections}
                 onSwitch={switchSection}
                 className="hidden md:flex"
               />
@@ -336,7 +353,8 @@ function ShellInner({
                 <Search className="size-5" />
               </Button>
 
-              <NotificationBell />
+              {/* The feed is an admin API; an employee's shell has no bell (yet). */}
+              {viewer.isAdmin && <NotificationBell />}
               <ThemeToggle />
               <AdminUserMenu email={email} role={role} />
             </header>
@@ -347,7 +365,7 @@ function ShellInner({
         <CommandPalette
           open={paletteOpen}
           onOpenChange={setPaletteOpen}
-          isSuperAdmin={isSuperAdmin}
+          viewer={viewer}
           section={section}
         />
         <Toaster position="top-right" theme={theme} richColors closeButton />

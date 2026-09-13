@@ -2,7 +2,7 @@ import createMiddleware from "next-intl/middleware";
 import { NextResponse, type NextRequest } from "next/server";
 import { routing } from "./i18n/routing";
 import { verifyAccessToken, verifyRefreshToken } from "./lib/auth/tokens";
-import { isAdmin } from "./lib/auth/rbac";
+import { isAdmin, isEmployee } from "./lib/auth/rbac";
 import { COOKIE } from "./lib/auth/session";
 import { isCrossSiteMutation } from "./lib/http/same-origin";
 
@@ -28,6 +28,10 @@ const intlMiddleware = createMiddleware(routing);
 // Admin lives at the bare `/admin` (default locale, as-needed) or `/bn/admin`,
 // `/ja/admin` for the prefixed locales.
 const ADMIN_PATH = /^\/(?:(en|bn|ja)\/)?admin(\/|$)/;
+// The staff side of the admin shell — the employee portal and the mailbox. An
+// employee who is not an admin may open only these; the `(ops)` layout
+// re-checks the admin role for every other admin page.
+const STAFF_PATH = /^\/(?:(en|bn|ja)\/)?admin\/(me|mail)(\/|$)/;
 // Seller portal: require a valid session (coarse); the seller layout re-checks
 // the DB for an active Seller profile (role-based access is authoritative there).
 const SELLER_PATH = /^\/(?:(en|bn|ja)\/)?seller(\/|$)/;
@@ -94,7 +98,9 @@ export default async function proxy(request: NextRequest) {
   if (guarded) {
     const token = request.cookies.get(COOKIE.access)?.value;
     const claims = token ? await verifyAccessToken(token) : null;
-    const authorized = adminReq ? isAdmin(claims) : claims !== null;
+    const authorized = adminReq
+      ? isAdmin(claims) || (isEmployee(claims) && STAFF_PATH.test(pathname))
+      : claims !== null;
 
     if (!authorized) {
       // Renew only when there is NO valid session at all. A valid session that
@@ -103,6 +109,15 @@ export default async function proxy(request: NextRequest) {
       if (claims === null) {
         const renew = await renewRedirectOrNull(request);
         if (renew) return renew;
+      }
+      // A signed-in employee on an admin-only page goes to their own desk, not
+      // to a login form they have already passed.
+      if (adminReq && isEmployee(claims)) {
+        const locale = localeOf(pathname);
+        const desk = request.nextUrl.clone();
+        desk.pathname = `${locale === routing.defaultLocale ? "" : `/${locale}`}/admin/me`;
+        desk.search = "";
+        return NextResponse.redirect(desk);
       }
       return loginRedirect(request);
     }

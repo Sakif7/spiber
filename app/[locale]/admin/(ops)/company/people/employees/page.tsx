@@ -14,6 +14,7 @@ import { DataTable, type Column } from "@/components/admin/ui/data-table";
 import { StatusBadge } from "@/components/admin/ui/status-badge";
 import { FormPanelButton } from "@/components/admin/ui/form-panel";
 import { EmployeeForm } from "@/components/admin/hr/employee-form";
+import { mailDomain } from "@/lib/mail/config";
 
 export const dynamic = "force-dynamic";
 
@@ -147,7 +148,7 @@ export default async function EmployeesPage({
             title="Add employee"
             description="Someone on the payroll, and how they are paid."
           >
-            <EmployeeForm />
+            <EmployeeForm mailDomain={mailDomain()} />
           </FormPanelButton>
         }
       />

@@ -6,6 +6,8 @@ export const ROLES = [
   "student",
   "instructor",
   "seller",
+  /** A person on the payroll: the employee portal + their own mailbox. */
+  "employee",
   "admin",
   "super_admin",
 ] as const;

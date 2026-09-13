@@ -13,6 +13,7 @@ import {
 import {
   NAV_BY_ID,
   navGroupsFor,
+  type NavViewer,
   activeItemFor,
   type AdminSection,
   type NavGroup,
@@ -74,13 +75,13 @@ export function SidebarNav({
   section = "operations",
   collapsed = false,
   onNavigate,
-  isSuperAdmin = false,
+  viewer,
 }: {
   section?: AdminSection;
   collapsed?: boolean;
   onNavigate?: () => void;
   /** Plain admins never see super-admin-only entries (also enforced server-side). */
-  isSuperAdmin?: boolean;
+  viewer: NavViewer;
 }) {
   const pathname = usePathname();
   const overridesRaw = useSyncExternalStore(
@@ -90,7 +91,7 @@ export function SidebarNav({
   );
   const overrides = parseOverrides(overridesRaw);
   const { prefs } = useAdminPrefs();
-  const groups = navGroupsFor(section, isSuperAdmin);
+  const groups = navGroupsFor(section, viewer);
   const active = activeItemFor(pathname);
 
   // Navigating INTO a group re-opens it (and"More", when the group lives

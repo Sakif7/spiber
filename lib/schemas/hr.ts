@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAIL_LOCAL_PART } from "@/lib/mail/address";
 
 /** Employees and payroll. */
 
@@ -36,11 +37,33 @@ export const employeeCreateSchema = z.object({
   /** Convenience: allocate the opening shareholding while creating the record. */
   shares: z.number().int().min(0).max(1_000_000).optional(),
   sharesFrom: month.optional(),
+  /**
+   * The local part of their company address (the domain is fixed by the
+   * deployment). Required by the create API — see `employeeCreateWithAccessSchema`.
+   */
+  businessEmailLocal: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(MAIL_LOCAL_PART, "letters, digits, dots and dashes only")
+    .optional(),
+  /** Email the set-password link to the personal address right away. */
+  sendInvite: z.boolean().optional(),
 });
 export type EmployeeCreateInput = z.infer<typeof employeeCreateSchema>;
 
+/** What the "New employee" form posts: the address is not optional there. */
+export const employeeCreateWithAccessSchema = employeeCreateSchema.required({
+  businessEmailLocal: true,
+});
+
 export const employeeUpdateSchema = employeeCreateSchema
-  .omit({ shares: true, sharesFrom: true })
+  .omit({
+    shares: true,
+    sharesFrom: true,
+    businessEmailLocal: true,
+    sendInvite: true,
+  })
   .partial();
 export type EmployeeUpdateInput = z.infer<typeof employeeUpdateSchema>;
 

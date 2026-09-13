@@ -1,9 +1,11 @@
 import { getSessionUser } from "./current-user";
-import { isAdmin, isSuperAdmin } from "./rbac";
+import { isAdmin, isStaff, isSuperAdmin } from "./rbac";
 import { findUserById } from "@/lib/repositories/users.repo";
 import { getSellerByUserId } from "@/lib/repositories/sellers.repo";
+import { findEmployeeByUserId } from "@/lib/repositories/employees.repo";
 import type { Lean } from "@/lib/models/_shared";
 import type { ISeller } from "@/lib/models/seller";
+import type { IEmployee } from "@/lib/models/employee";
 import type { AccessClaims } from "./tokens";
 
 /**
@@ -33,6 +35,38 @@ export async function requireSuperAdmin(): Promise<AccessClaims | null> {
   const doc = await findUserById(user!.sub).catch(() => null);
   if (!doc || doc.disabled || !isSuperAdmin({ roles: doc.roles })) return null;
   return user;
+}
+
+/**
+ * Anyone allowed into the staff side of the shell — an employee, or an admin.
+ * DB re-validated like `requireAdmin`: a person taken off the payroll loses
+ * access at once, not when their access token happens to expire.
+ */
+export async function requireStaff(): Promise<AccessClaims | null> {
+  const user = await getSessionUser();
+  if (!isStaff(user)) return null;
+  const doc = await findUserById(user!.sub).catch(() => null);
+  if (!doc || doc.disabled || !isStaff({ roles: doc.roles })) return null;
+  return user;
+}
+
+export type EmployeeSession = {
+  claims: AccessClaims;
+  employee: Lean<IEmployee>;
+};
+
+/**
+ * The employee portal needs a person, not just a role: everything it shows is
+ * filtered by the Employee record linked to the signed-in user. An admin with
+ * no Employee record gets null here and an explanatory card, not a 500.
+ * Gates on an ACTIVE record so someone marked as left is out immediately.
+ */
+export async function requireEmployee(): Promise<EmployeeSession | null> {
+  const claims = await requireStaff();
+  if (!claims) return null;
+  const employee = await findEmployeeByUserId(claims.sub).catch(() => null);
+  if (!employee || employee.status !== "active") return null;
+  return { claims, employee };
 }
 
 export type SellerSession = { claims: AccessClaims; seller: Lean<ISeller> };

@@ -12,7 +12,11 @@ import { rateLabel } from "@/lib/hr/payroll-math";
 import { holdingPercent } from "@/lib/hr/share-pool";
 import { monthLabel, monthOf } from "@/lib/hr/months";
 import { EmployeeForm } from "@/components/admin/hr/employee-form";
+import { EmployeeAccessCard } from "@/components/admin/hr/employee-access-card";
 import { RateHistory } from "@/components/admin/hr/rate-history";
+import { mailboxForEmployee } from "@/lib/services/hr/employee-access.service";
+import { findUserById } from "@/lib/repositories/users.repo";
+import { mailClientSettings, mailDomain } from "@/lib/mail/config";
 import {
   DetailLayout,
   DetailCard,
@@ -31,14 +35,19 @@ export default async function EmployeePage({
 
   const employee = await getEmployee(id);
   if (!employee) notFound();
-  const [holdings, pool, held] = await Promise.all([
+  const [holdings, pool, held, mailbox, login] = await Promise.all([
     listHoldings(id),
     getSharePool(),
     allocatedShares(monthOf(new Date())),
+    mailboxForEmployee(id),
+    employee.userId
+      ? findUserById(String(employee.userId)).catch(() => null)
+      : Promise.resolve(null),
   ]);
 
   const iso = (d?: Date | null) =>
     d ? new Date(d).toISOString().slice(0, 10) : "";
+  const isoFull = (d?: Date | null) => (d ? new Date(d).toISOString() : null);
 
   return (
     <div className="grid gap-6">
@@ -62,6 +71,33 @@ export default async function EmployeePage({
       <DetailLayout
         aside={
           <>
+            <EmployeeAccessCard
+              employeeId={id}
+              employeeName={employee.name}
+              mailDomain={mailDomain()}
+              businessEmail={employee.businessEmail ?? null}
+              personalEmail={employee.email ?? null}
+              login={login ? { disabled: Boolean(login.disabled) } : null}
+              invitedAt={isoFull(employee.invitedAt)}
+              inviteAcceptedAt={isoFull(employee.inviteAcceptedAt)}
+              mailbox={
+                mailbox
+                  ? {
+                      status: mailbox.status,
+                      quotaBytes: mailbox.quotaBytes ?? null,
+                      provider: mailbox.provider ?? null,
+                      provisionedAt: isoFull(mailbox.provisionedAt),
+                      lastError: mailbox.lastError ?? null,
+                    }
+                  : null
+              }
+              client={mailClientSettings()}
+              activity={(employee.activity ?? []).map((e) => ({
+                at: new Date(e.at).toISOString(),
+                action: e.action,
+                note: e.note ?? null,
+              }))}
+            />
             <RateHistory
               employeeId={id}
               payScheme={employee.payScheme}
@@ -108,8 +144,10 @@ export default async function EmployeePage({
         }
       >
         <EmployeeForm
+          mailDomain={mailDomain()}
           employee={{
             id,
+            businessEmail: employee.businessEmail ?? "",
             name: employee.name,
             designation: employee.designation,
             kind: employee.kind,

@@ -23,6 +23,8 @@ export default async function ResetPasswordPage({
   setRequestLocale(locale);
   const sp = await searchParams;
   const token = typeof sp.token === "string" ? sp.token : undefined;
+  // A new employee's invite lands on the same form with different words.
+  const invite = sp.invite === "1";
   const t = await getTranslations({ locale, namespace: "auth.reset" });
 
   return (
@@ -34,7 +36,7 @@ export default async function ResetPasswordPage({
             color: "var(--color-text-strong)",
           }}
         >
-          {t("title")}
+          {invite ? t("inviteTitle") : t("title")}
         </h1>
         <p
           style={{
@@ -42,10 +44,10 @@ export default async function ResetPasswordPage({
             fontSize: "var(--fs-body-sm)",
           }}
         >
-          {t("description")}
+          {invite ? t("inviteDescription") : t("description")}
         </p>
       </header>
-      <ResetPasswordForm token={token} />
+      <ResetPasswordForm token={token} invite={invite} />
     </>
   );
 }

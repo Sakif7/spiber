@@ -1,0 +1,457 @@
+services:
+  mail-provisioner:
+    image: 'node:22-alpine'
+    restart: unless-stopped
+    command: ['node', '/app/server.mjs']
+    environment:
+      PROVISIONER_SECRET: '${MAIL_PROVISIONER_SECRET}'
+      DMS_CONFIG_DIR: /tmp/docker-mailserver
+      MAIL_DOMAIN: spibermed.com
+      PORT: '8025'
+    volumes:
+      - 'acoq4wmmjj3bfn3pu50s25h6_dms-config:/tmp/docker-mailserver'
+    configs:
+      - source: provisioner_server_mjs
+        target: /app/server.mjs
+      - source: provisioner_accounts_mjs
+        target: /app/accounts.mjs
+      - source: provisioner_sha512_crypt_mjs
+        target: /app/sha512-crypt.mjs
+    networks:
+      acoq4wmmjj3bfn3pu50s25h6: null
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:8025/health']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+configs:
+  provisioner_server_mjs:
+    content: |
+      // mail-provisioner — the one way the Spiber Med app creates mailboxes.
+      //
+      // A ~150-line HTTP service that sits next to docker-mailserver in the Coolify
+      // "mail" stack with ONLY the `dms-config` volume mounted (no docker socket,
+      // no mail data), and answers to a single bearer secret. It appends to the
+      // same flat files `setup email add` writes; DMS notices and reloads.
+      //
+      //   GET    /health
+      //   GET    /accounts                         → { accounts: [{address, quota}] }
+      //   GET    /accounts/:address                → { address, quota } | 404
+      //   PUT    /accounts/:address                { password, quota? } → 201 | 409
+      //   PUT    /accounts/:address/password       { password } → 204 | 404
+      //   PUT    /accounts/:address/quota          { quota } → 204 | 404
+      //   DELETE /accounts/:address                → 204 | 404
+      //
+      // Env: PROVISIONER_SECRET (required), DMS_CONFIG_DIR (default
+      // /tmp/docker-mailserver), PORT (default 8025), MAIL_DOMAIN (optional — when
+      // set, only addresses on that domain are accepted).
+      import http from "node:http";
+      import { timingSafeEqual } from "node:crypto";
+      import { pathToFileURL } from "node:url";
+      import { AccountsStore, isAddress, isQuota } from "./accounts.mjs";
+
+      const PASSWORD_MIN = 12;
+      const PASSWORD_MAX = 128;
+
+      /**
+       * @param {{ store: AccountsStore; secret: string; domain?: string | null }} deps
+       * @returns {(req: import("node:http").IncomingMessage, res: import("node:http").ServerResponse) => Promise<void>}
+       */
+      export function createHandler({ store, secret, domain = null }) {
+        const expected = Buffer.from(secret);
+
+        function authorised(req) {
+          const h = req.headers.authorization ?? "";
+          if (!h.startsWith("Bearer ")) return false;
+          const got = Buffer.from(h.slice(7));
+          return got.length === expected.length && timingSafeEqual(got, expected);
+        }
+
+        function send(res, status, body) {
+          if (body === undefined) {
+            res.writeHead(status);
+            res.end();
+            return;
+          }
+          const json = JSON.stringify(body);
+          res.writeHead(status, {
+            "content-type": "application/json",
+            "content-length": Buffer.byteLength(json),
+          });
+          res.end(json);
+        }
+
+        async function readJson(req) {
+          const chunks = [];
+          let size = 0;
+          for await (const c of req) {
+            size += c.length;
+            if (size > 16 * 1024) throw new Error("body too large");
+            chunks.push(c);
+          }
+          if (chunks.length === 0) return {};
+          return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+        }
+
+        const validPassword = (p) =>
+          typeof p === "string" &&
+          p.length >= PASSWORD_MIN &&
+          p.length <= PASSWORD_MAX &&
+          !/[\r\n|]/.test(p);
+
+        return async function handle(req, res) {
+          const url = new URL(req.url, "http://localhost");
+          if (req.method === "GET" && url.pathname === "/health") {
+            return send(res, 200, { ok: true });
+          }
+          if (!authorised(req)) return send(res, 401, { error: "unauthorised" });
+
+          const m = url.pathname.match(
+            /^\/accounts(?:\/([^/]+)(?:\/(password|quota))?)?$/,
+          );
+          if (!m) return send(res, 404, { error: "not_found" });
+          const address = m[1] ? decodeURIComponent(m[1]).toLowerCase() : null;
+          const sub = m[2] ?? null;
+
+          if (address !== null) {
+            if (!isAddress(address)) return send(res, 400, { error: "bad_address" });
+            if (domain && !address.endsWith(`@${domain}`)) {
+              return send(res, 400, { error: "wrong_domain" });
+            }
+          }
+
+          try {
+            if (req.method === "GET" && address === null) {
+              return send(res, 200, { accounts: await store.list() });
+            }
+            if (req.method === "GET" && sub === null) {
+              const acc = await store.get(address);
+              return acc
+                ? send(res, 200, acc)
+                : send(res, 404, { error: "not_found" });
+            }
+            if (req.method === "PUT" && sub === null) {
+              const body = await readJson(req);
+              if (!validPassword(body.password)) {
+                return send(res, 400, { error: "bad_password" });
+              }
+              if (body.quota !== undefined && !isQuota(body.quota)) {
+                return send(res, 400, { error: "bad_quota" });
+              }
+              const created = await store.create(address, body.password, body.quota);
+              return created
+                ? send(res, 201, { address, quota: body.quota ?? null })
+                : send(res, 409, { error: "exists" });
+            }
+            if (req.method === "PUT" && sub === "password") {
+              const body = await readJson(req);
+              if (!validPassword(body.password)) {
+                return send(res, 400, { error: "bad_password" });
+              }
+              const ok = await store.setPassword(address, body.password);
+              return ok ? send(res, 204) : send(res, 404, { error: "not_found" });
+            }
+            if (req.method === "PUT" && sub === "quota") {
+              const body = await readJson(req);
+              if (!isQuota(body.quota)) return send(res, 400, { error: "bad_quota" });
+              const ok = await store.setQuota(address, body.quota);
+              return ok ? send(res, 204) : send(res, 404, { error: "not_found" });
+            }
+            if (req.method === "DELETE" && sub === null) {
+              const ok = await store.remove(address);
+              return ok ? send(res, 204) : send(res, 404, { error: "not_found" });
+            }
+            return send(res, 405, { error: "method_not_allowed" });
+          } catch (e) {
+            const bad = e instanceof SyntaxError || /body too large/.test(String(e));
+            console.error(
+              new Date().toISOString(),
+              req.method,
+              url.pathname,
+              String(e),
+            );
+            return send(res, bad ? 400 : 500, {
+              error: bad ? "bad_json" : "internal",
+            });
+          }
+        };
+      }
+
+      // Entry point (skipped when imported by tests).
+      if (
+        process.argv[1] &&
+        import.meta.url === pathToFileURL(process.argv[1]).href
+      ) {
+        const secret = process.env.PROVISIONER_SECRET;
+        if (!secret || secret.length < 32) {
+          console.error("PROVISIONER_SECRET must be set (32+ chars)");
+          process.exit(1);
+        }
+        const store = new AccountsStore(
+          process.env.DMS_CONFIG_DIR || "/tmp/docker-mailserver",
+        );
+        const handler = createHandler({
+          store,
+          secret,
+          domain: process.env.MAIL_DOMAIN || null,
+        });
+        const port = Number(process.env.PORT || 8025);
+        http.createServer(handler).listen(port, "0.0.0.0", () => {
+          console.log(`mail-provisioner listening on :${port}`);
+        });
+      }
+
+  provisioner_accounts_mjs:
+    content: |
+      // The two docker-mailserver config files the sidecar is allowed to touch:
+      //
+      //   postfix-accounts.cf   user@domain|{SHA512-CRYPT}$6$…      one per mailbox
+      //   dovecot-quotas.cf     user@domain:5G                     optional
+      //
+      // Both are plain text in the `dms-config` volume; DMS's changedetector picks
+      // up a checksum change within seconds and reloads Postfix/Dovecot. Writes go
+      // through a temp file + rename so a half-written line can never be read, and
+      // through one promise chain so two requests cannot interleave.
+      import { promises as fs } from "node:fs";
+      import path from "node:path";
+      import { sha512Crypt } from "./sha512-crypt.mjs";
+
+      const ADDRESS = /^[a-z0-9][a-z0-9._+-]{0,63}@[a-z0-9.-]+\.[a-z]{2,}$/;
+      /** "5G", "500M", "0" (unlimited) — what Dovecot's quota plugin accepts. */
+      const QUOTA = /^(0|[1-9][0-9]{0,5}[MG])$/;
+
+      export function isAddress(s) {
+        return typeof s === "string" && ADDRESS.test(s);
+      }
+      export function isQuota(s) {
+        return typeof s === "string" && QUOTA.test(s);
+      }
+
+      export class AccountsStore {
+        constructor(dir) {
+          this.accountsFile = path.join(dir, "postfix-accounts.cf");
+          this.quotasFile = path.join(dir, "dovecot-quotas.cf");
+          this.queue = Promise.resolve();
+        }
+
+        /** Serialise every mutation; a failure in one must not block the next. */
+        locked(fn) {
+          const run = this.queue.then(fn, fn);
+          this.queue = run.catch(() => {});
+          return run;
+        }
+
+        async readLines(file) {
+          try {
+            const text = await fs.readFile(file, "utf8");
+            return text.split("\n").filter((l) => l.trim() !== "");
+          } catch (e) {
+            if (e.code === "ENOENT") return [];
+            throw e;
+          }
+        }
+
+        async writeLines(file, lines) {
+          const tmp = `${file}.${process.pid}.tmp`;
+          await fs.writeFile(tmp, lines.join("\n") + "\n", { mode: 0o644 });
+          await fs.rename(tmp, file);
+        }
+
+        async list() {
+          const [accounts, quotas] = await Promise.all([
+            this.readLines(this.accountsFile),
+            this.readLines(this.quotasFile),
+          ]);
+          const quotaOf = new Map(
+            quotas.map((l) => {
+              const i = l.indexOf(":");
+              return [l.slice(0, i).toLowerCase(), l.slice(i + 1)];
+            }),
+          );
+          return accounts.map((l) => {
+            const address = l.slice(0, l.indexOf("|")).toLowerCase();
+            return { address, quota: quotaOf.get(address) ?? null };
+          });
+        }
+
+        async get(address) {
+          const all = await this.list();
+          return all.find((a) => a.address === address) ?? null;
+        }
+
+        /** Create; `false` when the address already exists (nothing written). */
+        create(address, password, quota) {
+          return this.locked(async () => {
+            const lines = await this.readLines(this.accountsFile);
+            if (lines.some((l) => l.toLowerCase().startsWith(`${address}|`))) {
+              return false;
+            }
+            lines.push(`${address}|{SHA512-CRYPT}${sha512Crypt(password)}`);
+            await this.writeLines(this.accountsFile, lines);
+            if (quota) await this.writeQuota(address, quota);
+            return true;
+          });
+        }
+
+        /** Replace the hash; `false` when the address is unknown. */
+        setPassword(address, password) {
+          return this.locked(async () => {
+            const lines = await this.readLines(this.accountsFile);
+            const i = lines.findIndex((l) =>
+              l.toLowerCase().startsWith(`${address}|`),
+            );
+            if (i < 0) return false;
+            lines[i] = `${address}|{SHA512-CRYPT}${sha512Crypt(password)}`;
+            await this.writeLines(this.accountsFile, lines);
+            return true;
+          });
+        }
+
+        setQuota(address, quota) {
+          return this.locked(async () => {
+            const lines = await this.readLines(this.accountsFile);
+            if (!lines.some((l) => l.toLowerCase().startsWith(`${address}|`))) {
+              return false;
+            }
+            await this.writeQuota(address, quota);
+            return true;
+          });
+        }
+
+        /** Caller holds the lock. "0" removes the line (unlimited). */
+        async writeQuota(address, quota) {
+          const lines = (await this.readLines(this.quotasFile)).filter(
+            (l) => !l.toLowerCase().startsWith(`${address}:`),
+          );
+          if (quota !== "0") lines.push(`${address}:${quota}`);
+          await this.writeLines(this.quotasFile, lines);
+        }
+
+        /** Remove the account line (the maildir on disk is left alone). */
+        remove(address) {
+          return this.locked(async () => {
+            const lines = await this.readLines(this.accountsFile);
+            const kept = lines.filter(
+              (l) => !l.toLowerCase().startsWith(`${address}|`),
+            );
+            if (kept.length === lines.length) return false;
+            await this.writeLines(this.accountsFile, kept);
+            await this.writeQuota(address, "0");
+            return true;
+          });
+        }
+      }
+
+  provisioner_sha512_crypt_mjs:
+    content: |
+      // SHA512-CRYPT (glibc crypt(3) "$6$"), the scheme docker-mailserver's own
+      // `setup email add` writes into postfix-accounts.cf, so accounts the sidecar
+      // creates and accounts an admin adds by hand are indistinguishable.
+      //
+      // Pure Node — the sidecar image has no `doveadm` or `openssl`. Verified
+      // against `openssl passwd -6` in tests/mail-provisioner.test.ts.
+      import { createHash, randomBytes } from "node:crypto";
+
+      const ITOA64 =
+        "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+      const DEFAULT_ROUNDS = 5000;
+
+      const sha512 = (...parts) => {
+        const h = createHash("sha512");
+        for (const p of parts) h.update(p);
+        return h.digest();
+      };
+
+      /** Repeat `block` until it is exactly `len` bytes long. */
+      function fill(block, len) {
+        const out = Buffer.alloc(len);
+        for (let i = 0; i < len; i += block.length) {
+          block.copy(out, i, 0, Math.min(block.length, len - i));
+        }
+        return out;
+      }
+
+      function b64From24bit(b2, b1, b0, n) {
+        let w = (b2 << 16) | (b1 << 8) | b0;
+        let out = "";
+        for (let i = 0; i < n; i++) {
+          out += ITOA64[w & 0x3f];
+          w >>>= 6;
+        }
+        return out;
+      }
+
+      /** A 16-character salt from the crypt alphabet. */
+      export function makeSalt() {
+        const bytes = randomBytes(16);
+        let s = "";
+        for (const b of bytes) s += ITOA64[b & 0x3f];
+        return s;
+      }
+
+      /**
+       * `sha512Crypt("password", "saltsalt")` →
+       * `$6$saltsalt$qFmFH.bQmm…` — the same string glibc, openssl and doveadm produce.
+       */
+      export function sha512Crypt(
+        password,
+        salt = makeSalt(),
+        rounds = DEFAULT_ROUNDS,
+      ) {
+        const pw = Buffer.from(password, "utf8");
+        const sl = Buffer.from(salt.slice(0, 16), "utf8");
+
+        const B = sha512(pw, sl, pw);
+        const aParts = [pw, sl];
+        let cnt = pw.length;
+        for (; cnt > 64; cnt -= 64) aParts.push(B);
+        aParts.push(B.subarray(0, cnt));
+        for (cnt = pw.length; cnt > 0; cnt >>= 1) aParts.push(cnt & 1 ? B : pw);
+        const A = sha512(...aParts);
+
+        const DP = sha512(...Array.from({ length: pw.length }, () => pw));
+        const P = fill(DP, pw.length);
+        const DS = sha512(...Array.from({ length: 16 + A[0] }, () => sl));
+        const S = fill(DS, sl.length);
+
+        let C = A;
+        for (let i = 0; i < rounds; i++) {
+          const parts = [i & 1 ? P : C];
+          if (i % 3) parts.push(S);
+          if (i % 7) parts.push(P);
+          parts.push(i & 1 ? C : P);
+          C = sha512(...parts);
+        }
+
+        const order = [
+          [0, 21, 42],
+          [22, 43, 1],
+          [44, 2, 23],
+          [3, 24, 45],
+          [25, 46, 4],
+          [47, 5, 26],
+          [6, 27, 48],
+          [28, 49, 7],
+          [50, 8, 29],
+          [9, 30, 51],
+          [31, 52, 10],
+          [53, 11, 32],
+          [12, 33, 54],
+          [34, 55, 13],
+          [56, 14, 35],
+          [15, 36, 57],
+          [37, 58, 16],
+          [59, 17, 38],
+          [18, 39, 60],
+          [40, 61, 19],
+          [62, 20, 41],
+        ];
+        let enc = "";
+        for (const [x, y, z] of order) enc += b64From24bit(C[x], C[y], C[z], 4);
+        enc += b64From24bit(0, 0, C[63], 2);
+
+        const prefix = rounds === DEFAULT_ROUNDS ? "$6$" : `$6$rounds=${rounds}$`;
+        return `${prefix}${sl.toString("utf8")}$${enc}`;
+      }
+

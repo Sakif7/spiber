@@ -16,6 +16,7 @@ import { spawn } from "node:child_process";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { MongoClient, ObjectId } from "mongodb";
 import bcrypt from "bcryptjs";
+import { randomBytes } from "node:crypto";
 
 const PORT = Number(process.env.SANDBOX_MONGO_PORT || 27018);
 const DB = "spibermed";
@@ -60,6 +61,27 @@ await db.collection("users").insertOne({
   roles: ["super_admin"],
   emailVerified: true,
   locale: "en",
+  createdAt: now,
+  updatedAt: now,
+});
+
+// The company's shared mailbox, already assigned to the sandbox admin — the
+// Mail page shows it (fixture messages) the moment you sign in.
+await db.collection("mailboxes").insertOne({
+  address: "info@spibermed.com",
+  kind: "shared",
+  status: "active",
+  employeeId: null,
+  ownerUserId: null,
+  assignedUserIds: [ids.admin],
+  passwordCiphertext: null,
+  quotaBytes: null,
+  provider: null,
+  provisionedAt: null,
+  provisionedBy: null,
+  lastError: null,
+  activity: [],
+  deletedAt: null,
   createdAt: now,
   updatedAt: now,
 });
@@ -450,6 +472,11 @@ const next = spawn("npx", ["next", "dev"], {
     MONGODB_URI: uri,
     MONGODB_DB: DB,
     ALLOW_LOCAL_STORAGE: "true",
+    // Employee mailboxes: simulated in-process, and a throwaway vault key so
+    // their passwords can be stored (both vanish with the sandbox).
+    MAIL_PROVISIONER: process.env.MAIL_PROVISIONER || "memory",
+    COMPANY_VAULT_KEY:
+      process.env.COMPANY_VAULT_KEY || randomBytes(32).toString("hex"),
   },
 });
 

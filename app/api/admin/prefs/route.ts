@@ -1,6 +1,6 @@
 import { ok, fail } from "@/lib/http/respond";
 import { parseJson } from "@/lib/http/validate";
-import { requireAdmin } from "@/lib/auth/guard";
+import { requireStaff } from "@/lib/auth/guard";
 import { rateLimit, clientIp } from "@/lib/auth/rate-limit";
 import { adminPrefsUpdateSchema } from "@/lib/schemas/user";
 import { getAdminPrefsRaw, setAdminPrefs } from "@/lib/repositories/users.repo";
@@ -16,9 +16,9 @@ async function loadPrefs(userId: string): Promise<AdminPrefs> {
   return sanitizePrefs(await getAdminPrefsRaw(userId), isKnownId);
 }
 
-/** The signed-in admin's own sidebar preferences. */
+/** The signed-in staff member's own sidebar preferences (self-only). */
 export async function GET() {
-  const admin = await requireAdmin();
+  const admin = await requireStaff();
   if (!admin) return fail({ code: "forbidden" }, 403);
   return ok({ prefs: await loadPrefs(admin.sub) });
 }
@@ -29,7 +29,7 @@ export async function GET() {
  * from the nav can never wedge an admin's saved preferences.
  */
 export async function PATCH(req: Request) {
-  const admin = await requireAdmin();
+  const admin = await requireStaff();
   if (!admin) return fail({ code: "forbidden" }, 403);
   if (!rateLimit(`admin-prefs:${clientIp(req)}`, 120, 60_000).ok) {
     return fail({ code: "rate_limited" }, 429);

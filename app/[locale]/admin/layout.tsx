@@ -3,7 +3,7 @@ import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import { redirect } from "next/navigation";
 import { setRequestLocale } from "next-intl/server";
 import { getSessionUser } from "@/lib/auth/current-user";
-import { isAdmin } from "@/lib/auth/rbac";
+import { isAdmin, isEmployee, isStaff, isSuperAdmin } from "@/lib/auth/rbac";
 import { getAdminPrefsRaw } from "@/lib/repositories/users.repo";
 import { EMPTY_PREFS, sanitizePrefs, type AdminPrefs } from "@/lib/admin/prefs";
 import { NAV_BY_ID } from "@/components/admin/shell/nav";
@@ -62,13 +62,25 @@ export default async function AdminLayout({
   const { locale } = await params;
   setRequestLocale(locale);
 
-  // Defense-in-depth: the proxy also guards /admin, but re-check here.
+  // Defense-in-depth: the proxy also guards /admin, but re-check here. The
+  // shell is shared by admins and employees; the `(ops)` layout underneath
+  // re-checks the admin role for every operations/company page, and the
+  // `(staff)` pages check for an Employee record.
   const user = await getSessionUser();
-  if (!isAdmin(user)) {
+  if (!isStaff(user)) {
     redirect(`/${locale}?auth=login&next=/${locale}/admin`);
   }
 
-  const role = user!.roles.includes("super_admin") ? "super_admin" : "admin";
+  const viewer = {
+    isSuperAdmin: isSuperAdmin(user),
+    isAdmin: isAdmin(user),
+    isEmployee: isEmployee(user),
+  };
+  const role = viewer.isSuperAdmin
+    ? "super_admin"
+    : viewer.isAdmin
+      ? "admin"
+      : "employee";
 
   // Sidebar favourites/recents, server-loaded so the rail renders complete on
   // the first paint. A DB hiccup degrades to an empty (not broken) sidebar.
@@ -94,6 +106,7 @@ export default async function AdminLayout({
         <AdminShell
           email={user!.email}
           role={role}
+          viewer={viewer}
           initialPrefs={prefs}
           fontClassName={`${plexSans.variable} ${plexMono.variable}`}
         >

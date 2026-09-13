@@ -57,7 +57,10 @@ export async function getEmployee(id: string): Promise<Lean<IEmployee> | null> {
 }
 
 export async function createEmployee(
-  input: EmployeeCreateInput,
+  input: EmployeeCreateInput & {
+    /** Full company address, already validated + checked free by the caller. */
+    businessEmail?: string | null;
+  },
   actor: Actor,
 ): Promise<HrResult<Lean<IEmployee>>> {
   await connectToDatabase();
@@ -83,6 +86,7 @@ export async function createEmployee(
       kind: input.kind,
       payScheme: input.payScheme,
       email: clean(input.email),
+      businessEmail: clean(input.businessEmail),
       phone: clean(input.phone),
       userId: input.userId ?? null,
       joinedAt: new Date(input.joinedAt),

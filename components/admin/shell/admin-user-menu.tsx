@@ -23,7 +23,12 @@ export function AdminUserMenu({
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const initial = (email || "?").charAt(0).toUpperCase();
-  const roleLabel = role === "super_admin" ? "Super admin" : "Admin";
+  const roleLabel =
+    role === "super_admin"
+      ? "Super admin"
+      : role === "employee"
+        ? "Employee"
+        : "Admin";
 
   async function signOut() {
     setBusy(true);

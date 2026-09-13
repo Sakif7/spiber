@@ -29,6 +29,7 @@ import {
   CalendarDays,
   Briefcase,
   Mailbox,
+  Mail,
   ClipboardList,
   CalendarClock,
   Plane,
@@ -75,13 +76,24 @@ export type NavGroup = {
 };
 
 /**
- * The admin is split into two sections, switched from the topbar:
+ * The admin is split into sections, switched from the topbar:
  * -"operations": the day-to-day store/division admin (default).
- * -"company":    internal company workspace — today the secure document
- *    vault + the existing company-content tabs; the future HRM modules will
- *    add their groups here without touching the operations tree.
+ * -"company":    internal company workspace — the secure document vault,
+ *    sales, people and the company-content tabs.
+ * -"me":         the employee portal — one person's own desk, mail, leads,
+ *    visits, claims and payslips. The only section a plain employee has.
  */
-export type AdminSection = "operations" | "company";
+export type AdminSection = "operations" | "company" | "me";
+
+/**
+ * Who is looking at the shell. Drives which sections exist and which items
+ * show; every page and route re-checks the same facts server-side.
+ */
+export type NavViewer = {
+  isSuperAdmin: boolean;
+  isAdmin: boolean;
+  isEmployee: boolean;
+};
 
 function item(
   id: string,
@@ -378,6 +390,20 @@ export const COMPANY_NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    label: "Mail",
+    // The company mailbox, read with the portal login. Shared-mailbox
+    // assignment is the super admin's.
+    items: [
+      item("company.mail", "/admin/mail", "Mail", Mail, "Company mail"),
+      superItem(
+        "company.shared-mailboxes",
+        "/admin/company/mail",
+        "Shared mailboxes",
+        Mailbox,
+      ),
+    ],
+  },
+  {
     label: "Sales",
     // Client pricing, negotiations and the company's revenue.
     superAdminOnly: true,
@@ -469,6 +495,34 @@ export const COMPANY_NAV_GROUPS: NavGroup[] = [
   },
 ];
 
+/**
+ * The employee portal. Labels say "My …" so it is never mistaken for the
+ * company view: every list here is filtered to the signed-in person.
+ * Items are added as their pages land (mail, work and pay follow).
+ */
+export const ME_NAV_GROUPS: NavGroup[] = [
+  {
+    label: "Me",
+    items: [
+      item("me.desk", "/admin/me", "My desk", LayoutDashboard),
+      item("me.mail", "/admin/me/mail", "Mail", Mail, "My mail"),
+    ],
+  },
+  {
+    label: "Work",
+    items: [
+      item("me.leads", "/admin/me/leads", "My leads", Handshake),
+      item("me.orders", "/admin/me/orders", "My sales orders", FileSpreadsheet),
+      item("me.visits", "/admin/me/visits", "My visits", MapPin),
+      item("me.claims", "/admin/me/claims", "My claims", ReceiptText),
+    ],
+  },
+  {
+    label: "Pay",
+    items: [item("me.payslips", "/admin/me/payslips", "My payslips", Wallet)],
+  },
+];
+
 export const NAV_SECTIONS: Record<
   AdminSection,
   { label: string; home: string; groups: NavGroup[] }
@@ -483,17 +537,33 @@ export const NAV_SECTIONS: Record<
     home: "/admin/company/documents",
     groups: COMPANY_NAV_GROUPS,
   },
+  me: {
+    label: "Me",
+    home: "/admin/me",
+    groups: ME_NAV_GROUPS,
+  },
 };
 
+/** The sections this viewer may switch between, in topbar order. */
+export function sectionsFor(viewer: NavViewer): AdminSection[] {
+  const out: AdminSection[] = [];
+  if (viewer.isAdmin) out.push("operations", "company");
+  if (viewer.isEmployee) out.push("me");
+  return out;
+}
+
 /**
- * The groups of a section that `role` may see, with hidden items removed.
- * Groups left empty after filtering are dropped.
+ * The groups of a section that the viewer may see, with hidden items
+ * removed. Groups left empty after filtering are dropped; a section the
+ * viewer has no business in is empty.
  */
 export function navGroupsFor(
   section: AdminSection,
-  isSuper: boolean,
+  viewer: NavViewer,
 ): NavGroup[] {
-  if (isSuper) return NAV_SECTIONS[section].groups;
+  if (section === "me") return viewer.isEmployee ? ME_NAV_GROUPS : [];
+  if (!viewer.isAdmin) return [];
+  if (viewer.isSuperAdmin) return NAV_SECTIONS[section].groups;
   const out: NavGroup[] = [];
   for (const group of NAV_SECTIONS[section].groups) {
     if (group.superAdminOnly) continue;
@@ -510,11 +580,11 @@ export function navGroupsFor(
  */
 export function sectionHomeFor(
   section: AdminSection,
-  isSuper: boolean,
+  viewer: NavViewer,
 ): string {
   const home = NAV_SECTIONS[section].home;
-  if (isSuper) return home;
-  const visible = navGroupsFor(section, false).flatMap((g) => g.items);
+  if (viewer.isSuperAdmin || section === "me") return home;
+  const visible = navGroupsFor(section, viewer).flatMap((g) => g.items);
   if (visible.some((it) => it.href === home)) return home;
   return visible[0]?.href ?? NAV_SECTIONS.operations.home;
 }
@@ -523,6 +593,7 @@ export function sectionHomeFor(
 export const NAV_ITEMS_FLAT: NavItem[] = [
   ...OPERATIONS_NAV_GROUPS,
   ...COMPANY_NAV_GROUPS,
+  ...ME_NAV_GROUPS,
 ].flatMap((g) => g.items);
 
 /** Lookup by stable id (favourites / recents resolve through this). */
@@ -553,9 +624,10 @@ export function stripLocalePrefix(pathname: string): string {
 }
 
 /** Does `href` cover `path` (itself or a descendant)? The dashboard root only
- * matches itself, otherwise it would cover every admin page. */
+ * matches itself, otherwise it would cover every admin page; the same for the
+ * employee desk, so "My desk" is not lit on every portal page. */
 function covers(path: string, href: string): boolean {
-  if (href === "/admin") return path === "/admin";
+  if (href === "/admin" || href === "/admin/me") return path === href;
   return path === href || path.startsWith(`${href}/`);
 }
 
@@ -593,9 +665,22 @@ export function activeTitleFor(pathname: string): string {
   return activeItemFor(pathname)?.title ?? "Admin";
 }
 
-/** Which section the current page belongs to (drives the topbar switcher). */
-export function sectionForPath(pathname: string): AdminSection {
+/**
+ * Which section the current page belongs to (drives the topbar switcher).
+ * A plain employee only ever has "me"; anything under /admin/me is "me" for
+ * everyone, so an admin-employee's desk pages do not flip them to Operations.
+ */
+export function sectionForPath(
+  pathname: string,
+  viewer: NavViewer = { isSuperAdmin: true, isAdmin: true, isEmployee: false },
+): AdminSection {
+  if (!viewer.isAdmin) return "me";
+  const path = stripLocalePrefix(pathname);
+  if (path === "/admin/me" || path.startsWith("/admin/me/")) return "me";
   const active = activeItemFor(pathname);
+  if (active && ME_NAV_GROUPS.some((g) => g.items.includes(active))) {
+    return viewer.isEmployee ? "me" : "company";
+  }
   if (active && COMPANY_NAV_GROUPS.some((g) => g.items.includes(active))) {
     return "company";
   }

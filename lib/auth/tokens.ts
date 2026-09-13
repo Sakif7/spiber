@@ -11,7 +11,7 @@ import { logger } from "@/lib/log";
  * replayed as a refresh/verify/reset token.
  */
 
-type Purpose = "access" | "refresh" | "verify" | "reset";
+type Purpose = "access" | "refresh" | "verify" | "reset" | "invite";
 
 function secretFor(purpose: Purpose): Uint8Array {
   const useRefresh = purpose === "refresh";
@@ -35,6 +35,10 @@ const EXPIRY: Record<Purpose, string> = {
   refresh: "30d",
   verify: "24h",
   reset: "1h",
+  // A new employee's set-password link: mailed to a personal address and
+  // often opened the next morning, so longer than a reset; still single-use
+  // via tokenVersion like a reset.
+  invite: "24h",
 };
 
 export type AccessClaims = { sub: string; email: string; roles: Role[] };
@@ -73,6 +77,12 @@ export function signVerifyToken(sub: string): Promise<string> {
 export function signResetToken(sub: string, tokenVersion = 0): Promise<string> {
   return sign("reset", sub, { tv: tokenVersion });
 }
+export function signInviteToken(
+  sub: string,
+  tokenVersion = 0,
+): Promise<string> {
+  return sign("invite", sub, { tv: tokenVersion });
+}
 
 export async function verifyAccessToken(
   token: string,
@@ -105,7 +115,7 @@ export async function verifyRefreshToken(
 /** Verify a single-purpose token (verify/reset); returns the subject + tokenVersion. */
 export async function verifyPurposeToken(
   token: string,
-  purpose: "verify" | "reset",
+  purpose: "verify" | "reset" | "invite",
 ): Promise<PurposeClaims | null> {
   try {
     const { payload } = await jwtVerify(token, secretFor(purpose));

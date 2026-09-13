@@ -29,8 +29,11 @@ import {
   NAV_ITEMS_FLAT,
   NAV_SECTIONS,
   navContextFor,
+  navGroupsFor,
+  sectionsFor,
   type AdminSection,
   type NavItem,
+  type NavViewer,
 } from "./nav";
 import { useAdminPrefs } from "./admin-prefs";
 
@@ -63,10 +66,16 @@ const PAGE_ENTRIES: PageEntry[] = NAV_ITEMS_FLAT.map((item) => ({
   caption: captionFor(item),
 }));
 
-/** Plain admins don't get super-admin-only pages offered to them. */
-const ADMIN_PAGE_ENTRIES: PageEntry[] = PAGE_ENTRIES.filter(
-  (e) => !e.item.superAdminOnly,
-);
+/** The pages this viewer may open: a plain admin loses the super-admin-only
+ *  ones, an employee sees only their portal. Same filter as the sidebar. */
+function pageEntriesFor(viewer: NavViewer): PageEntry[] {
+  const allowed = new Set(
+    sectionsFor(viewer)
+      .flatMap((s) => navGroupsFor(s, viewer))
+      .flatMap((g) => g.items.map((it) => it.id)),
+  );
+  return PAGE_ENTRIES.filter((e) => allowed.has(e.item.id));
+}
 
 function pageMatches(e: PageEntry, terms: string[]): boolean {
   const hay = `${e.item.title} ${e.item.label} ${e.caption}`.toLowerCase();
@@ -84,12 +93,12 @@ function pageMatches(e: PageEntry, terms: string[]): boolean {
 export function CommandPalette({
   open,
   onOpenChange,
-  isSuperAdmin = false,
+  viewer,
   section = "operations",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  isSuperAdmin?: boolean;
+  viewer: NavViewer;
   /** Recent pages are hidden in the Company section (see SidebarNav). */
   section?: AdminSection;
 }) {
@@ -107,7 +116,8 @@ export function CommandPalette({
 
   const fetchRecords = useDebouncedCallback((q: string) => {
     abortRef.current?.abort();
-    if (q.length < 2) {
+    // Record search is an admin API; an employee's palette is pages only.
+    if (q.length < 2 || !viewer.isAdmin) {
       setRecords(null);
       setLoading(false);
       return;
@@ -132,16 +142,15 @@ export function CommandPalette({
   }, 180);
 
   // Build the visible sections.
-  const pageEntries = isSuperAdmin ? PAGE_ENTRIES : ADMIN_PAGE_ENTRIES;
+  const pageEntries = pageEntriesFor(viewer);
+  const pageIds = new Set(pageEntries.map((e) => e.item.id));
   const sections: Section[] = [];
   if (terms.length === 0 && section !== "company") {
     const recent = prefs.recents
       .map((r) => NAV_BY_ID.get(r.id))
       .filter(
         (it): it is NavItem =>
-          Boolean(it) &&
-          it!.id !== "dashboard" &&
-          (isSuperAdmin || !it!.superAdminOnly),
+          Boolean(it) && it!.id !== "dashboard" && pageIds.has(it!.id),
       )
       .slice(0, 5);
     if (recent.length > 0) {

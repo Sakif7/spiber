@@ -10,7 +10,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CtaButton } from "@/components/ui/cta-button";
 
-export function ResetPasswordForm({ token }: { token?: string }) {
+export function ResetPasswordForm({
+  token,
+  invite = false,
+}: {
+  token?: string;
+  /** An employee invite: "set" rather than "reset", and land on their desk. */
+  invite?: boolean;
+}) {
   const t = useTranslations("auth.reset");
   const [state, setState] = useState<"idle" | "success" | "error">("idle");
 
@@ -34,8 +41,14 @@ export function ResetPasswordForm({ token }: { token?: string }) {
   if (state === "success") {
     return (
       <div style={{ display: "grid", gap: "var(--s-4)" }}>
-        <p style={{ color: "var(--color-success)" }}>{t("success")}</p>
-        <CtaButton href="/?auth=login">{t("submit")}</CtaButton>
+        <p style={{ color: "var(--color-success)" }}>
+          {invite ? t("inviteSuccess") : t("success")}
+        </p>
+        <CtaButton
+          href={invite ? "/?auth=login&next=/admin/me" : "/?auth=login"}
+        >
+          {t("signIn")}
+        </CtaButton>
       </div>
     );
   }
@@ -84,7 +97,11 @@ export function ResetPasswordForm({ token }: { token?: string }) {
         </p>
       )}
       <CtaButton type="submit" style={{ width: "100%" }}>
-        {isSubmitting ? t("submitting") : t("submit")}
+        {isSubmitting
+          ? t("submitting")
+          : invite
+            ? t("inviteSubmit")
+            : t("submit")}
       </CtaButton>
       <Link
         href="/?auth=login"

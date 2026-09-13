@@ -48,13 +48,25 @@ export function VisitForm({
   visit,
   people,
   leads,
+  endpoint = "/api/admin/company/people/visits",
+  afterHref = "/admin/company/people/visits",
+  lockedAttendeeId,
 }: {
   visit?: VisitFormValues;
   people: PersonOption[];
   leads: LeadOption[];
+  /** The employee portal posts to its own scoped route. */
+  endpoint?: string;
+  /** Where the record lives after saving (the id is appended). */
+  afterHref?: string;
+  /** The signed-in employee, always on the trip and not un-tickable. */
+  lockedAttendeeId?: string;
 }) {
   const afterSave = useAfterSave();
-  const [v, setV] = useState<VisitFormValues>(visit ?? EMPTY);
+  const [v, setV] = useState<VisitFormValues>(
+    visit ??
+      (lockedAttendeeId ? { ...EMPTY, attendees: [lockedAttendeeId] } : EMPTY),
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -90,9 +102,7 @@ export function VisitForm({
         notes: v.notes || undefined,
       };
       const res = await fetch(
-        visit?.id
-          ? `/api/admin/company/people/visits/${visit.id}`
-          : "/api/admin/company/people/visits",
+        visit?.id ? `${endpoint}/${visit.id}` : endpoint,
         {
           method: visit?.id ? "PATCH" : "POST",
           headers: { "Content-Type": "application/json" },
@@ -105,9 +115,7 @@ export function VisitForm({
         return;
       }
       toast.success(visit?.id ? "Visit updated." : "Visit recorded.");
-      afterSave(
-        `/admin/company/people/visits/${visit?.id ?? json?.data?.id ?? ""}`,
-      );
+      afterSave(`${afterHref}/${visit?.id ?? json?.data?.id ?? ""}`);
     } finally {
       setSaving(false);
     }
@@ -171,6 +179,7 @@ export function VisitForm({
               >
                 <Checkbox
                   checked={v.attendees.includes(p.id)}
+                  disabled={p.id === lockedAttendeeId}
                   onCheckedChange={(c) => toggleAttendee(p.id, c === true)}
                 />
                 <span className="min-w-0">
