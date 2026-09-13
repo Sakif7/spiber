@@ -91,16 +91,25 @@ export const Employee: Model<IEmployee> =
   mongoose.model<IEmployee>("Employee", employeeSchema);
 
 /**
- * A revenue-share percentage, effective from a given month.
+ * A director's shareholding, effective from a given month.
  *
- * Append-only: changing someone's share adds a record rather than editing one,
- * so a payroll month already produced keeps the rate that was actually agreed
- * at the time. Without this, a percentage change would silently rewrite history.
+ * The company issued a fixed pool of shares (`lib/hr/share-pool.ts`) and each
+ * director bought a number of them; a month's distributable profit is split in
+ * proportion to those holdings. `shares` is the live field. `rateBp` is the
+ * percentage the first version of payroll used and is kept only so a month
+ * approved under it still reads back — nothing writes it any more.
+ *
+ * Append-only: changing someone's holding adds a record rather than editing
+ * one, so a payroll month already produced keeps the holding that was actually
+ * in force at the time. Without this, a change would silently rewrite history.
  */
 export interface IEmployeeShareRate {
   employeeId: Types.ObjectId | string;
-  rateBp: number;
-  /** "YYYY-MM" — the first month this rate applies to. */
+  /** Shares held from `effectiveFrom`. Null only on a legacy percentage row. */
+  shares?: number | null;
+  /** Legacy: the percentage of revenue, in basis points. Never written now. */
+  rateBp?: number | null;
+  /** "YYYY-MM" — the first month this holding applies to. */
   effectiveFrom: string;
   createdBy: Types.ObjectId | string;
   note?: string | null;
@@ -114,7 +123,8 @@ const shareRateSchema = new Schema<IEmployeeShareRate>(
       ref: "Employee",
       required: true,
     },
-    rateBp: { type: Number, required: true, min: 0, max: 10000 },
+    shares: { type: Number, default: null, min: 0 },
+    rateBp: { type: Number, default: null, min: 0, max: 10000 },
     effectiveFrom: { type: String, required: true },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
     note: { type: String, default: null },

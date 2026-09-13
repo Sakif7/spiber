@@ -2,9 +2,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { setRequestLocale } from "next-intl/server";
 import { ArrowLeft } from "lucide-react";
-import { getEmployee, listRates } from "@/lib/services/hr/employee.service";
+import {
+  allocatedShares,
+  getEmployee,
+  getSharePool,
+  listHoldings,
+} from "@/lib/services/hr/employee.service";
 import { rateLabel } from "@/lib/hr/payroll-math";
-import { monthLabel } from "@/lib/hr/months";
+import { holdingPercent } from "@/lib/hr/share-pool";
+import { monthLabel, monthOf } from "@/lib/hr/months";
 import { EmployeeForm } from "@/components/admin/hr/employee-form";
 import { RateHistory } from "@/components/admin/hr/rate-history";
 import {
@@ -25,7 +31,11 @@ export default async function EmployeePage({
 
   const employee = await getEmployee(id);
   if (!employee) notFound();
-  const rates = await listRates(id);
+  const [holdings, pool, held] = await Promise.all([
+    listHoldings(id),
+    getSharePool(),
+    allocatedShares(monthOf(new Date())),
+  ]);
 
   const iso = (d?: Date | null) =>
     d ? new Date(d).toISOString().slice(0, 10) : "";
@@ -55,13 +65,28 @@ export default async function EmployeePage({
             <RateHistory
               employeeId={id}
               payScheme={employee.payScheme}
-              rates={rates.map((r) => ({
-                rateLabel: `${rateLabel(r.rateBp)}%`,
-                effectiveFrom: r.effectiveFrom,
-                effectiveLabel: monthLabel(r.effectiveFrom),
-                note: r.note ?? null,
-                addedAt: new Date(r.createdAt).toLocaleDateString(),
-              }))}
+              pool={{
+                totalShares: pool.totalShares,
+                unallocated: Math.max(0, pool.totalShares - held),
+              }}
+              rates={holdings.map((r) => {
+                // A row from before shareholdings carries only a percentage;
+                // it is shown as it was until the migration rewrites it.
+                const legacy = typeof r.shares !== "number";
+                return {
+                  label: legacy
+                    ? `${rateLabel(r.rateBp ?? 0)}%`
+                    : `${(r.shares ?? 0).toLocaleString("en-BD")} shares`,
+                  fraction: legacy
+                    ? null
+                    : `${holdingPercent(r.shares ?? 0, pool.totalShares)}% of the pool`,
+                  effectiveFrom: r.effectiveFrom,
+                  effectiveLabel: monthLabel(r.effectiveFrom),
+                  note: r.note ?? null,
+                  addedAt: new Date(r.createdAt).toLocaleDateString(),
+                  legacy,
+                };
+              })}
             />
             {employee.bankDetails?.accountNumber && (
               <DetailCard title="Bank">

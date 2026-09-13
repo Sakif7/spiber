@@ -13,6 +13,7 @@ import {
   type Block,
   type BlockOf,
   type BlockType,
+  type ColumnTotalCell,
   type LineColumn,
   type LineColumnKey,
   type MetaField,
@@ -361,6 +362,99 @@ function LineTableForm({ block, kind, onProps }: Props<"lineTable">) {
       />
       {totals && (
         <>
+          <SwitchField
+            label="A total line under the columns"
+            checked={Boolean(totals.columnTotals)}
+            onChange={(on) => {
+              if (!on) {
+                onProps({ totals: { ...totals, columnTotals: undefined } });
+                return;
+              }
+              // The quantity under Qty and the subtotal under the amount
+              // column — and the stacked rows that printed those same
+              // figures are dropped, so nothing appears twice.
+              const cells: ColumnTotalCell[] = [
+                { column: "qty", path: "totals.totalQty", emphasis: false },
+                {
+                  column: "lineTotal",
+                  path: "totals.subtotalMinor",
+                  emphasis: false,
+                },
+              ];
+              const carried = new Set(cells.map((c) => c.path));
+              onProps({
+                totals: {
+                  ...totals,
+                  columnTotals: { label: "Total", cells },
+                  rows: totals.rows.filter((r) => !carried.has(r.path)),
+                },
+              });
+            }}
+            hint="Each figure sits directly under its own column — the quantity under Qty, the subtotal under the amount. Rows in the stack that print the same figure are removed."
+          />
+          {totals.columnTotals && (
+            <>
+              <TemplateText
+                label="Line label"
+                kind={kind}
+                value={totals.columnTotals.label}
+                onChange={(label) =>
+                  onProps({
+                    totals: {
+                      ...totals,
+                      columnTotals: { ...totals.columnTotals!, label },
+                    },
+                  })
+                }
+                hint="Printed in the empty run before the first figure."
+              />
+              <ListEditor<ColumnTotalCell>
+                label="Figures on the line"
+                items={totals.columnTotals.cells}
+                onChange={(cells) =>
+                  onProps({
+                    totals: {
+                      ...totals,
+                      columnTotals: { ...totals.columnTotals!, cells },
+                    },
+                  })
+                }
+                max={9}
+                addLabel="Add figure"
+                itemLabel={(i, c) =>
+                  COLUMN_LABELS[c.column] ?? `Figure ${i + 1}`
+                }
+                newItem={() => ({
+                  column: "qty",
+                  path: "totals.totalQty",
+                  emphasis: false,
+                })}
+                render={(c, patch) => (
+                  <FormGrid cols={3}>
+                    <FormField label="Under column">
+                      <SelectField
+                        value={c.column}
+                        onChange={(v) => patch({ column: v as LineColumnKey })}
+                        options={keyOptions}
+                      />
+                    </FormField>
+                    <PathSelect
+                      label="Figure"
+                      kind={kind}
+                      kinds={["money", "number"]}
+                      value={c.path}
+                      onChange={(path) => patch({ path })}
+                    />
+                    <SwitchField
+                      label="Emphasis"
+                      checked={c.emphasis}
+                      onChange={(emphasis) => patch({ emphasis })}
+                    />
+                  </FormGrid>
+                )}
+              />
+            </>
+          )}
           <FormGrid>
             <FormField
               label="Label spans"
@@ -688,6 +782,18 @@ function SignOffForm({ block, kind, onProps }: Props<"signOff">) {
           onChange={(right) => onProps({ right: right || undefined })}
           hint="Leave empty for one line only."
         />
+      </FormGrid>
+      <FormGrid>
+        <FormField label="Label position">
+          <SelectField
+            value={block.props.labelAlign ?? "center"}
+            onChange={(v) => onProps({ labelAlign: v as "center" | "left" })}
+            options={[
+              { value: "center", label: "Centred on the rule" },
+              { value: "left", label: "Ranged left, over the name" },
+            ]}
+          />
+        </FormField>
       </FormGrid>
       <SwitchField
         label="Print the signatory under the left line"

@@ -245,7 +245,11 @@ const proposal: TemplateDoc = {
     {
       id: "signoff",
       type: "signOff",
-      props: { left: "Approved By", includeSignatory: true },
+      props: {
+        left: "Approved By",
+        includeSignatory: true,
+        labelAlign: "center",
+      },
     },
   ],
 };
@@ -436,6 +440,7 @@ const invoice: TemplateDoc = {
         left: "Approved By",
         right: "Received By",
         includeSignatory: false,
+        labelAlign: "center",
       },
     },
   ],
@@ -567,6 +572,7 @@ const challan: TemplateDoc = {
         left: "Delivered By",
         right: "Received By",
         includeSignatory: false,
+        labelAlign: "center",
       },
     },
   ],
@@ -629,21 +635,69 @@ const payslip: TemplateDoc = {
       props: {
         header: { label: "Basis", value: "Amount (BDT)" },
         headerRule: "hairline",
+        // Three ways a line can have been computed, each showing its own
+        // working: a shareholding (the live scheme), a fixed salary, and the
+        // percentage of revenue the first version of payroll used.
         rows: [
+          {
+            label: "Gross profit for the month",
+            value: "{{pool.grossProfitMinor}}",
+            strong: false,
+            showIf: "hasShares",
+          },
+          {
+            label: "Less order costs",
+            value: "{{pool.orderCostsMinor}}",
+            strong: false,
+            showIf: "hasShares",
+          },
+          {
+            label: "Less client visits",
+            value: "{{pool.expensesMinor}}",
+            strong: false,
+            showIf: "hasShares",
+          },
+          {
+            label: "Less AIT withheld by clients",
+            value: "{{pool.aitMinor}}",
+            strong: false,
+            showIf: "hasShares",
+          },
+          {
+            label: "Less fixed salaries",
+            value: "{{pool.salariesMinor}}",
+            strong: false,
+            showIf: "hasShares",
+          },
+          {
+            label: "Split between the directors",
+            value: "{{pool.distributableMinor}}",
+            strong: true,
+            showIf: "hasShares",
+          },
+          {
+            label: "Shares held",
+            value: "{{shares}} of {{poolShares}} ({{holdingPercent}}%)",
+            strong: false,
+            showIf: "hasShares",
+          },
           {
             label: "Revenue from the website",
             value: "{{onlineMinor}}",
             strong: false,
+            showIf: "hasRate",
           },
           {
             label: "Revenue from sales orders",
             value: "{{manualMinor}}",
             strong: false,
+            showIf: "hasRate",
           },
           {
             label: "Total revenue for the month",
             value: "{{revenueMinor}}",
             strong: true,
+            showIf: "hasRate",
           },
           {
             label: "Agreed share",
@@ -655,7 +709,7 @@ const payslip: TemplateDoc = {
             label: "Basis",
             value: "Fixed monthly",
             strong: false,
-            showIf: "!hasRate",
+            showIf: "isFixed",
           },
           {
             label: "Payable this month",
@@ -690,6 +744,7 @@ const payslip: TemplateDoc = {
         left: "Approved By",
         right: "Received By",
         includeSignatory: false,
+        labelAlign: "center",
       },
     },
   ],

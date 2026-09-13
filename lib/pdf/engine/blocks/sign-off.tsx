@@ -21,16 +21,21 @@ export function SignOffBlock({
   ctx,
   kind,
 }: BlockProps<"signOff">) {
-  const { left, right, includeSignatory } = block.props;
+  const { left, right, includeSignatory, labelAlign } = block.props;
   const signatory = includeSignatory ? ctx.signatory : undefined;
+  const label = [
+    styles.small,
+    styles.label,
+    styles.signLabel,
+    // The theme centres the label; a template may range it left instead.
+    labelAlign === "left" ? { textAlign: "left" as const } : {},
+  ];
   return (
     <View style={[styles.signRow, frameStyle(block, styles)]} wrap={false}>
       <View style={styles.signBox}>
         <View style={{ height: 26 }} />
         <View style={styles.signLine}>
-          <Text style={[styles.small, styles.label, styles.signLabel]}>
-            {interpolate(left, ctx, kind)}
-          </Text>
+          <Text style={label}>{interpolate(left, ctx, kind)}</Text>
         </View>
         {signatory ? (
           /* Ranged left under the rule: a centred address block reads as a
@@ -55,9 +60,7 @@ export function SignOffBlock({
         <View style={styles.signBox}>
           <View style={{ height: 26 }} />
           <View style={styles.signLine}>
-            <Text style={[styles.small, styles.label, styles.signLabel]}>
-              {interpolate(right, ctx, kind)}
-            </Text>
+            <Text style={label}>{interpolate(right, ctx, kind)}</Text>
           </View>
         </View>
       ) : null}

@@ -67,6 +67,24 @@ export default async function PayrollPage({
             online: formatBDT(run.data.revenue.onlineMinor, "en"),
             manual: formatBDT(run.data.revenue.manualMinor, "en"),
           },
+          // Absent on a month approved under the percentage scheme.
+          pool: run.data.pool
+            ? {
+                grossProfit: formatBDT(run.data.pool.grossProfitMinor, "en"),
+                orderCosts: formatBDT(run.data.pool.orderCostsMinor, "en"),
+                expenses: formatBDT(run.data.pool.expensesMinor, "en"),
+                ait: formatBDT(run.data.pool.aitMinor, "en"),
+                netCash: formatBDT(run.data.pool.netCashMinor, "en"),
+                salaries: formatBDT(run.data.pool.salariesMinor, "en"),
+                distributable: formatBDT(
+                  run.data.pool.distributableMinor,
+                  "en",
+                ),
+                totalShares: run.data.pool.totalShares,
+                allocatedShares: run.data.pool.allocatedShares,
+                nothingToSplit: run.data.pool.distributableMinor <= 0,
+              }
+            : null,
           total: formatBDT(run.data.totalMinor, "en"),
           reimbursements: run.data.reimbursements.map((r) => ({
             employeeId: String(r.employeeId),
@@ -83,7 +101,12 @@ export default async function PayrollPage({
             employeeId: String(l.employeeId),
             name: l.name,
             designation: l.designation,
-            rateLabel: l.rateBp == null ? "fixed" : `${rateLabel(l.rateBp)}%`,
+            rateLabel:
+              typeof l.shares === "number"
+                ? `${l.shares.toLocaleString("en-BD")} of ${(l.poolShares ?? 0).toLocaleString("en-BD")} shares`
+                : l.rateBp == null
+                  ? "fixed"
+                  : `${rateLabel(l.rateBp)}%`,
             amount: formatBDT(l.amountMinor, "en"),
             paidAt: l.paidAt ? new Date(l.paidAt).toISOString() : null,
             reference: l.reference ?? null,
@@ -95,7 +118,7 @@ export default async function PayrollPage({
     <div className="space-y-4">
       <AdminPageHeader
         title="Payroll"
-        description="Directors are paid a share of the month's revenue — website and sales orders together."
+        description="Directors split the month's cash after AIT, less fixed salaries, in proportion to the shares they hold."
       />
 
       <SectionCard title="Month">

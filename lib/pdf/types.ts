@@ -147,6 +147,22 @@ export type PayslipData = {
   revenueMinor: number;
   onlineMinor: number;
   manualMinor: number;
+  /**
+   * The month's pool and this director's holding in it. Absent on a payslip
+   * for a month computed under the percentage scheme, which carries `rateBp`
+   * instead; a fixed salary carries neither.
+   */
+  pool?: {
+    grossProfitMinor: number;
+    orderCostsMinor: number;
+    expensesMinor: number;
+    aitMinor: number;
+    netCashMinor: number;
+    salariesMinor: number;
+    distributableMinor: number;
+    totalShares: number;
+  } | null;
+  shares?: number | null;
   rateBp: number | null;
   amountMinor: number;
   paidAt?: Date | null;

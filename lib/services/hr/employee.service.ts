@@ -11,15 +11,28 @@ import type { Lean } from "@/lib/models/_shared";
 import type {
   EmployeeCreateInput,
   EmployeeUpdateInput,
-  ShareRateInput,
+  ShareholdingInput,
+  SharePoolInput,
 } from "@/lib/schemas/hr";
 import { monthOf, type PayrollMonth } from "@/lib/hr/months";
+import { getSetting, setSetting } from "@/lib/repositories/settings.repo";
+import {
+  EMPTY_POOL,
+  SHARE_POOL_KEY,
+  type SharePool,
+} from "@/lib/hr/share-pool";
 
-/** Employee records and the history of their revenue shares. */
+/** Employee records, their shareholdings, and the pool those are drawn from. */
 
 export type Actor = { sub: string; email: string };
 
-export type HrError = "not_found" | "duplicate_user";
+export type HrError =
+  | "not_found"
+  | "duplicate_user"
+  /** The allocation would take more shares than the pool has left. */
+  | "pool_exceeded"
+  /** No pool has been set, so there is nothing to allocate from. */
+  | "no_pool";
 export type HrResult<T> = { ok: true; data: T } | { ok: false; code: HrError };
 
 const fail = (code: HrError): HrResult<never> => ({ ok: false, code });
@@ -48,6 +61,20 @@ export async function createEmployee(
   actor: Actor,
 ): Promise<HrResult<Lean<IEmployee>>> {
   await connectToDatabase();
+  // Check the pool BEFORE the person exists: a refusal after the insert would
+  // leave a record behind while the form reports a failure.
+  const opening =
+    typeof input.shares === "number" && input.shares > 0
+      ? {
+          shares: input.shares,
+          from: input.sharesFrom ?? monthOf(new Date(input.joinedAt)),
+        }
+      : null;
+  if (opening) {
+    const room = await roomInPool(null, opening.from);
+    if (!room.ok) return room;
+    if (opening.shares > room.data) return fail("pool_exceeded");
+  }
   try {
     const doc = await Employee.create({
       code: employeeCode(),
@@ -66,15 +93,15 @@ export async function createEmployee(
       notes: clean(input.notes),
     });
 
-    // An opening share can be set while creating the record; it is stored as
-    // the first entry in the rate history like any other.
-    if (typeof input.rateBp === "number") {
+    // The opening holding, already checked against the pool above, goes in
+    // as the first entry in the history like any other.
+    if (opening) {
       await EmployeeShareRate.create({
         employeeId: doc._id,
-        rateBp: input.rateBp,
-        effectiveFrom: input.rateFrom ?? monthOf(new Date(input.joinedAt)),
+        shares: opening.shares,
+        effectiveFrom: opening.from,
         createdBy: actor.sub,
-        note: "Opening rate",
+        note: "Opening holding",
       });
     }
     return done(doc.toObject() as Lean<IEmployee>);
@@ -127,9 +154,83 @@ export async function softDeleteEmployee(id: string): Promise<boolean> {
   return res.matchedCount > 0;
 }
 
-// ───────────────────────────── share rates ─────────────────────────────
+// ───────────────────────────── the share pool ─────────────────────────────
 
-export async function listRates(
+export async function getSharePool(): Promise<SharePool> {
+  const stored = await getSetting<Partial<SharePool>>(SHARE_POOL_KEY).catch(
+    () => null,
+  );
+  if (!stored || typeof stored.totalShares !== "number") return EMPTY_POOL;
+  return {
+    totalShares: stored.totalShares,
+    faceValueMinor: stored.faceValueMinor ?? null,
+  };
+}
+
+/**
+ * Set the pool.
+ *
+ * Shrinking it below what directors already hold is refused: those holdings
+ * would add up to more than the whole, and a month's split would pay out more
+ * than the pool. Approved months are frozen and unaffected either way.
+ */
+export async function setSharePool(
+  input: SharePoolInput,
+): Promise<HrResult<SharePool>> {
+  const held = await allocatedShares(monthOf(new Date()));
+  if (input.totalShares < held) return fail("pool_exceeded");
+  const pool: SharePool = {
+    totalShares: input.totalShares,
+    faceValueMinor: input.faceValueMinor ?? null,
+  };
+  await setSetting(SHARE_POOL_KEY, pool);
+  return done(pool);
+}
+
+/**
+ * Shares held by everyone as of `month` — the newest holding at or before
+ * that month, per director, added up. Someone who has left or been removed
+ * still counts while their holding says they hold something: selling out is
+ * recorded as a holding of zero, not by deleting the person.
+ */
+export async function allocatedShares(
+  month: PayrollMonth,
+  except?: string,
+): Promise<number> {
+  await connectToDatabase();
+  const rows = await EmployeeShareRate.find({ effectiveFrom: { $lte: month } })
+    .sort({ effectiveFrom: -1, createdAt: -1 })
+    .lean<{ employeeId: unknown; shares?: number | null }[]>()
+    .exec();
+  const seen = new Set<string>();
+  let total = 0;
+  for (const r of rows) {
+    const id = String(r.employeeId);
+    if (id === except || seen.has(id)) continue;
+    seen.add(id);
+    total += r.shares ?? 0;
+  }
+  return total;
+}
+
+/**
+ * How many shares a new holding may take from `month`. `employeeId` is whose
+ * current holding the new row replaces (and so is not counted); null for a
+ * person who does not exist yet.
+ */
+async function roomInPool(
+  employeeId: string | null,
+  month: PayrollMonth,
+): Promise<HrResult<number>> {
+  const pool = await getSharePool();
+  if (pool.totalShares <= 0) return fail("no_pool");
+  const others = await allocatedShares(month, employeeId ?? undefined);
+  return done(Math.max(0, pool.totalShares - others));
+}
+
+// ───────────────────────────── shareholdings ─────────────────────────────
+
+export async function listHoldings(
   employeeId: string,
 ): Promise<Lean<IEmployeeShareRate>[]> {
   await connectToDatabase();
@@ -140,17 +241,27 @@ export async function listRates(
     .exec();
 }
 
-export async function addRate(
+/**
+ * Record a new holding from a month.
+ *
+ * Checked against the pool as of that month, less what everyone else holds
+ * then — this director's own current holding is not counted, because the new
+ * row replaces it rather than adding to it.
+ */
+export async function addHolding(
   employeeId: string,
-  input: ShareRateInput,
+  input: ShareholdingInput,
   actor: Actor,
 ): Promise<HrResult<Lean<IEmployeeShareRate>>> {
   await connectToDatabase();
   const employee = await getEmployee(employeeId);
   if (!employee) return fail("not_found");
+  const room = await roomInPool(employeeId, input.effectiveFrom);
+  if (!room.ok) return room;
+  if (input.shares > room.data) return fail("pool_exceeded");
   const doc = await EmployeeShareRate.create({
     employeeId,
-    rateBp: input.rateBp,
+    shares: input.shares,
     effectiveFrom: input.effectiveFrom,
     createdBy: actor.sub,
     note: clean(input.note),
@@ -159,23 +270,31 @@ export async function addRate(
 }
 
 /**
- * The rate in force for `month`: the newest record effective at or before it.
+ * The holding in force for `month`: the newest record effective at or before
+ * it. Null when nothing has been recorded yet — that director is not on the
+ * month's payroll at all, which is what "only from when they joined" means.
  *
  * String comparison is exact for "YYYY-MM", so the query needs no date maths —
- * and a rate added later with an earlier effective month still applies, which
- * is what makes a backdated correction possible.
+ * and a holding added later with an earlier effective month still applies,
+ * which is what makes a backdated correction possible.
+ *
+ * A legacy percentage row (no `shares`) comes back as `{ rateBp }` so a month
+ * nobody has migrated still computes the way it was agreed.
  */
-export async function rateForMonth(
+export async function holdingForMonth(
   employeeId: string,
   month: PayrollMonth,
-): Promise<number | null> {
+): Promise<{ shares: number } | { rateBp: number } | null> {
   await connectToDatabase();
   const doc = await EmployeeShareRate.findOne({
     employeeId,
     effectiveFrom: { $lte: month },
   })
     .sort({ effectiveFrom: -1, createdAt: -1 })
-    .lean<{ rateBp: number }>()
+    .lean<{ shares?: number | null; rateBp?: number | null }>()
     .exec();
-  return doc?.rateBp ?? null;
+  if (!doc) return null;
+  if (typeof doc.shares === "number") return { shares: doc.shares };
+  if (typeof doc.rateBp === "number") return { rateBp: doc.rateBp };
+  return null;
 }

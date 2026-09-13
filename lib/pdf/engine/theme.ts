@@ -127,6 +127,12 @@ function build(theme: Theme) {
       borderBottomWidth: 0.5,
       borderColor: rule,
     },
+    /** A totals line with nothing stacked beneath it: the rule above, no hairline below. */
+    trTotalsOnly: {
+      flexDirection: "row",
+      borderTopWidth: 1,
+      borderColor: rule,
+    },
     th: {
       fontFamily: font.bold,
       fontSize: tableSize,

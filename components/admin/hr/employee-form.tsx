@@ -32,9 +32,9 @@ export type EmployeeFormValues = {
   accountName: string;
   accountNumber: string;
   routingNumber: string;
-  /** Only offered when creating; afterwards a rate is added to the history. */
-  ratepercent?: string;
-  rateFrom?: string;
+  /** Only offered when creating; afterwards a holding is added to the history. */
+  shares?: string;
+  sharesFrom?: string;
 };
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -56,8 +56,8 @@ const EMPTY: EmployeeFormValues = {
   accountName: "",
   accountNumber: "",
   routingNumber: "",
-  ratepercent: "",
-  rateFrom: thisMonth(),
+  shares: "",
+  sharesFrom: thisMonth(),
 } as EmployeeFormValues;
 
 export function EmployeeForm({ employee }: { employee?: EmployeeFormValues }) {
@@ -95,9 +95,9 @@ export function EmployeeForm({ employee }: { employee?: EmployeeFormValues }) {
           routingNumber: v.routingNumber,
         },
       };
-      if (isNew && v.ratepercent && Number(v.ratepercent) > 0) {
-        payload.rateBp = Math.round(Number(v.ratepercent) * 100);
-        payload.rateFrom = v.rateFrom;
+      if (isNew && v.shares && Number(v.shares) > 0) {
+        payload.shares = Math.round(Number(v.shares));
+        payload.sharesFrom = v.sharesFrom;
       }
 
       const res = await fetch(
@@ -112,7 +112,15 @@ export function EmployeeForm({ employee }: { employee?: EmployeeFormValues }) {
       );
       const json = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(formatApiError(json, "Could not save the employee."));
+        const code = (json as { error?: { code?: string } } | null)?.error
+          ?.code;
+        setError(
+          code === "pool_exceeded"
+            ? "That is more shares than the pool has left. Nothing was saved — raise the pool on the employees page, or allocate fewer."
+            : code === "no_pool"
+              ? "No share pool has been set yet. Nothing was saved — set it on the employees page first, or leave the shares empty and allocate later."
+              : formatApiError(json, "Could not save the employee."),
+        );
         return;
       }
       toast.success(employee?.id ? "Employee updated." : "Employee added.");
@@ -174,7 +182,7 @@ export function EmployeeForm({ employee }: { employee?: EmployeeFormValues }) {
           </FormField>
           <FormField
             label="Paid by"
-            hint="Only a revenue share is calculated today."
+            hint="A shareholder's month is their share of the profit after salaries."
           >
             <SelectField
               value={v.payScheme}
@@ -182,7 +190,7 @@ export function EmployeeForm({ employee }: { employee?: EmployeeFormValues }) {
                 set("payScheme", x as EmployeeFormValues["payScheme"])
               }
               options={[
-                { value: "revenue_share", label: "Share of revenue" },
+                { value: "revenue_share", label: "Shareholder" },
                 { value: "fixed", label: "Fixed monthly" },
                 { value: "none", label: "Not paid through payroll" },
               ]}
@@ -217,21 +225,24 @@ export function EmployeeForm({ employee }: { employee?: EmployeeFormValues }) {
         {isNew && v.payScheme === "revenue_share" && (
           <FormGrid cols={2}>
             <FormField
-              label="Revenue share (%)"
-              hint="Can be changed later; past months keep the rate they were paid at."
+              label="Shares held"
+              hint="From the company's share pool. Can be changed later; past months keep the holding they were paid on."
             >
               <Input
-                value={v.ratepercent ?? ""}
-                onChange={(e) => set("ratepercent", e.target.value)}
-                inputMode="decimal"
-                placeholder="20"
+                value={v.shares ?? ""}
+                onChange={(e) => set("shares", e.target.value)}
+                inputMode="numeric"
+                placeholder="2000"
               />
             </FormField>
-            <FormField label="From month">
+            <FormField
+              label="From month"
+              hint="The first payroll month they are paid for — not before they joined."
+            >
               <Input
                 type="month"
-                value={v.rateFrom ?? thisMonth()}
-                onChange={(e) => set("rateFrom", e.target.value)}
+                value={v.sharesFrom ?? thisMonth()}
+                onChange={(e) => set("sharesFrom", e.target.value)}
               />
             </FormField>
           </FormGrid>

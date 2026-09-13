@@ -1,6 +1,10 @@
 import React from "react";
 import { Text, View } from "@react-pdf/renderer";
-import type { LineColumn, LineColumnKey } from "@/lib/schemas/pdf-template";
+import type {
+  ColumnTotals,
+  LineColumn,
+  LineColumnKey,
+} from "@/lib/schemas/pdf-template";
 import { needsVatColumn, vatCell, type DocumentLine } from "../../types";
 import { formatTaka } from "../../format";
 import { formatPath, interpolate, isPresent, resolvePath } from "../resolve";
@@ -28,6 +32,66 @@ function alignStyle(align: LineColumn["align"], styles: Styles) {
     : align === "left"
       ? styles.tdText
       : {};
+}
+
+/**
+ * The column-aligned totals line, laid out on the same grid as the items.
+ *
+ * Walks the visible columns in order: a column with a figure gets its own
+ * cell; a run of columns without one merges into a single span, and the
+ * first such run — the one before any figure — carries the label, ranged
+ * right so it sits against the first figure. One span rather than one box
+ * per empty column is what keeps this reading as a totals line and not as
+ * an extra, mostly empty, item row.
+ */
+type AlignedCell =
+  | { kind: "span"; weight: number; label?: string; last: boolean }
+  | {
+      kind: "figure";
+      weight: number;
+      column: LineColumn;
+      text: string;
+      emphasis: boolean;
+      last: boolean;
+    };
+
+function alignedCells(
+  columns: LineColumn[],
+  totals: ColumnTotals,
+  format: (path: string) => string,
+): AlignedCell[] {
+  const byKey = new Map(totals.cells.map((c) => [c.column, c]));
+  const out: AlignedCell[] = [];
+  let labelPlaced = false;
+  for (const [i, col] of columns.entries()) {
+    const last = i === columns.length - 1;
+    const cell = byKey.get(col.key);
+    if (cell) {
+      out.push({
+        kind: "figure",
+        weight: col.weight,
+        column: col,
+        text: format(cell.path),
+        emphasis: cell.emphasis,
+        last,
+      });
+      continue;
+    }
+    const prev = out[out.length - 1];
+    if (prev?.kind === "span") {
+      prev.weight += col.weight;
+      prev.last = last;
+    } else {
+      out.push({
+        kind: "span",
+        weight: col.weight,
+        label: labelPlaced ? undefined : totals.label,
+        last,
+      });
+      labelPlaced = true;
+    }
+  }
+  return out;
 }
 
 function cellText(key: LineColumnKey, line: DocumentLine, n: number): string {
@@ -89,12 +153,21 @@ export function LineTableBlock({
   const valueWeight = weight([...valueSet]);
   const valueIsLast = lastKey != null && valueSet.has(lastKey);
 
+  const aligned = totals?.columnTotals
+    ? alignedCells(columns, totals.columnTotals, (p) =>
+        formatPath(ctx, kind, p),
+      )
+    : null;
+
   return (
     <View
       style={[styles.table, frameStyle(block, styles)]}
       {...frameProps(block)}
     >
-      <View style={styles.trHead}>
+      {/* `fixed` inside a wrapping table repeats the head at the top of
+          every page the rows spill onto, so a continuation reads as a table
+          and not as a run of unlabelled cells. */}
+      <View style={styles.trHead} fixed>
         {columns.map((c) => (
           <Text
             key={c.key}
@@ -125,8 +198,47 @@ export function LineTableBlock({
         </View>
       ))}
 
+      {aligned ? (
+        // The full rule above it marks the end of the items; the row is the
+        // start of the totals whether or not a stack follows.
+        <View
+          style={totalsRows.length ? styles.trTotalsStart : styles.trTotalsOnly}
+        >
+          {aligned.map((c, i) =>
+            c.kind === "span" ? (
+              <Text
+                key={i}
+                style={[
+                  styles.td,
+                  styles.tdNum,
+                  col(c.weight, c.last),
+                  styles.label,
+                ]}
+              >
+                {c.label ? interpolate(c.label, ctx, kind) : ""}
+              </Text>
+            ) : (
+              <Text
+                key={i}
+                style={[
+                  styles.td,
+                  alignStyle(c.column.align, styles),
+                  col(c.weight, c.last),
+                  styles.label,
+                  c.emphasis ? styles.tdStrong : {},
+                ]}
+              >
+                {c.text}
+              </Text>
+            ),
+          )}
+        </View>
+      ) : null}
+
       {totalsRows.map((r, i) => {
-        const first = i === 0;
+        // With an aligned line above, the stack continues under a hairline
+        // rather than opening the totals with a second full rule.
+        const first = i === 0 && !aligned;
         const last = i === totalsRows.length - 1;
         const row = first
           ? styles.trTotalsStart

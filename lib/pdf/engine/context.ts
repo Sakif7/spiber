@@ -138,6 +138,27 @@ export function buildPayslipContext(data: PayslipData): RenderContext {
     amountMinor: data.amountMinor,
     ratePercent: data.rateBp != null ? data.rateBp / 100 : null,
     hasRate: data.rateBp != null,
+    // The shareholding basis. A payslip shows its working, so every step of
+    // the pool is offered as a path even if a template prints only the last.
+    hasShares: data.shares != null && data.pool != null,
+    isFixed: data.shares == null && data.rateBp == null,
+    shares: data.shares ?? null,
+    poolShares: data.pool?.totalShares ?? null,
+    holdingPercent:
+      data.shares != null && data.pool && data.pool.totalShares > 0
+        ? Math.round((data.shares / data.pool.totalShares) * 10000) / 100
+        : null,
+    pool: data.pool
+      ? {
+          grossProfitMinor: data.pool.grossProfitMinor,
+          orderCostsMinor: data.pool.orderCostsMinor,
+          expensesMinor: data.pool.expensesMinor,
+          aitMinor: data.pool.aitMinor,
+          netCashMinor: data.pool.netCashMinor,
+          salariesMinor: data.pool.salariesMinor,
+          distributableMinor: data.pool.distributableMinor,
+        }
+      : null,
     amountInWords: amountInWords(data.amountMinor),
     approvedAt: data.approvedAt ?? null,
     paidAt: data.paidAt ?? null,

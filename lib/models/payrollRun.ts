@@ -5,9 +5,9 @@ import mongoose, { Schema, type Model, type Types } from "mongoose";
  *
  * A run starts as a draft that recomputes whenever it is opened, because money
  * for the month is still arriving. Approving it FREEZES the figures: the
- * revenue snapshot, each rate and each amount are stored, so a payment recorded
- * later, or a percentage changed later, cannot rewrite a month the directors
- * have already been paid for.
+ * pool, each holding and each amount are stored, so a payment recorded later,
+ * or a holding changed later, cannot rewrite a month the directors have
+ * already been paid for.
  */
 export interface IPayrollLine {
   employeeId: Types.ObjectId | string;
@@ -15,7 +15,14 @@ export interface IPayrollLine {
   name: string;
   designation: string;
   payScheme: string;
-  /** The rate in force for this month; null for a scheme without one. */
+  /**
+   * Shares held this month, over the pool's `totalShares` at the time. Null
+   * for a fixed salary, and on a line computed under the old percentage
+   * scheme — those carry `rateBp` instead.
+   */
+  shares?: number | null;
+  poolShares?: number | null;
+  /** Legacy: the percentage in force, for a month approved before shares. */
   rateBp: number | null;
   amountMinor: number;
   paidAt?: Date | null;
@@ -39,10 +46,41 @@ export interface IPayrollReimbursement {
   expenseIds: (Types.ObjectId | string)[];
 }
 
+/**
+ * How the month's pool was arrived at, frozen with the run.
+ *
+ * The sales report's cash after AIT, less the fixed salaries paid this
+ * month, is what the directors divide. Stored step by step so a payslip can
+ * show its working and an approved month can be checked long after the
+ * report has moved on.
+ */
+export interface IPayrollPool {
+  /** The report's "Cash after AIT" for the month. */
+  netCashMinor: number;
+  /** Everything above cash: the terms the report took off to get there. */
+  grossProfitMinor: number;
+  orderCostsMinor: number;
+  expensesMinor: number;
+  aitMinor: number;
+  /** Fixed salaries in this run, taken off before the split. */
+  salariesMinor: number;
+  /** What was split. Never negative. */
+  distributableMinor: number;
+  /** The denominator of every director's fraction, at the time. */
+  totalShares: number;
+  /** Shares held by the directors on this run, added up. */
+  allocatedShares: number;
+}
+
 export interface IPayrollRun {
   /** "YYYY-MM" */
   month: string;
   status: "draft" | "approved";
+  /**
+   * The month's pool. Optional because runs approved under the percentage
+   * scheme have none — read it with a fallback.
+   */
+  pool?: IPayrollPool | null;
   /** What the month's revenue was when the run was last computed. */
   revenue: {
     totalMinor: number;
@@ -87,6 +125,8 @@ const lineSchema = new Schema<IPayrollLine>(
     name: { type: String, required: true },
     designation: { type: String, required: true },
     payScheme: { type: String, required: true },
+    shares: { type: Number, default: null },
+    poolShares: { type: Number, default: null },
     rateBp: { type: Number, default: null },
     amountMinor: { type: Number, required: true, min: 0 },
     paidAt: { type: Date, default: null },
@@ -111,10 +151,26 @@ const reimbursementSchema = new Schema<IPayrollReimbursement>(
   { _id: false },
 );
 
+const poolSchema = new Schema<IPayrollPool>(
+  {
+    netCashMinor: { type: Number, default: 0 },
+    grossProfitMinor: { type: Number, default: 0 },
+    orderCostsMinor: { type: Number, default: 0 },
+    expensesMinor: { type: Number, default: 0 },
+    aitMinor: { type: Number, default: 0 },
+    salariesMinor: { type: Number, default: 0 },
+    distributableMinor: { type: Number, default: 0 },
+    totalShares: { type: Number, default: 0 },
+    allocatedShares: { type: Number, default: 0 },
+  },
+  { _id: false },
+);
+
 const payrollRunSchema = new Schema<IPayrollRun>(
   {
     month: { type: String, required: true, unique: true },
     status: { type: String, enum: ["draft", "approved"], default: "draft" },
+    pool: { type: poolSchema, default: null },
     revenue: {
       totalMinor: { type: Number, default: 0 },
       onlineMinor: { type: Number, default: 0 },

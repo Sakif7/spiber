@@ -3,17 +3,23 @@ import {
   PayrollRun,
   type IPayrollRun,
   type IPayrollLine,
+  type IPayrollPool,
 } from "@/lib/models/payrollRun";
 import { Employee } from "@/lib/models/employee";
 import type { Lean } from "@/lib/models/_shared";
 import { revenueBetween } from "@/lib/repositories/revenue.repo";
+import { salesReport } from "@/lib/repositories/sales-report.repo";
 import {
   monthWindow,
   isPayrollMonth,
   type PayrollMonth,
 } from "@/lib/hr/months";
-import { shareOfRevenue } from "@/lib/hr/payroll-math";
-import { rateForMonth } from "./employee.service";
+import {
+  distributablePool,
+  shareOfPool,
+  shareOfRevenue,
+} from "@/lib/hr/payroll-math";
+import { getSharePool, holdingForMonth } from "./employee.service";
 import {
   reimbursementsForMonth,
   settleReimbursementsFor,
@@ -24,11 +30,13 @@ import {
 /**
  * Monthly payroll.
  *
- * A month is computed from the same revenue figure the dashboard shows —
- * online orders and offline sales orders together, counted when they were paid.
- * While it is a draft it recomputes on every read, because money for the month
- * is still arriving. Approving it freezes everything, so a late payment or a
- * changed percentage cannot alter a month the directors were already paid for.
+ * A month starts from the sales report's cash after AIT — the same figure the
+ * report shows, online and offline together, counted when the money landed.
+ * Fixed salaries come off that, and what is left is split between the
+ * directors in proportion to the shares they hold. While it is a draft it
+ * recomputes on every read, because money for the month is still arriving.
+ * Approving it freezes everything, so a late payment or a changed holding
+ * cannot alter a month the directors were already paid for.
  */
 
 export type Actor = { sub: string; email: string };
@@ -101,6 +109,7 @@ function employedDuring(
 export async function computeMonth(month: PayrollMonth): Promise<
   PayrollResult<{
     revenue: Awaited<ReturnType<typeof revenueBetween>>;
+    pool: IPayrollPool;
     window: { start: Date; end: Date };
     lines: IPayrollLine[];
     totalMinor: number;
@@ -112,46 +121,38 @@ export async function computeMonth(month: PayrollMonth): Promise<
   await connectToDatabase();
 
   const window = monthWindow(month);
-  // Reimbursements are read here but deliberately NOT folded into revenue:
-  // each director's share is a percentage of what the company took, and
-  // handing a lunch receipt back is not a reduction in takings.
-  const [revenue, employees, reimbursements] = await Promise.all([
-    revenueBetween(window.start, window.end),
-    Employee.find({ deletedAt: null, status: "active" })
-      .sort({ name: 1 })
-      .lean<
-        {
-          _id: unknown;
-          code: string;
-          name: string;
-          designation: string;
-          payScheme: string;
-          fixedMonthlyMinor?: number | null;
-          joinedAt: Date;
-          leftAt?: Date | null;
-        }[]
-      >()
-      .exec(),
-    reimbursementsForMonth(month),
-  ]);
+  // Reimbursements are read here but deliberately NOT folded into the pool:
+  // a claim already reduced the month's profit as an expense when it was
+  // approved, and handing the money back is not a second cost.
+  const [revenue, report, sharePool, employees, reimbursements] =
+    await Promise.all([
+      revenueBetween(window.start, window.end),
+      salesReport({ start: window.start, end: window.end }),
+      getSharePool(),
+      Employee.find({ deletedAt: null, status: "active" })
+        .sort({ name: 1 })
+        .lean<
+          {
+            _id: unknown;
+            code: string;
+            name: string;
+            designation: string;
+            payScheme: string;
+            fixedMonthlyMinor?: number | null;
+            joinedAt: Date;
+            leftAt?: Date | null;
+          }[]
+        >()
+        .exec(),
+      reimbursementsForMonth(month),
+    ]);
 
+  const onPayroll = employees.filter((e) => employedDuring(e, window));
   const lines: IPayrollLine[] = [];
-  for (const e of employees) {
-    if (!employedDuring(e, window)) continue;
 
-    if (e.payScheme === "revenue_share") {
-      const rateBp = await rateForMonth(String(e._id), month);
-      if (rateBp == null) continue; // no share agreed yet — nothing to pay
-      lines.push({
-        employeeId: String(e._id),
-        code: e.code,
-        name: e.name,
-        designation: e.designation,
-        payScheme: e.payScheme,
-        rateBp,
-        amountMinor: shareOfRevenue(revenue.totalMinor, rateBp),
-      });
-    } else if (e.payScheme === "fixed" && e.fixedMonthlyMinor) {
+  // Salaries first: they are a bill, and they come off before anyone's share.
+  for (const e of onPayroll) {
+    if (e.payScheme === "fixed" && e.fixedMonthlyMinor) {
       lines.push({
         employeeId: String(e._id),
         code: e.code,
@@ -164,9 +165,63 @@ export async function computeMonth(month: PayrollMonth): Promise<
     }
     // payScheme "none" is deliberately not paid by this run.
   }
+  const salariesMinor = lines.reduce((sum, l) => sum + l.amountMinor, 0);
+
+  const t = report.totals;
+  const distributableMinor = distributablePool(t.netCashMinor, salariesMinor);
+  const pool: IPayrollPool = {
+    netCashMinor: t.netCashMinor,
+    grossProfitMinor: t.profitMinor,
+    orderCostsMinor: t.orderCostMinor,
+    expensesMinor: t.expensesMinor,
+    aitMinor: t.aitMinor,
+    salariesMinor,
+    distributableMinor,
+    totalShares: sharePool.totalShares,
+    allocatedShares: 0,
+  };
+
+  // Then the directors, each by the holding in force for this month. No
+  // holding yet means not on this month's payroll at all — which is how a
+  // director who joined in March is paid nothing for February.
+  for (const e of onPayroll) {
+    if (e.payScheme !== "revenue_share") continue;
+    const holding = await holdingForMonth(String(e._id), month);
+    if (!holding) continue;
+    const base = {
+      employeeId: String(e._id),
+      code: e.code,
+      name: e.name,
+      designation: e.designation,
+      payScheme: e.payScheme,
+    };
+    if ("shares" in holding) {
+      pool.allocatedShares += holding.shares;
+      lines.push({
+        ...base,
+        shares: holding.shares,
+        poolShares: sharePool.totalShares,
+        rateBp: null,
+        amountMinor: shareOfPool(
+          distributableMinor,
+          holding.shares,
+          sharePool.totalShares,
+        ),
+      });
+    } else {
+      // A percentage row nobody has migrated: computed the way it was agreed,
+      // on revenue, so an old month reads back as it was.
+      lines.push({
+        ...base,
+        rateBp: holding.rateBp,
+        amountMinor: shareOfRevenue(revenue.totalMinor, holding.rateBp),
+      });
+    }
+  }
 
   return done({
     revenue,
+    pool,
     window,
     lines,
     totalMinor: lines.reduce((sum, l) => sum + l.amountMinor, 0),
@@ -239,6 +294,7 @@ function draftFrom(
   month: PayrollMonth,
   computed: {
     revenue: Awaited<ReturnType<typeof revenueBetween>>;
+    pool: IPayrollPool;
     window: { start: Date; end: Date };
     totalMinor: number;
     reimbursements: ReimbursementGroup[];
@@ -250,6 +306,7 @@ function draftFrom(
   return {
     month,
     status: "draft" as const,
+    pool: computed.pool,
     lines,
     totalMinor: computed.totalMinor,
     reimbursements: computed.reimbursements,
@@ -289,6 +346,7 @@ export async function approveRun(
     { month, status: { $ne: "approved" } },
     {
       $set: {
+        pool: fresh.data.pool ?? null,
         lines: fresh.data.lines,
         totalMinor: fresh.data.totalMinor,
         reimbursements: fresh.data.reimbursements,

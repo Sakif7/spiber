@@ -65,6 +65,21 @@ export async function GET(
         revenueMinor: run.data.revenue.totalMinor,
         onlineMinor: run.data.revenue.onlineMinor,
         manualMinor: run.data.revenue.manualMinor,
+        // A month from before shareholdings has no pool; the template then
+        // prints the revenue basis that month was actually computed on.
+        pool: run.data.pool
+          ? {
+              grossProfitMinor: run.data.pool.grossProfitMinor,
+              orderCostsMinor: run.data.pool.orderCostsMinor,
+              expensesMinor: run.data.pool.expensesMinor,
+              aitMinor: run.data.pool.aitMinor,
+              netCashMinor: run.data.pool.netCashMinor,
+              salariesMinor: run.data.pool.salariesMinor,
+              distributableMinor: run.data.pool.distributableMinor,
+              totalShares: line.poolShares ?? run.data.pool.totalShares,
+            }
+          : null,
+        shares: line.shares ?? null,
         rateBp: line.rateBp,
         amountMinor: line.amountMinor,
         paidAt: line.paidAt ?? null,

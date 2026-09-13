@@ -122,6 +122,16 @@ These are the things the owner has had to repeat. Treat them as hard rules.
   to a block (rides with it across pages) — stored
   **encrypted** (`PdfAsset`, needs `COMPANY_VAULT_KEY`), undeletable while
   referenced — and always printed by a template that carries them.
+- **Directors are shareholders.** The company issued a fixed pool of shares
+  (Settings `hr.sharePool`, 14,000 at ৳100); each director holds some
+  (`employee_share_rates.shares`, append-only, effective from a month). A
+  payroll month = the sales report's **cash after AIT − fixed salaries**, split
+  by **shares ÷ shares issued** (never ÷ shares allocated — unallocated money
+  stays with the company). A loss month pays salaries and zero shares, never a
+  debt. A claim booked against a client visit therefore does reduce the pool;
+  the reimbursement itself never does. `rateBp` rows are legacy (percentage of
+  revenue) and computed the old way until `migrate-share-rates-to-shares`
+  rewrites them.
 - **Super-admin only:** Documents vault, Sales, People/HR, hard-delete.
 - **Seed data: none in prod.** Empty catalogues show "Coming soon".
 
@@ -257,6 +267,10 @@ tests`, `npm test`, and the browser pass above. Then `git status`.
 - `@react-pdf/renderer` is **server-only**: the template editor previews via
   `POST /api/admin/company/pdf-templates/preview`; client code may import only
   `lib/schemas/pdf-template.ts` and `lib/pdf/engine/{paths,catalogue,defaults}`.
+- A stamp anchored to the **page** stays put when a longer document carries
+  the signature row to the next page; a new stamp now defaults to the
+  signature row, but a template saved earlier may still hold page-anchored
+  seals — check "Anchored to" before blaming the renderer.
 - Text runs are kerned per JSX fragment: `"Subject: " + x` and one string
   differ by sub-pixels. PDF parity is proven by text + Ghostscript pixel diff
   (`gswin64c -sDEVICE=pgmraw`), never by content-stream bytes.
@@ -309,7 +323,10 @@ clip }` that makes body the sticky containing block: a menu inside a sticky
 
 - Bash heredocs here **eat backslashes** (`\\n` → `\n`, regex escapes break).
   Write files containing regexes or JSX `{"\n"}` with the Write/Edit tool, or
-  build the escape with `String.fromCharCode(92)`.
+  build the escape with `String.fromCharCode(92)`. A `\\b` in a heredoc once
+  became a literal **backspace byte** inside a test's regex: the guard never
+  matched, every page was skipped, and the test passed on nothing — `od -c`
+  the line when a new test passes too easily.
 - Use an assert-and-replace runner: every `find` must match exactly N times or
   nothing is written. Use `str.replace(a, () => b)` — a replacement **string**
   treats `$` as a substitution. `split(a).join(b)` takes a string, not a

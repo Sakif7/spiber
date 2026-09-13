@@ -20,16 +20,37 @@ import { StatCard } from "@/components/admin/ui/stat-card";
 import { StatusBadge } from "@/components/admin/ui/status-badge";
 import { SectionCard } from "@/components/admin/ui/section-card";
 import { formatApiError } from "@/lib/http/form-error";
-import { Banknote, Globe, Handshake } from "lucide-react";
+import { Banknote, Globe, Handshake, PieChart, Wallet } from "lucide-react";
 
 export type PayrollLineRow = {
   employeeId: string;
   name: string;
   designation: string;
+  /** "2,000 of 14,000 shares", "fixed", or "20%" on a legacy month. */
   rateLabel: string;
   amount: string;
   paidAt: string | null;
   reference: string | null;
+};
+
+/**
+ * How the month's pool was arrived at, every figure already formatted.
+ *
+ * Null on a month approved under the percentage scheme, which had no pool;
+ * the view then falls back to the revenue cards that month was computed from.
+ */
+export type PayrollPoolView = {
+  grossProfit: string;
+  orderCosts: string;
+  expenses: string;
+  ait: string;
+  netCash: string;
+  salaries: string;
+  distributable: string;
+  totalShares: number;
+  allocatedShares: number;
+  /** True when the month came out at or below zero after salaries. */
+  nothingToSplit: boolean;
 };
 
 export type ReimbursementRow = {
@@ -44,7 +65,8 @@ export type PayrollViewData = {
   monthLabel: string;
   status: "draft" | "approved";
   revenue: { total: string; online: string; manual: string };
-  /** The revenue share alone. */
+  pool: PayrollPoolView | null;
+  /** Shares and salaries alone. */
   total: string;
   /** Expenses being handed back this month, added on top of the share. */
   reimbursements: ReimbursementRow[];
@@ -116,7 +138,7 @@ export function PayrollView({ data }: { data: PayrollViewData }) {
     },
     {
       key: "rate",
-      header: "Share",
+      header: "Holding",
       mobile: "meta",
       cell: (r) => <span className="font-mono text-xs">{r.rateLabel}</span>,
     },
@@ -178,40 +200,118 @@ export function PayrollView({ data }: { data: PayrollViewData }) {
     },
   ];
 
+  const pool = data.pool;
+  const totalCard = (
+    <StatCard
+      label="Payroll total"
+      value={data.total}
+      icon={CheckCircle2}
+      tone={data.status === "approved" ? "success" : "warning"}
+      hint={
+        data.status === "approved"
+          ? `Approved ${data.approvedAt ? new Date(data.approvedAt).toLocaleDateString() : ""}`
+          : "Draft — still recalculating"
+      }
+    />
+  );
+
   return (
     <div className="grid gap-4">
-      <div className="grid items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Revenue this month"
-          value={data.revenue.total}
-          icon={Banknote}
-          tone="brand"
-          hint="Counted when payment was received"
-        />
-        <StatCard
-          label="From the website"
-          value={data.revenue.online}
-          icon={Globe}
-          tone="info"
-        />
-        <StatCard
-          label="From sales orders"
-          value={data.revenue.manual}
-          icon={Handshake}
-          tone="info"
-        />
-        <StatCard
-          label="Payroll total"
-          value={data.total}
-          icon={CheckCircle2}
-          tone={data.status === "approved" ? "success" : "warning"}
-          hint={
-            data.status === "approved"
-              ? `Approved ${data.approvedAt ? new Date(data.approvedAt).toLocaleDateString() : ""}`
-              : "Draft — still recalculating"
-          }
-        />
-      </div>
+      {pool ? (
+        <div className="grid items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard
+            label="Cash after AIT"
+            value={pool.netCash}
+            icon={Banknote}
+            tone="brand"
+            hint="The sales report's figure for this month"
+          />
+          <StatCard
+            label="Fixed salaries"
+            value={pool.salaries}
+            icon={Wallet}
+            tone="info"
+            hint="Paid before any share"
+          />
+          <StatCard
+            label="Split between directors"
+            value={pool.distributable}
+            icon={PieChart}
+            tone={pool.nothingToSplit ? "warning" : "info"}
+            hint={
+              pool.totalShares > 0
+                ? `${pool.allocatedShares.toLocaleString("en-BD")} of ${pool.totalShares.toLocaleString("en-BD")} shares held`
+                : "No share pool set"
+            }
+          />
+          {totalCard}
+        </div>
+      ) : (
+        <div className="grid items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard
+            label="Revenue this month"
+            value={data.revenue.total}
+            icon={Banknote}
+            tone="brand"
+            hint="Counted when payment was received"
+          />
+          <StatCard
+            label="From the website"
+            value={data.revenue.online}
+            icon={Globe}
+            tone="info"
+          />
+          <StatCard
+            label="From sales orders"
+            value={data.revenue.manual}
+            icon={Handshake}
+            tone="info"
+          />
+          {totalCard}
+        </div>
+      )}
+
+      {pool && (
+        <SectionCard
+          title="How the pool was worked out"
+          description="The same figures as the sales report for this month, then salaries off the top."
+        >
+          <dl className="grid gap-1.5 text-sm sm:max-w-md">
+            {(
+              [
+                ["Gross profit", pool.grossProfit, ""],
+                ["Order costs", pool.orderCosts, "−"],
+                ["Client visits", pool.expenses, "−"],
+                ["AIT withheld by clients", pool.ait, "−"],
+                ["Cash after AIT", pool.netCash, "="],
+                ["Fixed salaries", pool.salaries, "−"],
+                ["Split between directors", pool.distributable, "="],
+              ] as const
+            ).map(([label, value, sign]) => (
+              <div
+                key={label}
+                className={`flex items-baseline justify-between gap-4 ${sign === "=" ? "border-t pt-1.5 font-medium" : ""}`}
+              >
+                <dt className={sign === "=" ? "" : "text-muted-foreground"}>
+                  {label}
+                </dt>
+                <dd className="tabular-nums">
+                  {sign === "−" && (
+                    <span className="text-muted-foreground mr-1">−</span>
+                  )}
+                  {value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+          {pool.nothingToSplit && (
+            <p className="text-muted-foreground mt-3 text-xs">
+              The month did not clear its salaries, so there is nothing to
+              split. Nobody owes anything back.
+            </p>
+          )}
+        </SectionCard>
+      )}
 
       <SectionCard
         title={data.monthLabel}
@@ -261,7 +361,7 @@ export function PayrollView({ data }: { data: PayrollViewData }) {
           columns={columns}
           rows={data.lines}
           getRowKey={(r) => r.employeeId}
-          empty="Nobody is on a revenue share for this month yet."
+          empty="Nobody held shares or drew a salary this month."
           minWidth={720}
         />
       </SectionCard>

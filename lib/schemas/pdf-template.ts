@@ -135,6 +135,33 @@ export const totalsRowSchema = z.object({
 });
 export type TotalsRow = z.infer<typeof totalsRowSchema>;
 
+/**
+ * One figure on the column-aligned totals line, printed directly under the
+ * column it names — the quantity total under Qty, the subtotal under the
+ * amount column — rather than in the stack's single figure cell.
+ */
+export const columnTotalCellSchema = z.object({
+  column: lineColumnKeySchema,
+  path: contextPathSchema,
+  /** Tinted and bold. */
+  emphasis: z.boolean().default(false),
+});
+export type ColumnTotalCell = z.infer<typeof columnTotalCellSchema>;
+
+/**
+ * A totals line that keeps the columns.
+ *
+ * The first row after the items: each cell listed carries its figure under
+ * its own column, the empty run before the first of them carries the label,
+ * and the other empty columns merge into single cells so the line does not
+ * read as a row of boxes. The stacked rows follow beneath it.
+ */
+export const columnTotalsSchema = z.object({
+  label: text,
+  cells: z.array(columnTotalCellSchema).min(1).max(9),
+});
+export type ColumnTotals = z.infer<typeof columnTotalsSchema>;
+
 const stationery = {
   letterhead: base.extend({
     type: z.literal("letterhead"),
@@ -218,6 +245,8 @@ export const blockSchema = z.discriminatedUnion("type", [
           /** Columns merged into the figure cell. */
           valueColumns: z.array(lineColumnKeySchema).min(1),
           rows: z.array(totalsRowSchema).max(12),
+          /** A line under the columns, above the stack. See its schema. */
+          columnTotals: columnTotalsSchema.optional(),
         })
         .optional(),
     }),
@@ -272,6 +301,12 @@ export const blockSchema = z.discriminatedUnion("type", [
       right: z.string().max(40).optional(),
       /** Print the signatory's name and title under the left line. */
       includeSignatory: z.boolean().default(false),
+      /**
+       * Where "Approved By" sits under its rule. Centred is the built-in look;
+       * ranged left lines the label up with the signatory's name beneath it,
+       * which is how the company's own proposals were laid out.
+       */
+      labelAlign: z.enum(["center", "left"]).default("center"),
     }),
   }),
   base.extend({

@@ -460,6 +460,13 @@ export type Receivable = {
   paidMinor: number;
   outstandingMinor: number;
   invoicedAt: string | null;
+  /**
+   * When the goods went out: the day the order was marked delivered, or the
+   * delivery date written on the invoice while it is still on its way. Null
+   * until either is known — an accounts manager chasing a bill wants to know
+   * whether the client even has the goods yet.
+   */
+  deliveredAt: string | null;
   daysOutstanding: number;
 };
 
@@ -490,6 +497,14 @@ export async function receivables(asOf = new Date()): Promise<Receivable[]> {
         : o.createdAt
           ? new Date(o.createdAt)
           : null;
+      const promised = o.invoices?.length
+        ? o.invoices[o.invoices.length - 1].snapshot?.deliveryDate
+        : null;
+      const deliveredAt = o.deliveredAt
+        ? new Date(o.deliveredAt)
+        : promised
+          ? new Date(promised)
+          : null;
       return {
         id: String(o._id),
         ref: o.number ?? String(o._id),
@@ -499,6 +514,7 @@ export async function receivables(asOf = new Date()): Promise<Receivable[]> {
         paidMinor: paid,
         outstandingMinor: Math.max(0, total - paid),
         invoicedAt: invoicedAt ? invoicedAt.toISOString() : null,
+        deliveredAt: deliveredAt ? deliveredAt.toISOString() : null,
         daysOutstanding: invoicedAt
           ? Math.max(
               0,

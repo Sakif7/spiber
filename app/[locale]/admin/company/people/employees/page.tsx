@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { setRequestLocale } from "next-intl/server";
 import {
+  getSharePool,
+  holdingForMonth,
   listEmployees,
-  rateForMonth,
 } from "@/lib/services/hr/employee.service";
 import { monthOf } from "@/lib/hr/months";
 import { rateLabel } from "@/lib/hr/payroll-math";
+import { holdingPercent } from "@/lib/hr/share-pool";
+import { SharePoolCard } from "@/components/admin/hr/share-pool-card";
 import { AdminPageHeader } from "@/components/admin/ui/page-header";
 import { DataTable, type Column } from "@/components/admin/ui/data-table";
 import { StatusBadge } from "@/components/admin/ui/status-badge";
@@ -21,12 +24,15 @@ type Row = {
   designation: string;
   kind: string;
   scheme: string;
-  rate: string;
+  /** "2,000 shares" / "14.29%" / "20% (legacy)" / "—". */
+  holding: string;
+  holdingHint: string | null;
+  shares: number;
   status: string;
 };
 
 const SCHEME_LABEL: Record<string, string> = {
-  revenue_share: "Share of revenue",
+  revenue_share: "Shareholder",
   fixed: "Fixed monthly",
   none: "Not paid here",
 };
@@ -41,15 +47,17 @@ export default async function EmployeesPage({
   setRequestLocale(locale);
 
   const month = monthOf(new Date());
-  const employees = await listEmployees({ includeInactive: true }).catch(
-    () => [],
-  );
+  const [employees, pool] = await Promise.all([
+    listEmployees({ includeInactive: true }).catch(() => []),
+    getSharePool().catch(() => ({ totalShares: 0, faceValueMinor: null })),
+  ]);
   const rows: Row[] = await Promise.all(
     employees.map(async (e) => {
-      const rateBp =
+      const holding =
         e.payScheme === "revenue_share"
-          ? await rateForMonth(String(e._id), month)
+          ? await holdingForMonth(String(e._id), month)
           : null;
+      const shares = holding && "shares" in holding ? holding.shares : 0;
       return {
         id: String(e._id),
         name: e.name,
@@ -57,11 +65,24 @@ export default async function EmployeesPage({
         designation: e.designation,
         kind: e.kind,
         scheme: SCHEME_LABEL[e.payScheme] ?? e.payScheme,
-        rate: rateBp == null ? "—" : `${rateLabel(rateBp)}%`,
+        holding: !holding
+          ? "—"
+          : "shares" in holding
+            ? `${holding.shares.toLocaleString("en-BD")} shares`
+            : `${rateLabel(holding.rateBp)}% (legacy)`,
+        holdingHint:
+          holding && "shares" in holding && pool.totalShares > 0
+            ? `${holdingPercent(holding.shares, pool.totalShares)}% of the pool`
+            : null,
+        shares,
         status: e.status,
       };
     }),
   );
+  // Held by everyone as of this month, for the pool card. Inactive people
+  // count too while their holding says they hold something.
+  const allocated = rows.reduce((n, r) => n + r.shares, 0);
+  const holders = rows.filter((r) => r.shares > 0).length;
 
   const columns: Column<Row>[] = [
     {
@@ -88,11 +109,20 @@ export default async function EmployeesPage({
       cell: (r) => <span className="text-muted-foreground">{r.scheme}</span>,
     },
     {
-      key: "rate",
-      header: "Share now",
+      key: "holding",
+      header: "Holding now",
       align: "right",
       mobile: "meta",
-      cell: (r) => <span className="font-mono text-xs">{r.rate}</span>,
+      cell: (r) => (
+        <span className="block text-right">
+          <span className="font-mono text-xs">{r.holding}</span>
+          {r.holdingHint && (
+            <span className="text-muted-foreground block text-xs">
+              {r.holdingHint}
+            </span>
+          )}
+        </span>
+      ),
     },
     {
       key: "status",
@@ -120,6 +150,12 @@ export default async function EmployeesPage({
             <EmployeeForm />
           </FormPanelButton>
         }
+      />
+      <SharePoolCard
+        totalShares={pool.totalShares}
+        faceValueMinor={pool.faceValueMinor ?? null}
+        allocated={allocated}
+        directors={holders}
       />
       <DataTable
         columns={columns}

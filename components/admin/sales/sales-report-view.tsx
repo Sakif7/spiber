@@ -8,6 +8,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type {
@@ -501,11 +502,12 @@ export function SalesReportView({
 
         {receivables.length > 0 && (
           <div className="bg-card overflow-x-auto rounded-lg shadow-[var(--shadow-sm)]">
-            <table className="w-full min-w-[640px] text-sm">
+            <table className="w-full min-w-[720px] text-sm">
               <thead>
                 <tr className="text-muted-foreground border-b text-left">
                   <th className="px-4 py-2.5 font-semibold">Client</th>
                   <th className="px-4 py-2.5 font-semibold">Invoice</th>
+                  <th className="px-4 py-2.5 font-semibold">Delivered</th>
                   <th className="px-4 py-2.5 text-right font-semibold">
                     Total
                   </th>
@@ -520,7 +522,18 @@ export function SalesReportView({
                   <tr key={r.id} className="border-b">
                     <td className="px-4 py-2.5">{r.client}</td>
                     <td className="px-4 py-2.5 font-mono text-xs">
-                      {r.invoiceNumber ?? r.ref}
+                      {/* Straight to the order, where "Record payment" lives:
+                          this list is the one an accounts manager works
+                          from, and marking a bill paid is the next step. */}
+                      <Link
+                        href={`/admin/company/sales/orders/${r.id}`}
+                        className="text-primary hover:underline"
+                      >
+                        {r.invoiceNumber ?? r.ref}
+                      </Link>
+                    </td>
+                    <td className="text-muted-foreground px-4 py-2.5 text-xs">
+                      {r.deliveredAt ? day(r.deliveredAt) : "—"}
                     </td>
                     <td className="px-4 py-2.5 text-right tabular-nums">
                       {taka(r.totalMinor)}

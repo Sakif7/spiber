@@ -95,7 +95,8 @@ export const BLOCK_CATALOGUE: BlockInfo[] = [
   {
     type: "stamp",
     label: "Stamp",
-    description: "A seal, signature or name stamp at a fixed spot on the page.",
+    description:
+      "A seal, signature or name stamp, riding on the signature row or pinned to a spot on the page.",
   },
 ];
 
@@ -157,8 +158,20 @@ export function newBlockId(): string {
     : Math.random().toString(36).slice(2, 10);
 }
 
-/** A complete, schema-valid block of the given type, with sensible props. */
-export function newBlock(type: BlockType, kind: TemplateKind): Block {
+/**
+ * A complete, schema-valid block of the given type, with sensible props.
+ *
+ * `existing` is the template's current blocks: a new stamp rides on the
+ * signature row when there is one, because that is where a seal or signature
+ * goes — a stamp pinned to a page spot looks right on a one-page sample and
+ * then stays behind when a longer document carries the signature row onto
+ * the next page.
+ */
+export function newBlock(
+  type: BlockType,
+  kind: TemplateKind,
+  existing: Block[] = [],
+): Block {
   const id = newBlockId();
   switch (type) {
     case "title":
@@ -321,6 +334,7 @@ export function newBlock(type: BlockType, kind: TemplateKind): Block {
           left: "Approved By",
           right: "Received By",
           includeSignatory: false,
+          labelAlign: "center",
         },
       };
     case "spacer":
@@ -347,20 +361,39 @@ export function newBlock(type: BlockType, kind: TemplateKind): Block {
         type,
         props: { text: "empowering healthcare", letterSpacing: 3 },
       };
-    case "stamp":
-      // Bottom-left, where a signature usually goes; the editor drags it.
-      return {
-        id,
-        type,
-        props: {
-          assetId: "",
-          anchor: "page",
-          x: 60,
-          y: 700,
-          width: 120,
-          opacity: 1,
-          pages: "last",
-        },
-      };
+    case "stamp": {
+      const signOff = existing.find((b) => b.type === "signOff");
+      // On the signature row when there is one — over the "Approved By" line,
+      // where a pen would go — and otherwise bottom-left of the last page.
+      // The editor's pad drags it from there either way.
+      return signOff
+        ? {
+            id,
+            type,
+            props: {
+              assetId: "",
+              anchor: "block",
+              blockId: signOff.id,
+              x: 0,
+              y: -30,
+              width: 120,
+              opacity: 1,
+              pages: "last",
+            },
+          }
+        : {
+            id,
+            type,
+            props: {
+              assetId: "",
+              anchor: "page",
+              x: 60,
+              y: 700,
+              width: 120,
+              opacity: 1,
+              pages: "last",
+            },
+          };
+    }
   }
 }

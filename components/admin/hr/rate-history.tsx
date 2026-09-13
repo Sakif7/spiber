@@ -18,33 +18,42 @@ import {
 import { DetailCard } from "@/components/admin/ui/detail";
 import { formatApiError } from "@/lib/http/form-error";
 
-export type RateRow = {
-  rateLabel: string;
+export type HoldingRow = {
+  /** "2,000 shares" or, on a legacy row, "20%". */
+  label: string;
+  /** "14.29% of the pool", or null for a legacy row. */
+  fraction: string | null;
   effectiveFrom: string;
   effectiveLabel: string;
   note: string | null;
   addedAt: string;
+  legacy: boolean;
 };
 
 /**
- * The history of someone's revenue share.
+ * The history of someone's shareholding.
  *
- * Changing a percentage adds an entry rather than editing one, so a payroll
- * month already approved keeps the rate it was actually paid at.
+ * Changing a holding adds an entry rather than editing one, so a payroll month
+ * already approved keeps the holding it was actually paid on. A row from the
+ * percentage scheme this replaced is shown as it was, and flagged, until the
+ * migration rewrites it.
  */
 export function RateHistory({
   employeeId,
   payScheme,
   rates,
+  pool,
 }: {
   employeeId: string;
   payScheme: string;
-  rates: RateRow[];
+  rates: HoldingRow[];
+  /** The pool as of now: how many shares are issued and how many are free. */
+  pool: { totalShares: number; unallocated: number };
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [percent, setPercent] = useState("");
+  const [shares, setShares] = useState("");
   const [from, setFrom] = useState(new Date().toISOString().slice(0, 7));
   const [note, setNote] = useState("");
 
@@ -57,7 +66,7 @@ export function RateHistory({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            rateBp: Math.round(Number(percent) * 100),
+            shares: Math.round(Number(shares) || 0),
             effectiveFrom: from,
             note,
           }),
@@ -65,12 +74,20 @@ export function RateHistory({
       );
       const json = await res.json().catch(() => null);
       if (!res.ok) {
-        toast.error(formatApiError(json, "Could not set the share."));
+        const code = (json as { error?: { code?: string } } | null)?.error
+          ?.code;
+        toast.error(
+          code === "pool_exceeded"
+            ? "That is more than the pool has left. Raise the pool first, or allocate fewer."
+            : code === "no_pool"
+              ? "Set the share pool on the employees page before allocating."
+              : formatApiError(json, "Could not record the holding."),
+        );
         return;
       }
-      toast.success("New share recorded.");
+      toast.success("Holding recorded.");
       setOpen(false);
-      setPercent("");
+      setShares("");
       setNote("");
       router.refresh();
     } finally {
@@ -90,16 +107,20 @@ export function RateHistory({
     );
   }
 
+  const noPool = pool.totalShares <= 0;
+
   return (
     <>
       <DetailCard
-        title="Revenue share"
+        title="Shareholding"
         action={
           <Button
             size="sm"
             variant="outline"
             className="gap-1.5"
             onClick={() => setOpen(true)}
+            disabled={noPool}
+            title={noPool ? "Set the share pool first" : undefined}
           >
             <Plus className="size-4" />
             Set new
@@ -108,7 +129,9 @@ export function RateHistory({
       >
         {rates.length === 0 ? (
           <p className="text-muted-foreground text-sm">
-            No share agreed yet — this person is not on any payroll run.
+            {noPool
+              ? "No share pool has been set yet — set it on the employees page, then allocate from it."
+              : "Holds no shares yet — this person is not on any payroll run."}
           </p>
         ) : (
           <div className="grid gap-2">
@@ -118,10 +141,16 @@ export function RateHistory({
                 className="flex items-baseline justify-between gap-2 border-b pb-2 last:border-0 last:pb-0"
               >
                 <span>
-                  <span className="font-medium">{r.rateLabel}</span>
+                  <span className="font-medium">{r.label}</span>
+                  {r.fraction && (
+                    <span className="text-muted-foreground ml-1.5 text-xs">
+                      {r.fraction}
+                    </span>
+                  )}
                   <span className="text-muted-foreground block text-xs">
                     from {r.effectiveLabel}
                     {i === 0 ? " · current" : ""}
+                    {r.legacy ? " · percentage scheme, not migrated" : ""}
                   </span>
                 </span>
                 <span className="text-muted-foreground text-xs">
@@ -131,44 +160,60 @@ export function RateHistory({
             ))}
           </div>
         )}
+        {!noPool && (
+          <p className="text-muted-foreground mt-3 text-xs">
+            Pool: {pool.totalShares.toLocaleString("en-BD")} shares,{" "}
+            {pool.unallocated.toLocaleString("en-BD")} unallocated as of this
+            month.
+          </p>
+        )}
       </DetailCard>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Set a new revenue share</DialogTitle>
+            <DialogTitle>Record a new holding</DialogTitle>
             <DialogDescription>
-              Months already approved keep the rate they were paid at.
+              Months already approved keep the holding they were paid on. This
+              replaces the current holding from the month you choose — enter the
+              total they hold, not the change.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-3">
             <div className="grid gap-1.5">
-              <Label htmlFor="rate-pct">Share (%)</Label>
+              <Label htmlFor="holding-shares">Shares held</Label>
               <Input
-                id="rate-pct"
-                value={percent}
-                onChange={(e) => setPercent(e.target.value)}
-                inputMode="decimal"
-                placeholder="20"
+                id="holding-shares"
+                value={shares}
+                onChange={(e) => setShares(e.target.value)}
+                inputMode="numeric"
+                placeholder="2000"
               />
+              <p className="text-muted-foreground text-xs">
+                Of {pool.totalShares.toLocaleString("en-BD")} in the pool.
+              </p>
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="rate-from">From month</Label>
+              <Label htmlFor="holding-from">From month</Label>
               <Input
-                id="rate-from"
+                id="holding-from"
                 type="month"
                 value={from}
                 onChange={(e) => setFrom(e.target.value)}
               />
+              <p className="text-muted-foreground text-xs">
+                The first payroll month this counts for. Earlier months are
+                untouched.
+              </p>
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="rate-note">Note</Label>
+              <Label htmlFor="holding-note">Note</Label>
               <Input
-                id="rate-note"
+                id="holding-note"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 maxLength={500}
-                placeholder="Board decision, revised terms…"
+                placeholder="Board decision, share transfer…"
               />
             </div>
           </div>
@@ -176,7 +221,7 @@ export function RateHistory({
             <Button variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button disabled={busy || !percent.trim()} onClick={add}>
+            <Button disabled={busy || !shares.trim()} onClick={add}>
               {busy && <Loader2 className="size-4 animate-spin" />}
               Save
             </Button>

@@ -33,30 +33,39 @@ export const employeeCreateSchema = z.object({
   fixedMonthlyMinor: z.number().int().min(0).nullish(),
   bankDetails: employeeBankSchema.optional(),
   notes: z.string().trim().max(2000).optional().or(z.literal("")),
-  /** Convenience: set the opening revenue share while creating the record. */
-  rateBp: z.number().int().min(0).max(10000).optional(),
-  rateFrom: month.optional(),
+  /** Convenience: allocate the opening shareholding while creating the record. */
+  shares: z.number().int().min(0).max(1_000_000).optional(),
+  sharesFrom: month.optional(),
 });
 export type EmployeeCreateInput = z.infer<typeof employeeCreateSchema>;
 
 export const employeeUpdateSchema = employeeCreateSchema
-  .omit({ rateBp: true, rateFrom: true })
+  .omit({ shares: true, sharesFrom: true })
   .partial();
 export type EmployeeUpdateInput = z.infer<typeof employeeUpdateSchema>;
 
 /**
- * A new revenue share, effective from a month.
+ * A new shareholding, effective from a month.
  *
  * Appending rather than editing is what keeps a past payroll month honest — see
  * the model. The month is required so it is always explicit which payroll the
- * change first affects.
+ * change first affects. Zero is allowed: it is how a director who has sold
+ * out is taken off the split without touching the months before.
  */
-export const shareRateSchema = z.object({
-  rateBp: z.number().int().min(0).max(10000),
+export const shareholdingSchema = z.object({
+  shares: z.number().int().min(0).max(1_000_000),
   effectiveFrom: month,
   note: z.string().trim().max(500).optional().or(z.literal("")),
 });
-export type ShareRateInput = z.infer<typeof shareRateSchema>;
+export type ShareholdingInput = z.infer<typeof shareholdingSchema>;
+
+/** The pool every holding is a fraction of. */
+export const sharePoolSchema = z.object({
+  totalShares: z.number().int().min(1).max(100_000_000),
+  /** What one share was bought for, in poisha. Display only. */
+  faceValueMinor: z.number().int().min(0).nullish(),
+});
+export type SharePoolInput = z.infer<typeof sharePoolSchema>;
 
 export const payrollLinePaidSchema = z.object({
   paidAt: z.iso.datetime().optional(),

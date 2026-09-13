@@ -116,7 +116,7 @@ export function PdfTemplateEditor({ initial }: { initial: EditorInitial }) {
     setBlocks(doc.blocks.map((b) => (b.id === next.id ? next : b)));
 
   function addBlock(type: BlockType) {
-    const block = newBlock(type, kind);
+    const block = newBlock(type, kind, doc.blocks);
     const at = selectedId
       ? doc.blocks.findIndex((b) => b.id === selectedId)
       : -1;
