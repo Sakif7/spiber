@@ -1,19 +1,26 @@
 import { z } from "zod";
 import { ok, fail } from "@/lib/http/respond";
 import { parseJson } from "@/lib/http/validate";
-import { moveMessages } from "@/lib/services/mail.service";
+import { moveMessages, moveMessagesTo } from "@/lib/services/mail.service";
 import { guardMailbox, storeError } from "../../../../_guard";
 
 export const dynamic = "force-dynamic";
 
 type Params = { params: Promise<{ address: string; uid: string }> };
 
-const bodySchema = z.object({
-  folder: z.string().min(1).max(200),
-  to: z.enum(["trash", "archive", "inbox", "junk"]),
-});
+const bodySchema = z
+  .object({
+    folder: z.string().min(1).max(200),
+    /** By meaning ("trash") … */
+    to: z.enum(["trash", "archive", "inbox", "junk"]).optional(),
+    /** … or to a folder by path (the "Move to…" menu). */
+    toPath: z.string().min(1).max(200).optional(),
+  })
+  .refine((b) => Boolean(b.to) !== Boolean(b.toPath), {
+    message: "exactly one of to / toPath",
+  });
 
-/** Move by meaning; trash/junk moves are audited by the service. */
+/** Move by meaning or by path; trash/junk moves are audited by the service. */
 export async function POST(req: Request, { params }: Params) {
   const { address, uid } = await params;
   const g = await guardMailbox(address, "move", 120);
@@ -24,14 +31,23 @@ export async function POST(req: Request, { params }: Params) {
     return fail({ code: "invalid_input" }, 400);
   }
   try {
-    const res = await moveMessages(
-      g.access,
-      g.claims,
-      parsed.data.folder,
-      [n],
-      parsed.data.to,
-      req,
-    );
+    const res = parsed.data.to
+      ? await moveMessages(
+          g.access,
+          g.claims,
+          parsed.data.folder,
+          [n],
+          parsed.data.to,
+          req,
+        )
+      : await moveMessagesTo(
+          g.access,
+          g.claims,
+          parsed.data.folder,
+          [n],
+          parsed.data.toPath!,
+          req,
+        );
     if (!res.ok) return fail({ code: res.code }, 409);
     return ok({ uid: n, folder: res.target });
   } catch (e) {

@@ -2,7 +2,14 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "@/i18n/navigation";
-import { Bell, BellOff, CheckCheck, Volume2, VolumeX } from "lucide-react";
+import {
+  Bell,
+  BellOff,
+  CheckCheck,
+  Mail,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
@@ -14,6 +21,8 @@ import {
 
 type FeedItem = {
   id: string;
+  /** A business event row, or an unread message in one of my mailboxes. */
+  kind: "event" | "mail";
   type: string;
   title: string;
   body: string | null;
@@ -23,7 +32,7 @@ type FeedItem = {
   createdAt: string;
   read: boolean;
 };
-type Feed = { unread: number; items: FeedItem[] };
+type Feed = { unread: number; unreadMail: number; items: FeedItem[] };
 
 const POLL_MS = 30_000;
 const SOUND_KEY = "spiber-admin-notify-sound";
@@ -157,6 +166,8 @@ export function NotificationBell() {
     };
   }, [router]);
 
+  // Mail is read by opening it in the mailbox, never from here: "Mark all
+  // read" clears business events and leaves the unread-mail count alone.
   function markRead(ids: string[] | "all") {
     void fetch("/api/admin/notifications/read", {
       method: "POST",
@@ -166,9 +177,10 @@ export function NotificationBell() {
     setFeed((f) =>
       f
         ? {
+            ...f,
             unread:
               ids === "all"
-                ? 0
+                ? f.unreadMail
                 : Math.max(
                     0,
                     f.unread -
@@ -176,7 +188,9 @@ export function NotificationBell() {
                         .length,
                   ),
             items: f.items.map((it) =>
-              ids === "all" || ids.includes(it.id) ? { ...it, read: true } : it,
+              it.kind === "event" && (ids === "all" || ids.includes(it.id))
+                ? { ...it, read: true }
+                : it,
             ),
           }
         : f,
@@ -184,7 +198,7 @@ export function NotificationBell() {
   }
 
   function openItem(item: FeedItem) {
-    if (!item.read) markRead([item.id]);
+    if (item.kind === "event" && !item.read) markRead([item.id]);
     setOpen(false);
     router.push(item.href);
   }
@@ -242,7 +256,7 @@ export function NotificationBell() {
                 <VolumeX className="size-4" />
               )}
             </Button>
-            {unread > 0 && (
+            {unread > (feed?.unreadMail ?? 0) && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -265,7 +279,7 @@ export function NotificationBell() {
           {feed && feed.items.length === 0 && (
             <div className="text-muted-foreground flex flex-col items-center gap-2 px-3 py-8 text-center text-sm">
               <BellOff className="size-5 opacity-60" aria-hidden />
-              Nothing yet — new orders and leads will show up here.
+              Nothing yet — new mail, orders and leads will show up here.
             </div>
           )}
           {feed?.items.map((item) => (
@@ -278,13 +292,20 @@ export function NotificationBell() {
                 !item.read && "bg-accent/30",
               )}
             >
-              <span
-                aria-hidden
-                className={cn(
-                  "mt-1.5 size-2 shrink-0 rounded-full",
-                  item.read ? "bg-border" : SEVERITY_DOT[item.severity],
-                )}
-              />
+              {item.kind === "mail" ? (
+                <Mail
+                  aria-hidden
+                  className="text-primary mt-0.5 size-3.5 shrink-0"
+                />
+              ) : (
+                <span
+                  aria-hidden
+                  className={cn(
+                    "mt-1.5 size-2 shrink-0 rounded-full",
+                    item.read ? "bg-border" : SEVERITY_DOT[item.severity],
+                  )}
+                />
+              )}
               <span className="min-w-0 flex-1">
                 <span
                   className={cn(

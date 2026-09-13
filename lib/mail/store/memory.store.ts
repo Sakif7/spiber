@@ -1,4 +1,5 @@
 import { simpleParser } from "mailparser";
+import { previewText } from "@/lib/mail/preview";
 import {
   MailStoreError,
   type FlagPatch,
@@ -6,6 +7,7 @@ import {
   type ListResult,
   type MailAttachment,
   type MailFolder,
+  type MailListItem,
   type MailMessage,
   type MailStore,
   type SpecialUse,
@@ -282,6 +284,20 @@ const strip = (m: StoredMessage): MailMessage => {
   return rest;
 };
 
+const toItem = (m: StoredMessage): MailListItem => ({
+  uid: m.uid,
+  folder: m.folder,
+  subject: m.subject,
+  from: m.from,
+  date: m.date,
+  seen: m.seen,
+  flagged: m.flagged,
+  answered: m.answered,
+  hasAttachments: m.attachments.some((a) => !a.inline),
+  size: (m.text?.length ?? 0) + (m.html?.length ?? 0),
+  preview: m.text ? previewText(m.text) : previewText(m.html, true),
+});
+
 export const memoryMailStore: MailStore & { _reset(): void } = {
   name: "memory",
 
@@ -324,21 +340,67 @@ export const memoryMailStore: MailStore & { _reset(): void } = {
     rows.sort((a, c) => c.uid - a.uid);
     const start = (opts.page - 1) * opts.pageSize;
     return {
-      items: rows.slice(start, start + opts.pageSize).map((m) => ({
-        uid: m.uid,
-        subject: m.subject,
-        from: m.from,
-        date: m.date,
-        seen: m.seen,
-        flagged: m.flagged,
-        answered: m.answered,
-        hasAttachments: m.attachments.some((a) => !a.inline),
-        size: (m.text?.length ?? 0) + (m.html?.length ?? 0),
-      })),
+      items: rows.slice(start, start + opts.pageSize).map(toItem),
       total: rows.length,
       page: opts.page,
       pageSize: opts.pageSize,
     };
+  },
+
+  async listStarred(address, opts) {
+    const b = box(address);
+    const skip = new Set(
+      b.folders
+        .filter((f) => f.specialUse === "junk" || f.specialUse === "trash")
+        .map((f) => f.path),
+    );
+    const rows = b.messages
+      .filter((m) => m.flagged && !skip.has(m.folder))
+      .sort((a, c) => (c.date ?? "").localeCompare(a.date ?? ""));
+    const start = (opts.page - 1) * opts.pageSize;
+    return {
+      items: rows.slice(start, start + opts.pageSize).map(toItem),
+      total: rows.length,
+      page: opts.page,
+      pageSize: opts.pageSize,
+    };
+  },
+
+  async createFolder(address, path) {
+    const b = box(address);
+    if (b.folders.some((f) => f.path.toLowerCase() === path.toLowerCase())) {
+      throw new MailStoreError("exists", path);
+    }
+    b.folders.push({ path, specialUse: null });
+    return {
+      path,
+      name: path.split(".").pop() ?? path,
+      specialUse: null,
+      delimiter: ".",
+      total: 0,
+      unseen: 0,
+    };
+  },
+
+  async renameFolder(address, path, newPath) {
+    const b = box(address);
+    const f = b.folders.find((x) => x.path === path);
+    if (!f) throw new MailStoreError("not_found", path);
+    if (b.folders.some((x) => x.path.toLowerCase() === newPath.toLowerCase())) {
+      throw new MailStoreError("exists", newPath);
+    }
+    f.path = newPath;
+    for (const m of b.messages) if (m.folder === path) m.folder = newPath;
+  },
+
+  async deleteFolder(address, path) {
+    const b = box(address);
+    const i = b.folders.findIndex((x) => x.path === path);
+    if (i < 0) throw new MailStoreError("not_found", path);
+    if (b.messages.some((m) => m.folder === path)) {
+      throw new MailStoreError("not_empty", path);
+    }
+    b.folders.splice(i, 1);
   },
 
   async getMessage(address, folder, uid) {

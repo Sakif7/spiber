@@ -117,16 +117,4 @@ export function sanitizeMailHtml(
   return { html, blockedRemoteImages: blocked };
 }
 
-/** Plain text → minimal HTML (paragraphs + line breaks), for text-only mail. */
-export function textToHtml(text: string): string {
-  const esc = (s: string) =>
-    s
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
-  return text
-    .split(/\n{2,}/)
-    .map((p) => `<p>${esc(p).replace(/\n/g, "<br>")}</p>`)
-    .join("");
-}
+export { textToHtml } from "@/lib/mail/text-html";

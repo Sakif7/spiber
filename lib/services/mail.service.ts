@@ -15,8 +15,10 @@ import type {
   MailFolder,
   MailMessage,
   SpecialUse,
+  StarredOptions,
 } from "@/lib/mail/store";
 import { sanitizeMailHtml, textToHtml } from "@/lib/mail/sanitize";
+import { htmlToText, sanitizeOutgoingHtml } from "@/lib/mail/outgoing-html";
 import {
   composeMessage,
   getMailTransport,
@@ -225,6 +227,204 @@ export function setFlags(
 
 export type MoveTarget = "trash" | "archive" | "inbox" | "junk";
 
+/** Starred across the mailbox (every folder but Junk and Trash). */
+export function listStarred(
+  access: MailAccess,
+  opts: StarredOptions,
+): Promise<ListResult> {
+  return getMailStore().listStarred(access.mailbox.address, opts);
+}
+
+// ───────────────────────────── folders ─────────────────────────────
+
+/**
+ * Folder names are what IMAP accepts everywhere and what reads well in a
+ * rail: 1–40 characters, letters/digits/spaces and - _ & ( ), no leading or
+ * trailing space, never a path separator. Nesting goes through `parent`.
+ */
+export const FOLDER_NAME = /^[\p{L}\p{N}][\p{L}\p{N} \-_&()]{0,39}$/u;
+
+export type FolderResult =
+  | { ok: true; folder: MailFolder }
+  | {
+      ok: false;
+      code: "invalid_name" | "exists" | "not_found" | "reserved" | "not_empty";
+    };
+
+function folderNameOk(name: string): boolean {
+  return FOLDER_NAME.test(name) && !name.endsWith(" ");
+}
+
+/** The standard folders and Inbox are the server's; only custom ones are ours to touch. */
+function customFolder(folders: MailFolder[], path: string): MailFolder | null {
+  const f = folders.find((x) => x.path === path);
+  return f && !f.specialUse ? f : null;
+}
+
+export async function createFolder(
+  access: MailAccess,
+  claims: AccessClaims,
+  name: string,
+  parent?: string,
+  req?: Request,
+): Promise<FolderResult> {
+  const clean = name.trim();
+  if (!folderNameOk(clean)) return { ok: false, code: "invalid_name" };
+  const store = getMailStore();
+  const address = access.mailbox.address;
+  const folders = await store.listFolders(address);
+  const delimiter = folders[0]?.delimiter ?? ".";
+  if (parent && !folders.some((f) => f.path === parent)) {
+    return { ok: false, code: "not_found" };
+  }
+  const path = parent ? `${parent}${delimiter}${clean}` : clean;
+  if (folders.some((f) => f.path.toLowerCase() === path.toLowerCase())) {
+    return { ok: false, code: "exists" };
+  }
+  if (!parent && /^inbox$/i.test(clean)) return { ok: false, code: "reserved" };
+  try {
+    const folder = await store.createFolder(address, path);
+    await writeAudit(
+      {
+        actorId: claims.sub,
+        action: "mail.folder.create",
+        entityType: "Mailbox",
+        entityId: String(access.mailbox._id),
+        after: { address, path },
+      },
+      req,
+    ).catch((e) => logger.warn("audit failed", { error: String(e) }));
+    return { ok: true, folder };
+  } catch (e) {
+    if (e instanceof MailStoreError && e.code === "exists") {
+      return { ok: false, code: "exists" };
+    }
+    throw e;
+  }
+}
+
+export async function renameFolder(
+  access: MailAccess,
+  claims: AccessClaims,
+  path: string,
+  name: string,
+  req?: Request,
+): Promise<FolderResult> {
+  const clean = name.trim();
+  if (!folderNameOk(clean)) return { ok: false, code: "invalid_name" };
+  const store = getMailStore();
+  const address = access.mailbox.address;
+  const folders = await store.listFolders(address);
+  const target = customFolder(folders, path);
+  if (!target) {
+    return {
+      ok: false,
+      code: folders.some((f) => f.path === path) ? "reserved" : "not_found",
+    };
+  }
+  const delimiter = target.delimiter || ".";
+  const parent = path.includes(delimiter)
+    ? path.slice(0, path.lastIndexOf(delimiter))
+    : "";
+  const newPath = parent ? `${parent}${delimiter}${clean}` : clean;
+  if (newPath === path) return { ok: true, folder: target };
+  if (folders.some((f) => f.path.toLowerCase() === newPath.toLowerCase())) {
+    return { ok: false, code: "exists" };
+  }
+  try {
+    await store.renameFolder(address, path, newPath);
+  } catch (e) {
+    if (e instanceof MailStoreError && e.code === "exists") {
+      return { ok: false, code: "exists" };
+    }
+    throw e;
+  }
+  await writeAudit(
+    {
+      actorId: claims.sub,
+      action: "mail.folder.rename",
+      entityType: "Mailbox",
+      entityId: String(access.mailbox._id),
+      before: { path },
+      after: { address, path: newPath },
+    },
+    req,
+  ).catch((e) => logger.warn("audit failed", { error: String(e) }));
+  return { ok: true, folder: { ...target, path: newPath, name: clean } };
+}
+
+/** Only an empty custom folder — messages are never deleted by deleting a folder. */
+export async function deleteFolder(
+  access: MailAccess,
+  claims: AccessClaims,
+  path: string,
+  req?: Request,
+): Promise<{ ok: true } | Exclude<FolderResult, { ok: true }>> {
+  const store = getMailStore();
+  const address = access.mailbox.address;
+  const folders = await store.listFolders(address);
+  const target = customFolder(folders, path);
+  if (!target) {
+    return {
+      ok: false,
+      code: folders.some((f) => f.path === path) ? "reserved" : "not_found",
+    };
+  }
+  const delimiter = target.delimiter || ".";
+  const hasChildren = folders.some((f) => f.path.startsWith(path + delimiter));
+  if (target.total > 0 || hasChildren) return { ok: false, code: "not_empty" };
+  try {
+    await store.deleteFolder(address, path);
+  } catch (e) {
+    if (e instanceof MailStoreError && e.code === "not_empty") {
+      return { ok: false, code: "not_empty" };
+    }
+    throw e;
+  }
+  await writeAudit(
+    {
+      actorId: claims.sub,
+      action: "mail.folder.delete",
+      entityType: "Mailbox",
+      entityId: String(access.mailbox._id),
+      before: { address, path },
+    },
+    req,
+  ).catch((e) => logger.warn("audit failed", { error: String(e) }));
+  return { ok: true };
+}
+
+/** Move to a folder by path (the "Move to…" menu); trash/junk targets are audited like the named moves. */
+export async function moveMessagesTo(
+  access: MailAccess,
+  claims: AccessClaims,
+  folder: string,
+  uids: number[],
+  targetPath: string,
+  req?: Request,
+): Promise<{ ok: true; target: string } | { ok: false; code: "no_folder" }> {
+  const store = getMailStore();
+  const address = access.mailbox.address;
+  const folders = await store.listFolders(address);
+  const target = folders.find((f) => f.path === targetPath);
+  if (!target || target.path === folder)
+    return { ok: false, code: "no_folder" };
+  await store.move(address, folder, uids, target.path);
+  if (target.specialUse === "trash" || target.specialUse === "junk") {
+    await writeAudit(
+      {
+        actorId: claims.sub,
+        action: `mail.message.${target.specialUse}`,
+        entityType: "Mailbox",
+        entityId: String(access.mailbox._id),
+        after: { address, folder, uids },
+      },
+      req,
+    ).catch((e) => logger.warn("audit failed", { error: String(e) }));
+  }
+  return { ok: true, target: target.path };
+}
+
 /**
  * Move by meaning ("trash") rather than by path, so the UI never has to know
  * that Dovecot calls it "Trash" and Gmail-imported folders call it
@@ -268,8 +468,10 @@ export type SendInput = {
   cc: MailAddress[];
   bcc: MailAddress[];
   subject: string;
-  /** Plain text as typed; the HTML alternative is derived from it. */
+  /** Plain text as typed; the HTML alternative is derived from it… */
   text: string;
+  /** …unless the composer sent rich text: sanitised here, text derived from it. */
+  html?: string | null;
   attachments: OutgoingAttachment[];
   /** Replying: the original, so threading headers and \\Answered are set. */
   inReplyTo?: { folder: string; uid: number } | null;
@@ -362,7 +564,9 @@ export async function sendMessage(
     }
   }
   const bytes =
-    attachments.reduce((n, a) => n + a.content.length, 0) + input.text.length;
+    attachments.reduce((n, a) => n + a.content.length, 0) +
+    input.text.length +
+    (input.html?.length ?? 0);
   if (bytes > MAX_MESSAGE_BYTES) return { ok: false, code: "too_large" };
 
   let transport;
@@ -373,7 +577,11 @@ export async function sendMessage(
   }
   // Browsers submit textareas with CRLF; keep one convention before the
   // composer re-encodes line endings for the wire.
-  const text = input.text.replace(/\r\n?/g, "\n");
+  const richHtml = input.html ? sanitizeOutgoingHtml(input.html) : "";
+  const text = richHtml
+    ? htmlToText(richHtml)
+    : input.text.replace(/\r\n?/g, "\n");
+  const html = richHtml || textToHtml(text);
   const composed = await composeMessage(
     {
       from: { name, address },
@@ -382,7 +590,7 @@ export async function sendMessage(
       bcc: input.bcc,
       subject: input.subject.trim() || "(no subject)",
       text,
-      html: textToHtml(text),
+      html,
       attachments,
       inReplyTo,
       references,

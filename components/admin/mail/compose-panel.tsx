@@ -4,7 +4,6 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Paperclip, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { FormPanel } from "@/components/admin/ui/form-panel";
@@ -15,12 +14,15 @@ import {
   SaveBar,
 } from "@/components/admin/ui/form-shell";
 import { formatApiError } from "@/lib/http/form-error";
+import { textToHtml } from "@/lib/mail/text-html";
+import { MailEditor } from "./mail-editor";
 import type { RenderedMessage } from "@/lib/services/mail.service";
 
 /**
- * Compose / reply / reply-all / forward, as the mailbox that is open. Plain
- * text in, sent as text + a simple HTML alternative; the quoted original is
- * pre-filled the way every mail client does it so nothing is hidden.
+ * Compose / reply / reply-all / forward, as the mailbox that is open. Rich
+ * text in (sent as HTML + a plain-text alternative the server derives); the
+ * quoted original is pre-filled the way every mail client does it so
+ * nothing is hidden.
  */
 export type ComposeMode = "new" | "reply" | "replyAll" | "forward";
 
@@ -51,19 +53,25 @@ function quote(text: string | null): string {
     .join("\n");
 }
 
-function seedFields(seed: ComposeSeed, self: string) {
+const esc = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+/** Pre-fill for a reply / reply-all / forward; shared with the reader's quick reply. */
+export function seedFields(seed: ComposeSeed, self: string) {
   const o = seed.original;
   const notMe = (a: { address: string }) => a.address.toLowerCase() !== self;
   if (!o || seed.mode === "new") {
-    return { to: "", cc: "", subject: "", text: "" };
+    return { to: "", cc: "", subject: "", text: "", html: "" };
   }
   const subjectBase = o.subject.replace(/^\s*((re|fwd?|aw|wg)\s*:\s*)+/i, "");
   if (seed.mode === "forward") {
+    const header = `---------- Forwarded message ----------\nFrom: ${o.from ? fmtAddr(o.from) : "—"}\nDate: ${when(o.date)}\nSubject: ${o.subject}\nTo: ${o.to.map(fmtAddr).join(", ")}`;
     return {
       to: "",
       cc: "",
       subject: `Fwd: ${subjectBase}`,
-      text: `\n\n---------- Forwarded message ----------\nFrom: ${o.from ? fmtAddr(o.from) : "—"}\nDate: ${when(o.date)}\nSubject: ${o.subject}\nTo: ${o.to.map(fmtAddr).join(", ")}\n\n${o.text ?? ""}`,
+      text: `\n\n${header}\n\n${o.text ?? ""}`,
+      html: `<p></p><p>${esc(header).replace(/\n/g, "<br>")}</p>${textToHtml(o.text ?? "")}`,
     };
   }
   const replyTarget = o.replyTo[0] ?? o.from;
@@ -74,11 +82,13 @@ function seedFields(seed: ComposeSeed, self: string) {
           .filter(notMe)
           .filter((a) => a.address !== replyTarget?.address)
       : [];
+  const attribution = `On ${when(o.date)}, ${o.from ? fmtAddr(o.from) : "someone"} wrote:`;
   return {
     to: to.map(fmtAddr).join(", "),
     cc: cc.map(fmtAddr).join(", "),
     subject: `Re: ${subjectBase}`,
-    text: `\n\nOn ${when(o.date)}, ${o.from ? fmtAddr(o.from) : "someone"} wrote:\n${quote(o.text)}`,
+    text: `\n\n${attribution}\n${quote(o.text)}`,
+    html: `<p></p><p>${esc(attribution)}</p><blockquote>${textToHtml(o.text ?? "")}</blockquote>`,
   };
 }
 
@@ -137,6 +147,7 @@ function ComposeForm({
   const [showCcBcc, setShowCcBcc] = useState(Boolean(init.cc));
   const [subject, setSubject] = useState(init.subject);
   const [text, setText] = useState(init.text);
+  const [html, setHtml] = useState(init.html);
   const [files, setFiles] = useState<File[]>([]);
   const forwardable =
     seed.mode === "forward" && seed.original
@@ -158,6 +169,7 @@ function ComposeForm({
       fd.set("bcc", bcc);
       fd.set("subject", subject);
       fd.set("text", text);
+      fd.set("html", html);
       if (
         (seed.mode === "reply" || seed.mode === "replyAll") &&
         seed.original
@@ -238,11 +250,13 @@ function ComposeForm({
 
       <FormSection title="Message">
         <FormField label="Body">
-          <Textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={14}
-            className="font-mono text-xs leading-relaxed"
+          <MailEditor
+            initialHtml={init.html}
+            onChange={(h, t) => {
+              setHtml(h);
+              setText(t);
+            }}
+            minHeight="16rem"
             autoFocus={seed.mode === "reply" || seed.mode === "replyAll"}
           />
         </FormField>

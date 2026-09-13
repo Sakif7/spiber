@@ -30,6 +30,8 @@ export type MailFolder = {
 
 export type MailListItem = {
   uid: number;
+  /** The folder this row lives in — matters when a list spans folders (Starred). */
+  folder: string;
   subject: string;
   from: MailAddress | null;
   /** ISO date, best effort (header date, else internal date). */
@@ -39,6 +41,8 @@ export type MailListItem = {
   answered: boolean;
   hasAttachments: boolean;
   size: number | null;
+  /** First words of the body, one line, for the list. */
+  preview: string;
 };
 
 export type MailAttachmentMeta = {
@@ -94,6 +98,11 @@ export type ListResult = {
   pageSize: number;
 };
 
+export type StarredOptions = {
+  page: number;
+  pageSize: number;
+};
+
 export type FlagPatch = {
   seen?: boolean;
   flagged?: boolean;
@@ -107,7 +116,10 @@ export class MailStoreError extends Error {
       | "auth_failed"
       | "unavailable"
       | "not_found"
-      | "too_large",
+      | "too_large"
+      | "exists"
+      | "not_empty"
+      | "invalid_name",
     detail?: string,
   ) {
     super(detail ? `${code}: ${detail}` : code);
@@ -123,6 +135,13 @@ export interface MailStore {
     folder: string,
     opts: ListOptions,
   ): Promise<ListResult>;
+  /** Every starred message outside Junk/Trash, newest first, across folders. */
+  listStarred(address: string, opts: StarredOptions): Promise<ListResult>;
+  /** A new folder at the top level ("Tenders") or under a parent ("Tenders/2026"). */
+  createFolder(address: string, path: string): Promise<MailFolder>;
+  renameFolder(address: string, path: string, newPath: string): Promise<void>;
+  /** Only an empty folder; the caller checks. */
+  deleteFolder(address: string, path: string): Promise<void>;
   getMessage(
     address: string,
     folder: string,

@@ -1,35 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import {
-  Archive,
-  ArchiveRestore,
-  AtSign,
-  Ban,
-  ChevronLeft,
-  ChevronRight,
-  File,
-  FileText,
-  Inbox,
-  Loader2,
-  Mail,
-  Paperclip,
-  PenLine,
-  Search,
-  Send,
-  ShieldAlert,
-  Star,
-  Trash2,
-} from "lucide-react";
+import { AtSign, PenLine, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { SelectField } from "@/components/admin/ui/select-field";
-import { EmptyState } from "@/components/admin/ui/empty-state";
 import { StatusBadge } from "@/components/admin/ui/status-badge";
-import { ComposePanel, type ComposeSeed } from "./compose-panel";
+import {
+  ConfirmDialog,
+  NameDialog,
+} from "@/components/admin/company/file-manager/dialogs";
 import { cn } from "@/lib/cn";
 import { useDebouncedCallback } from "@/lib/use-debounced-callback";
 import type {
@@ -37,110 +32,92 @@ import type {
   MailFolder,
   MailListItem,
 } from "@/lib/mail/store/types";
-import type { RenderedMessage } from "@/lib/services/mail.service";
-import type { AccessibleMailbox } from "@/lib/services/mail.service";
+import type {
+  AccessibleMailbox,
+  RenderedMessage,
+} from "@/lib/services/mail.service";
+import { MAIL_LAYOUT_COOKIE, type MailLayout } from "@/lib/mail/layout-cookie";
+import {
+  ComposePanel,
+  type ComposeMode,
+  type ComposeSeed,
+} from "./compose-panel";
+import { MailDisplay, type MoveTarget } from "./mail-display";
+import { MailList, sameRow, type Selection } from "./mail-list";
+import { MailNav, MailboxSwitcher, STARRED, countFor } from "./mail-nav";
+import { enc, mailApi, useIsDesktop } from "./mail-shared";
 
 /**
- * The mailbox: switcher → folders → list → reading pane. Everything comes
- * from `/api/admin/mail/*` through react-query, keyed by address + folder so
- * switching back is instant and a flag change updates the list in place.
+ * The mailbox, locked to the viewport: three resizable panes (account +
+ * folders · list · reader) that fill the frame and scroll on their own —
+ * the page itself never scrolls. Below `lg` it is one pane at a time: the
+ * list (with the folder picker above it), or the open message with a back
+ * button.
+ *
+ * Everything comes from `/api/admin/mail/*` through react-query, keyed by
+ * address + folder + page + filters, so switching back is instant and a
+ * flag change updates the list in place. "Starred" is a view across
+ * folders, so every row carries its folder and the selection is
+ * `{ folder, uid }`, never a bare uid.
  */
 const PAGE_SIZE = 25;
 
-type Json<T> = {
-  ok: boolean;
-  data?: T;
-  error?: { code?: string; message?: string };
+const MOVE_DONE: Record<MoveTarget, string> = {
+  trash: "Moved to Trash.",
+  archive: "Archived.",
+  junk: "Marked as junk.",
+  inbox: "Moved to Inbox.",
 };
 
-async function api<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, {
-    ...init,
-    headers: {
-      ...(init?.body ? { "Content-Type": "application/json" } : {}),
-      ...(init?.headers ?? {}),
-    },
-  });
-  const json = (await res.json().catch(() => null)) as Json<T> | null;
-  if (!res.ok || !json?.ok || json.data === undefined) {
-    const code = json?.error?.code ?? `http_${res.status}`;
-    throw new Error(
-      code === "mail_not_configured"
-        ? "The mail server is not configured on this deployment."
-        : code === "mail_auth_failed"
-          ? "The mail server refused the app's master login."
-          : code === "mail_unavailable"
-            ? "The mail server could not be reached."
-            : json?.error?.message || code,
-    );
-  }
-  return json.data;
-}
+type FolderDialog =
+  | { mode: "create" }
+  | { mode: "rename"; folder: MailFolder }
+  | { mode: "delete"; folder: MailFolder }
+  | null;
 
-const enc = encodeURIComponent;
-
-const FOLDER_ICON: Record<string, typeof Inbox> = {
-  inbox: Inbox,
-  sent: Send,
-  drafts: FileText,
-  archive: Archive,
-  junk: Ban,
-  trash: Trash2,
+const FOLDER_ERRORS: Record<string, string> = {
+  invalid_name:
+    "Use letters, digits, spaces or - _ & ( ) — up to 40 characters.",
+  exists: "There is already a folder with that name.",
+  reserved: "That folder belongs to the mail server and cannot be changed.",
+  not_empty: "Move or delete its messages first — the folder is not empty.",
+  not_found: "That folder no longer exists.",
 };
-
-function when(iso: string | null, long = false): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (long) {
-    return d.toLocaleString("en-GB", {
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
-  const now = new Date();
-  const sameDay = d.toDateString() === now.toDateString();
-  if (sameDay)
-    return d.toLocaleTimeString("en-GB", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  const days = (now.getTime() - d.getTime()) / 86_400_000;
-  if (days < 6) return d.toLocaleDateString("en-GB", { weekday: "short" });
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-}
-
-const personLabel = (a: { name: string | null; address: string } | null) =>
-  a ? a.name || a.address : "—";
-
-const humanSize = (n: number) =>
-  n < 1024
-    ? `${n} B`
-    : n < 1024 ** 2
-      ? `${Math.round(n / 1024)} KB`
-      : `${(n / 1024 ** 2).toFixed(1)} MB`;
 
 export function MailClient({
   mailboxes,
   initialAddress,
+  initialFolder,
+  initialUid,
+  defaultLayout,
 }: {
   mailboxes: AccessibleMailbox[];
   initialAddress: string;
+  /** Deep link from the bell: open this folder and message on load. */
+  initialFolder?: string;
+  initialUid?: number;
+  defaultLayout?: MailLayout;
 }) {
   const qc = useQueryClient();
+  const desktop = useIsDesktop();
   const [address, setAddress] = useState(initialAddress);
-  const [folder, setFolder] = useState("INBOX");
+  const [folder, setFolder] = useState(initialFolder ?? "INBOX");
   const [page, setPage] = useState(1);
   const [queryText, setQueryText] = useState("");
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<number | null>(null);
+  const [unreadOnly, setUnreadOnly] = useState(false);
+  const [selected, setSelected] = useState<Selection | null>(
+    initialUid && initialFolder
+      ? { folder: initialFolder, uid: initialUid }
+      : null,
+  );
   const [allowImages, setAllowImages] = useState(false);
   const [busy, setBusy] = useState(false);
   const [compose, setCompose] = useState<ComposeSeed | null>(null);
+  const [folderDialog, setFolderDialog] = useState<FolderDialog>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const current = mailboxes.find((m) => m.address === address) ?? mailboxes[0];
+  const starred = folder === STARRED;
 
   const applyQuery = useDebouncedCallback((q: string) => {
     setQuery(q);
@@ -151,64 +128,111 @@ export function MailClient({
   const folders = useQuery({
     queryKey: ["mail", address, "folders"],
     queryFn: () =>
-      api<{ folders: MailFolder[] }>(
+      mailApi<{ folders: MailFolder[] }>(
         `/api/admin/mail/${enc(address)}/folders`,
       ).then((d) => d.folders),
     staleTime: 30_000,
   });
 
-  const listKey = ["mail", address, "list", folder, page, query] as const;
+  const listKey = [
+    "mail",
+    address,
+    "list",
+    folder,
+    page,
+    starred ? "" : query,
+    starred ? false : unreadOnly,
+  ] as const;
   const list = useQuery({
     queryKey: listKey,
     queryFn: () =>
-      api<ListResult>(
-        `/api/admin/mail/${enc(address)}/messages?folder=${enc(folder)}&page=${page}&pageSize=${PAGE_SIZE}${query ? `&q=${enc(query)}` : ""}`,
+      mailApi<ListResult>(
+        starred
+          ? `/api/admin/mail/${enc(address)}/starred?page=${page}&pageSize=${PAGE_SIZE}`
+          : `/api/admin/mail/${enc(address)}/messages?folder=${enc(folder)}&page=${page}&pageSize=${PAGE_SIZE}${query ? `&q=${enc(query)}` : ""}${unreadOnly ? "&unseen=1" : ""}`,
       ),
     placeholderData: (prev) => prev,
     staleTime: 15_000,
+    // New mail shows up on its own while the tab is open.
+    refetchInterval: 60_000,
   });
 
   const message = useQuery({
-    queryKey: ["mail", address, "message", folder, selected, allowImages],
+    queryKey: [
+      "mail",
+      address,
+      "message",
+      selected?.folder ?? null,
+      selected?.uid ?? null,
+      allowImages,
+    ],
     queryFn: () =>
-      api<{ message: RenderedMessage }>(
-        `/api/admin/mail/${enc(address)}/messages/${selected}?folder=${enc(folder)}${allowImages ? "&images=1" : ""}`,
+      mailApi<{ message: RenderedMessage }>(
+        `/api/admin/mail/${enc(address)}/messages/${selected!.uid}?folder=${enc(selected!.folder)}${allowImages ? "&images=1" : ""}`,
       ).then((d) => d.message),
     enabled: selected !== null,
     staleTime: 60_000,
   });
 
-  // Opening marks read on the server; reflect it in the list without a refetch.
-  const patchListItem = (uid: number, patch: Partial<MailListItem>) => {
+  const items = list.data?.items ?? [];
+  const folderList = folders.data ?? [];
+  const folderNames = new Map(folderList.map((f) => [f.path, f.name]));
+  const currentFolder = folderList.find((f) => f.path === folder);
+  const readerFolder = selected?.folder ?? folder;
+  const readerSpecial =
+    folderList.find((f) => f.path === readerFolder)?.specialUse ?? null;
+  const hasArchive = folderList.some((f) => f.specialUse === "archive");
+  const hasJunk = folderList.some((f) => f.specialUse === "junk");
+  const total = list.data?.total ?? 0;
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const msg = message.data ?? null;
+  const title = starred ? "Starred" : (currentFolder?.name ?? folder);
+
+  // ── cache helpers ────────────────────────────────────────────────────
+  const messageKey = (row: Selection) => [
+    "mail",
+    address,
+    "message",
+    row.folder,
+    row.uid,
+  ];
+  const patchItem = (row: Selection, patch: Partial<MailListItem>) => {
     qc.setQueryData<ListResult>(listKey, (old) =>
       old
         ? {
             ...old,
             items: old.items.map((i) =>
-              i.uid === uid ? { ...i, ...patch } : i,
+              sameRow(row, i) ? { ...i, ...patch } : i,
             ),
           }
         : old,
     );
   };
-  const openedUid = message.data?.seen ? message.data.uid : null;
+  const refreshFolder = () => {
+    qc.invalidateQueries({ queryKey: ["mail", address, "list"] });
+    qc.invalidateQueries({ queryKey: ["mail", address, "folders"] });
+  };
+
+  // Opening marks read on the server; mirror it in the list (a query-cache
+  // write, not component state — safe in an effect).
+  const opened = message.data?.seen && selected ? selected : null;
   useEffect(() => {
-    if (openedUid === null) return;
-    // A query-cache write, not component state: safe in an effect.
+    if (!opened) return;
     qc.setQueryData<ListResult>(listKey, (old) =>
       old
         ? {
             ...old,
             items: old.items.map((i) =>
-              i.uid === openedUid && !i.seen ? { ...i, seen: true } : i,
+              sameRow(opened, i) && !i.seen ? { ...i, seen: true } : i,
             ),
           }
         : old,
     );
     qc.invalidateQueries({ queryKey: ["mail", address, "folders"] });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- listKey is derived from the same state
-  }, [openedUid]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- listKey derives from the same state
+  }, [opened?.folder, opened?.uid]);
 
+  // ── navigation ───────────────────────────────────────────────────────
   function switchMailbox(next: string) {
     setAddress(next);
     setFolder("INBOX");
@@ -216,574 +240,518 @@ export function MailClient({
     setSelected(null);
     setQueryText("");
     setQuery("");
+    setUnreadOnly(false);
   }
   function switchFolder(path: string) {
     setFolder(path);
     setPage(1);
     setSelected(null);
   }
+  function open(row: Selection | null) {
+    setSelected(row);
+    setAllowImages(false);
+  }
+  function step(delta: 1 | -1) {
+    if (items.length === 0) return;
+    const idx = items.findIndex((i) => sameRow(selected, i));
+    const next =
+      idx < 0
+        ? delta > 0
+          ? 0
+          : items.length - 1
+        : Math.min(items.length - 1, Math.max(0, idx + delta));
+    open({ folder: items[next].folder, uid: items[next].uid });
+  }
+  function startCompose(mode: ComposeMode) {
+    setCompose({
+      mode,
+      folder: readerFolder,
+      original: mode === "new" ? null : msg,
+    });
+  }
 
-  async function toggleFlag(item: MailListItem) {
-    const flagged = !item.flagged;
-    patchListItem(item.uid, { flagged });
+  // ── actions ──────────────────────────────────────────────────────────
+  async function flag(
+    row: Selection,
+    patch: { seen?: boolean; flagged?: boolean },
+  ) {
+    const before = items.find((i) => sameRow(row, i));
+    patchItem(row, patch);
     try {
-      await api(`/api/admin/mail/${enc(address)}/messages/${item.uid}/flags`, {
-        method: "POST",
-        body: JSON.stringify({ folder, flagged }),
-      });
-      qc.invalidateQueries({
-        queryKey: ["mail", address, "message", folder, item.uid],
-      });
-    } catch (e) {
-      patchListItem(item.uid, { flagged: !flagged });
-      toast.error(
-        e instanceof Error ? e.message : "Could not update the flag.",
+      await mailApi(
+        `/api/admin/mail/${enc(address)}/messages/${row.uid}/flags`,
+        {
+          method: "POST",
+          body: JSON.stringify({ folder: row.folder, ...patch }),
+        },
       );
-    }
-  }
-
-  async function markUnread(uid: number) {
-    try {
-      await api(`/api/admin/mail/${enc(address)}/messages/${uid}/flags`, {
-        method: "POST",
-        body: JSON.stringify({ folder, seen: false }),
-      });
-      patchListItem(uid, { seen: false });
-      setSelected(null);
       qc.invalidateQueries({ queryKey: ["mail", address, "folders"] });
+      if (patch.seen === false) {
+        // Close it and drop the cached copy. Never invalidate here: a refetch
+        // while the reader is still mounted would open (and re-read) it.
+        if (sameRow(selected, row)) open(null);
+        qc.removeQueries({ queryKey: messageKey(row) });
+      } else {
+        qc.setQueriesData<RenderedMessage>(
+          { queryKey: messageKey(row) },
+          (old) => (old ? { ...old, ...patch } : old),
+        );
+      }
+      if (patch.flagged !== undefined) {
+        // The Starred view and its count follow the flag.
+        qc.invalidateQueries({ queryKey: ["mail", address, "list", STARRED] });
+      }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not mark as unread.");
+      if (before)
+        patchItem(row, { seen: before.seen, flagged: before.flagged });
+      toast.error(e instanceof Error ? e.message : "Could not update.");
     }
   }
 
-  async function move(uid: number, to: "trash" | "archive" | "inbox" | "junk") {
+  async function moveRow(
+    row: Selection,
+    body: { to: MoveTarget } | { toPath: string },
+    done: string,
+  ) {
     setBusy(true);
     try {
-      await api(`/api/admin/mail/${enc(address)}/messages/${uid}/move`, {
-        method: "POST",
-        body: JSON.stringify({ folder, to }),
-      });
-      toast.success(
-        to === "trash"
-          ? "Moved to Trash."
-          : to === "archive"
-            ? "Archived."
-            : to === "junk"
-              ? "Marked as junk."
-              : "Moved to Inbox.",
+      await mailApi(
+        `/api/admin/mail/${enc(address)}/messages/${row.uid}/move`,
+        {
+          method: "POST",
+          body: JSON.stringify({ folder: row.folder, ...body }),
+        },
       );
-      setSelected(null);
-      qc.invalidateQueries({ queryKey: ["mail", address, "list", folder] });
+      toast.success(done);
+      if (sameRow(selected, row)) {
+        // Land on the next message so working through a queue flows.
+        const idx = items.findIndex((i) => sameRow(row, i));
+        const rest = items.filter((i) => !sameRow(row, i));
+        const next = rest[Math.min(idx, rest.length - 1)];
+        open(desktop && next ? { folder: next.folder, uid: next.uid } : null);
+      }
+      qc.removeQueries({ queryKey: messageKey(row) });
+      refreshFolder();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not move.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  const move = (row: Selection, to: MoveTarget) =>
+    moveRow(row, { to }, MOVE_DONE[to]);
+  const moveTo = (row: Selection, path: string) =>
+    moveRow(
+      row,
+      { toPath: path },
+      `Moved to ${folderNames.get(path) ?? path}.`,
+    );
+
+  // ── folders ──────────────────────────────────────────────────────────
+  const starredCount = useQuery({
+    queryKey: ["mail", address, "list", STARRED, "count"],
+    queryFn: () =>
+      mailApi<ListResult>(
+        `/api/admin/mail/${enc(address)}/starred?page=1&pageSize=5`,
+      ).then((d) => d.total),
+    staleTime: 60_000,
+  });
+
+  async function folderAction(value?: string) {
+    const d = folderDialog;
+    if (!d) return;
+    setBusy(true);
+    try {
+      if (d.mode === "create") {
+        const res = await mailApi<{ folder: MailFolder }>(
+          `/api/admin/mail/${enc(address)}/folders`,
+          { method: "POST", body: JSON.stringify({ name: value }) },
+        );
+        toast.success(`Folder "${res.folder.name}" created.`);
+        switchFolder(res.folder.path);
+      } else if (d.mode === "rename") {
+        const res = await mailApi<{ folder: MailFolder }>(
+          `/api/admin/mail/${enc(address)}/folders/${enc(d.folder.path)}`,
+          { method: "PATCH", body: JSON.stringify({ name: value }) },
+        );
+        toast.success(`Renamed to "${res.folder.name}".`);
+        if (folder === d.folder.path) switchFolder(res.folder.path);
+      } else {
+        await mailApi(
+          `/api/admin/mail/${enc(address)}/folders/${enc(d.folder.path)}`,
+          { method: "DELETE" },
+        );
+        toast.success(`Folder "${d.folder.name}" deleted.`);
+        if (folder === d.folder.path) switchFolder("INBOX");
+      }
+      setFolderDialog(null);
       qc.invalidateQueries({ queryKey: ["mail", address, "folders"] });
     } catch (e) {
-      toast.error(
-        e instanceof Error && /no_folder/.test(e.message)
-          ? "This mailbox has no such folder."
-          : e instanceof Error
-            ? e.message
-            : "Could not move the message.",
-      );
+      const code = e instanceof Error ? e.message : "";
+      toast.error(FOLDER_ERRORS[code] ?? code ?? "Could not change folders.");
     } finally {
       setBusy(false);
     }
   }
 
-  const folderList = folders.data ?? [];
-  const currentFolder = folderList.find((f) => f.path === folder);
-  const hasArchive = folderList.some((f) => f.specialUse === "archive");
-  const inTrash = currentFolder?.specialUse === "trash";
-  const total = list.data?.total ?? 0;
-  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const msg = message.data;
+  // ── keyboard ─────────────────────────────────────────────────────────
+  // Re-bound every render on purpose: the handler closes over the current
+  // list, selection and folder.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const t = e.target as HTMLElement | null;
+      const typing =
+        !!t &&
+        (t.tagName === "INPUT" ||
+          t.tagName === "TEXTAREA" ||
+          t.tagName === "SELECT" ||
+          t.isContentEditable);
+      if (
+        typing ||
+        compose ||
+        folderDialog ||
+        e.metaKey ||
+        e.ctrlKey ||
+        e.altKey
+      )
+        return;
+      if (document.querySelector('[role="dialog"], [role="menu"]')) return;
+      const it = items.find((i) => sameRow(selected, i));
+      const row = it ? { folder: it.folder, uid: it.uid } : null;
+      switch (e.key) {
+        case "j":
+        case "ArrowDown":
+          e.preventDefault();
+          step(1);
+          break;
+        case "k":
+        case "ArrowUp":
+          e.preventDefault();
+          step(-1);
+          break;
+        case "/":
+          e.preventDefault();
+          searchRef.current?.focus();
+          break;
+        case "c":
+          startCompose("new");
+          break;
+        case "Escape":
+          open(null);
+          break;
+        case "e":
+          if (row && hasArchive && readerSpecial !== "archive")
+            move(row, "archive");
+          break;
+        case "#":
+        case "Delete":
+          if (row && readerSpecial !== "trash") move(row, "trash");
+          break;
+        case "u":
+          if (row && it) flag(row, { seen: !it.seen });
+          break;
+        case "s":
+          if (row && it) flag(row, { flagged: !it.flagged });
+          break;
+        case "r":
+          if (msg) startCompose("reply");
+          break;
+        case "a":
+          if (msg) startCompose("replyAll");
+          break;
+        case "f":
+          if (msg) startCompose("forward");
+          break;
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
 
-  return (
-    <div className="grid gap-4">
-      {/* Mailbox switcher row — same controls as every list toolbar. */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <AtSign
-            className="text-muted-foreground size-4 shrink-0"
-            aria-hidden
-          />
-          <SelectField
-            value={address}
-            onChange={switchMailbox}
-            options={mailboxes.map((m) => ({
-              value: m.address,
-              label: m.own
-                ? `${m.address} · mine`
-                : m.kind === "shared"
-                  ? `${m.address} · shared`
-                  : m.address,
-            }))}
-            className="w-[min(20rem,80vw)]"
-          />
-        </div>
-        {current?.elevated && (
+  // ── pieces ───────────────────────────────────────────────────────────
+  const switcher = (
+    <MailboxSwitcher
+      mailboxes={mailboxes}
+      value={address}
+      onChange={switchMailbox}
+    />
+  );
+
+  const badges =
+    current?.elevated || current?.status === "disabled" ? (
+      <div className="flex flex-wrap gap-1 px-4 pb-2">
+        {current.elevated && (
           <StatusBadge tone="warning">
             Opened as super admin · audited
           </StatusBadge>
         )}
-        {current?.status === "disabled" && (
+        {current.status === "disabled" && (
           <StatusBadge tone="neutral">Mailbox login disabled</StatusBadge>
         )}
-        <div className="flex-1" />
-        <Button
-          type="button"
-          size="sm"
-          onClick={() => setCompose({ mode: "new", folder, original: null })}
-        >
-          <PenLine className="size-4" aria-hidden />
-          Compose
-        </Button>
       </div>
+    ) : null;
 
-      <div className="bg-card text-card-foreground grid min-h-[70vh] grid-cols-1 overflow-hidden rounded-md border lg:grid-cols-[12.5rem_minmax(0,22rem)_minmax(0,1fr)] xl:grid-cols-[12.5rem_minmax(0,24rem)_minmax(0,1fr)]">
-        {/* Folders */}
-        <nav
-          aria-label="Folders"
-          className="border-border flex flex-col gap-3 border-b p-2 lg:border-r lg:border-b-0"
-        >
-          {folders.isLoading ? (
-            <div className="grid gap-2 p-2">
-              {[0, 1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-7" />
-              ))}
-            </div>
-          ) : folders.isError ? (
-            <p className="text-destructive p-2 text-xs">
-              {(folders.error as Error).message}
-            </p>
-          ) : (
-            <ul className="flex flex-row flex-wrap gap-0.5 lg:flex-col">
-              {folderList.map((f) => {
-                const Icon =
-                  (f.specialUse && FOLDER_ICON[f.specialUse]) || File;
-                const active = f.path === folder;
-                return (
-                  <li key={f.path}>
-                    <button
-                      type="button"
-                      onClick={() => switchFolder(f.path)}
-                      aria-current={active ? "true" : undefined}
-                      className={cn(
-                        "flex h-8 w-full items-center gap-2.5 rounded-md px-2.5 text-left transition-colors",
-                        active
-                          ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                          : "text-foreground hover:bg-sidebar-accent/60",
-                      )}
-                    >
-                      <Icon
-                        className={cn(
-                          "size-4 shrink-0",
-                          active ? "" : "text-muted-foreground",
-                        )}
-                        aria-hidden
-                      />
-                      <span className="min-w-0 flex-1 truncate">{f.name}</span>
-                      {f.unseen > 0 && (
-                        <span className="font-mono text-[0.6875rem]">
-                          {f.unseen}
-                        </span>
-                      )}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </nav>
+  const nav = folders.isLoading ? (
+    <div className="grid gap-1 px-2 py-2">
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <Skeleton key={i} className="h-7 rounded-md" />
+      ))}
+    </div>
+  ) : folders.isError ? (
+    <p className="text-destructive px-4 py-2 text-xs">
+      {(folders.error as Error).message}
+    </p>
+  ) : (
+    <MailNav
+      folders={folderList}
+      active={folder}
+      starredCount={starredCount.data}
+      onSelect={switchFolder}
+      onCreate={() => setFolderDialog({ mode: "create" })}
+      onRename={(f) => setFolderDialog({ mode: "rename", folder: f })}
+      onDelete={(f) => setFolderDialog({ mode: "delete", folder: f })}
+    />
+  );
 
-        {/* Message list */}
-        <section
-          aria-label="Messages"
-          className="border-border flex min-h-0 flex-col border-b lg:border-r lg:border-b-0"
-        >
-          <div className="border-border flex items-center gap-2 border-b p-2">
-            <div className="relative min-w-0 flex-1">
-              <Search
-                className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
-                aria-hidden
-              />
-              <Input
-                value={queryText}
-                onChange={(e) => {
-                  setQueryText(e.target.value);
-                  applyQuery(e.target.value);
-                }}
-                placeholder={`Search ${currentFolder?.name ?? "folder"}`}
-                aria-label="Search messages"
-                className="h-8 pl-8"
-              />
-            </div>
-          </div>
-          <div className="text-muted-foreground border-border flex items-center justify-between border-b px-3 py-1.5 text-xs">
-            <span>
-              {currentFolder?.name ?? folder}
-              {currentFolder &&
-                currentFolder.unseen > 0 &&
-                ` · ${currentFolder.unseen} unread`}
-              {query && ` · matching “${query}”`}
-            </span>
-            <span className="font-mono">
-              {total === 0
-                ? "0"
-                : `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total}`}
-            </span>
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            {list.isLoading ? (
-              <div className="grid gap-3 p-3">
-                {[0, 1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="grid gap-1.5">
-                    <Skeleton className="h-3.5 w-2/3" />
-                    <Skeleton className="h-3 w-5/6" />
-                  </div>
-                ))}
-              </div>
-            ) : list.isError ? (
-              <EmptyState
-                icon={ShieldAlert}
-                title="Could not load this folder"
-                description={(list.error as Error).message}
-              />
-            ) : list.data && list.data.items.length === 0 ? (
-              <EmptyState
-                icon={Mail}
-                title={query ? "Nothing matches" : "Nothing here"}
-                description={
-                  query
-                    ? "Try another word — the search covers subject, sender, recipient and body."
-                    : "This folder is empty."
-                }
-              />
-            ) : (
-              <ul className={cn(list.isFetching && "opacity-70")}>
-                {list.data?.items.map((item) => {
-                  const active = item.uid === selected;
-                  return (
-                    <li key={item.uid} className="border-border border-b">
-                      <div
-                        className={cn(
-                          "grid grid-cols-[0.5rem_minmax(0,1fr)_auto] items-start gap-2.5 py-2.5 pr-2 pl-3",
-                          active ? "bg-sidebar-accent" : "hover:bg-muted/60",
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "mt-1.5 block size-2 rounded-full",
-                            item.seen ? "bg-transparent" : "bg-primary",
-                          )}
-                          aria-hidden
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setSelected(item.uid)}
-                          className="min-w-0 text-left"
-                          aria-current={active ? "true" : undefined}
-                        >
-                          <span
-                            className={cn(
-                              "block truncate",
-                              item.seen
-                                ? "font-medium"
-                                : "text-foreground font-semibold",
-                            )}
-                          >
-                            {personLabel(item.from)}
-                          </span>
-                          <span
-                            className={cn(
-                              "block truncate",
-                              item.seen
-                                ? "text-foreground"
-                                : "text-foreground font-medium",
-                            )}
-                          >
-                            {item.subject}
-                          </span>
-                        </button>
-                        <div className="flex flex-col items-end gap-1">
-                          <span
-                            className={cn(
-                              "font-mono text-[0.6875rem] whitespace-nowrap",
-                              item.seen
-                                ? "text-muted-foreground"
-                                : "text-primary",
-                            )}
-                          >
-                            {when(item.date)}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            {item.hasAttachments && (
-                              <Paperclip
-                                className="text-muted-foreground size-3"
-                                aria-hidden
-                              />
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => toggleFlag(item)}
-                              aria-label={item.flagged ? "Remove star" : "Star"}
-                              aria-pressed={item.flagged}
-                              className="text-muted-foreground hover:text-foreground rounded p-0.5"
-                            >
-                              <Star
-                                className={cn(
-                                  "size-3.5",
-                                  item.flagged &&
-                                    "fill-[var(--tone-warning)] text-[var(--tone-warning-fg)]",
-                                )}
-                                aria-hidden
-                              />
-                            </button>
-                          </span>
-                        </div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-          {pages > 1 && (
-            <div className="border-border flex items-center justify-between border-t px-2 py-1.5">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={page <= 1 || list.isFetching}
-                onClick={() => {
-                  setPage((p) => p - 1);
-                  setSelected(null);
-                }}
-              >
-                <ChevronLeft className="size-4" aria-hidden />
-                Newer
-              </Button>
-              <span className="text-muted-foreground font-mono text-xs">
-                {page} / {pages}
-              </span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={page >= pages || list.isFetching}
-                onClick={() => {
-                  setPage((p) => p + 1);
-                  setSelected(null);
-                }}
-              >
-                Older
-                <ChevronRight className="size-4" aria-hidden />
-              </Button>
-            </div>
-          )}
-        </section>
-
-        {/* Reading pane */}
-        <section aria-label="Message" className="flex min-h-0 flex-col">
-          {selected === null ? (
-            <EmptyState
-              icon={Mail}
-              title="Select a message"
-              description="Pick something from the list to read it here."
-              className="my-auto"
-            />
-          ) : message.isLoading ? (
-            <div className="grid gap-3 p-5">
-              <Skeleton className="h-5 w-2/3" />
-              <Skeleton className="h-4 w-1/2" />
-              <Skeleton className="h-40" />
-            </div>
-          ) : message.isError || !msg ? (
-            <EmptyState
-              icon={ShieldAlert}
-              title="Could not open this message"
-              description={
-                message.error
-                  ? (message.error as Error).message
-                  : "It may have been moved."
+  const listHeader = (
+    <div className="flex h-[52px] shrink-0 items-center gap-2 px-4">
+      <h1 className="truncate text-xl font-bold">{title}</h1>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Refresh"
+            onClick={() => {
+              refreshFolder();
+              if (selected) {
+                qc.invalidateQueries({ queryKey: messageKey(selected) });
               }
-              className="my-auto"
+            }}
+          >
+            <RefreshCw
+              className={cn("size-4", list.isFetching && "animate-spin")}
+              aria-hidden
             />
-          ) : (
-            <>
-              <div className="border-border flex flex-wrap items-center gap-1.5 border-b p-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setCompose({ mode: "reply", folder, original: msg })
-                  }
-                >
-                  Reply
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setCompose({ mode: "replyAll", folder, original: msg })
-                  }
-                >
-                  Reply all
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setCompose({ mode: "forward", folder, original: msg })
-                  }
-                >
-                  Forward
-                </Button>
-                <div className="flex-1" />
-                {inTrash ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    disabled={busy}
-                    onClick={() => move(msg.uid, "inbox")}
-                  >
-                    <ArchiveRestore className="size-4" aria-hidden />
-                    Move to Inbox
-                  </Button>
-                ) : (
-                  <>
-                    {hasArchive && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Archive"
-                        disabled={busy}
-                        onClick={() => move(msg.uid, "archive")}
-                      >
-                        <Archive className="size-4" aria-hidden />
-                      </Button>
-                    )}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Move to Trash"
-                      disabled={busy}
-                      onClick={() => move(msg.uid, "trash")}
-                    >
-                      <Trash2 className="size-4" aria-hidden />
-                    </Button>
-                  </>
-                )}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => markUnread(msg.uid)}
-                >
-                  Mark unread
-                </Button>
-              </div>
-              <div className="min-h-0 flex-1 overflow-y-auto p-5">
-                <h2 className="text-foreground text-lg font-semibold tracking-tight">
-                  {msg.subject}
-                </h2>
-                <div className="mt-3 flex items-start gap-3">
-                  <div className="bg-accent text-accent-foreground flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold">
-                    {(personLabel(msg.from)[0] ?? "?").toUpperCase()}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate">
-                      <span className="text-foreground font-semibold">
-                        {personLabel(msg.from)}
-                      </span>
-                      {msg.from?.name && (
-                        <span className="text-muted-foreground">
-                          {" "}
-                          &lt;{msg.from.address}&gt;
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-muted-foreground truncate text-xs">
-                      to {msg.to.map((t) => t.address).join(", ") || "—"}
-                      {msg.cc.length > 0 &&
-                        ` · cc ${msg.cc.map((t) => t.address).join(", ")}`}
-                    </div>
-                  </div>
-                  <time
-                    className="text-muted-foreground shrink-0 font-mono text-xs"
-                    dateTime={msg.date ?? undefined}
-                  >
-                    {when(msg.date, true)}
-                  </time>
-                </div>
-                {msg.blockedRemoteImages > 0 && !allowImages && (
-                  <div className="bg-muted text-muted-foreground mt-4 flex flex-wrap items-center justify-between gap-2 rounded-md px-3 py-2 text-xs">
-                    <span>
-                      {msg.blockedRemoteImages} remote image
-                      {msg.blockedRemoteImages === 1 ? "" : "s"} blocked for
-                      privacy.
-                    </span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="xs"
-                      onClick={() => setAllowImages(true)}
-                    >
-                      Load images
-                    </Button>
-                  </div>
-                )}
-                <div
-                  className="mail-body [&_a]:text-primary mt-4 max-w-full overflow-x-auto text-sm leading-relaxed [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:pl-3 [&_img]:max-w-full [&_p]:my-2 [&_table]:max-w-full"
-                  // Sanitised server-side (lib/mail/sanitize.ts); never raw.
-                  dangerouslySetInnerHTML={{ __html: msg.html }}
-                />
-                {msg.attachments.filter((a) => !a.inline).length > 0 && (
-                  <div className="border-border mt-5 border-t pt-4">
-                    <h3 className="text-muted-foreground mb-2 text-xs font-medium">
-                      Attachments
-                    </h3>
-                    <ul className="flex flex-wrap gap-2">
-                      {msg.attachments
-                        .filter((a) => !a.inline)
-                        .map((a) => (
-                          <li key={a.index}>
-                            <a
-                              href={`/api/admin/mail/${enc(address)}/messages/${msg.uid}/attachments/${a.index}?folder=${enc(folder)}`}
-                              className="bg-card hover:bg-muted/60 border-border flex h-9 items-center gap-2 rounded-md border px-2.5"
-                            >
-                              <File
-                                className="text-muted-foreground size-4"
-                                aria-hidden
-                              />
-                              <span className="flex flex-col leading-tight">
-                                <span className="text-xs font-medium">
-                                  {a.filename}
-                                </span>
-                                <span className="text-muted-foreground font-mono text-[0.625rem]">
-                                  {humanSize(a.size)}
-                                </span>
-                              </span>
-                            </a>
-                          </li>
-                        ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-          {busy && (
-            <div className="text-muted-foreground flex items-center gap-2 px-3 py-1 text-xs">
-              <Loader2 className="size-3 animate-spin" aria-hidden /> Working…
-            </div>
-          )}
-        </section>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Refresh</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Compose"
+            onClick={() => startCompose("new")}
+          >
+            <PenLine className="size-4" aria-hidden />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Compose</TooltipContent>
+      </Tooltip>
+      {!starred && (
+        <TabsList className="ml-auto h-8">
+          <TabsTrigger value="all" className="px-1.5">
+            All
+          </TabsTrigger>
+          <TabsTrigger value="unread" className="px-1.5">
+            Unread
+          </TabsTrigger>
+        </TabsList>
+      )}
+    </div>
+  );
+
+  const search = starred ? (
+    <div className="text-muted-foreground shrink-0 px-4 pb-3 text-xs">
+      Everything you starred, from every folder but Junk and Trash.
+    </div>
+  ) : (
+    <div className="bg-background/95 supports-[backdrop-filter]:bg-background/60 shrink-0 p-4 backdrop-blur">
+      <div className="relative">
+        <Search
+          className="text-muted-foreground absolute top-2 left-2.5 size-4"
+          aria-hidden
+        />
+        <Input
+          ref={searchRef}
+          value={queryText}
+          onChange={(e) => {
+            setQueryText(e.target.value);
+            applyQuery(e.target.value);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") e.currentTarget.blur();
+          }}
+          placeholder="Search"
+          aria-label="Search messages"
+          className="h-8 rounded-lg pl-8"
+        />
       </div>
+    </div>
+  );
+
+  const listPane = (
+    <Tabs
+      value={unreadOnly && !starred ? "unread" : "all"}
+      onValueChange={(v) => {
+        setUnreadOnly(v === "unread");
+        setPage(1);
+        setSelected(null);
+      }}
+      className="flex h-full flex-col gap-0"
+    >
+      {listHeader}
+      <Separator />
+      {badges}
+      {search}
+      <MailList
+        items={items}
+        selected={selected}
+        onSelect={open}
+        folderNames={starred ? folderNames : undefined}
+        loading={list.isLoading}
+        fetching={list.isFetching}
+        error={list.isError ? (list.error as Error).message : null}
+        emptyTitle={
+          starred
+            ? "Nothing starred"
+            : query
+              ? "Nothing matches"
+              : unreadOnly
+                ? "All read"
+                : "Nothing here"
+        }
+        emptyHint={
+          starred
+            ? "Star a message from its menu, or press s while reading it."
+            : query
+              ? "The search covers subject, sender, recipient and body."
+              : unreadOnly
+                ? "No unread messages in this folder."
+                : "This folder is empty."
+        }
+        page={page}
+        pages={pages}
+        onPage={(p) => {
+          setPage(p);
+          setSelected(null);
+        }}
+      />
+    </Tabs>
+  );
+
+  const display = (
+    <MailDisplay
+      address={address}
+      folder={readerFolder}
+      special={readerSpecial}
+      folders={folderList}
+      hasArchive={hasArchive}
+      hasJunk={hasJunk}
+      message={msg}
+      loading={selected !== null && message.isLoading}
+      error={
+        selected !== null && message.isError
+          ? (message.error as Error).message
+          : null
+      }
+      busy={busy}
+      allowImages={allowImages}
+      onAllowImages={() => setAllowImages(true)}
+      onMove={(uid, to) => move({ folder: readerFolder, uid }, to)}
+      onMoveTo={(uid, path) => moveTo({ folder: readerFolder, uid }, path)}
+      onFlag={(uid, patch) => flag({ folder: readerFolder, uid }, patch)}
+      onCompose={startCompose}
+      onSent={() => {
+        qc.invalidateQueries({ queryKey: ["mail", address, "folders"] });
+        qc.invalidateQueries({ queryKey: ["mail", address, "list"] });
+        if (selected) qc.invalidateQueries({ queryKey: messageKey(selected) });
+      }}
+      onBack={desktop ? undefined : () => open(null)}
+    />
+  );
+
+  return (
+    // Viewport minus the topbar and the page padding; the panes share the rest.
+    <div className="bg-card text-card-foreground h-[calc(100dvh-6rem)] min-h-[30rem] overflow-hidden rounded-md border">
+      {desktop ? (
+        <ResizablePanelGroup
+          orientation="horizontal"
+          className="h-full items-stretch"
+          defaultLayout={defaultLayout}
+          onLayoutChanged={(layout) => {
+            document.cookie = `${MAIL_LAYOUT_COOKIE}=${encodeURIComponent(JSON.stringify(layout))}; path=/; max-age=31536000; samesite=lax`;
+          }}
+        >
+          <ResizablePanel
+            id="nav"
+            defaultSize={208}
+            minSize={184}
+            maxSize={300}
+            className="flex flex-col"
+          >
+            {switcher}
+            <Separator />
+            <div className="min-h-0 flex-1 overflow-y-auto">{nav}</div>
+          </ResizablePanel>
+          <ResizableHandle />
+          <ResizablePanel
+            id="list"
+            defaultSize={340}
+            minSize={280}
+            maxSize={520}
+            className="flex flex-col"
+          >
+            {listPane}
+          </ResizablePanel>
+          <ResizableHandle />
+          <ResizablePanel id="display" minSize={360}>
+            {display}
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      ) : selected !== null ? (
+        display
+      ) : (
+        <div className="flex h-full flex-col">
+          <div className="flex h-[52px] shrink-0 items-center gap-2 px-2">
+            <AtSign
+              className="text-muted-foreground size-4 shrink-0"
+              aria-hidden
+            />
+            <SelectField
+              value={address}
+              onChange={switchMailbox}
+              ariaLabel="Mailbox"
+              options={mailboxes.map((m) => ({
+                value: m.address,
+                label: m.address,
+              }))}
+              className="h-8 min-w-0 flex-1 rounded-lg [&>span]:truncate"
+            />
+            <SelectField
+              value={folder}
+              onChange={switchFolder}
+              ariaLabel="Folder"
+              options={[
+                ...folderList.map((f) => ({
+                  value: f.path,
+                  label:
+                    countFor(f) > 0 ? `${f.name} (${countFor(f)})` : f.name,
+                })),
+                { value: STARRED, label: "Starred" },
+              ]}
+              className="h-8 w-32 shrink-0 rounded-lg"
+            />
+          </div>
+          <Separator />
+          <div className="flex min-h-0 flex-1 flex-col">{listPane}</div>
+        </div>
+      )}
+
       <ComposePanel
         address={address}
         seed={compose}
@@ -791,21 +759,57 @@ export function MailClient({
         onSent={() => {
           const wasReply =
             compose?.mode === "reply" || compose?.mode === "replyAll";
+          const original = compose?.original ?? null;
+          const seedFolder = compose?.folder ?? folder;
           setCompose(null);
           qc.invalidateQueries({ queryKey: ["mail", address, "folders"] });
           qc.invalidateQueries({ queryKey: ["mail", address, "list"] });
-          if (wasReply && compose?.original) {
+          if (wasReply && original) {
             qc.invalidateQueries({
-              queryKey: [
-                "mail",
-                address,
-                "message",
-                folder,
-                compose.original.uid,
-              ],
+              queryKey: messageKey({ folder: seedFolder, uid: original.uid }),
             });
           }
         }}
+      />
+
+      <NameDialog
+        open={folderDialog?.mode === "create"}
+        title="New folder"
+        label="Folder name"
+        confirmLabel="Create folder"
+        busy={busy}
+        onCancel={() => setFolderDialog(null)}
+        onConfirm={(v) => void folderAction(v)}
+      />
+      <NameDialog
+        open={folderDialog?.mode === "rename"}
+        title="Rename folder"
+        label="Folder name"
+        initial={
+          folderDialog?.mode === "rename" ? folderDialog.folder.name : ""
+        }
+        confirmLabel="Rename"
+        busy={busy}
+        onCancel={() => setFolderDialog(null)}
+        onConfirm={(v) => void folderAction(v)}
+      />
+      <ConfirmDialog
+        open={folderDialog?.mode === "delete"}
+        title={
+          folderDialog?.mode === "delete"
+            ? `Delete "${folderDialog.folder.name}"?`
+            : "Delete folder?"
+        }
+        body={
+          folderDialog?.mode === "delete" && folderDialog.folder.total > 0
+            ? `This folder still holds ${folderDialog.folder.total} message${folderDialog.folder.total === 1 ? "" : "s"}. Move or delete them first — deleting a folder never deletes mail.`
+            : "The folder is empty; deleting it removes it from the mail server for every mail app."
+        }
+        confirmLabel="Delete folder"
+        destructive
+        busy={busy}
+        onCancel={() => setFolderDialog(null)}
+        onConfirm={() => void folderAction()}
       />
     </div>
   );

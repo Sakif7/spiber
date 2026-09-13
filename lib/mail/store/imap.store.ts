@@ -2,6 +2,12 @@ import { ImapFlow, type MessageStructureObject } from "imapflow";
 import { simpleParser, type AddressObject, type ParsedMail } from "mailparser";
 import { logger } from "@/lib/log";
 import {
+  decodePart,
+  pickPreviewPart,
+  previewText,
+  type PreviewPart,
+} from "@/lib/mail/preview";
+import {
   MailStoreError,
   type FlagPatch,
   type ListResult,
@@ -128,6 +134,103 @@ function attachmentMeta(mail: ParsedMail): MailAttachmentMeta[] {
   }));
 }
 
+/**
+ * List previews without downloading messages: peek at the first few KB of
+ * each message's text part. One FETCH per distinct part id (most pages need
+ * two or three), so a page costs a handful of round trips, not one per row.
+ * Best-effort — a failed peek leaves the preview empty.
+ */
+const PREVIEW_BYTES = 4096;
+
+async function fillPreviews(
+  client: ImapFlow,
+  items: MailListItem[],
+  parts: Map<number, PreviewPart>,
+): Promise<void> {
+  const byKey = new Map<string, number[]>();
+  for (const [uid, p] of parts) {
+    byKey.set(p.key, [...(byKey.get(p.key) ?? []), uid]);
+  }
+  const previews = new Map<number, string>();
+  for (const [key, uids] of byKey) {
+    try {
+      for await (const m of client.fetch(
+        uids,
+        { uid: true, bodyParts: [{ key, maxLength: PREVIEW_BYTES }] },
+        { uid: true },
+      )) {
+        const part = parts.get(m.uid);
+        const raw = m.bodyParts?.get(key.toLowerCase());
+        if (!part || !raw) continue;
+        previews.set(
+          m.uid,
+          previewText(decodePart(raw, part.encoding, part.charset), part.html),
+        );
+      }
+    } catch (e) {
+      logger.warn("mail preview fetch failed", { key, error: String(e) });
+    }
+  }
+  for (const item of items) item.preview = previews.get(item.uid) ?? "";
+}
+
+const STARRED_PER_FOLDER = 200;
+
+/** Envelope-level rows for a set of UIDs in the selected folder, previews optional. */
+async function fetchItems(
+  client: ImapFlow,
+  folder: string,
+  uids: number[],
+  withPreviews: boolean,
+): Promise<MailListItem[]> {
+  const items: MailListItem[] = [];
+  if (uids.length === 0) return items;
+  const previewParts = new Map<number, PreviewPart>();
+  for await (const m of client.fetch(
+    uids,
+    {
+      uid: true,
+      flags: true,
+      envelope: true,
+      bodyStructure: true,
+      size: true,
+      internalDate: true,
+    },
+    { uid: true },
+  )) {
+    const flags = m.flags ?? new Set<string>();
+    const part = pickPreviewPart(m.bodyStructure);
+    if (part) previewParts.set(m.uid, part);
+    items.push({
+      uid: m.uid,
+      folder,
+      subject: m.envelope?.subject?.trim() || "(no subject)",
+      from: addr(m.envelope?.from?.[0]),
+      date: iso(m.envelope?.date) ?? iso(m.internalDate),
+      seen: flags.has("\\Seen"),
+      flagged: flags.has("\\Flagged"),
+      answered: flags.has("\\Answered"),
+      hasAttachments: hasAttachmentNode(m.bodyStructure),
+      size: m.size ?? null,
+      preview: "",
+    });
+  }
+  if (withPreviews) await fillPreviews(client, items, previewParts);
+  return items;
+}
+
+/** IMAP says "already exists" / "does not exist" in prose; map what we can. */
+function folderError(e: unknown, path: string): MailStoreError {
+  const msg = String((e as { responseText?: string })?.responseText ?? e);
+  if (/exist/i.test(msg) && /already|exists/i.test(msg)) {
+    return new MailStoreError("exists", path);
+  }
+  if (/not exist|no such|unknown/i.test(msg)) {
+    return new MailStoreError("not_found", path);
+  }
+  return new MailStoreError("unavailable", msg);
+}
+
 async function downloadSource(
   client: ImapFlow,
   uid: number,
@@ -200,39 +303,110 @@ export const imapStore: MailStore = {
         const total = uids.length;
         const start = (opts.page - 1) * opts.pageSize;
         const pageUids = uids.slice(start, start + opts.pageSize);
-        const items: MailListItem[] = [];
-        if (pageUids.length) {
-          for await (const m of client.fetch(
-            pageUids,
-            {
-              uid: true,
-              flags: true,
-              envelope: true,
-              bodyStructure: true,
-              size: true,
-              internalDate: true,
-            },
-            { uid: true },
-          )) {
-            const flags = m.flags ?? new Set<string>();
-            items.push({
-              uid: m.uid,
-              subject: m.envelope?.subject?.trim() || "(no subject)",
-              from: addr(m.envelope?.from?.[0]),
-              date: iso(m.envelope?.date) ?? iso(m.internalDate),
-              seen: flags.has("\\Seen"),
-              flagged: flags.has("\\Flagged"),
-              answered: flags.has("\\Answered"),
-              hasAttachments: hasAttachmentNode(m.bodyStructure),
-              size: m.size ?? null,
-            });
-          }
-        }
+        const items = await fetchItems(client, folder, pageUids, true);
         // fetch() yields in sequence order; keep the page newest-first.
         items.sort((a, b) => b.uid - a.uid);
         return { items, total, page: opts.page, pageSize: opts.pageSize };
       } finally {
         lock.release();
+      }
+    });
+  },
+
+  async listStarred(address, opts): Promise<ListResult> {
+    return withClient(address, async (client) => {
+      const list = await client.list();
+      const folders = list.filter(
+        (f) =>
+          f.listed &&
+          !f.flags.has("\\NonExistent") &&
+          !f.flags.has("\\Noselect") &&
+          !["junk", "trash"].includes(specialUseOf(f.path, f.specialUse) ?? ""),
+      );
+      // Starred sets are small: gather every flagged row (envelope only),
+      // sort across folders by date, then fetch previews for the one page.
+      const all: MailListItem[] = [];
+      for (const f of folders) {
+        const lock = await client.getMailboxLock(f.path, { readOnly: true });
+        try {
+          const uidsRaw = await client.search({ flagged: true }, { uid: true });
+          const uids = (Array.isArray(uidsRaw) ? uidsRaw : [])
+            .sort((a, b) => b - a)
+            .slice(0, STARRED_PER_FOLDER);
+          all.push(...(await fetchItems(client, f.path, uids, false)));
+        } finally {
+          lock.release();
+        }
+      }
+      all.sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
+      const start = (opts.page - 1) * opts.pageSize;
+      const page = all.slice(start, start + opts.pageSize);
+      const byFolder = new Map<string, MailListItem[]>();
+      for (const it of page) {
+        byFolder.set(it.folder, [...(byFolder.get(it.folder) ?? []), it]);
+      }
+      for (const [path, rows] of byFolder) {
+        const lock = await client.getMailboxLock(path, { readOnly: true });
+        try {
+          const fresh = await fetchItems(
+            client,
+            path,
+            rows.map((r) => r.uid),
+            true,
+          );
+          const previews = new Map(fresh.map((r) => [r.uid, r.preview]));
+          for (const r of rows) r.preview = previews.get(r.uid) ?? "";
+        } finally {
+          lock.release();
+        }
+      }
+      return {
+        items: page,
+        total: all.length,
+        page: opts.page,
+        pageSize: opts.pageSize,
+      };
+    });
+  },
+
+  async createFolder(address, path) {
+    return withClient(address, async (client) => {
+      try {
+        const res = await client.mailboxCreate(path);
+        return {
+          path: res.path,
+          name: res.path.split(/[./]/).pop() ?? res.path,
+          specialUse: null,
+          delimiter: ".",
+          total: 0,
+          unseen: 0,
+        };
+      } catch (e) {
+        throw folderError(e, path);
+      }
+    });
+  },
+
+  async renameFolder(address, path, newPath) {
+    await withClient(address, async (client) => {
+      try {
+        await client.mailboxRename(path, newPath);
+      } catch (e) {
+        throw folderError(e, newPath);
+      }
+    });
+  },
+
+  async deleteFolder(address, path) {
+    await withClient(address, async (client) => {
+      const status = await client.status(path, { messages: true });
+      if ((status.messages ?? 0) > 0) {
+        throw new MailStoreError("not_empty", path);
+      }
+      try {
+        await client.mailboxDelete(path);
+      } catch (e) {
+        throw folderError(e, path);
       }
     });
   },

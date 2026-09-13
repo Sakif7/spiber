@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ok, fail } from "@/lib/http/respond";
 import { getMessage } from "@/lib/services/mail.service";
+import { forgetMailFeed } from "@/lib/services/mail-notify.service";
 import { guardMailbox, storeError } from "../../../_guard";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +30,8 @@ export async function GET(req: Request, { params }: Params) {
       allowRemoteImages: parsed.data.images === "1",
     });
     if (!message) return fail({ code: "not_found" }, 404);
+    // Reading marks read: let the bell recount on its next poll.
+    if (!g.access.elevated) forgetMailFeed(g.claims.sub);
     return ok({ message });
   } catch (e) {
     return storeError(e);

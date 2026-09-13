@@ -353,8 +353,7 @@ function ShellInner({
                 <Search className="size-5" />
               </Button>
 
-              {/* The feed is an admin API; an employee's shell has no bell (yet). */}
-              {viewer.isAdmin && <NotificationBell />}
+              <NotificationBell />
               <ThemeToggle />
               <AdminUserMenu email={email} role={role} />
             </header>

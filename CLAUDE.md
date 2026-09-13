@@ -156,7 +156,22 @@ These are the things the owner has had to repeat. Treat them as hard rules.
   assigned/sourced, orders created or on their leads, visits attended, own
   claims, own payroll line); portal writes (`/api/admin/me/*`) pin the
   employee from the session, never from the body. Roundcube stays as a
-  fallback. Plan + status: log 2026-09-13.
+  fallback. The mail page is the shadcn "mail" layout (resizable panes,
+  pane widths in the `admin-mail-layout` cookie so SSR paints them);
+  list previews are a partial IMAP peek (`lib/mail/preview.ts`), never a
+  download. The topbar bell shows unread mail for own + assigned mailboxes
+  (`lib/services/mail-notify.service.ts`, cached ~20 s, never a super
+  admin's elevated reach) and deep-links `?mailbox=&folder=&uid=`; mail
+  items are read by opening them, never from the bell. Starred is a
+  view across folders (`listStarred`), so a list row always carries its
+  `folder` and the client's selection is `{ folder, uid }`. Folders
+  ("labels") are real IMAP folders: create/rename/delete only custom, empty
+  ones (`createFolder`/`renameFolder`/`deleteFolder`, audited); the
+  server's own folders are refused as `reserved`. Bodies are composed in
+  TipTap (`mail-editor.tsx`): the client sends `html` + `text`, the
+  server re-sanitises the HTML (`lib/mail/outgoing-html.ts`, strict
+  allowlist) and derives the plain-text twin from it. Plan + status: log
+  2026-09-13 / 2026-09-14.
 - **Seed data: none in prod.** Empty catalogues show "Coming soon".
 
 ## Stack
@@ -288,6 +303,15 @@ tests`, `npm test`, and the browser pass above. Then `git status`.
   `hasUnsavedChanges()` in the panels) on any new editor.
 - Pushing the URL you are already on races `router.refresh()`; on an existing
   record just refresh.
+- **Invalidating a react-query key while its observer is still mounted
+  refetches it at once** — "mark unread" re-read (and re-marked) the open
+  message because the invalidate ran before `setSelected(null)` unmounted
+  the reader. Drop the query (`removeQueries`) or patch the cache instead.
+- Anything a client must agree with the server on at first paint (pane
+  widths, a collapsed state) goes in a **cookie read by the page**, not
+  localStorage: a client-only read hydrates as a style mismatch. And a
+  `"use client"` module cannot export a plain helper to a server page —
+  keep such helpers in `lib/`.
 - A derived `<Select>` value cannot represent a choice whose payload is still
   empty ("Someone else…" with no name yet) — hold the choice in state.
 - A react-pdf `View` `render` prop does get `totalPages` at runtime (the
@@ -354,6 +378,13 @@ clip }` that makes body the sticky containing block: a menu inside a sticky
   what changed, never on two nulls being equal.
 
 **Patching files from the shell**
+
+- The same backslash-eating bites `node -e '…'` and a heredoc that feeds a
+  patch script: `"\\Seen"` arrived as a single backslash and a regex lost
+  its `\\/`. Write patch scripts with the Write tool, never inline.
+- `nodemailer/lib/mail-composer` must be imported as
+  `…/mail-composer/index.js`: Next externalises nodemailer and Node's ESM
+  resolver refuses a directory import (the dev-start warning was that).
 
 - Bash heredocs here **eat backslashes** (`\\n` → `\n`, regex escapes break).
   Write files containing regexes or JSX `{"\n"}` with the Write/Edit tool, or

@@ -17,6 +17,8 @@ const fieldsSchema = z.object({
   bcc: z.string().max(4000).default(""),
   subject: z.string().max(500).default(""),
   text: z.string().max(200_000).default(""),
+  /** Rich text from the composer; the service sanitises it. */
+  html: z.string().max(400_000).default(""),
   replyFolder: z.string().max(200).optional(),
   replyUid: z.coerce.number().int().positive().optional(),
   forwardFolder: z.string().max(200).optional(),
@@ -109,6 +111,7 @@ export async function POST(req: Request, { params }: Params) {
         bcc: bcc.ok ? bcc.list : [],
         subject: f.subject,
         text: f.text,
+        html: f.html || null,
         attachments,
         inReplyTo:
           f.replyFolder && f.replyUid
