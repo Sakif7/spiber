@@ -16,15 +16,20 @@ export const dynamic = "force-dynamic";
  * per-admin read state; a mail item is "read" once the message is, so it
  * simply stops appearing.
  */
-export async function GET() {
+export async function GET(req: Request) {
   const staff = await requireStaff();
   if (!staff) return fail({ code: "forbidden" }, 403);
   const admin = isAdmin(staff);
+  // The bell shows the latest 30 from a short cache; the notifications
+  // page asks for more and for a fresh read of the mailboxes.
+  const params = new URL(req.url).searchParams;
+  const limit = Math.min(100, Math.max(1, Number(params.get("limit")) || 30));
+  const fresh = params.get("fresh") === "1";
 
   const [items, unread, mail] = await Promise.all([
-    admin ? listAdminNotifications(30) : Promise.resolve([]),
+    admin ? listAdminNotifications(limit) : Promise.resolve([]),
     admin ? countUnreadNotifications(staff.sub) : Promise.resolve(0),
-    mailFeed(staff),
+    mailFeed(staff, { fresh }),
   ]);
 
   const feed = [

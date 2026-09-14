@@ -31,7 +31,7 @@ const ADMIN_PATH = /^\/(?:(en|bn|ja)\/)?admin(\/|$)/;
 // The staff side of the admin shell — the employee portal and the mailbox. An
 // employee who is not an admin may open only these; the `(ops)` layout
 // re-checks the admin role for every other admin page.
-const STAFF_PATH = /^\/(?:(en|bn|ja)\/)?admin\/(me|mail)(\/|$)/;
+const STAFF_PATH = /^\/(?:(en|bn|ja)\/)?admin\/(me|mail|notifications)(\/|$)/;
 // Seller portal: require a valid session (coarse); the seller layout re-checks
 // the DB for an active Seller profile (role-based access is authoritative there).
 const SELLER_PATH = /^\/(?:(en|bn|ja)\/)?seller(\/|$)/;

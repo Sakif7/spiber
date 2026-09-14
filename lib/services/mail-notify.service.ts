@@ -116,12 +116,18 @@ async function compute(claims: AccessClaims): Promise<MailFeed> {
   return feed;
 }
 
-/** Unread mail for this person, cached ~20 s and never slower than ~8 s. */
-export async function mailFeed(claims: AccessClaims): Promise<MailFeed> {
+/**
+ * Unread mail for this person, cached ~20 s and never slower than ~8 s.
+ * `fresh` skips the cache — for a page the person just opened, not a poll.
+ */
+export async function mailFeed(
+  claims: AccessClaims,
+  opts: { fresh?: boolean } = {},
+): Promise<MailFeed> {
   const key = claims.sub;
   const now = Date.now();
   const hit = cache.get(key);
-  if (hit && now - hit.at < CACHE_MS) return hit.feed;
+  if (hit && !opts.fresh && now - hit.at < CACHE_MS) return hit.feed;
   if (hit?.pending) return withTimeout(hit.pending, BUDGET_MS, hit.feed);
 
   const pending = compute(claims)
@@ -141,4 +147,61 @@ export async function mailFeed(claims: AccessClaims): Promise<MailFeed> {
 export function forgetMailFeed(userId?: string) {
   if (userId) cache.delete(userId);
   else cache.clear();
+}
+
+/** A feed item id back into its parts, or null for anything else. */
+export function parseMailItemId(
+  id: string,
+): { address: string; folder: string; uid: number } | null {
+  const m = /^mail:([^:]+):(.+):(\d+)$/.exec(id);
+  if (!m) return null;
+  const uid = Number(m[3]);
+  return Number.isInteger(uid) && uid > 0
+    ? { address: m[1], folder: m[2], uid }
+    : null;
+}
+
+/**
+ * "Mark read" from the bell: the messages behind the given feed ids (or, with
+ * no ids, every message the feed currently lists) are flagged \\Seen in their
+ * mailboxes — only mailboxes the person's feed may show. Returns how many
+ * were marked.
+ */
+export async function markMailRead(
+  claims: AccessClaims,
+  ids?: string[],
+): Promise<number> {
+  const allowed = new Set(
+    (await accessibleMailboxes(claims))
+      .filter(
+        (m) => m.status === "active" && (!m.elevated || m.kind === "shared"),
+      )
+      .map((m) => m.address),
+  );
+  const targets = ids
+    ? ids.map(parseMailItemId).filter((t): t is NonNullable<typeof t> => !!t)
+    : (await mailFeed(claims)).items.map((i) => ({
+        address: i.address,
+        folder: i.folder,
+        uid: i.uid,
+      }));
+  const byBox = new Map<string, number[]>();
+  for (const t of targets) {
+    if (!allowed.has(t.address)) continue;
+    const key = `${t.address}\n${t.folder}`;
+    byBox.set(key, [...(byBox.get(key) ?? []), t.uid]);
+  }
+  const store = getMailStore();
+  let marked = 0;
+  for (const [key, uids] of byBox) {
+    const [address, folder] = key.split("\n");
+    try {
+      await store.setFlags(address, folder, uids, { seen: true });
+      marked += uids.length;
+    } catch (e) {
+      logger.warn("mark mail read failed", { address, error: String(e) });
+    }
+  }
+  forgetMailFeed(claims.sub);
+  return marked;
 }

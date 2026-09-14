@@ -93,6 +93,15 @@ export async function GET(req: Request, { params }: Params) {
         }
         return;
       }
+      // A compressing proxy (Traefik's gzip) holds a response back until it
+      // has ~1 KB to decide on; small events would sit in that buffer. A
+      // leading comment bigger than that makes it decide now, after which
+      // every flush goes straight through.
+      try {
+        controller.enqueue(encoder.encode(`: ${" ".repeat(4096)}\n\n`));
+      } catch {
+        /* already gone */
+      }
       send("ready", { folder });
       // Comments keep proxies and the browser from timing the stream out.
       timer = setInterval(() => {

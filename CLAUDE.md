@@ -177,7 +177,9 @@ These are the things the owner has had to repeat. Treat them as hard rules.
   process already holds so the sandbox shows mail arriving); the client only
   refetches on an event and relays it to the bell (`MAIL_CHANGED_EVENT`).
   The bell counts own + assigned mailboxes, plus every _shared_ mailbox for a
-  super admin — never a colleague's personal one. Plan + status: log
+  super admin — never a colleague's personal one; "Mark all read" there
+  flags the listed mail `\\Seen` (`markMailRead`), and `/admin/notifications`
+  is the full list (staff path in `proxy.ts`). Plan + status: log
   2026-09-13 / 2026-09-14.
 - **Seed data: none in prod.** Empty catalogues show "Coming soon".
 
@@ -314,6 +316,11 @@ tests`, `npm test`, and the browser pass above. Then `git status`.
   refetches it at once** — "mark unread" re-read (and re-marked) the open
   message because the invalidate ran before `setSelected(null)` unmounted
   the reader. Drop the query (`removeQueries`) or patch the cache instead.
+- **A server-sent event stream behind Traefik's `gzip` middleware is held
+  back until ~1 KB has accumulated** (the gzip wrapper waits to decide
+  whether to compress), so small events never reach the browser. Open the
+  stream with a comment of a few KB (`events/route.ts`) — after that every
+  flush goes straight through — and keep a poll-driven fallback.
 - Anything a client must agree with the server on at first paint (pane
   widths, a collapsed state) goes in a **cookie read by the page**, not
   localStorage: a client-only read hydrates as a style mismatch. And a

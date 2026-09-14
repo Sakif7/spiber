@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { useRouter } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import {
   Bell,
   BellOff,
@@ -12,7 +12,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/cn";
-import { MAIL_CHANGED_EVENT } from "@/components/admin/mail/mail-shared";
+import {
+  MAIL_ARRIVED_EVENT,
+  MAIL_CHANGED_EVENT,
+} from "@/components/admin/mail/mail-shared";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -133,6 +136,10 @@ export function NotificationBell() {
           const fresh = next.items.filter((it) => !prev.has(it.id) && !it.read);
           if (fresh.length > 0) {
             if (readSoundOn()) playChime();
+            // The mail page refetches on this even if its own stream is quiet.
+            if (fresh.some((it) => it.kind === "mail")) {
+              window.dispatchEvent(new Event(MAIL_ARRIVED_EVENT));
+            }
             for (const it of fresh.slice(0, 3)) {
               toast(it.title, {
                 description: it.body ?? undefined,
@@ -170,35 +177,37 @@ export function NotificationBell() {
     };
   }, [router]);
 
-  // Mail is read by opening it in the mailbox, never from here: "Mark all
-  // read" clears business events and leaves the unread-mail count alone.
+  // "Mark all read" clears business events and marks the listed mail as
+  // read in its mailbox (what opening it would do); read mail leaves the feed.
   function markRead(ids: string[] | "all") {
     void fetch("/api/admin/notifications/read", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(ids === "all" ? { all: true } : { ids }),
+    }).then(() => {
+      if (ids === "all") window.dispatchEvent(new Event(MAIL_ARRIVED_EVENT));
     });
-    setFeed((f) =>
-      f
-        ? {
-            ...f,
-            unread:
-              ids === "all"
-                ? f.unreadMail
-                : Math.max(
-                    0,
-                    f.unread -
-                      f.items.filter((it) => ids.includes(it.id) && !it.read)
-                        .length,
-                  ),
-            items: f.items.map((it) =>
-              it.kind === "event" && (ids === "all" || ids.includes(it.id))
-                ? { ...it, read: true }
-                : it,
-            ),
-          }
-        : f,
-    );
+    setFeed((f) => {
+      if (!f) return f;
+      if (ids === "all") {
+        return {
+          unread: 0,
+          unreadMail: 0,
+          items: f.items
+            .filter((it) => it.kind === "event")
+            .map((it) => ({ ...it, read: true })),
+        };
+      }
+      const hit = (it: FeedItem) => ids.includes(it.id) && !it.read;
+      const mailHit = f.items.filter((it) => it.kind === "mail" && hit(it));
+      return {
+        unread: Math.max(0, f.unread - f.items.filter(hit).length),
+        unreadMail: Math.max(0, f.unreadMail - mailHit.length),
+        items: f.items
+          .filter((it) => !(it.kind === "mail" && hit(it)))
+          .map((it) => (hit(it) ? { ...it, read: true } : it)),
+      };
+    });
   }
 
   function openItem(item: FeedItem) {
@@ -260,7 +269,7 @@ export function NotificationBell() {
                 <VolumeX className="size-4" />
               )}
             </Button>
-            {unread > (feed?.unreadMail ?? 0) && (
+            {unread > 0 && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -330,6 +339,15 @@ export function NotificationBell() {
               </span>
             </button>
           ))}
+        </div>
+        <div className="border-border border-t px-3 py-2">
+          <Link
+            href="/admin/notifications"
+            onClick={() => setOpen(false)}
+            className="text-primary text-xs font-medium hover:underline"
+          >
+            View all notifications
+          </Link>
         </div>
       </PopoverContent>
     </Popover>

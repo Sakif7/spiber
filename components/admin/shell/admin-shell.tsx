@@ -172,7 +172,14 @@ function ShellInner({
   // The active section is derived from the route — no separate state to drift.
   const section = sectionForPath(pathname, viewer);
   const active = activeItemFor(pathname);
-  const title = active?.title ?? (viewer.isAdmin ? "Admin" : "My desk");
+  // The notifications page hangs off the bell, not the nav; name it anyway.
+  const title =
+    active?.title ??
+    (/\/admin\/notifications(\/|$)/.test(pathname)
+      ? "Notifications"
+      : viewer.isAdmin
+        ? "Admin"
+        : "My desk");
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {

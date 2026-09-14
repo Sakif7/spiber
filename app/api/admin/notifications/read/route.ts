@@ -7,37 +7,51 @@ import {
   markNotificationsRead,
   markAllNotificationsRead,
 } from "@/lib/repositories/notifications.repo";
+import { markMailRead } from "@/lib/services/mail-notify.service";
 
 export const dynamic = "force-dynamic";
 
+const ROW_ID = /^[0-9a-f]{24}$/i;
+const MAIL_ID = /^mail:[^:]+:.+:\d+$/;
+
 const readSchema = z.object({
   ids: z
-    .array(z.string().regex(/^[0-9a-f]{24}$/i))
+    .array(
+      z
+        .string()
+        .max(300)
+        .refine((s) => ROW_ID.test(s) || MAIL_ID.test(s)),
+    )
     .max(100)
     .optional(),
   all: z.boolean().optional(),
 });
 
 /**
- * Mark business notifications read for THIS person (per-admin read state).
- * Mail items in the feed are not rows here — a message reads as unread until
- * it is opened in the mailbox — so their ids are simply not accepted, and an
- * employee (who only ever sees mail) has nothing to mark.
+ * Mark notifications read for THIS person: business rows get per-admin read
+ * state; a mail item is marked \\Seen in its mailbox (the same thing opening
+ * it does). "All" covers both — every business row for an admin, and every
+ * message the bell currently lists for anyone.
  */
 export async function POST(req: Request) {
-  const admin = await requireStaff();
-  if (!admin) return fail({ code: "forbidden" }, 403);
-  if (!isAdmin(admin)) return ok({ done: true });
+  const staff = await requireStaff();
+  if (!staff) return fail({ code: "forbidden" }, 403);
+  const admin = isAdmin(staff);
 
   const parsed = await parseJson(req, readSchema);
   if (!parsed.success) {
     return fail({ code: "invalid_input", details: parsed.issues }, 400);
   }
 
+  let mail = 0;
   if (parsed.data.all) {
-    await markAllNotificationsRead(admin.sub);
+    if (admin) await markAllNotificationsRead(staff.sub);
+    mail = await markMailRead(staff);
   } else if (parsed.data.ids?.length) {
-    await markNotificationsRead(parsed.data.ids, admin.sub);
+    const rows = parsed.data.ids.filter((id) => ROW_ID.test(id));
+    const mailIds = parsed.data.ids.filter((id) => MAIL_ID.test(id));
+    if (admin && rows.length) await markNotificationsRead(rows, staff.sub);
+    if (mailIds.length) mail = await markMailRead(staff, mailIds);
   }
-  return ok({ done: true });
+  return ok({ done: true, mail });
 }

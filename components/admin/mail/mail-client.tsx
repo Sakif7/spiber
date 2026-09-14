@@ -45,7 +45,13 @@ import {
 import { MailDisplay, type MoveTarget } from "./mail-display";
 import { MailList, sameRow, type Selection } from "./mail-list";
 import { MailNav, MailboxSwitcher, STARRED, countFor } from "./mail-nav";
-import { MAIL_CHANGED_EVENT, enc, mailApi, useIsDesktop } from "./mail-shared";
+import {
+  MAIL_ARRIVED_EVENT,
+  MAIL_CHANGED_EVENT,
+  enc,
+  mailApi,
+  useIsDesktop,
+} from "./mail-shared";
 
 /**
  * The mailbox, locked to the viewport: three resizable panes (account +
@@ -170,8 +176,17 @@ export function MailClient({
       window.dispatchEvent(new Event(MAIL_CHANGED_EVENT));
     };
     es.addEventListener("change", onChange);
+    // Belt and braces: the bell's poll noticed new mail before the stream did.
+    const onArrived = () => {
+      qc.invalidateQueries({ queryKey: ["mail", address, "list"] });
+      qc.invalidateQueries({ queryKey: ["mail", address, "folders"] });
+    };
+    window.addEventListener(MAIL_ARRIVED_EVENT, onArrived);
     // A stream the server ended (mail link dropped) reconnects on its own.
-    return () => es.close();
+    return () => {
+      es.close();
+      window.removeEventListener(MAIL_ARRIVED_EVENT, onArrived);
+    };
   }, [address, watched, qc]);
 
   const message = useQuery({
