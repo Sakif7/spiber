@@ -91,3 +91,21 @@ export const listDocumentsQuerySchema = z.object({
   type: documentTypeEnum.optional(),
   status: documentStatusEnum.optional(),
 });
+
+const objectId = z.string().regex(/^[0-9a-f]{24}$/i, "must be an id");
+
+/** Send: the slot people sign; these extra people only read it. */
+export const sendDocumentSchema = z.object({
+  acknowledgers: z.array(objectId).max(200).default([]),
+  message: z.string().trim().max(1000).optional(),
+});
+export type SendDocumentInput = z.infer<typeof sendDocumentSchema>;
+
+/** The recipient's act: name typed as on their record, the box ticked. */
+export const acknowledgeDocumentSchema = z.object({
+  typedName: z.string().trim().min(1, "Type your name").max(160),
+  agree: z.literal(true, "Tick the box to confirm you have read it"),
+});
+export type AcknowledgeDocumentInput = z.infer<
+  typeof acknowledgeDocumentSchema
+>;

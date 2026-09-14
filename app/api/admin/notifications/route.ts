@@ -12,7 +12,8 @@ export const dynamic = "force-dynamic";
 /**
  * The topbar bell feed, polled (~30s): business events for admins (new
  * order, RFQ, lead…) plus unread mail in the mailboxes the person reads as
- * themselves. Employees get only the mail part. Business rows carry
+ * themselves. Employees get the mail part plus rows addressed to them
+ * (a document waiting for their signature). Business rows carry
  * per-admin read state; a mail item is "read" once the message is, so it
  * simply stops appearing.
  */
@@ -26,9 +27,12 @@ export async function GET(req: Request) {
   const limit = Math.min(100, Math.max(1, Number(params.get("limit")) || 30));
   const fresh = params.get("fresh") === "1";
 
+  // Admins see the business rows plus anything addressed to them; an
+  // employee sees only rows addressed to them (a document to sign).
+  const viewer = { userId: staff.sub, admin };
   const [items, unread, mail] = await Promise.all([
-    admin ? listAdminNotifications(limit) : Promise.resolve([]),
-    admin ? countUnreadNotifications(staff.sub) : Promise.resolve(0),
+    listAdminNotifications(limit, viewer),
+    countUnreadNotifications(staff.sub, admin),
     mailFeed(staff, { fresh }),
   ]);
 

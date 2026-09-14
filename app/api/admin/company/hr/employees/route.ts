@@ -3,9 +3,33 @@ import { parseJson } from "@/lib/http/validate";
 import { employeeCreateWithAccessSchema } from "@/lib/schemas/hr";
 import { createEmployeeWithAccess } from "@/lib/services/hr/employee-access.service";
 import { writeAudit } from "@/lib/repositories/audit.repo";
+import { listEmployees } from "@/lib/services/hr/employee.service";
 import { guardSales } from "../../sales/_guard";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * The people, for pickers (a signature slot, a document's readers): active
+ * unless `?all=1`. Says whether each has a signature on file, so the author
+ * can see who could sign today.
+ */
+export async function GET(req: Request) {
+  const g = await guardSales("hr-read");
+  if (!g.ok) return g.res;
+  const all = new URL(req.url).searchParams.get("all") === "1";
+  const rows = await listEmployees({ includeInactive: all });
+  return ok({
+    employees: rows.map((e) => ({
+      id: String(e._id),
+      name: e.name,
+      designation: e.designation,
+      kind: e.kind,
+      status: e.status,
+      businessEmail: e.businessEmail ?? null,
+      hasSignature: Boolean(e.signatureAssetId),
+    })),
+  });
+}
 
 /**
  * Create an employee — and, in the same request, their mailbox, portal login

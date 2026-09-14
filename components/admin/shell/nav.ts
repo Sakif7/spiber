@@ -31,6 +31,7 @@ import {
   Mailbox,
   Mail,
   FilePen,
+  FileSignature,
   ClipboardList,
   CalendarClock,
   Plane,
@@ -51,6 +52,7 @@ import {
   LayoutTemplate,
   type LucideIcon,
   ChartNoAxesCombined,
+  PenLine,
 } from "lucide-react";
 import { routing } from "@/i18n/routing";
 
@@ -539,6 +541,14 @@ export const ME_NAV_GROUPS: NavGroup[] = [
       item("me.orders", "/admin/me/orders", "My sales orders", FileSpreadsheet),
       item("me.visits", "/admin/me/visits", "My visits", MapPin),
       item("me.claims", "/admin/me/claims", "My claims", ReceiptText),
+      item(
+        "me.documents",
+        "/admin/me/documents",
+        "My documents",
+        FileSignature,
+        "Documents sent to me",
+      ),
+      item("me.signature", "/admin/me/signature", "My signature", PenLine),
     ],
   },
   {

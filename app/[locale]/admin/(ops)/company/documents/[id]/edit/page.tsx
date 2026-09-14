@@ -4,6 +4,7 @@ import { getSessionUser } from "@/lib/auth/current-user";
 import { isSuperAdmin } from "@/lib/auth/rbac";
 import { companyContext } from "@/lib/pdf/engine/context";
 import { getDocument } from "@/lib/services/documents/authored-document.service";
+import { signedBodyFor } from "@/lib/services/documents/document-signing.service";
 import { documentSettingsSchema } from "@/lib/schemas/authored-document";
 import { DocumentEditor } from "@/components/admin/documents/document-editor";
 
@@ -21,6 +22,12 @@ export default async function DocumentEditPage({
   if (!isSuperAdmin(user)) redirect(`/${locale}/admin/company/documents`);
   const doc = await getDocument(id);
   if (!doc) notFound();
+  // Signed slots show the signature on screen (a private, per-request URL);
+  // while drafting nothing is signed and the body is used as stored.
+  const body =
+    doc.status === "sent" || doc.status === "completed"
+      ? await signedBodyFor(doc, "screen")
+      : doc.body;
 
   return (
     <DocumentEditor
@@ -30,7 +37,7 @@ export default async function DocumentEditPage({
         number: doc.number ?? null,
         title: doc.title,
         status: doc.status,
-        body: doc.body,
+        body,
         rev: doc.rev ?? 0,
         settings: documentSettingsSchema.parse(doc.settings ?? {}),
         versions: (doc.versions ?? []).map((v) => ({

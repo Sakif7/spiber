@@ -13,13 +13,18 @@ import {
   uploadDocument,
   type Actor,
 } from "@/lib/services/company-fs.service";
+export type { Actor };
 import {
   DOCUMENT_NUMBER_PREFIX,
   DOCUMENT_TYPE_LABEL,
   type DocumentStatus,
   type DocumentType,
 } from "@/lib/documents/types";
-import { bodyToHtml, emptyBody } from "@/lib/documents/render";
+import {
+  bodyToHtml,
+  emptyBody,
+  stripSignatureState,
+} from "@/lib/documents/render";
 import { renderDocumentPdf } from "@/lib/documents/print/pdf";
 import {
   documentSettingsSchema,
@@ -44,6 +49,7 @@ export type DocumentError =
   | "locked"
   | "stale"
   | "invalid_body"
+  | "invalid_input"
   | "print_failed"
   | "vault_failed";
 
@@ -181,7 +187,8 @@ export async function updateDocument(
   }
   const set: Record<string, unknown> = {};
   if (input.title !== undefined) set.title = input.title;
-  if (input.body) set.body = input.body;
+  // Signed-slot images are render-time state; the stored body never has them.
+  if (input.body) set.body = stripSignatureState(input.body);
   if (input.settings) {
     set.settings = documentSettingsSchema.parse({
       ...doc.settings,
@@ -215,13 +222,14 @@ export async function nextDocumentNumber(type: DocumentType): Promise<string> {
   return `SPM-${DOCUMENT_NUMBER_PREFIX[type]}-${new Date().getFullYear()}-${String(seq).padStart(3, "0")}`;
 }
 
-/** The current draft as PDF bytes — a preview, nothing is filed. */
+/** The document as PDF bytes — a preview, nothing is filed. */
 export async function renderDraftPdf(
   doc: DocumentRow,
+  printBody: IAuthoredDocument["body"] = doc.body,
 ): Promise<DocumentResult<{ pdf: Buffer; pages: number }>> {
   try {
     const out = await renderDocumentPdf({
-      body: doc.body,
+      body: printBody,
       settings: documentSettingsSchema.parse(doc.settings ?? {}),
       number: doc.number ?? null,
       title: doc.title,
@@ -241,7 +249,17 @@ export async function fileVersion(
   id: string,
   label: IDocumentVersion["label"],
   actor: Actor,
-  opts: { note?: string; req?: Request; body?: IAuthoredDocument["body"] } = {},
+  opts: {
+    note?: string;
+    req?: Request;
+    body?: IAuthoredDocument["body"];
+    /**
+     * What to print, when it differs from what is stored — the body with
+     * the given signatures drawn in. The version keeps the plain body; the
+     * signatures live on the recipient rows and in the PDF itself.
+     */
+    printBody?: IAuthoredDocument["body"];
+  } = {},
 ): Promise<
   DocumentResult<{ version: number; vaultFileId: string; pages: number }>
 > {
@@ -252,7 +270,7 @@ export async function fileVersion(
   let printed;
   try {
     printed = await renderDocumentPdf({
-      body,
+      body: opts.printBody ?? body,
       settings,
       number: doc.number ?? null,
       title: doc.title,

@@ -21,3 +21,20 @@ export async function notifyAdmins(input: AdminNotifyInput): Promise<void> {
     logger.warn(`admin notification failed (${input.type})`, e);
   }
 }
+
+/**
+ * The same, addressed to specific people (an employee's bell shows only
+ * rows addressed to them). No-op for an empty list; never throws.
+ */
+export async function notifyUsers(
+  userIds: string[],
+  input: AdminNotifyInput,
+): Promise<void> {
+  const ids = [...new Set(userIds.filter(Boolean))];
+  if (ids.length === 0) return;
+  try {
+    await createAdminNotification({ ...input, forUserIds: ids });
+  } catch (e) {
+    logger.warn(`user notification failed (${input.type})`, e);
+  }
+}

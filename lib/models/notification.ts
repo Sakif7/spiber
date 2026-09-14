@@ -17,6 +17,12 @@ export interface IAdminNotification {
   severity: "info" | "success" | "warning";
   /** What the event is about (kind + human reference, e.g. order number). */
   entity?: { kind: string; id?: string; ref?: string };
+  /**
+   * Who this row is for. Empty/absent = every admin (the original feed).
+   * Set = only these user ids see it — how an employee is told a document
+   * is waiting for their signature.
+   */
+  forUserIds?: string[];
   readBy: string[];
   createdAt: Date;
   updatedAt: Date;
@@ -40,12 +46,14 @@ const adminNotificationSchema = new Schema<IAdminNotification>(
       ),
       default: undefined,
     },
+    forUserIds: { type: [String], default: undefined },
     readBy: { type: [String], default: [] },
   },
   { collection: "admin_notifications", timestamps: true },
 );
 
 adminNotificationSchema.index({ createdAt: -1 });
+adminNotificationSchema.index({ forUserIds: 1, createdAt: -1 });
 // Notifications are ephemeral signals, not records — expire after 60 days.
 adminNotificationSchema.index(
   { createdAt: 1 },

@@ -4,6 +4,7 @@ import { Mailbox, type IMailbox } from "@/lib/models/mailbox";
 import type { Lean } from "@/lib/models/_shared";
 import type { AccessClaims } from "@/lib/auth/tokens";
 import { isSuperAdmin } from "@/lib/auth/rbac";
+import { primaryMailbox } from "@/lib/mail/config";
 import { writeAudit } from "@/lib/repositories/audit.repo";
 import { getMailStore, MailStoreError } from "@/lib/mail/store";
 import type {
@@ -88,9 +89,13 @@ export async function accessibleMailboxes(
       elevated: !own && !assigned,
     };
   });
-  // Own first, then shared ones I am assigned to, then everything else.
+  // A super admin lands in the company mailbox (info@) first — that is the
+  // one they actually work from; the alphabet used to pick something else.
+  // Then own, then shared ones I am assigned to, then everything else.
+  const primary = superAdmin ? primaryMailbox() : null;
   return out.sort(
     (a, b) =>
+      Number(b.address === primary) - Number(a.address === primary) ||
       Number(b.own) - Number(a.own) ||
       Number(a.elevated) - Number(b.elevated) ||
       a.address.localeCompare(b.address),

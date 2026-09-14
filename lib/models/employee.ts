@@ -62,6 +62,14 @@ export interface IEmployee {
   status: "active" | "inactive";
   bankDetails?: IEmployeeBank | null;
   notes?: string | null;
+  /**
+   * Their signature (a `PdfAsset` of kind "signature", encrypted at rest):
+   * uploaded or drawn when the record is created, later from this page, or
+   * by the person in their portal. Filled into a document's signature slot
+   * when they acknowledge it. One per person; replacing it is audited.
+   */
+  signatureAssetId?: Types.ObjectId | string | null;
+  signatureUpdatedAt?: Date | null;
   deletedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -104,6 +112,12 @@ const employeeSchema = new Schema<IEmployee>(
     invitedAt: { type: Date, default: null },
     inviteAcceptedAt: { type: Date, default: null },
     activity: { type: [eventSchema], default: [] },
+    signatureAssetId: {
+      type: Schema.Types.ObjectId,
+      ref: "PdfAsset",
+      default: null,
+    },
+    signatureUpdatedAt: { type: Date, default: null },
     designation: { type: String, required: true, trim: true },
     kind: { type: String, enum: ["director", "staff"], default: "director" },
     payScheme: {

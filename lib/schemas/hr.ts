@@ -98,3 +98,13 @@ export const payrollLinePaidSchema = z.object({
 export const payrollReopenSchema = z.object({
   reason: z.string().trim().min(1, "is required").max(500),
 });
+
+/** A signature image from the forms: a PNG data URL, drawn or uploaded. */
+export const signatureImageSchema = z.object({
+  image: z
+    .string()
+    .max(4_000_000)
+    .regex(/^data:image\/png;base64,[A-Za-z0-9+/=]+$/, "must be a PNG image"),
+  source: z.enum(["upload", "draw"]).default("upload"),
+});
+export type SignatureImageInput = z.infer<typeof signatureImageSchema>;

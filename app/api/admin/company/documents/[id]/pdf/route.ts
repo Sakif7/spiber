@@ -3,6 +3,7 @@ import {
   getDocument,
   renderDraftPdf,
 } from "@/lib/services/documents/authored-document.service";
+import { signedBodyFor } from "@/lib/services/documents/document-signing.service";
 import { documentStatus, guardDocuments } from "../../_guard";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +17,7 @@ export async function GET(req: Request, { params }: Params) {
   const { id } = await params;
   const doc = await getDocument(id);
   if (!doc) return fail({ code: "not_found" }, 404);
-  const res = await renderDraftPdf(doc);
+  const res = await renderDraftPdf(doc, await signedBodyFor(doc));
   if (!res.ok) {
     return fail(
       { code: res.code, message: res.detail },

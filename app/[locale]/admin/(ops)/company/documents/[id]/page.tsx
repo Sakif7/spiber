@@ -9,6 +9,7 @@ import {
   DOCUMENT_TYPE_LABEL,
 } from "@/lib/documents/types";
 import { getDocument } from "@/lib/services/documents/authored-document.service";
+import { listEmployees } from "@/lib/services/hr/employee.service";
 import { AdminPageHeader } from "@/components/admin/ui/page-header";
 import { DetailCard } from "@/components/admin/ui/detail";
 import { StatusBadge, statusTone } from "@/components/admin/ui/status-badge";
@@ -38,6 +39,17 @@ export default async function DocumentDetailPage({
   const doc = await getDocument(id);
   if (!doc) notFound();
   const editable = doc.status === "draft" || doc.status === "in_review";
+  const recipients = doc.recipients ?? [];
+  const people = recipients.length
+    ? await listEmployees({ includeInactive: true })
+    : [];
+  const nameOf = (employeeId: unknown) =>
+    people.find((p) => String(p._id) === String(employeeId));
+  const RECIPIENT_STATUS = {
+    pending: { label: "Waiting", tone: "warning" as const },
+    acknowledged: { label: "Acknowledged", tone: "success" as const },
+    signed: { label: "Signed", tone: "success" as const },
+  };
 
   return (
     <div className="space-y-4">
@@ -80,6 +92,50 @@ export default async function DocumentDetailPage({
           </>
         }
       />
+
+      {(doc.status === "sent" || doc.status === "completed") && (
+        <DetailCard
+          title="Recipients"
+          description={
+            doc.status === "completed"
+              ? `Everyone has acted${doc.completedAt ? ` · completed ${when(doc.completedAt)}` : ""}.`
+              : `Sent ${doc.sentAt ? when(doc.sentAt) : ""} · waiting on ${recipients.filter((r) => r.status === "pending").length} of ${recipients.length}.`
+          }
+        >
+          {recipients.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              No recipients — filed as final when sent.
+            </p>
+          ) : (
+            <ul className="divide-y">
+              {recipients.map((r) => {
+                const p = nameOf(r.employeeId);
+                const s = RECIPIENT_STATUS[r.status];
+                return (
+                  <li
+                    key={String(r.employeeId)}
+                    className="flex items-center justify-between gap-3 py-2 text-sm"
+                  >
+                    <span className="min-w-0">
+                      <span className="text-foreground block truncate font-medium">
+                        {p?.name ?? "Former employee"}
+                      </span>
+                      <span className="text-muted-foreground block truncate text-xs">
+                        {r.role === "sign" ? "Signs" : "Reads"}
+                        {r.actedAt ? ` · ${when(r.actedAt)}` : ""}
+                        {r.typedName ? ` · typed "${r.typedName}"` : ""}
+                      </span>
+                    </span>
+                    <StatusBadge tone={s.tone} dot={false}>
+                      {s.label}
+                    </StatusBadge>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </DetailCard>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <DetailCard

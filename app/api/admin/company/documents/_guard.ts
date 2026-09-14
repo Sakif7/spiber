@@ -18,6 +18,7 @@ export function documentStatus(code: DocumentError): number {
     case "stale":
       return 409;
     case "invalid_body":
+    case "invalid_input":
       return 400;
     case "print_failed":
     case "vault_failed":

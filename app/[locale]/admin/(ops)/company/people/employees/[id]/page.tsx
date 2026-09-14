@@ -13,6 +13,7 @@ import { holdingPercent } from "@/lib/hr/share-pool";
 import { monthLabel, monthOf } from "@/lib/hr/months";
 import { EmployeeForm } from "@/components/admin/hr/employee-form";
 import { EmployeeAccessCard } from "@/components/admin/hr/employee-access-card";
+import { SignatureCard } from "@/components/admin/hr/signature-card";
 import { RateHistory } from "@/components/admin/hr/rate-history";
 import { mailboxForEmployee } from "@/lib/services/hr/employee-access.service";
 import { findUserById } from "@/lib/repositories/users.repo";
@@ -97,6 +98,15 @@ export default async function EmployeePage({
                 action: e.action,
                 note: e.note ?? null,
               }))}
+            />
+            <SignatureCard
+              endpoint={`/api/admin/company/hr/employees/${id}/signature`}
+              imageSrc={`/api/media/signature/${id}`}
+              initial={
+                employee.signatureAssetId
+                  ? { updatedAt: isoFull(employee.signatureUpdatedAt) }
+                  : null
+              }
             />
             <RateHistory
               employeeId={id}

@@ -30,8 +30,8 @@ const readSchema = z.object({
 /**
  * Mark notifications read for THIS person: business rows get per-admin read
  * state; a mail item is marked \\Seen in its mailbox (the same thing opening
- * it does). "All" covers both — every business row for an admin, and every
- * message the bell currently lists for anyone.
+ * it does). "All" covers both — every row the person can see (an employee:
+ * only rows addressed to them), and every message the bell currently lists.
  */
 export async function POST(req: Request) {
   const staff = await requireStaff();
@@ -45,12 +45,12 @@ export async function POST(req: Request) {
 
   let mail = 0;
   if (parsed.data.all) {
-    if (admin) await markAllNotificationsRead(staff.sub);
+    await markAllNotificationsRead(staff.sub, admin);
     mail = await markMailRead(staff);
   } else if (parsed.data.ids?.length) {
     const rows = parsed.data.ids.filter((id) => ROW_ID.test(id));
     const mailIds = parsed.data.ids.filter((id) => MAIL_ID.test(id));
-    if (admin && rows.length) await markNotificationsRead(rows, staff.sub);
+    if (rows.length) await markNotificationsRead(rows, staff.sub, admin);
     if (mailIds.length) mail = await markMailRead(staff, mailIds);
   }
   return ok({ done: true, mail });

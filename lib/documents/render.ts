@@ -36,3 +36,11 @@ export function bodyToText(body: DocumentBody): string {
 export function emptyBody(): DocumentBody {
   return { type: "doc", content: [{ type: "paragraph" }] };
 }
+
+export {
+  slotsIn,
+  withSignatures,
+  stripSignatureState,
+  type SlotRef,
+  type SlotSignature,
+} from "./slots";

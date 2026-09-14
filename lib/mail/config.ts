@@ -16,6 +16,15 @@ export function mailDomain(): string {
   return (process.env.MAIL_DOMAIN?.trim() || DEFAULT_MAIL_DOMAIN).toLowerCase();
 }
 
+/**
+ * The company's front door: the shared mailbox a super admin should land
+ * in first (`MAIL_PRIMARY_MAILBOX`, default `info@<domain>`).
+ */
+export function primaryMailbox(): string {
+  const v = process.env.MAIL_PRIMARY_MAILBOX?.trim().toLowerCase();
+  return v && v.includes("@") ? v : `info@${mailDomain()}`;
+}
+
 /** Shown on the employee page so a phone can be set up without guessing. */
 export function mailClientSettings(): {
   imapHost: string;

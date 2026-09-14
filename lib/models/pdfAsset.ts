@@ -11,6 +11,12 @@ import mongoose, { Schema, type Model, type Types } from "mongoose";
  */
 export interface IPdfAsset {
   name: string;
+  /**
+   * `stamp` (default): a seal/signature a PDF template may place.
+   * `signature`: one employee's own signature, filled into document slots
+   * when they sign — stored the same way, never offered to templates.
+   */
+  kind?: "stamp" | "signature";
   /** Storage key of the encrypted blob. */
   fileKey: string;
   contentType: string;
@@ -27,6 +33,7 @@ export interface IPdfAsset {
 const pdfAssetSchema = new Schema<IPdfAsset>(
   {
     name: { type: String, required: true },
+    kind: { type: String, enum: ["stamp", "signature"], default: "stamp" },
     fileKey: { type: String, required: true },
     contentType: { type: String, required: true },
     size: { type: Number, required: true },

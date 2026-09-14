@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useEditorState, type Editor } from "@tiptap/react";
 import { toast } from "sonner";
 import {
@@ -20,6 +20,7 @@ import {
   ListOrdered,
   Minus,
   Outdent,
+  PenLine,
   Quote,
   Redo2,
   RemoveFormatting,
@@ -55,6 +56,7 @@ import { SelectField } from "@/components/admin/ui/select-field";
 import { cn } from "@/lib/cn";
 import { DOCUMENT_FONTS, FONT_SIZES, fontById } from "@/lib/documents/types";
 import { fileToDocumentImage } from "./editor-images";
+import { SignatureSlotDialog } from "./signature-slot-dialog";
 
 /**
  * The ribbon. One row of the controls a person expects from Word, grouped
@@ -223,6 +225,7 @@ export function EditorToolbar({
   onSaveVersion?: () => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const [slotOpen, setSlotOpen] = useState(false);
   const s = useEditorState({
     editor,
     selector: ({ editor: e }) => ({
@@ -526,6 +529,10 @@ export function EditorToolbar({
                 <ImageIcon className="size-4" />
                 Picture…
               </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setSlotOpen(true)}>
+                <PenLine className="size-4" />
+                Signature slot…
+              </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => chain().setPageBreak().run()}>
                 <Scissors className="size-4" />
                 Page break
@@ -547,6 +554,18 @@ export function EditorToolbar({
               )}
             </DropdownMenuContent>
           </DropdownMenu>
+          <SignatureSlotDialog
+            open={slotOpen}
+            onCancel={() => setSlotOpen(false)}
+            onInsert={(slot) =>
+              chain()
+                .insertSignatureSlot({
+                  slotId: crypto.randomUUID().slice(0, 8),
+                  ...slot,
+                })
+                .run()
+            }
+          />
           <input
             ref={fileRef}
             type="file"

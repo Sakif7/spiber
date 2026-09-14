@@ -134,6 +134,27 @@ export default async function MyDeskPage({
         />
       </div>
 
+      {(summary.documentsPending > 0 || !employee.signatureAssetId) && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {summary.documentsPending > 0 && (
+            <Stat
+              label="Documents waiting for you"
+              value={String(summary.documentsPending)}
+              hint="read and acknowledge or sign"
+              href="/admin/me/documents"
+            />
+          )}
+          {!employee.signatureAssetId && (
+            <Stat
+              label="Your signature"
+              value="Not set"
+              hint="add it once; it signs documents sent to you"
+              href="/admin/me/signature"
+            />
+          )}
+        </div>
+      )}
+
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <div className="grid gap-4">
           <DetailCard

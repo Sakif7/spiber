@@ -22,6 +22,8 @@ import {
   SaveBar,
 } from "@/components/admin/ui/form-shell";
 import { SelectField } from "@/components/admin/ui/select-field";
+import { SignaturePicker } from "./signature-pad";
+import { Button } from "@/components/ui/button";
 import { formatApiError } from "@/lib/http/form-error";
 
 export type EmployeeFormValues = {
@@ -49,6 +51,9 @@ export type EmployeeFormValues = {
   /** Read-only after creation (a mailbox is not renamed from a form). */
   businessEmail?: string;
   sendInvite?: boolean;
+  /** Only while creating: a PNG data URL, stored once the record exists. */
+  signatureImage?: string;
+  signatureSource?: "upload" | "draw";
 };
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -180,6 +185,27 @@ export function EmployeeForm({
         toast.success("Employee updated.");
         afterSave(`/admin/company/people/employees/${employee.id}`);
         return;
+      }
+      // The signature is its own request: the record exists by now, and a
+      // failed image upload must not lose the person (the card retries).
+      const createdId = (json as { data?: { id?: string } } | null)?.data?.id;
+      if (createdId && v.signatureImage) {
+        const sig = await fetch(
+          `/api/admin/company/hr/employees/${createdId}/signature`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              image: v.signatureImage,
+              source: v.signatureSource ?? "upload",
+            }),
+          },
+        );
+        if (!sig.ok) {
+          toast.error(
+            "Employee added, but the signature could not be stored. Add it from the record.",
+          );
+        }
       }
       // Creating: the mailbox and login are part of the same save. Say what
       // happened to them, then open the record — its "Login & mailbox" card
@@ -314,6 +340,48 @@ export function EmployeeForm({
           </FormGrid>
         )}
       </FormSection>
+
+      {isNew && (
+        <FormSection
+          title="Signature"
+          description="Optional now — placed into documents they acknowledge. They can also add or replace it from their portal."
+        >
+          <div className="space-y-3">
+            {v.signatureImage ? (
+              <div className="bg-background flex h-24 w-full max-w-sm items-center justify-center rounded-md border p-3">
+                {/* eslint-disable-next-line @next/next/no-img-element -- a local data URL */}
+                <img
+                  src={v.signatureImage}
+                  alt="Signature to store"
+                  className="max-h-full max-w-full object-contain"
+                />
+              </div>
+            ) : null}
+            <div className="flex flex-wrap items-center gap-2">
+              <SignaturePicker
+                onPick={(png, source) => {
+                  set("signatureImage", png);
+                  set("signatureSource", source);
+                }}
+                uploadLabel={
+                  v.signatureImage ? "Replace with image" : "Upload image"
+                }
+                drawLabel={v.signatureImage ? "Draw a new one" : "Draw"}
+              />
+              {v.signatureImage && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => set("signatureImage", "")}
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
+          </div>
+        </FormSection>
+      )}
 
       <FormSection title="Employment">
         <FormGrid cols={3}>

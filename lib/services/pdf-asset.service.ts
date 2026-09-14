@@ -76,7 +76,11 @@ export function pngDimensions(
 
 export async function listAssets(): Promise<AssetSummary[]> {
   await connectToDatabase();
-  const rows = await PdfAsset.find({ deletedAt: null })
+  // Employees' signatures are assets too, but never template stamps.
+  const rows = await PdfAsset.find({
+    deletedAt: null,
+    kind: { $ne: "signature" },
+  })
     .sort({ createdAt: -1 })
     .lean<Lean<IPdfAsset>[]>()
     .exec();
@@ -84,7 +88,7 @@ export async function listAssets(): Promise<AssetSummary[]> {
 }
 
 export async function uploadAsset(
-  input: { name: string; body: Buffer },
+  input: { name: string; body: Buffer; kind?: "stamp" | "signature" },
   actor: { sub: string },
 ): Promise<AssetResult<AssetSummary>> {
   const key = getVaultKey();
@@ -103,6 +107,7 @@ export async function uploadAsset(
   await connectToDatabase();
   const row = await PdfAsset.create({
     name: input.name.trim().slice(0, 120) || "Stamp",
+    kind: input.kind ?? "stamp",
     fileKey,
     contentType: "image/png",
     size: input.body.length,

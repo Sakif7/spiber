@@ -189,13 +189,28 @@ These are the things the owner has had to repeat. Treat them as hard rules.
   HTML** (`lib/documents/print`; react-pdf mis-shapes Bengali conjuncts —
   decided with the owner), versions filed encrypted in the vault under
   `Company/Documents/<Kind>s/<year>`, per-type numbers from `Counter`
-  (`SPM-NTC-2026-001`) assigned when sent, sent = locked. Employees will
-  sign with one stored signature (upload/draw) placed as slots by the author
-  (phase 2); directors + admins comment (phase 3). Plan:
-  `.docs/documents-plan.md`. **The vault is `/admin/company/vault`**
+  (`SPM-NTC-2026-001`) assigned when sent, sent = locked. **Signing:** an
+  employee has ONE signature — a `PdfAsset` of kind `signature` (never a
+  template stamp) pointed to by `Employee.signatureAssetId`; set on the
+  Add-employee panel, the employee page's Signature card, or the portal's
+  My signature (`lib/services/hr/employee-signature.service.ts`, audited).
+  The author places slots (Insert → Signature slot); **Send** takes the
+  number, locks, files the "sent" PDF and tells the slot people (sign) and
+  any extra readers (acknowledge) — bell row addressed to them
+  (`AdminNotification.forUserIds`) + mail to their company address. In the
+  portal (`/admin/me/documents`) they type their name as on the record and
+  tick; the recipient row freezes the asset id they signed with, so a
+  replaced signature never changes a signed document; the last act renders
+  the final PDF with every signature and files it as `completed`. Signed
+  images are render-time state (`lib/documents/slots.ts`
+  `withSignatures`), never stored in the body. Directors + admins comment
+  (phase 3). Plan: `.docs/documents-plan.md`. **The vault is `/admin/company/vault`**
   (file manager, API `/api/admin/company/fs/*`); `/admin/company/documents`
   and `/api/admin/company/documents/*` are the written documents. The
-  Company section lands on its own dashboard (`/admin/company`).
+  Company section lands on its own dashboard (`/admin/company`). A super
+  admin's mail opens on the company mailbox (`primaryMailbox()`, default
+  `info@<domain>`, `MAIL_PRIMARY_MAILBOX` to change) — never on whatever
+  sorts first.
 - **Every password flow lives in the sign-in modal** on the home page
   (`components/auth/auth-modal.tsx`, views login / register / forgot /
   reset): email links are `/{locale}?auth=reset&token=…` (invites add
@@ -354,6 +369,11 @@ tests`, `npm test`, and the browser pass above. Then `git status`.
   keep such helpers in `lib/`.
 - A derived `<Select>` value cannot represent a choice whose payload is still
   empty ("Someone else…" with no name yet) — hold the choice in state.
+- **A Radix Dialog's portal mounts a render after `open` flips**, so an
+  effect keyed on `open` never sees the content's elements (a `<canvas>`
+  ref is still null). Size or measure from the element's ref callback, and
+  use `clientWidth` — a bounding rect read during the zoom-in animation is
+  95 % of the real box.
 - **Zod 4 `.partial()` still fills defaults** for absent keys: a PATCH schema
   derived from a defaulted object arrives complete and resets every other
   field on merge. Build patch schemas from bare fields (see

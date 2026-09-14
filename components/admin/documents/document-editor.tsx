@@ -13,6 +13,7 @@ import {
   FileText,
   Loader2,
   MoreHorizontal,
+  Send,
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -57,6 +58,8 @@ import {
   type DocumentSettings,
 } from "@/lib/schemas/authored-document";
 import { EditorToolbar } from "./editor-toolbar";
+import { SendDialog } from "./send-dialog";
+import { slotsIn, type SlotRef } from "@/lib/documents/slots";
 import "./fonts.css";
 import { usePager } from "./use-pager";
 import { useEditorStat } from "./use-editor-stat";
@@ -152,6 +155,9 @@ export function DocumentEditor({
   const [filing, setFiling] = useState(false);
   const [askNote, setAskNote] = useState(false);
   const [askDelete, setAskDelete] = useState(false);
+  const [askSend, setAskSend] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sendSlots, setSendSlots] = useState<SlotRef[]>([]);
   const revRef = useRef(initial.rev);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = useRef<{
@@ -348,6 +354,49 @@ export function DocumentEditor({
   );
 
   // ── versions ─────────────────────────────────────────────────────────
+  function openSend() {
+    if (!editor) return;
+    setSendSlots(slotsIn(editor.getJSON() as DocumentBody));
+    setAskSend(true);
+  }
+
+  async function sendNow(input: { acknowledgers: string[]; message: string }) {
+    setSending(true);
+    try {
+      if (timer.current) clearTimeout(timer.current);
+      await flush();
+      const res = await api<{
+        number: string;
+        status: "sent" | "completed";
+        recipients: { name: string }[];
+      }>(`/api/admin/company/documents/${initial.id}/send`, {
+        method: "POST",
+        body: JSON.stringify({
+          acknowledgers: input.acknowledgers,
+          message: input.message || undefined,
+        }),
+      });
+      if (!res.ok) {
+        toast.error(
+          res.code === "print_failed"
+            ? "The PDF could not be rendered — is the printer configured on this server?"
+            : res.message,
+        );
+        return;
+      }
+      setAskSend(false);
+      toast.success(
+        res.data.recipients.length
+          ? `Sent as ${res.data.number} to ${res.data.recipients.map((r) => r.name).join(", ")}.`
+          : `Filed as ${res.data.number}.`,
+      );
+      router.push(`/admin/company/documents/${initial.id}`);
+      router.refresh();
+    } finally {
+      setSending(false);
+    }
+  }
+
   async function fileVersionNow(note: string) {
     setAskNote(false);
     setFiling(true);
@@ -483,6 +532,7 @@ export function DocumentEditor({
           </Button>
           <Button
             type="button"
+            variant={editable ? "outline" : "default"}
             size="sm"
             disabled={filing || saveState === "stale"}
             onClick={() => setAskNote(true)}
@@ -494,6 +544,17 @@ export function DocumentEditor({
             )}
             File version
           </Button>
+          {editable && (
+            <Button
+              type="button"
+              size="sm"
+              disabled={sending || saveState === "stale" || !editor}
+              onClick={openSend}
+            >
+              <Send className="size-4" aria-hidden />
+              Send…
+            </Button>
+          )}
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <Button
@@ -755,6 +816,14 @@ export function DocumentEditor({
         onCancel={() => setAskNote(false)}
         onConfirm={(v) => void fileVersionNow(v)}
         allowEmpty
+      />
+      <SendDialog
+        open={askSend}
+        slots={sendSlots}
+        typeLabel={DOCUMENT_TYPE_LABEL[initial.type]}
+        busy={sending}
+        onCancel={() => setAskSend(false)}
+        onSend={(input) => void sendNow(input)}
       />
       <ConfirmDialog
         open={askDelete}

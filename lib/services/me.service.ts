@@ -10,6 +10,7 @@ import {
   type IPayrollRun,
 } from "@/lib/models/payrollRun";
 import { Mailbox } from "@/lib/models/mailbox";
+import { AuthoredDocument } from "@/lib/models/authored-document";
 import type { Lean } from "@/lib/models/_shared";
 import type { EmployeeSession } from "@/lib/auth/guard";
 import { paginate, type Paged } from "@/lib/repositories/list-query";
@@ -310,6 +311,8 @@ export type DeskSummary = {
   ordersInProgress: number;
   claimsPending: number;
   visitsThisMonth: number;
+  /** Documents sent to me that I have not yet acknowledged or signed. */
+  documentsPending: number;
 };
 
 export async function deskSummary(
@@ -318,25 +321,35 @@ export async function deskSummary(
   await connectToDatabase();
   const { employee } = ids(session);
   const { start, end } = monthWindow(monthOf(new Date()));
-  const [openLeads, ordersInProgress, claimsPending, visitsThisMonth] =
-    await Promise.all([
-      SalesLead.countDocuments({
-        ...leadFilter(session),
-        status: { $nin: ["won", "lost"] },
+  const [
+    openLeads,
+    ordersInProgress,
+    claimsPending,
+    visitsThisMonth,
+    documentsPending,
+  ] = await Promise.all([
+    SalesLead.countDocuments({
+      ...leadFilter(session),
+      status: { $nin: ["won", "lost"] },
+    }),
+    orderFilter(session).then((f) =>
+      SalesOrder.countDocuments({
+        ...f,
+        status: { $nin: ["delivered", "cancelled"] },
       }),
-      orderFilter(session).then((f) =>
-        SalesOrder.countDocuments({
-          ...f,
-          status: { $nin: ["delivered", "cancelled"] },
-        }),
-      ),
-      Expense.countDocuments({ ...claimFilter(session), status: "submitted" }),
-      Visit.countDocuments({
-        deletedAt: null,
-        attendees: employee,
-        visitedAt: { $gte: start, $lt: end },
-      }),
-    ]);
+    ),
+    Expense.countDocuments({ ...claimFilter(session), status: "submitted" }),
+    Visit.countDocuments({
+      deletedAt: null,
+      attendees: employee,
+      visitedAt: { $gte: start, $lt: end },
+    }),
+    AuthoredDocument.countDocuments({
+      deletedAt: null,
+      status: "sent",
+      recipients: { $elemMatch: { employeeId: employee, status: "pending" } },
+    }),
+  ]);
   let unreadMail: number | null = null;
   const mailbox = await Mailbox.findOne({
     employeeId: employee,
@@ -358,6 +371,7 @@ export async function deskSummary(
     unreadMail,
     openLeads,
     ordersInProgress,
+    documentsPending,
     claimsPending,
     visitsThisMonth,
   };
