@@ -20,6 +20,8 @@ export function LoginForm({
   next,
   verified,
   verifyError,
+  notice,
+  defaultEmail,
   onSuccess,
   onForgot,
   submitStyle,
@@ -28,6 +30,10 @@ export function LoginForm({
   verified?: boolean;
   /** The verify-email link the user clicked was invalid/expired. */
   verifyError?: boolean;
+  /** A green line above the fields ("Your password is set — sign in"). */
+  notice?: string;
+  /** Pre-filled address, e.g. the account whose password was just reset. */
+  defaultEmail?: string;
   /** When provided (modal), called on success instead of navigating. */
   onSuccess?: (user: AuthedUser) => void;
   /** When provided (modal), intercepts the "forgot password" link. */
@@ -54,7 +60,7 @@ export function LoginForm({
     formState: { errors, isSubmitting },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
-    defaultValues: { email: "", password: "" },
+    defaultValues: { email: defaultEmail ?? "", password: "" },
   });
 
   async function resendVerification() {
@@ -120,6 +126,18 @@ export function LoginForm({
           style={{ color: "var(--color-success)", fontSize: "var(--fs-small)" }}
         >
           {t("verifiedNotice")}
+        </p>
+      )}
+      {notice && (
+        <p
+          role="status"
+          style={{
+            margin: 0,
+            color: "var(--color-success)",
+            fontSize: "var(--fs-small)",
+          }}
+        >
+          {notice}
         </p>
       )}
       {verifyError && !error && (
@@ -215,7 +233,7 @@ export function LoginForm({
         </button>
       ) : (
         <Link
-          href="/reset-password"
+          href="/?auth=forgot"
           style={{
             fontSize: "var(--fs-small)",
             color: "var(--color-text-muted)",

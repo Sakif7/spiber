@@ -15,7 +15,7 @@ import {
   MobileDrawers,
   MobileCompanyDrawer,
 } from "@/components/layout/mobile-drawers";
-import { useSession } from "@/components/auth/use-session";
+import { useSession, workspaceFor } from "@/components/auth/use-session";
 import { useAuthModal } from "@/components/auth/auth-modal";
 import {
   MobileNav,
@@ -324,7 +324,7 @@ export function ResizableHeader() {
           >
             {user ? (
               <Link
-                href={user.isAdmin ? "/admin" : "/account/orders"}
+                href={workspaceFor(user)?.href ?? "/account/orders"}
                 onClick={() => setOpen(false)}
                 style={{
                   flex: 1,
@@ -336,7 +336,7 @@ export function ResizableHeader() {
                   color: "var(--color-text)",
                 }}
               >
-                {user.isAdmin ? "Admin" : "My account"}
+                {workspaceFor(user)?.label ?? "My account"}
               </Link>
             ) : (
               <button

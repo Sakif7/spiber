@@ -473,7 +473,7 @@ export async function sendInvite(
   if (!user) return fail("no_login");
 
   const token = await signInviteToken(String(user._id), user.tokenVersion ?? 0);
-  const link = `${siteConfig.url}/en/reset-password?token=${encodeURIComponent(token)}&invite=1`;
+  const link = `${siteConfig.url}/en?auth=reset&token=${encodeURIComponent(token)}&invite=1`;
 
   let emailed = false;
   const to = employee.email?.trim();

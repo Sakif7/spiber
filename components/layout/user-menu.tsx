@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ChevronDown, Package, LayoutDashboard, LogOut } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { useSession } from "@/components/auth/use-session";
+import { useSession, workspaceFor } from "@/components/auth/use-session";
 import { useAuthModal } from "@/components/auth/auth-modal";
 
 /** Desktop navbar account control: "Login" when signed out, a name + menu when signed in. */
@@ -35,6 +35,7 @@ export function UserMenu() {
 
   const firstName = user.name.split(" ")[0] || user.name;
   const initial = (user.name || user.email).charAt(0).toUpperCase();
+  const workspace = workspaceFor(user);
 
   return (
     <div style={{ position: "relative" }}>
@@ -152,14 +153,14 @@ export function UserMenu() {
             >
               <Package size={15} /> My orders
             </Link>
-            {user.isAdmin && (
+            {workspace && (
               <Link
-                href="/admin"
+                href={workspace.href}
                 role="menuitem"
                 onClick={() => setOpen(false)}
                 className="user-menu-item"
               >
-                <LayoutDashboard size={15} /> Admin
+                <LayoutDashboard size={15} /> {workspace.label}
               </Link>
             )}
             <button

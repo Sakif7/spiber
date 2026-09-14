@@ -17,5 +17,5 @@ export async function POST(req: Request) {
   if (!result.ok) return fail({ code: "invalid_token" }, 400);
   // Best-effort: the employee page shows when the invite was used.
   if (result.invite) await markInviteAccepted(result.sub).catch(() => {});
-  return ok({ invite: result.invite });
+  return ok({ invite: result.invite, email: result.email });
 }

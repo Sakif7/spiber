@@ -1,17 +1,12 @@
-import { setRequestLocale, getTranslations } from "next-intl/server";
-import { ResetPasswordForm } from "@/components/auth/reset-password-form";
-import { namespaceMetadata } from "@/lib/seo/metadata";
-import type { Locale } from "@/i18n/routing";
+import { redirect } from "next/navigation";
+import { setRequestLocale } from "next-intl/server";
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ locale: string }>;
-}) {
-  const { locale } = await params;
-  return namespaceMetadata(locale as Locale, "auth.reset", "/reset-password");
-}
-
+/**
+ * The old standalone reset page. Password links now open the sign-in modal
+ * on the home page (same look as the rest of the site); this keeps the
+ * links already in people's inboxes working. Robots: `/reset-password`
+ * stays in the private paths.
+ */
 export default async function ResetPasswordPage({
   params,
   searchParams,
@@ -22,32 +17,8 @@ export default async function ResetPasswordPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const sp = await searchParams;
-  const token = typeof sp.token === "string" ? sp.token : undefined;
-  // A new employee's invite lands on the same form with different words.
-  const invite = sp.invite === "1";
-  const t = await getTranslations({ locale, namespace: "auth.reset" });
-
-  return (
-    <>
-      <header style={{ marginBottom: "var(--s-5)" }}>
-        <h1
-          style={{
-            fontSize: "var(--fs-h3)",
-            color: "var(--color-text-strong)",
-          }}
-        >
-          {invite ? t("inviteTitle") : t("title")}
-        </h1>
-        <p
-          style={{
-            color: "var(--color-text-muted)",
-            fontSize: "var(--fs-body-sm)",
-          }}
-        >
-          {invite ? t("inviteDescription") : t("description")}
-        </p>
-      </header>
-      <ResetPasswordForm token={token} invite={invite} />
-    </>
-  );
+  const qs = new URLSearchParams({ auth: "reset" });
+  if (typeof sp.token === "string" && sp.token) qs.set("token", sp.token);
+  if (sp.invite === "1") qs.set("invite", "1");
+  redirect(`/${locale}?${qs.toString()}`);
 }

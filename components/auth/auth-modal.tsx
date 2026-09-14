@@ -17,14 +17,32 @@ import { useRouter } from "@/i18n/navigation";
 import { LoginForm } from "./login-form";
 import { postLoginDestination, type AuthedUser } from "@/lib/auth/post-login";
 import { RegisterForm } from "./register-form";
+import { ForgotPasswordForm } from "./forgot-password-form";
+import { ResetPasswordForm } from "./reset-password-form";
 
 type Tab = "login" | "register";
-type OpenOpts = { next?: string; verified?: boolean; verifyError?: boolean };
+/**
+ * What the modal shows: the two tabs, or one of the password flows that the
+ * email links open on the home page (`?auth=reset&token=…`, `?auth=forgot`)
+ * so a person never leaves the site's own look to choose a password.
+ */
+type View = Tab | "forgot" | "reset";
+type OpenOpts = {
+  next?: string;
+  verified?: boolean;
+  verifyError?: boolean;
+  /** The reset / invite token from the email link (`view === "reset"`). */
+  token?: string;
+  /** The token is an employee invite: "set your password", not "reset". */
+  invite?: boolean;
+};
 
 type AuthModalCtx = {
-  open: (tab?: Tab, opts?: OpenOpts) => void;
+  open: (view?: View, opts?: OpenOpts) => void;
   close: () => void;
 };
+
+const VIEWS: View[] = ["login", "register", "forgot", "reset"];
 
 const Ctx = createContext<AuthModalCtx | null>(null);
 
@@ -45,43 +63,54 @@ const ORANGE_SUBMIT: CSSProperties = {
 };
 
 export function AuthModalProvider({ children }: { children: ReactNode }) {
-  const [tab, setTab] = useState<Tab | null>(null);
+  const [view, setView] = useState<View | null>(null);
   const [next, setNext] = useState<string | undefined>(undefined);
   const [verified, setVerified] = useState(false);
   const [verifyError, setVerifyError] = useState(false);
+  const [token, setToken] = useState<string | undefined>(undefined);
+  const [invite, setInvite] = useState(false);
   const triggerRef = useRef<HTMLElement | null>(null);
 
-  const open = useCallback((t: Tab = "login", opts?: OpenOpts) => {
+  const open = useCallback((v: View = "login", opts?: OpenOpts) => {
     triggerRef.current = (document.activeElement as HTMLElement) ?? null;
     setNext(opts?.next);
     setVerified(opts?.verified ?? false);
     setVerifyError(opts?.verifyError ?? false);
-    setTab(t);
+    setToken(opts?.token);
+    setInvite(opts?.invite ?? false);
+    setView(v);
   }, []);
 
   const close = useCallback(() => {
-    setTab(null);
+    setView(null);
     setVerified(false);
     setVerifyError(false);
     setNext(undefined);
+    setToken(undefined);
+    setInvite(false);
     // Return focus to whatever opened the modal.
     triggerRef.current?.focus?.();
   }, []);
 
-  // Open from a server redirect URL (?auth=login&next=…&verified=1), then strip
-  // those params so a refresh or close doesn't re-trigger.
+  // Open from a server redirect URL (?auth=login&next=…&verified=1) or an
+  // email link (?auth=reset&token=…), then strip those params so a refresh
+  // or close doesn't re-trigger — and the token never sits in the address bar.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const auth = params.get("auth");
-    if (auth !== "login" && auth !== "register") return;
+    const auth = params.get("auth") as View | null;
+    if (!auth || !VIEWS.includes(auth)) return;
     // Reading a one-time entry-point URL on mount; opening here is intentional.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     open(auth, {
       next: params.get("next") ?? undefined,
       verified: params.get("verified") === "1",
       verifyError: params.get("error") === "verify",
+      token: params.get("token") ?? undefined,
+      invite: params.get("invite") === "1",
     });
-    ["auth", "next", "verified", "error"].forEach((k) => params.delete(k));
+    ["auth", "next", "verified", "error", "token", "invite"].forEach((k) =>
+      params.delete(k),
+    );
     const qs = params.toString();
     window.history.replaceState(
       null,
@@ -96,11 +125,13 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
     <Ctx.Provider value={{ open, close }}>
       {children}
       <AuthModalView
-        tab={tab}
+        view={view}
         next={next}
         verified={verified}
         verifyError={verifyError}
-        setTab={setTab}
+        token={token}
+        invite={invite}
+        setView={setView}
         close={close}
       />
     </Ctx.Provider>
@@ -108,28 +139,40 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
 }
 
 function AuthModalView({
-  tab,
+  view,
   next,
   verified,
   verifyError,
-  setTab,
+  token,
+  invite,
+  setView,
   close,
 }: {
-  tab: Tab | null;
+  view: View | null;
   next?: string;
   verified: boolean;
   verifyError: boolean;
-  setTab: (t: Tab) => void;
+  token?: string;
+  invite: boolean;
+  setView: (v: View) => void;
   close: () => void;
 }) {
   const reduce = useReducedMotion() ?? false;
   const tl = useTranslations("auth.login");
   const tr = useTranslations("auth.register");
+  const tf = useTranslations("auth.forgot");
+  const ts = useTranslations("auth.reset");
   const qc = useQueryClient();
   const router = useRouter();
   const cardRef = useRef<HTMLDivElement | null>(null);
+  // After a password is saved: the sign-in view opens with these.
+  const [resetDone, setResetDone] = useState<{
+    email: string | null;
+    invite: boolean;
+  } | null>(null);
 
-  const open = tab !== null;
+  const open = view !== null;
+  const tab: Tab | null = view === "login" || view === "register" ? view : null;
 
   // Lock background scroll while open.
   useEffect(() => {
@@ -151,7 +194,7 @@ function AuthModalView({
       el?.focus();
     }, 60);
     return () => window.clearTimeout(id);
-  }, [open, tab]);
+  }, [open, view]);
 
   function onKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Escape") {
@@ -183,6 +226,7 @@ function AuthModalView({
     // sellers → /seller). A regular customer gets null and simply stays on the
     // page they were already on.
     const dest = postLoginDestination(user, next);
+    setResetDone(null);
     close();
     if (dest) router.replace(dest);
     // Always refresh so the new auth cookies take effect: this clears the App
@@ -194,6 +238,17 @@ function AuthModalView({
 
   const enter = reduce ? { duration: 0 } : { duration: 0.3, ease: EASE };
   const exit = reduce ? { duration: 0 } : { duration: 0.2, ease: EASE };
+
+  const heading =
+    view === "forgot"
+      ? { title: tf("title"), description: tf("description") }
+      : view === "reset"
+        ? invite
+          ? { title: ts("inviteTitle"), description: ts("inviteDescription") }
+          : { title: ts("title"), description: ts("description") }
+        : view === "register"
+          ? { title: tr("title"), description: tr("description") }
+          : { title: tl("title"), description: tl("description") };
 
   return (
     <AnimatePresence>
@@ -339,72 +394,74 @@ function AuthModalView({
                 overflowY: "auto",
               }}
             >
-              <div
-                role="tablist"
-                aria-label="Authentication"
-                style={{
-                  position: "relative",
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  padding: 5,
-                  borderRadius: "var(--r-pill)",
-                  background: "var(--color-surface-2)",
-                }}
-              >
-                {(["login", "register"] as Tab[]).map((tb) => {
-                  const active = tab === tb;
-                  return (
-                    <button
-                      key={tb}
-                      role="tab"
-                      aria-selected={active}
-                      type="button"
-                      onClick={() => setTab(tb)}
-                      style={{
-                        position: "relative",
-                        zIndex: 1,
-                        border: "none",
-                        background: "transparent",
-                        cursor: "pointer",
-                        padding: "9px 12px",
-                        borderRadius: "var(--r-pill)",
-                        fontSize: "var(--fs-small)",
-                        fontWeight: 600,
-                        fontFamily: "inherit",
-                        color: active
-                          ? "var(--color-brand-deep)"
-                          : "var(--color-text-muted)",
-                        transition: "color .2s",
-                      }}
-                    >
-                      {active && (
-                        <motion.span
-                          layoutId="auth-tab-pill"
-                          transition={
-                            reduce
-                              ? { duration: 0 }
-                              : { duration: 0.28, ease: EASE }
-                          }
-                          style={{
-                            position: "absolute",
-                            inset: 0,
-                            zIndex: -1,
-                            borderRadius: "var(--r-pill)",
-                            background: "var(--color-surface)",
-                            boxShadow:
-                              "0 1px 2px rgba(10,31,44,.10), 0 2px 6px rgba(10,31,44,.06)",
-                          }}
-                        />
-                      )}
-                      {tb === "login" ? tl("submit") : tr("submit")}
-                    </button>
-                  );
-                })}
-              </div>
+              {tab !== null && (
+                <div
+                  role="tablist"
+                  aria-label="Authentication"
+                  style={{
+                    position: "relative",
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    padding: 5,
+                    borderRadius: "var(--r-pill)",
+                    background: "var(--color-surface-2)",
+                  }}
+                >
+                  {(["login", "register"] as Tab[]).map((tb) => {
+                    const active = tab === tb;
+                    return (
+                      <button
+                        key={tb}
+                        role="tab"
+                        aria-selected={active}
+                        type="button"
+                        onClick={() => setView(tb)}
+                        style={{
+                          position: "relative",
+                          zIndex: 1,
+                          border: "none",
+                          background: "transparent",
+                          cursor: "pointer",
+                          padding: "9px 12px",
+                          borderRadius: "var(--r-pill)",
+                          fontSize: "var(--fs-small)",
+                          fontWeight: 600,
+                          fontFamily: "inherit",
+                          color: active
+                            ? "var(--color-brand-deep)"
+                            : "var(--color-text-muted)",
+                          transition: "color .2s",
+                        }}
+                      >
+                        {active && (
+                          <motion.span
+                            layoutId="auth-tab-pill"
+                            transition={
+                              reduce
+                                ? { duration: 0 }
+                                : { duration: 0.28, ease: EASE }
+                            }
+                            style={{
+                              position: "absolute",
+                              inset: 0,
+                              zIndex: -1,
+                              borderRadius: "var(--r-pill)",
+                              background: "var(--color-surface)",
+                              boxShadow:
+                                "0 1px 2px rgba(10,31,44,.10), 0 2px 6px rgba(10,31,44,.06)",
+                            }}
+                          />
+                        )}
+                        {tb === "login" ? tl("submit") : tr("submit")}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
               <div
                 style={{
-                  marginTop: "var(--s-5)",
+                  marginTop: tab !== null ? "var(--s-5)" : 0,
                   marginBottom: "var(--s-5)",
                 }}
               >
@@ -416,7 +473,7 @@ function AuthModalView({
                     color: "var(--color-text-strong)",
                   }}
                 >
-                  {tab === "login" ? tl("title") : tr("title")}
+                  {heading.title}
                 </h2>
                 <p
                   style={{
@@ -425,13 +482,13 @@ function AuthModalView({
                     color: "var(--color-text-muted)",
                   }}
                 >
-                  {tab === "login" ? tl("description") : tr("description")}
+                  {heading.description}
                 </p>
               </div>
 
               <AnimatePresence mode="wait" initial={false}>
                 <motion.div
-                  key={tab}
+                  key={view}
                   initial={reduce ? false : { opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={reduce ? { opacity: 0 } : { opacity: 0, y: -6 }}
@@ -439,21 +496,45 @@ function AuthModalView({
                     reduce ? { duration: 0 } : { duration: 0.2, ease: EASE }
                   }
                 >
-                  {tab === "login" ? (
+                  {view === "login" ? (
                     <LoginForm
-                      next={next}
+                      next={
+                        next ?? (resetDone?.invite ? "/admin/me" : undefined)
+                      }
                       verified={verified}
                       verifyError={verifyError}
+                      notice={
+                        resetDone
+                          ? resetDone.invite
+                            ? ts("inviteSuccess")
+                            : ts("success")
+                          : undefined
+                      }
+                      defaultEmail={resetDone?.email ?? undefined}
                       onSuccess={handleLoginSuccess}
-                      onForgot={() => {
-                        close();
-                        router.push("/reset-password");
-                      }}
+                      onForgot={() => setView("forgot")}
+                      submitStyle={ORANGE_SUBMIT}
+                    />
+                  ) : view === "register" ? (
+                    <RegisterForm
+                      onSignIn={() => setView("login")}
+                      submitStyle={ORANGE_SUBMIT}
+                    />
+                  ) : view === "forgot" ? (
+                    <ForgotPasswordForm
+                      onBack={() => setView("login")}
                       submitStyle={ORANGE_SUBMIT}
                     />
                   ) : (
-                    <RegisterForm
-                      onSignIn={() => setTab("login")}
+                    <ResetPasswordForm
+                      token={token}
+                      invite={invite}
+                      onDone={(email) => {
+                        setResetDone({ email, invite });
+                        setView("login");
+                      }}
+                      onForgot={() => setView("forgot")}
+                      onBack={() => setView("login")}
                       submitStyle={ORANGE_SUBMIT}
                     />
                   )}

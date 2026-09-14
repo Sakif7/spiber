@@ -207,7 +207,9 @@ export async function requestPasswordReset(
   if (doc) {
     const locale = localePrefix(input.locale);
     const token = await signResetToken(String(doc._id), doc.tokenVersion ?? 0);
-    const link = `${siteConfig.url}/${locale}/reset-password?token=${encodeURIComponent(token)}`;
+    // The home page opens the sign-in modal on its reset view; the old
+    // /reset-password page redirects here too, for links already sent.
+    const link = `${siteConfig.url}/${locale}?auth=reset&token=${encodeURIComponent(token)}`;
     const resetEmail = renderEmail({
       accent: "teal",
       preheader: `Reset your ${siteConfig.brand} password.`,
@@ -265,7 +267,9 @@ export async function changePassword(
 
 export async function resetPassword(
   input: PasswordResetConfirmInput,
-): Promise<{ ok: false } | { ok: true; sub: string; invite: boolean }> {
+): Promise<
+  { ok: false } | { ok: true; sub: string; email: string; invite: boolean }
+> {
   // The same form serves a forgotten password and a new employee's invite;
   // the token's purpose says which, and an invite is accepted the same way.
   let invite = false;
@@ -282,5 +286,6 @@ export async function resetPassword(
   if ((doc.tokenVersion ?? 0) !== claims.tokenVersion) return { ok: false };
   const passwordHash = await hashPassword(input.password);
   await updatePasswordHash(claims.sub, passwordHash); // bumps tokenVersion
-  return { ok: true, sub: claims.sub, invite };
+  // The email goes back so the sign-in form can be filled in for them.
+  return { ok: true, sub: claims.sub, email: doc.email, invite };
 }

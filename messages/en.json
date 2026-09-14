@@ -1109,15 +1109,6 @@
     }
   },
   "auth": {
-    "panel": {
-      "title": "Healthcare, engineered for Bangladesh.",
-      "subtitle": "One accountable partner for medical equipment, software, training, and care.",
-      "points": [
-        "Clinical-grade instruments & systems",
-        "Accredited training & advisory",
-        "Bilingual support, nationwide service"
-      ]
-    },
     "login": {
       "title": "Sign in",
       "description": "Access your Spiber Med account.",
@@ -1154,20 +1145,45 @@
       "errorTaken": "An account with this email already exists.",
       "errorGeneric": "Could not create your account. Please try again."
     },
+    "forgot": {
+      "title": "Forgot your password?",
+      "description": "Enter the email on your account and we'll send you a link to choose a new one.",
+      "email": "Email address",
+      "submit": "Send reset link",
+      "submitting": "Sending…",
+      "sent": "If an account exists for <email></email>, a reset link is on its way.",
+      "sentHint": "The link works for one hour. Check your spam folder if it hasn't arrived in a few minutes.",
+      "back": "Back to sign in",
+      "errorRateLimited": "Too many requests — please wait a minute and try again.",
+      "errorGeneric": "Something went wrong. Please try again."
+    },
     "reset": {
       "title": "Reset password",
       "description": "Choose a new password for your account.",
       "password": "New password",
+      "confirm": "Confirm new password",
+      "show": "Show",
+      "hide": "Hide",
+      "rulesLabel": "Password requirements",
+      "rule_length": "At least 8 characters",
+      "rule_letter": "At least one letter",
+      "rule_number": "At least one number",
+      "ruleMet": "done",
+      "ruleNotMet": "not yet",
       "submit": "Update password",
       "submitting": "Updating…",
-      "success": "Your password has been updated. You can now sign in.",
+      "success": "Your password has been updated. Sign in with it below.",
       "error": "This reset link is invalid or has expired.",
-      "missingToken": "This reset link is missing its token.",
+      "errorRateLimited": "Too many attempts — please wait a minute and try again.",
+      "errorGeneric": "Something went wrong. Please try again.",
+      "requestNew": "Request a new link",
+      "missingToken": "This link is missing its token — open it from the email again, or request a new one.",
+      "back": "Back to sign in",
       "inviteTitle": "Set your password",
       "inviteDescription": "Welcome to Spiber Med. Choose a password for your account and company mailbox.",
       "inviteSubmit": "Set password",
       "inviteSuccess": "Your password is set. Sign in to open your desk.",
-      "signIn": "Sign in"
+      "inviteExpired": "This invite link is invalid or has expired. Ask your administrator to send a new one."
     }
   },
   "admin": {

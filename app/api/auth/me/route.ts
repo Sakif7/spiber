@@ -1,7 +1,7 @@
 import { ok } from "@/lib/http/respond";
 import { getSessionUser } from "@/lib/auth/current-user";
 import { findUserById } from "@/lib/repositories/users.repo";
-import { isAdmin } from "@/lib/auth/rbac";
+import { isAdmin, isEmployee } from "@/lib/auth/rbac";
 
 /**
  * Lightweight "who am I" for client UI (navbar). Reads the access-token cookie;
@@ -25,6 +25,8 @@ export async function GET() {
       email: claims.email,
       roles: claims.roles,
       isAdmin: isAdmin(claims),
+      // An employee's own surface is the portal, not the operations admin.
+      isEmployee: isEmployee(claims),
     },
   });
 }

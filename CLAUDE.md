@@ -196,6 +196,16 @@ These are the things the owner has had to repeat. Treat them as hard rules.
   (file manager, API `/api/admin/company/fs/*`); `/admin/company/documents`
   and `/api/admin/company/documents/*` are the written documents. The
   Company section lands on its own dashboard (`/admin/company`).
+- **Every password flow lives in the sign-in modal** on the home page
+  (`components/auth/auth-modal.tsx`, views login / register / forgot /
+  reset): email links are `/{locale}?auth=reset&token=…` (invites add
+  `&invite=1`), "forgot" is `?auth=forgot`, and the params are stripped on
+  mount. `/reset-password` only redirects there. There is no standalone
+  auth page or `(auth)` shell any more — don't add one. Password rules
+  (8–200 chars, a letter, a number) are `lib/auth/password-rules.ts`, the
+  one source for the Zod `password` and the forms' live checklist. The
+  navbar's way into a person's own surface is `workspaceFor()` in
+  `use-session.ts` (admin → /admin, employee → /admin/me, seller → /seller).
 - **Seed data: none in prod.** Empty catalogues show "Coming soon".
 
 ## Stack

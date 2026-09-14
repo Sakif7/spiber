@@ -1,5 +1,10 @@
 import { z } from "zod";
 import { addressSchema } from "@/lib/schemas/order";
+import {
+  PASSWORD_MAX,
+  PASSWORD_MIN,
+  passwordChecks,
+} from "@/lib/auth/password-rules";
 
 export const ROLES = [
   "customer",
@@ -19,10 +24,17 @@ const email = z.preprocess(
   (v) => (typeof v === "string" ? v.trim().toLowerCase() : v),
   z.email(),
 );
+/**
+ * A password someone is choosing (register, reset, change): the rules in
+ * `lib/auth/password-rules.ts`, which the forms also tick live. Never
+ * trimmed — spaces inside a password are the user's business.
+ */
 const password = z
   .string()
-  .min(8, "Password must be at least 8 characters")
-  .max(200);
+  .min(PASSWORD_MIN, `Password must be at least ${PASSWORD_MIN} characters`)
+  .max(PASSWORD_MAX, `Password must be ${PASSWORD_MAX} characters or fewer`)
+  .refine((v) => passwordChecks(v).letter, "Add at least one letter")
+  .refine((v) => passwordChecks(v).number, "Add at least one number");
 const localeField = z.enum(["en", "bn", "ja"]).optional();
 
 export const registerInputSchema = z.object({
@@ -82,15 +94,26 @@ export const loginFormSchema = z.object({
 });
 export type LoginFormValues = z.infer<typeof loginFormSchema>;
 
-export const resetFormSchema = z.object({
-  password: z.string().min(8, "Password must be at least 8 characters"),
+export const forgotFormSchema = z.object({
+  email: z.email("Enter a valid email address"),
 });
+export type ForgotFormValues = z.infer<typeof forgotFormSchema>;
+
+export const resetFormSchema = z
+  .object({
+    password,
+    confirm: z.string(),
+  })
+  .refine((d) => d.password === d.confirm, {
+    path: ["confirm"],
+    message: "Passwords do not match",
+  });
 export type ResetFormValues = z.infer<typeof resetFormSchema>;
 
 export const registerFormSchema = z.object({
   name: z.string().trim().min(1, "Please enter your name").max(200),
   email: z.email(),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password,
 });
 export type RegisterFormValues = z.infer<typeof registerFormSchema>;
 
