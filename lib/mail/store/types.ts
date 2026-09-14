@@ -98,6 +98,14 @@ export type ListResult = {
   pageSize: number;
 };
 
+/** What a live subscription reports: something in the folder changed. */
+export type MailChange = {
+  folder: string;
+  /** New mail arrived / a message left / flags changed / the link broke. */
+  kind: "exists" | "expunge" | "flags" | "error";
+  detail?: string;
+};
+
 export type StarredOptions = {
   page: number;
   pageSize: number;
@@ -173,4 +181,14 @@ export interface MailStore {
     raw: Buffer,
     flags: string[],
   ): Promise<void>;
+  /**
+   * Watch one folder for changes (IMAP IDLE on the server); resolves once the
+   * watch is up, with a function that ends it. An "error" change means the
+   * watch is over and the caller should reconnect.
+   */
+  subscribe(
+    address: string,
+    folder: string,
+    onChange: (change: MailChange) => void,
+  ): Promise<() => Promise<void>>;
 }

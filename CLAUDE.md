@@ -170,7 +170,14 @@ These are the things the owner has had to repeat. Treat them as hard rules.
   server's own folders are refused as `reserved`. Bodies are composed in
   TipTap (`mail-editor.tsx`): the client sends `html` + `text`, the
   server re-sanitises the HTML (`lib/mail/outgoing-html.ts`, strict
-  allowlist) and derives the plain-text twin from it. Plan + status: log
+  allowlist) and derives the plain-text twin from it. **Live updates** are
+  server-sent events (`GET …/events?folder=`) fed by one IMAP IDLE
+  connection per open tab (`MailStore.subscribe`; the memory store emits on
+  its own writes, and the memory transport delivers to any mailbox the
+  process already holds so the sandbox shows mail arriving); the client only
+  refetches on an event and relays it to the bell (`MAIL_CHANGED_EVENT`).
+  The bell counts own + assigned mailboxes, plus every _shared_ mailbox for a
+  super admin — never a colleague's personal one. Plan + status: log
   2026-09-13 / 2026-09-14.
 - **Seed data: none in prod.** Empty catalogues show "Coming soon".
 

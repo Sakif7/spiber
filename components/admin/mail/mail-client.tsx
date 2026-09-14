@@ -45,7 +45,7 @@ import {
 import { MailDisplay, type MoveTarget } from "./mail-display";
 import { MailList, sameRow, type Selection } from "./mail-list";
 import { MailNav, MailboxSwitcher, STARRED, countFor } from "./mail-nav";
-import { enc, mailApi, useIsDesktop } from "./mail-shared";
+import { MAIL_CHANGED_EVENT, enc, mailApi, useIsDesktop } from "./mail-shared";
 
 /**
  * The mailbox, locked to the viewport: three resizable panes (account +
@@ -153,9 +153,26 @@ export function MailClient({
       ),
     placeholderData: (prev) => prev,
     staleTime: 15_000,
-    // New mail shows up on its own while the tab is open.
+    // The live stream below refreshes on change; this is the fallback.
     refetchInterval: 60_000,
   });
+
+  // Live updates: the server holds an IMAP IDLE on the folder and says when
+  // it changed; refetch then (and let the bell know). Starred watches Inbox.
+  const watched = starred ? "INBOX" : folder;
+  useEffect(() => {
+    const es = new EventSource(
+      `/api/admin/mail/${enc(address)}/events?folder=${enc(watched)}`,
+    );
+    const onChange = () => {
+      qc.invalidateQueries({ queryKey: ["mail", address, "list"] });
+      qc.invalidateQueries({ queryKey: ["mail", address, "folders"] });
+      window.dispatchEvent(new Event(MAIL_CHANGED_EVENT));
+    };
+    es.addEventListener("change", onChange);
+    // A stream the server ended (mail link dropped) reconnects on its own.
+    return () => es.close();
+  }, [address, watched, qc]);
 
   const message = useQuery({
     queryKey: [

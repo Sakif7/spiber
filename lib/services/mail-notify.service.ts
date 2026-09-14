@@ -6,9 +6,11 @@ import { logger } from "@/lib/log";
 
 /**
  * New mail for the topbar bell. Every ~30 s the bell asks; this peeks at the
- * inbox of each mailbox the person may read as themselves (own + assigned —
- * never the super admin's elevated reach, which is audited on open and does
- * not belong in a passive feed) and returns the newest unread messages.
+ * inbox of each mailbox the person may read as themselves (own + assigned),
+ * plus every shared mailbox for a super admin — company mail, nobody's
+ * private inbox. A colleague's personal mailbox never appears here: the
+ * super admin's elevated reach is audited on open and does not belong in a
+ * passive feed. Returns the newest unread messages.
  *
  * Cached per person for a short while so a few open tabs cost one IMAP
  * round per mailbox, and bounded so a slow mail server never holds the
@@ -69,7 +71,7 @@ export function mailHref(
 
 async function compute(claims: AccessClaims): Promise<MailFeed> {
   const boxes = (await accessibleMailboxes(claims)).filter(
-    (m) => !m.elevated && m.status === "active",
+    (m) => m.status === "active" && (!m.elevated || m.kind === "shared"),
   );
   if (boxes.length === 0) return EMPTY;
   const store = getMailStore();

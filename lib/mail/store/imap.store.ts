@@ -14,6 +14,7 @@ import {
   type MailAddress,
   type MailAttachment,
   type MailAttachmentMeta,
+  type MailChange,
   type MailFolder,
   type MailListItem,
   type MailMessage,
@@ -510,6 +511,52 @@ export const imapStore: MailStore = {
       if (res === false)
         throw new MailStoreError("unavailable", "append refused");
     });
+  },
+
+  /**
+   * A connection of its own that sits in IDLE on the folder (imapflow idles
+   * whenever no command is running) and relays the server's untagged
+   * updates. Ended by the returned function, or by the server dropping the
+   * link — reported as an "error" change so the caller reconnects.
+   */
+  async subscribe(address, folder, onChange) {
+    const c = config();
+    const client = new ImapFlow({
+      host: c.host,
+      port: c.port,
+      secure: true,
+      auth: { user: `${address}${MASTER_SEPARATOR}${c.user}`, pass: c.pass },
+      logger: false,
+      connectionTimeout: 15_000,
+      greetingTimeout: 15_000,
+      // IDLE re-issues itself well inside this; a dead link is noticed here.
+      socketTimeout: 10 * 60_000,
+    });
+    let ended = false;
+    const report = (kind: MailChange["kind"], detail?: string) => {
+      if (!ended) onChange({ folder, kind, detail });
+    };
+    client.on("exists", () => report("exists"));
+    client.on("expunge", () => report("expunge"));
+    client.on("flags", () => report("flags"));
+    client.on("error", (e: Error) => report("error", e.message));
+    client.on("close", () => report("error", "connection closed"));
+    try {
+      await client.connect();
+      await client.mailboxOpen(folder, { readOnly: true });
+    } catch (e) {
+      ended = true;
+      await client.logout().catch(() => client.close());
+      const err = e as { authenticationFailed?: boolean; message?: string };
+      throw new MailStoreError(
+        err.authenticationFailed ? "auth_failed" : "unavailable",
+        err.message,
+      );
+    }
+    return async () => {
+      ended = true;
+      await client.logout().catch(() => client.close());
+    };
   },
 
   async move(address, folder, uids, targetPath) {

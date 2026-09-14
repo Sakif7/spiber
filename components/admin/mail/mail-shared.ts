@@ -43,6 +43,9 @@ export async function mailApi<T>(url: string, init?: RequestInit): Promise<T> {
 
 export const enc = encodeURIComponent;
 
+/** Fired on `window` when a live mail event arrives; the bell listens. */
+export const MAIL_CHANGED_EVENT = "spiber-mail-changed";
+
 export const personLabel = (a: MailAddress | null) =>
   a ? a.name || a.address : "—";
 

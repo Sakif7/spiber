@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/cn";
+import { MAIL_CHANGED_EVENT } from "@/components/admin/mail/mail-shared";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -159,10 +160,13 @@ export function NotificationBell() {
     }, POLL_MS);
     const onFocus = () => void poll();
     window.addEventListener("focus", onFocus);
+    // The mail page relays live IMAP events; recount right away.
+    window.addEventListener(MAIL_CHANGED_EVENT, onFocus);
     return () => {
       cancelled = true;
       window.clearInterval(interval);
       window.removeEventListener("focus", onFocus);
+      window.removeEventListener(MAIL_CHANGED_EVENT, onFocus);
     };
   }, [router]);
 

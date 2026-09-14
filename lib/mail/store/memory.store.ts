@@ -1,3 +1,4 @@
+import { EventEmitter } from "node:events";
 import { simpleParser } from "mailparser";
 import { previewText } from "@/lib/mail/preview";
 import {
@@ -6,6 +7,7 @@ import {
   type ListOptions,
   type ListResult,
   type MailAttachment,
+  type MailChange,
   type MailFolder,
   type MailListItem,
   type MailMessage,
@@ -32,10 +34,22 @@ type Box = {
 
 declare global {
   var __mailStoreMemory: Map<string, Box> | undefined;
+  var __mailStoreEvents: EventEmitter | undefined;
 }
 
 const table = (): Map<string, Box> =>
   (globalThis.__mailStoreMemory ??= new Map());
+
+/** Change events, keyed "address/folder" — what `subscribe` hands out. */
+const events = (): EventEmitter => {
+  if (!globalThis.__mailStoreEvents) {
+    globalThis.__mailStoreEvents = new EventEmitter();
+    globalThis.__mailStoreEvents.setMaxListeners(100);
+  }
+  return globalThis.__mailStoreEvents;
+};
+const emit = (address: string, folder: string, kind: MailChange["kind"]) =>
+  events().emit(`${address}/${folder}`, { folder, kind } satisfies MailChange);
 
 /** A 1×1 teal PNG, for the inline-image fixture. */
 const PNG = Buffer.from(
@@ -298,7 +312,11 @@ const toItem = (m: StoredMessage): MailListItem => ({
   preview: m.text ? previewText(m.text) : previewText(m.html, true),
 });
 
-export const memoryMailStore: MailStore & { _reset(): void } = {
+export const memoryMailStore: MailStore & {
+  _reset(): void;
+  /** Whether this process already holds a box for the address (never creates one). */
+  _has(address: string): boolean;
+} = {
   name: "memory",
 
   async listFolders(address) {
@@ -418,6 +436,7 @@ export const memoryMailStore: MailStore & { _reset(): void } = {
   },
 
   async setFlags(address, folder, uids, patch: FlagPatch) {
+    emit(address, folder, "flags");
     for (const m of box(address).messages) {
       if (m.folder !== folder || !uids.includes(m.uid)) continue;
       if (patch.seen !== undefined) m.seen = patch.seen;
@@ -479,6 +498,7 @@ export const memoryMailStore: MailStore & { _reset(): void } = {
         : [],
       folder,
     });
+    emit(address, folder, "exists");
   },
 
   async move(address, folder, uids, targetPath) {
@@ -489,9 +509,24 @@ export const memoryMailStore: MailStore & { _reset(): void } = {
     for (const m of b.messages) {
       if (m.folder === folder && uids.includes(m.uid)) m.folder = targetPath;
     }
+    emit(address, folder, "expunge");
+    emit(address, targetPath, "exists");
+  },
+
+  async subscribe(address, folder, onChange) {
+    const key = `${address}/${folder}`;
+    const handler = (change: MailChange) => onChange(change);
+    events().on(key, handler);
+    return async () => {
+      events().off(key, handler);
+    };
   },
 
   _reset() {
     table().clear();
+  },
+
+  _has(address) {
+    return table().has(address);
   },
 };
