@@ -438,7 +438,7 @@ export function FolderTree({
         )}
       >
         <FolderIcon className="text-primary size-4 shrink-0" />
-        Documents
+        Vault
       </button>
       {render(null, 1)}
     </nav>

@@ -20,6 +20,7 @@ import type { Lean } from "@/lib/models/_shared";
 import {
   getFolderById,
   listChildFolders,
+  listFoldersByIds,
   listAllFolders,
   listTrashedFolderRoots,
   folderPath,
@@ -304,6 +305,53 @@ export async function listChildren(params: {
 /** The whole live tree, for the sidebar. */
 export async function getTree(): Promise<FolderNode[]> {
   return (await listAllFolders()).map(toFolderNode);
+}
+
+export type VaultSummary = {
+  files: number;
+  usedBytes: number;
+  trashBytes: number;
+  quotaBytes: number;
+  /** The latest files put in, newest first. */
+  recent: {
+    id: string;
+    title: string;
+    size: number;
+    folder: string | null;
+    createdAt: string;
+  }[];
+};
+
+/** The vault at a glance, for the Company dashboard. */
+export async function vaultSummary(limit = 5): Promise<VaultSummary> {
+  const [usage, quotaBytes, latest] = await Promise.all([
+    vaultUsage(),
+    quota(),
+    CompanyDocument.find({ purgedAt: null, trashedAt: null, deletedAt: null })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .select("title size folderId createdAt")
+      .lean<Lean<ICompanyDocument>[]>()
+      .exec(),
+  ]);
+  const folderIds = [
+    ...new Set(latest.map((d) => (d.folderId ? String(d.folderId) : null))),
+  ].filter((id): id is string => id !== null);
+  const folders = folderIds.length ? await listFoldersByIds(folderIds) : [];
+  const nameOf = new Map(folders.map((f) => [String(f._id), f.name]));
+  return {
+    files: usage.fileCount,
+    usedBytes: usage.usedBytes,
+    trashBytes: usage.trashBytes,
+    quotaBytes,
+    recent: latest.map((d) => ({
+      id: String(d._id),
+      title: d.title,
+      size: d.size,
+      folder: d.folderId ? (nameOf.get(String(d.folderId)) ?? null) : null,
+      createdAt: (d.createdAt as Date).toISOString(),
+    })),
+  };
 }
 
 async function quota(): Promise<number> {

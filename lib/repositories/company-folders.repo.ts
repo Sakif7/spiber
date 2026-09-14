@@ -27,6 +27,15 @@ export async function getFolderById(id: string): Promise<LeanFolder | null> {
     .exec();
 }
 
+export async function listFoldersByIds(ids: string[]): Promise<LeanFolder[]> {
+  await connectToDatabase();
+  const valid = ids.filter((id) => mongoose.isValidObjectId(id));
+  if (valid.length === 0) return [];
+  return CompanyFolder.find({ _id: { $in: valid }, purgedAt: null })
+    .lean<LeanFolder[]>()
+    .exec();
+}
+
 export async function listChildFolders(
   parentId: string | null,
   opts: { trashed?: boolean } = {},

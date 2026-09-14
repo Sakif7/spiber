@@ -1,35 +1,38 @@
+import Link from "next/link";
 import { setRequestLocale } from "next-intl/server";
-import { ShieldAlert, ShieldCheck } from "lucide-react";
+import { FileText, ShieldAlert } from "lucide-react";
 import { getSessionUser } from "@/lib/auth/current-user";
 import { isSuperAdmin } from "@/lib/auth/rbac";
-import { vaultConfigured } from "@/lib/crypto/vault";
 import {
-  listChildren,
-  getTree,
-  type FolderNode,
-} from "@/lib/services/company-fs.service";
+  DOCUMENT_STATUSES,
+  DOCUMENT_STATUS_LABEL,
+  DOCUMENT_TYPES,
+  DOCUMENT_TYPE_LABEL,
+  type DocumentStatus,
+  type DocumentType,
+} from "@/lib/documents/types";
+import { listDocuments } from "@/lib/services/documents/authored-document.service";
 import { AdminPageHeader } from "@/components/admin/ui/page-header";
-import { FileManager } from "@/components/admin/company/file-manager/file-manager";
-import type { ListPayload } from "@/components/admin/company/file-manager/types";
+import { DataTable, type Column } from "@/components/admin/ui/data-table";
+import { ListToolbar } from "@/components/admin/ui/list-toolbar";
+import { StatusBadge, statusTone } from "@/components/admin/ui/status-badge";
+import { FormPanelButton } from "@/components/admin/ui/form-panel";
+import { NewDocumentForm } from "@/components/admin/documents/new-document-form";
 
 export const dynamic = "force-dynamic";
 
-const EMPTY: ListPayload = {
-  folder: null,
-  breadcrumb: [],
-  folders: [],
-  files: [],
-  usage: { usedBytes: 0, trashBytes: 0, fileCount: 0, quotaBytes: 0 },
-};
+type Row = Awaited<ReturnType<typeof listDocuments>>[number];
 
-/**
- * Company document vault — SUPER-ADMIN only (the API enforces it too).
- *
- * The first folder is rendered on the server so the page arrives complete;
- * everything after that is fetched as JSON by the client, so moving through the
- * tree does not reload the page.
- */
-export default async function CompanyDocumentsPage({
+const when = (d: Date) =>
+  d.toLocaleString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+export default async function DocumentsPage({
   params,
   searchParams,
 }: {
@@ -38,90 +41,154 @@ export default async function CompanyDocumentsPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-
   const user = await getSessionUser();
   if (!isSuperAdmin(user)) {
     return (
       <div className="space-y-6">
-        <AdminPageHeader
-          title="Company documents"
-          description="Encrypted file vault."
-        />
+        <AdminPageHeader title="Documents" />
         <div className="bg-card flex items-start gap-3 rounded-lg border p-4">
           <ShieldAlert className="text-destructive mt-0.5 size-5 shrink-0" />
           <p className="text-sm">
-            The vault is restricted to <strong>super-admins</strong>. Ask a
-            super-admin if you need a document from it.
+            Company documents are restricted to <strong>super-admins</strong>.
           </p>
         </div>
       </div>
     );
   }
 
-  const ready = vaultConfigured();
   const sp = await searchParams;
-  const one = (k: string) => {
-    const v = sp[k];
-    return Array.isArray(v) ? v[0] : v;
-  };
+  const one = (v: string | string[] | undefined) =>
+    (Array.isArray(v) ? v[0] : v) ?? "";
+  const q = one(sp.q).slice(0, 120);
+  const type = DOCUMENT_TYPES.find((t) => t === one(sp.type));
+  const status = DOCUMENT_STATUSES.find((s) => s === one(sp.status));
+  const rows = await listDocuments({ q: q || undefined, type, status });
+  const filtered = Boolean(q || type || status);
 
-  let initial: ListPayload = EMPTY;
-  let tree: FolderNode[] = [];
-  if (ready) {
-    try {
-      const [listed, folders] = await Promise.all([
-        listChildren({
-          folderId: one("folder") ?? null,
-          sort: (one("sort") as "name") ?? "name",
-          dir: (one("dir") as "asc") ?? "asc",
-          q: one("q"),
-          recursive: one("recursive") === "1",
-          trash: one("trash") === "1",
-        }),
-        getTree(),
-      ]);
-      if (listed.ok) initial = listed.data;
-      tree = folders;
-    } catch {
-      initial = EMPTY;
-    }
-  }
+  const columns: Column<Row>[] = [
+    {
+      key: "title",
+      header: "Document",
+      mobile: "primary",
+      cell: (r) => (
+        <div className="min-w-0">
+          <Link
+            href={`/${locale}/admin/company/documents/${String(r._id)}`}
+            className="text-foreground block truncate font-medium hover:underline"
+          >
+            {r.title}
+          </Link>
+          <span className="text-muted-foreground font-mono text-xs">
+            {r.number ?? "No number yet"}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "type",
+      header: "Kind",
+      cell: (r) => DOCUMENT_TYPE_LABEL[r.type as DocumentType],
+    },
+    {
+      key: "status",
+      header: "Status",
+      cell: (r) => (
+        <StatusBadge tone={statusTone(r.status)}>
+          {DOCUMENT_STATUS_LABEL[r.status as DocumentStatus]}
+        </StatusBadge>
+      ),
+    },
+    {
+      key: "versions",
+      header: "Versions",
+      align: "right",
+      cell: (r) => <span className="font-mono text-xs">{r.versions}</span>,
+    },
+    {
+      key: "updated",
+      header: "Last change",
+      cell: (r) => (
+        <span className="text-muted-foreground text-xs">
+          {when(r.updatedAt)}
+        </span>
+      ),
+    },
+    {
+      key: "open",
+      header: "",
+      align: "right",
+      mobile: "actions",
+      cell: (r) => (
+        <Link
+          href={`/${locale}/admin/company/documents/${String(r._id)}/${
+            r.status === "draft" || r.status === "in_review" ? "edit" : ""
+          }`}
+          className="text-primary text-sm font-medium hover:underline"
+        >
+          {r.status === "draft" || r.status === "in_review" ? "Edit" : "Open"}
+        </Link>
+      ),
+    },
+  ];
+
+  const newButton = (
+    <FormPanelButton
+      label="New document"
+      title="New document"
+      description="A draft on the company letterhead. It gets its number when it is sent."
+      width="max-w-[min(30rem,94vw)]"
+    >
+      <NewDocumentForm />
+    </FormPanelButton>
+  );
 
   return (
     <div className="space-y-4">
       <AdminPageHeader
-        title="Company documents"
-        description="Encrypted vault for internal company files — licences, contracts, registrations."
+        title="Documents"
+        description="Notices, letters, memos and agreements written on the company letterhead, filed as PDF when sent."
+        action={newButton}
       />
-
-      {ready ? (
-        <>
-          <p className="text-muted-foreground flex items-center gap-2 text-xs">
-            <ShieldCheck className="size-4 shrink-0 text-emerald-600" />
-            Encryption at rest is active. Access is super-admin only and every
-            view is audited.
-          </p>
-          <FileManager initial={initial} initialTree={tree} />
-        </>
-      ) : (
-        <div className="bg-card flex items-start gap-3 rounded-lg border p-4">
-          <ShieldAlert className="mt-0.5 size-5 shrink-0 text-amber-500" />
-          <div className="space-y-1 text-sm">
-            <p className="font-medium">The vault key is not configured.</p>
-            <p className="text-muted-foreground">
-              Set <code className="font-mono">COMPANY_VAULT_KEY</code> (64 hex
-              characters) in the environment to enable the vault. Generate one
-              with{" "}
-              <code className="font-mono">
-                node -e
-                &quot;console.log(require(&apos;crypto&apos;).randomBytes(32).toString(&apos;hex&apos;))&quot;
-              </code>
-              . Keep a copy in a password manager — losing the key loses every
-              stored document.
-            </p>
-          </div>
-        </div>
-      )}
+      <ListToolbar
+        search={{ placeholder: "Search title or number…" }}
+        filters={[
+          {
+            param: "type",
+            label: "Kind",
+            kind: "pills",
+            options: DOCUMENT_TYPES.map((t) => ({
+              value: t,
+              label: DOCUMENT_TYPE_LABEL[t],
+            })),
+          },
+          {
+            param: "status",
+            label: "Status",
+            kind: "pills",
+            options: DOCUMENT_STATUSES.map((s) => ({
+              value: s,
+              label: DOCUMENT_STATUS_LABEL[s],
+            })),
+          },
+        ]}
+        total={rows.length}
+        countLabel={`${rows.length} document${rows.length === 1 ? "" : "s"}`}
+      />
+      <DataTable
+        columns={columns}
+        rows={rows}
+        getRowKey={(r) => String(r._id)}
+        empty={
+          filtered ? "No documents match these filters." : "No documents yet."
+        }
+        emptyIcon={FileText}
+        emptyDescription={
+          filtered
+            ? "Try clearing the search or a filter."
+            : "Write the first one with the New document button."
+        }
+        emptyAction={filtered ? undefined : newButton}
+      />
     </div>
   );
 }

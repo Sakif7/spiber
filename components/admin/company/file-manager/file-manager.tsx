@@ -450,7 +450,7 @@ export function FileManager({
             <Input
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              placeholder="Search documents…"
+              placeholder="Search the vault…"
               className="h-8 pl-8"
             />
             {searchText && (
@@ -512,7 +512,7 @@ export function FileManager({
               className="hover:text-foreground flex items-center gap-1 rounded px-1"
             >
               <Home className="size-3.5" />
-              Documents
+              Vault
             </button>
             {data.breadcrumb.map((f) => (
               <span key={f.id} className="flex items-center gap-1">

@@ -181,6 +181,21 @@ These are the things the owner has had to repeat. Treat them as hard rules.
   flags the listed mail `\\Seen` (`markMailRead`), and `/admin/notifications`
   is the full list (staff path in `proxy.ts`). Plan + status: log
   2026-09-13 / 2026-09-14.
+- **Written documents** (Company › Paperwork › Documents; notices, letters,
+  memos, agreements) are the **super admin's**: TipTap body in
+  `AuthoredDocument`, live A4 pages from one shared pager
+  (`lib/documents/pager.ts`), the letterhead drawn from the same company
+  data as the invoices, **PDF by headless Chromium printing the editor's own
+  HTML** (`lib/documents/print`; react-pdf mis-shapes Bengali conjuncts —
+  decided with the owner), versions filed encrypted in the vault under
+  `Company/Documents/<Kind>s/<year>`, per-type numbers from `Counter`
+  (`SPM-NTC-2026-001`) assigned when sent, sent = locked. Employees will
+  sign with one stored signature (upload/draw) placed as slots by the author
+  (phase 2); directors + admins comment (phase 3). Plan:
+  `.docs/documents-plan.md`. **The vault is `/admin/company/vault`**
+  (file manager, API `/api/admin/company/fs/*`); `/admin/company/documents`
+  and `/api/admin/company/documents/*` are the written documents. The
+  Company section lands on its own dashboard (`/admin/company`).
 - **Seed data: none in prod.** Empty catalogues show "Coming soon".
 
 ## Stack
@@ -221,6 +236,7 @@ Code at repo root, `@/* → ./*`.
 | Shared admin UI | `components/admin/ui/*` (form-shell, data-table, list kit, detail, select-field, localized-input, unsaved-changes)                                                                                                                                                                                      |
 | PDFs            | `lib/pdf/engine/*` (schema `lib/schemas/pdf-template.ts`, defaults, blocks, fixtures) · `lib/pdf/{documents,payslip}.tsx` wrappers · editor `components/admin/pdf-templates/*`                                                                                                                          |
 | Pluggable seams | `lib/payments` · `lib/storage` · `lib/video` · `lib/mailer` · `lib/travel` · `lib/chat` · `lib/fulfillment`                                                                                                                                                                                             |
+| Documents       | `lib/documents/{types,extensions,chrome,pager,render}.ts` · `lib/documents/print/*` (Chromium) · `lib/services/documents/*` · editor `components/admin/documents/*` · fonts `public/fonts/docs` · dashboard loader `lib/services/company-dashboard.service.ts`                                          |
 | i18n            | `messages/{en,bn,ja}.json`, `i18n/routing.ts` is the locale source of truth                                                                                                                                                                                                                             |
 | Tests           | `tests/*.test.ts` (vitest, serial; **gitignored** along with `e2e/`)                                                                                                                                                                                                                                    |
 | Scripts         | `scripts/*.mjs` — all dry-run by default, `--commit` to write, refuse non-local hosts without `--force-prod`                                                                                                                                                                                            |
@@ -328,6 +344,24 @@ tests`, `npm test`, and the browser pass above. Then `git status`.
   keep such helpers in `lib/`.
 - A derived `<Select>` value cannot represent a choice whose payload is still
   empty ("Someone else…" with no name yet) — hold the choice in state.
+- **Zod 4 `.partial()` still fills defaults** for absent keys: a PATCH schema
+  derived from a defaulted object arrives complete and resets every other
+  field on merge. Build patch schemas from bare fields (see
+  `documentSettingsPatchSchema`).
+- TipTap: pin `@tiptap/*` to **exactly `3.24.0`** (`^` breaks peer deps);
+  `generateHTML` under Node comes from `@tiptap/html/server` (the bare
+  import throws "browser environment"). `useEditorState` created while the
+  editor is still `null` (Next, `immediatelyRender: false`) keeps that
+  empty snapshot until the first transaction — use `useEditorStat`
+  (`components/admin/documents/use-editor-stat.ts`) for anything shown
+  before the user types.
+- **The document pager must never measure its own output.** It blanks its
+  stylesheet, measures the untouched layout (client rects ÷ zoom scale — not
+  `offsetTop`, which rounds), writes the pushes back, all in one frame.
+  Measuring with the pushes applied and subtracting them out oscillated
+  every frame (a paragraph blinking between two pages). Pushes are an
+  `nth-child` stylesheet, never attributes on ProseMirror nodes, and are
+  measured from the last block with height (margins fall through empty ones).
 - A react-pdf `View` `render` prop does get `totalPages` at runtime (the
   typings say otherwise); absolute children of `Page` are measured from the
   padded content box, not the sheet.
@@ -416,8 +450,16 @@ clip }` that makes body the sticky containing block: a menu inside a sticky
 
 ## Deploy
 
-- Coolify auto-deploys `master` with the root `Dockerfile` (standalone output,
-  `node server.js`, `/api/health`). Env lives in the Coolify UI, never in git.
+- Coolify auto-deploys `master`. It builds with **nixpacks** and runs
+  `next start` (seen in the app's Coolify config on 2026-09-14); there is no
+  Dockerfile in the repo — the old note about one was stale. Env lives in
+  the Coolify UI, never in git.
+- Document PDFs need a Chromium on the box: `DOCS_CHROME_PATH` — a path, or
+  a bare name looked up on PATH (dev finds Playwright's/Chrome/Edge on its
+  own). Production gets it from `nixpacks.toml` (`nixPkgs = ["...",
+"chromium"]`, added 2026-09-14) with `DOCS_CHROME_PATH=chromium` in the
+  Coolify env; without a browser Preview PDF and File version answer 503
+  `print_failed` (filed versions still open — they are vault bytes).
 - Scheduled: `/api/cron/low-stock-digest` (daily) and
   `/api/cron/expire-payments` (every few minutes, **before** online payment is
   enabled) with `Authorization: Bearer $CRON_SECRET`.

@@ -1,0 +1,120 @@
+/* The document fonts (see lib/documents/types.ts); served from public/fonts/docs. */
+@font-face {
+  font-family: "IBM Plex Serif";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/docs/PlexSerif-Regular.woff") format("woff");
+}
+@font-face {
+  font-family: "IBM Plex Serif";
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+  src: url("/fonts/docs/PlexSerif-Italic.woff") format("woff");
+}
+@font-face {
+  font-family: "IBM Plex Serif";
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/docs/PlexSerif-SemiBold.woff") format("woff");
+}
+@font-face {
+  font-family: "IBM Plex Serif";
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/docs/PlexSerif-Bold.woff") format("woff");
+}
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/docs/PlexSans-Regular.woff") format("woff");
+}
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+  src: url("/fonts/docs/PlexSans-Italic.woff") format("woff");
+}
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/docs/PlexSans-SemiBold.woff") format("woff");
+}
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/docs/PlexSans-Bold.woff") format("woff");
+}
+@font-face {
+  font-family: "Tinos";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/docs/Tinos-Regular.woff") format("woff");
+}
+@font-face {
+  font-family: "Tinos";
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+  src: url("/fonts/docs/Tinos-Italic.woff") format("woff");
+}
+@font-face {
+  font-family: "Tinos";
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/docs/Tinos-Bold.woff") format("woff");
+}
+@font-face {
+  font-family: "Arimo";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/docs/Arimo-Regular.woff") format("woff");
+}
+@font-face {
+  font-family: "Arimo";
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+  src: url("/fonts/docs/Arimo-Italic.woff") format("woff");
+}
+@font-face {
+  font-family: "Arimo";
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/docs/Arimo-Bold.woff") format("woff");
+}
+@font-face {
+  font-family: "Noto Sans Bengali";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/docs/NotoSansBengali-Regular.woff") format("woff");
+}
+@font-face {
+  font-family: "Noto Sans Bengali";
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/docs/NotoSansBengali-Bold.woff") format("woff");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/docs/PlexMono-Regular.woff") format("woff");
+}

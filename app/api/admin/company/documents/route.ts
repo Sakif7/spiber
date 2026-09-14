@@ -1,123 +1,53 @@
-import { randomBytes } from "crypto";
-import { requireSuperAdmin } from "@/lib/auth/guard";
-import { getSessionUser } from "@/lib/auth/current-user";
-import { rateLimit, clientIp } from "@/lib/auth/rate-limit";
 import { ok, fail } from "@/lib/http/respond";
-import { getStorage } from "@/lib/storage";
-import { getVaultKey, encryptVaultBlob } from "@/lib/crypto/vault";
-import { createCompanyDocument } from "@/lib/repositories/company-documents.repo";
-import { writeAudit } from "@/lib/repositories/audit.repo";
-import { mimeMatchesBytes, extensionMatches } from "@/lib/uploads/sniff";
+import { parseJson } from "@/lib/http/validate";
+import {
+  createDocumentSchema,
+  listDocumentsQuerySchema,
+} from "@/lib/schemas/authored-document";
+import {
+  createDocument,
+  listDocuments,
+} from "@/lib/services/documents/authored-document.service";
+import { guardDocuments } from "./_guard";
 
 export const dynamic = "force-dynamic";
 
-const MAX_BYTES = 50 * 1024 * 1024;
-const ALLOWED = new Set([
-  "application/pdf",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/avif",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "application/msword",
-  "application/vnd.ms-excel",
-  "application/vnd.ms-powerpoint",
-  "text/csv",
-  "text/plain",
-  "application/zip",
-  "application/x-zip-compressed",
-]);
+/** `?q=&type=&status=` — the documents list, newest change first. */
+export async function GET(req: Request) {
+  const g = await guardDocuments("list");
+  if (!g.ok) return g.res;
+  const parsed = listDocumentsQuerySchema.safeParse(
+    Object.fromEntries(new URL(req.url).searchParams),
+  );
+  if (!parsed.success) {
+    return fail({ code: "invalid_input", details: parsed.error.issues }, 400);
+  }
+  const rows = await listDocuments(parsed.data);
+  return ok({
+    documents: rows.map((r) => ({
+      id: String(r._id),
+      type: r.type,
+      number: r.number,
+      title: r.title,
+      status: r.status,
+      updatedAt: r.updatedAt.toISOString(),
+      createdAt: r.createdAt.toISOString(),
+      sentAt: r.sentAt ? r.sentAt.toISOString() : null,
+      versions: r.versions,
+      recipients: r.recipients,
+      pending: r.pending,
+    })),
+  });
+}
 
-/**
- * Company vault upload — SUPER-ADMIN only. The file is encrypted with
- * AES-256-GCM before it touches storage (private root), so even raw access to
- * the VPS volume/backups can't read it. Audited. Refuses to store plaintext:
- * no vault key configured → 503, never a silent fallback.
- */
+/** A new draft; the editor opens on it. */
 export async function POST(req: Request) {
-  const admin = await requireSuperAdmin();
-  if (!admin) {
-    const user = await getSessionUser();
-    return fail(
-      { code: user ? "forbidden" : "unauthorized" },
-      user ? 403 : 401,
-    );
+  const g = await guardDocuments("write", 60);
+  if (!g.ok) return g.res;
+  const parsed = await parseJson(req, createDocumentSchema);
+  if (!parsed.success) {
+    return fail({ code: "invalid_input", details: parsed.issues }, 400);
   }
-  const rl = rateLimit(`vault-upload:${admin.sub}`, 20, 60_000);
-  if (!rl.ok) return fail({ code: "rate_limited" }, 429);
-
-  const key = getVaultKey();
-  if (!key) {
-    return fail(
-      {
-        code: "vault_not_configured",
-        message:
-          "COMPANY_VAULT_KEY is not set (64 hex chars). Documents are stored encrypted only — set the key to enable the vault.",
-      },
-      503,
-    );
-  }
-
-  const form = await req.formData().catch(() => null);
-  const file = form?.get("file");
-  if (!(file instanceof File)) return fail({ code: "no_file" }, 400);
-  if (file.size > MAX_BYTES) return fail({ code: "too_large" }, 413);
-  if (!ALLOWED.has(file.type)) return fail({ code: "bad_type" }, 415);
-
-  const title =
-    String(form?.get("title") ?? "")
-      .trim()
-      .slice(0, 160) || file.name.slice(0, 160);
-  const folder = String(form?.get("folder") ?? "")
-    .trim()
-    .slice(0, 80);
-
-  const plain = Buffer.from(await file.arrayBuffer());
-  // The allowlist above tests the CLIENT-DECLARED type. Confirm the bytes agree
-  // and that the filename does not contradict them, so a renamed binary cannot
-  // be stored and later served back under a trusted Content-Type.
-  if (!mimeMatchesBytes(file.type, plain)) {
-    return fail({ code: "bad_type" }, 415);
-  }
-  if (!extensionMatches(file.type, file.name)) {
-    return fail({ code: "bad_type" }, 415);
-  }
-
-  const blob = encryptVaultBlob(plain, key);
-  // 128 bits of crypto-random: the blob is unreadable without the vault key,
-  // but the key should not be the only thing standing between a leaked private
-  // root and the file.
-  const storageKey = `company-vault/${randomBytes(16).toString("hex")}.bin`;
-
-  await getStorage().put({
-    key: storageKey,
-    body: blob,
-    contentType: "application/octet-stream",
-    private: true,
-  });
-
-  const doc = await createCompanyDocument({
-    title,
-    originalFilename: file.name,
-    fileKey: storageKey,
-    contentType: file.type,
-    size: file.size,
-    folder: folder || undefined,
-    uploadedBy: admin.sub,
-    uploadedByEmail: admin.email,
-    encrypted: true,
-  });
-
-  await writeAudit({
-    actorId: admin.sub,
-    action: "companyDocument.upload",
-    entityType: "CompanyDocument",
-    entityId: String(doc._id),
-    after: { title, filename: file.name, size: file.size, folder },
-    ip: clientIp(req),
-  });
-
-  return ok({ id: String(doc._id), title });
+  const doc = await createDocument(parsed.data, g.actor, req);
+  return ok({ id: String(doc._id) });
 }

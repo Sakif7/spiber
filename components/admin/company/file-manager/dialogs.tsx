@@ -31,6 +31,7 @@ export function NameDialog({
   busy,
   onCancel,
   onConfirm,
+  allowEmpty = false,
 }: {
   open: boolean;
   title: string;
@@ -40,8 +41,11 @@ export function NameDialog({
   busy?: boolean;
   onCancel: () => void;
   onConfirm: (value: string) => void;
+  /** For an optional note: confirm with nothing typed. */
+  allowEmpty?: boolean;
 }) {
   const [value, setValue] = useState(initial ?? "");
+  const ready = allowEmpty || Boolean(value.trim());
 
   // Reset when the dialog is opened for a different item.
   const [seen, setSeen] = useState(open);
@@ -60,7 +64,7 @@ export function NameDialog({
           className="grid gap-1.5"
           onSubmit={(e) => {
             e.preventDefault();
-            if (value.trim()) onConfirm(value.trim());
+            if (ready) onConfirm(value.trim());
           }}
         >
           <Label htmlFor="fm-name">{label}</Label>
@@ -78,8 +82,8 @@ export function NameDialog({
             Cancel
           </Button>
           <Button
-            onClick={() => value.trim() && onConfirm(value.trim())}
-            disabled={busy || !value.trim()}
+            onClick={() => ready && onConfirm(value.trim())}
+            disabled={busy || !ready}
           >
             {busy && <Loader2 className="size-4 animate-spin" />}
             {confirmLabel}
@@ -171,7 +175,7 @@ export function FolderPickerDialog({
             )}
           >
             <ChevronRight className="size-4 shrink-0 opacity-50" />
-            Documents (root)
+            Vault (root)
           </button>
           {render(null, 1)}
         </div>

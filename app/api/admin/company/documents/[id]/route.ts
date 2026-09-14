@@ -1,80 +1,70 @@
-import { requireSuperAdmin } from "@/lib/auth/guard";
-import { getSessionUser } from "@/lib/auth/current-user";
-import { rateLimit, clientIp } from "@/lib/auth/rate-limit";
 import { ok, fail } from "@/lib/http/respond";
 import { parseJson } from "@/lib/http/validate";
-import { companyDocumentUpdateSchema } from "@/lib/schemas/company-document";
+import { updateDocumentSchema } from "@/lib/schemas/authored-document";
 import {
-  updateCompanyDocumentMeta,
-  softDeleteCompanyDocument,
-} from "@/lib/repositories/company-documents.repo";
-import { writeAudit } from "@/lib/repositories/audit.repo";
+  deleteDraft,
+  getDocument,
+  updateDocument,
+} from "@/lib/services/documents/authored-document.service";
+import { documentStatus, guardDocuments } from "../_guard";
 
 export const dynamic = "force-dynamic";
 
 type Params = { params: Promise<{ id: string }> };
 
-async function guard() {
-  const admin = await requireSuperAdmin();
-  if (!admin) {
-    const user = await getSessionUser();
-    return {
-      admin: null,
-      res: fail(
-        { code: user ? "forbidden" : "unauthorized" },
-        user ? 403 : 401,
-      ),
-    } as const;
-  }
-  if (!rateLimit(`vault-mutate:${admin.sub}`, 60, 60_000).ok) {
-    return { admin: null, res: fail({ code: "rate_limited" }, 429) } as const;
-  }
-  return { admin } as const;
+/** The document with its body, for the editor and the detail page. */
+export async function GET(_req: Request, { params }: Params) {
+  const g = await guardDocuments("read");
+  if (!g.ok) return g.res;
+  const { id } = await params;
+  const doc = await getDocument(id);
+  if (!doc) return fail({ code: "not_found" }, 404);
+  return ok({
+    document: {
+      id: String(doc._id),
+      type: doc.type,
+      number: doc.number ?? null,
+      title: doc.title,
+      status: doc.status,
+      body: doc.body,
+      rev: doc.rev,
+      settings: doc.settings,
+      updatedAt: doc.updatedAt.toISOString(),
+      versions: (doc.versions ?? []).map((v) => ({
+        n: v.n,
+        label: v.label,
+        note: v.note ?? null,
+        pages: v.pages ?? null,
+        createdAt: v.createdAt.toISOString(),
+      })),
+    },
+  });
 }
 
-/** Rename / re-folder a vault document (metadata only). Super-admin, audited. */
+/** Autosave / settings; 409 `stale` means another tab saved first. */
 export async function PATCH(req: Request, { params }: Params) {
-  const g = await guard();
-  if (!g.admin) return g.res;
+  const g = await guardDocuments("save", 600);
+  if (!g.ok) return g.res;
   const { id } = await params;
-
-  const parsed = await parseJson(req, companyDocumentUpdateSchema);
+  const parsed = await parseJson(req, updateDocumentSchema);
   if (!parsed.success) {
     return fail({ code: "invalid_input", details: parsed.issues }, 400);
   }
-
-  const doc = await updateCompanyDocumentMeta(id, parsed.data).catch(
-    () => null,
-  );
-  if (!doc) return fail({ code: "not_found" }, 404);
-
-  await writeAudit({
-    actorId: g.admin.sub,
-    action: "companyDocument.update",
-    entityType: "CompanyDocument",
-    entityId: id,
-    after: parsed.data,
-    ip: clientIp(req),
-  });
-  return ok({ id, title: doc.title, folder: doc.folder ?? null });
+  const res = await updateDocument(id, parsed.data, g.actor);
+  if (!res.ok) {
+    return fail(
+      { code: res.code, message: res.detail },
+      documentStatus(res.code),
+    );
+  }
+  return ok(res.data);
 }
 
-/** Soft-delete a vault document. Super-admin, audited. */
 export async function DELETE(req: Request, { params }: Params) {
-  const g = await guard();
-  if (!g.admin) return g.res;
+  const g = await guardDocuments("write", 60);
+  if (!g.ok) return g.res;
   const { id } = await params;
-
-  const doc = await softDeleteCompanyDocument(id).catch(() => null);
-  if (!doc) return fail({ code: "not_found" }, 404);
-
-  await writeAudit({
-    actorId: g.admin.sub,
-    action: "companyDocument.delete",
-    entityType: "CompanyDocument",
-    entityId: id,
-    after: { title: doc.title },
-    ip: clientIp(req),
-  });
-  return ok({ id });
+  const res = await deleteDraft(id, g.actor, req);
+  if (!res.ok) return fail({ code: res.code }, documentStatus(res.code));
+  return ok(res.data);
 }

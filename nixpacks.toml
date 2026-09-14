@@ -1,0 +1,6 @@
+# Coolify builds this app with nixpacks. The written documents print their
+# PDFs through a headless Chromium (lib/documents/print), which the default
+# image does not carry — "..." keeps the auto-detected packages (Node) and
+# adds it. Pair with DOCS_CHROME_PATH=chromium in the Coolify environment.
+[phases.setup]
+nixPkgs = ["...", "chromium"]

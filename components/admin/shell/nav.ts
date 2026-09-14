@@ -30,6 +30,7 @@ import {
   Briefcase,
   Mailbox,
   Mail,
+  FilePen,
   ClipboardList,
   CalendarClock,
   Plane,
@@ -374,10 +375,33 @@ export const COMPANY_NAV_GROUPS: NavGroup[] = [
   {
     items: [
       superItem(
+        "company.dashboard",
+        "/admin/company",
+        "Dashboard",
+        LayoutDashboard,
+        "Company dashboard",
+      ),
+    ],
+  },
+  {
+    label: "Paperwork",
+    // The encrypted file vault, the documents the super admin writes on the
+    // letterhead (notices, letters, memos, agreements — filed as PDF when
+    // sent), and the layouts the sales PDFs print with.
+    superAdminOnly: true,
+    items: [
+      superItem(
+        "company.vault",
+        "/admin/company/vault",
+        "Vault",
+        FolderLock,
+        "Company vault",
+      ),
+      superItem(
         "company.documents",
         "/admin/company/documents",
         "Documents",
-        FolderLock,
+        FilePen,
         "Company documents",
       ),
       superItem(
@@ -534,7 +558,7 @@ export const NAV_SECTIONS: Record<
   },
   company: {
     label: "Company",
-    home: "/admin/company/documents",
+    home: "/admin/company",
     groups: COMPANY_NAV_GROUPS,
   },
   me: {
@@ -575,8 +599,8 @@ export function navGroupsFor(
 
 /**
  * Where the section switcher should land. The Company section's home is the
- * super-admin-only vault, so a plain admin would otherwise be sent straight to
- * an access-denied card; they get the section's first visible page instead.
+ * super-admin-only dashboard, so a plain admin would otherwise be sent straight
+ * to an access-denied card; they get the section's first visible page instead.
  */
 export function sectionHomeFor(
   section: AdminSection,
