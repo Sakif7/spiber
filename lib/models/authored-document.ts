@@ -23,6 +23,12 @@ export interface IDocumentVersion {
   vaultFileId?: Types.ObjectId | string | null;
   pdfSha256?: string | null;
   pages?: number | null;
+  /**
+   * Who this round went to and what they did, frozen when the document is
+   * reissued — a person who signed version 2 can still open version 2
+   * after the text moved on.
+   */
+  recipients?: IDocumentRecipient[];
   createdAt: Date;
   createdBy?: Types.ObjectId | string | null;
 }
@@ -39,16 +45,46 @@ export interface IDocumentRecipient {
   ip?: string | null;
 }
 
+/**
+ * A thread on the text. It is anchored to the words it quotes (with a
+ * little context to tell repeats apart), never to a mark in the body — so
+ * commenting never edits the document and the text prints untouched. The
+ * author's name is frozen with the comment, like a signature on a row.
+ */
 export interface IDocumentComment {
   id: string;
-  /** The `comment` mark id the thread is anchored to; null once the text is gone. */
+  /** Unused since comments anchor by quote; kept for rows written before. */
   anchorId?: string | null;
+  /** The quoted words; empty for a comment on the document as a whole. */
   quote?: string | null;
+  prefix?: string | null;
+  suffix?: string | null;
+  /** Character offset in the flat text when written. */
+  at?: number | null;
   authorId: Types.ObjectId | string;
+  authorName?: string | null;
   text: string;
   createdAt: Date;
+  replies?: IDocumentReply[];
   resolvedAt?: Date | null;
   resolvedBy?: Types.ObjectId | string | null;
+}
+
+export interface IDocumentReply {
+  authorId: Types.ObjectId | string;
+  authorName?: string | null;
+  text: string;
+  createdAt: Date;
+}
+
+/** A person asked to read the draft and comment; keyed by their login. */
+export interface IDocumentReviewer {
+  userId: Types.ObjectId | string;
+  employeeId?: Types.ObjectId | string | null;
+  name: string;
+  status: "pending" | "done";
+  invitedAt: Date;
+  actedAt?: Date | null;
 }
 
 export interface IDocumentEvent {
@@ -72,6 +108,7 @@ export interface IAuthoredDocument {
   /** For a letter: the employee whose details fill the merge fields. */
   mergeEmployeeId?: Types.ObjectId | string | null;
   recipients: IDocumentRecipient[];
+  reviewers?: IDocumentReviewer[];
   comments: IDocumentComment[];
   versions: IDocumentVersion[];
   activity: IDocumentEvent[];
@@ -95,6 +132,7 @@ const versionSchema = new Schema<IDocumentVersion>(
     vaultFileId: { type: Schema.Types.ObjectId, ref: "CompanyDocument" },
     pdfSha256: { type: String },
     pages: { type: Number },
+    recipients: { type: [Schema.Types.Mixed], default: undefined },
     createdAt: { type: Date, required: true },
     createdBy: { type: Schema.Types.ObjectId, ref: "User" },
   },
@@ -122,16 +160,43 @@ const recipientSchema = new Schema<IDocumentRecipient>(
   { _id: false },
 );
 
+const replySchema = new Schema<IDocumentReply>(
+  {
+    authorId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    authorName: { type: String },
+    text: { type: String, required: true },
+    createdAt: { type: Date, required: true },
+  },
+  { _id: false },
+);
+
 const commentSchema = new Schema<IDocumentComment>(
   {
     id: { type: String, required: true },
     anchorId: { type: String },
     quote: { type: String },
+    prefix: { type: String },
+    suffix: { type: String },
+    at: { type: Number },
     authorId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    authorName: { type: String },
     text: { type: String, required: true },
     createdAt: { type: Date, required: true },
+    replies: { type: [replySchema], default: [] },
     resolvedAt: { type: Date },
     resolvedBy: { type: Schema.Types.ObjectId, ref: "User" },
+  },
+  { _id: false },
+);
+
+const reviewerSchema = new Schema<IDocumentReviewer>(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    employeeId: { type: Schema.Types.ObjectId, ref: "Employee" },
+    name: { type: String, required: true },
+    status: { type: String, enum: ["pending", "done"], default: "pending" },
+    invitedAt: { type: Date, required: true },
+    actedAt: { type: Date },
   },
   { _id: false },
 );
@@ -168,6 +233,7 @@ const authoredDocumentSchema = new Schema<IAuthoredDocument>(
     settings: { type: Schema.Types.Mixed, required: true },
     mergeEmployeeId: { type: Schema.Types.ObjectId, ref: "Employee" },
     recipients: { type: [recipientSchema], default: [] },
+    reviewers: { type: [reviewerSchema], default: [] },
     comments: { type: [commentSchema], default: [] },
     versions: { type: [versionSchema], default: [] },
     activity: { type: [eventSchema], default: [] },
@@ -179,6 +245,7 @@ const authoredDocumentSchema = new Schema<IAuthoredDocument>(
 );
 
 authoredDocumentSchema.index({ deletedAt: 1, status: 1, updatedAt: -1 });
+authoredDocumentSchema.index({ "reviewers.userId": 1, deletedAt: 1 });
 authoredDocumentSchema.index({ title: "text" });
 
 export const AuthoredDocument: Model<IAuthoredDocument> =

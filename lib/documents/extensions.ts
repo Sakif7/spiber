@@ -37,7 +37,78 @@ declare module "@tiptap/core" {
     signatureSlot: {
       insertSignatureSlot: (attrs: SignatureSlotAttrs) => ReturnType;
     };
+    mergeField: {
+      insertMergeField: (field: string) => ReturnType;
+      /** Give the node views their values (screen only). */
+      setMergeValues: (values: Record<string, string>) => ReturnType;
+    };
+    tableOfContents: {
+      insertTableOfContents: () => ReturnType;
+      /** The pager's page per top-level block (screen only). */
+      setTocPages: (pageOfBlock: number[]) => ReturnType;
+    };
+    footnote: {
+      insertFootnote: (text?: string) => ReturnType;
+      setFootnoteText: (id: string, text: string) => ReturnType;
+      removeFootnote: (id: string) => ReturnType;
+      /** Which note's card is open on screen (null closes it). */
+      setFootnoteOpen: (id: string | null) => ReturnType;
+    };
   }
+  interface Storage {
+    footnote: { open: string | null; listeners: Set<() => void> };
+    mergeField: { values: Record<string, string>; listeners: Set<() => void> };
+    tableOfContents: { pageOfBlock: number[]; listeners: Set<() => void> };
+  }
+}
+
+/** Every footnote in the body, in reading order: id, text, number. */
+export function footnotesIn(doc: {
+  descendants: (
+    fn: (node: {
+      type: { name: string };
+      attrs: Record<string, unknown>;
+    }) => void,
+  ) => void;
+}): { id: string; text: string; n: number }[] {
+  const out: { id: string; text: string; n: number }[] = [];
+  doc.descendants((node) => {
+    if (node.type.name === "footnote") {
+      out.push({
+        id: String(node.attrs.id ?? ""),
+        text: String(node.attrs.text ?? ""),
+        n: out.length + 1,
+      });
+    }
+  });
+  return out;
+}
+
+/** The headings a table of contents lists: top-level, up to `depth`. */
+export function tocEntries(
+  doc: {
+    forEach: (
+      fn: (
+        node: {
+          type: { name: string };
+          attrs: Record<string, unknown>;
+          textContent: string;
+        },
+        offset: number,
+        index: number,
+      ) => void,
+    ) => void;
+  },
+  depth: number,
+): { level: number; text: string; block: number }[] {
+  const out: { level: number; text: string; block: number }[] = [];
+  doc.forEach((node, _offset, index) => {
+    if (node.type.name !== "heading") return;
+    const level = Number(node.attrs.level ?? 1);
+    if (level <= depth && node.textContent.trim())
+      out.push({ level, text: node.textContent, block: index });
+  });
+  return out;
 }
 
 /** A hard page break: everything after it starts on a new page. */
@@ -229,6 +300,19 @@ export type SignatureSlotAttrs = {
  * server when they acknowledge. Rendered as a box so its size on the page is
  * settled before anyone signs.
  */
+/**
+ * An attribute that lives in the node's own markup (a data-* attribute or
+ * its text) rather than being echoed as a raw HTML attribute: `renderHTML`
+ * adds nothing, `parseHTML` reads it back from where the node put it.
+ */
+function quiet<T>(parse: (el: HTMLElement) => T, fallback: T = "" as T) {
+  return {
+    default: fallback,
+    parseHTML: (el: HTMLElement) => parse(el),
+    renderHTML: () => ({}),
+  };
+}
+
 export const SignatureSlot = Node.create({
   name: "signatureSlot",
   group: "block",
@@ -236,15 +320,28 @@ export const SignatureSlot = Node.create({
   selectable: true,
   draggable: true,
   addAttributes() {
+    const text = (el: HTMLElement, sel: string) =>
+      el.querySelector(sel)?.textContent ?? "";
     return {
-      slotId: { default: "" },
-      employeeId: { default: "" },
-      name: { default: "" },
-      title: { default: "" },
-      label: { default: "Signature" },
+      slotId: quiet((el) => el.getAttribute("data-signature-slot") ?? ""),
+      employeeId: quiet((el) => el.getAttribute("data-employee-id") ?? ""),
+      name: quiet((el) => text(el, ".doc-signature-name")),
+      title: quiet((el) => text(el, ".doc-signature-title")),
+      label: quiet(
+        (el) => text(el, ".doc-signature-empty") || "Signature",
+        "Signature",
+      ),
       /** Set by the server once signed: an image URL and the date line. */
-      signedImage: { default: null },
-      signedLine: { default: null },
+      signedImage: quiet(
+        (el) =>
+          el.querySelector<HTMLImageElement>(".doc-signature-image img")?.src ??
+          null,
+        null,
+      ),
+      signedLine: quiet(
+        (el) => el.querySelector(".doc-signature-line")?.textContent ?? null,
+        null,
+      ),
     };
   },
   parseHTML() {
@@ -296,6 +393,366 @@ export const SignatureSlot = Node.create({
   },
 });
 
+/**
+ * A merge field — `{{employee.name}}` in a letter. Stored with only its key;
+ * the value is render-time state: the printer fills `value` from the
+ * addressee, and on screen the node view reads the values the editor holds
+ * (`storage.values`), so picking a different person redraws every field
+ * without touching the document.
+ */
+export const MergeField = Node.create<
+  Record<string, never>,
+  { values: Record<string, string>; listeners: Set<() => void> }
+>({
+  name: "mergeField",
+  group: "inline",
+  inline: true,
+  atom: true,
+  selectable: true,
+  addStorage() {
+    return { values: {}, listeners: new Set<() => void>() };
+  },
+  addAttributes() {
+    return {
+      field: quiet((el) => el.getAttribute("data-merge-field") ?? ""),
+      /** Set for a render; never stored (a paste starts unfilled). */
+      value: quiet(() => null, null),
+    };
+  },
+  parseHTML() {
+    return [{ tag: "span[data-merge-field]" }];
+  },
+  renderHTML({ node, HTMLAttributes }) {
+    const field = String(node.attrs.field ?? "");
+    const value = node.attrs.value as string | null;
+    const filled = value !== null && value !== undefined;
+    return [
+      "span",
+      mergeAttributes(HTMLAttributes, {
+        "data-merge-field": field,
+        class: `doc-merge-field${filled ? " is-filled" : ""}`,
+      }),
+      filled ? value : `{{${field}}}`,
+    ];
+  },
+  addNodeView() {
+    const storage = this.storage;
+    return ({ node }) => {
+      const dom = document.createElement("span");
+      dom.setAttribute("data-merge-field", String(node.attrs.field ?? ""));
+      dom.contentEditable = "false";
+      let current = node;
+      const paint = () => {
+        const field = String(current.attrs.field ?? "");
+        const value =
+          (current.attrs.value as string | null) ?? storage.values[field];
+        const filled = value !== undefined && value !== null && value !== "";
+        dom.className = `doc-merge-field${filled ? " is-filled" : ""}`;
+        dom.textContent = filled ? value : `{{${field}}}`;
+        dom.title = filled
+          ? `{{${field}}}`
+          : value === ""
+            ? "Nothing to show yet (a draft has no number)"
+            : "No value yet — pick who it is addressed to";
+      };
+      paint();
+      storage.listeners.add(paint);
+      return {
+        dom,
+        update: (next) => {
+          if (next.type.name !== "mergeField") return false;
+          current = next;
+          paint();
+          return true;
+        },
+        destroy: () => {
+          storage.listeners.delete(paint);
+        },
+      };
+    };
+  },
+  addCommands() {
+    return {
+      insertMergeField:
+        (field) =>
+        ({ chain }) =>
+          chain().insertContent({ type: this.name, attrs: { field } }).run(),
+      setMergeValues: (values) => () => {
+        this.storage.values = values;
+        this.storage.listeners.forEach((fn) => fn());
+        return true;
+      },
+    };
+  },
+});
+
+/**
+ * A table of contents: the document's headings with the page each starts
+ * on. Empty in the stored HTML — the editor's node view lists the headings
+ * itself and takes the page numbers from the pager; the printer fills it
+ * after pagination (and paginates once more, since the list has height).
+ */
+export const TableOfContents = Node.create<
+  Record<string, never>,
+  { pageOfBlock: number[]; listeners: Set<() => void> }
+>({
+  name: "tableOfContents",
+  group: "block",
+  atom: true,
+  selectable: true,
+  draggable: true,
+  addStorage() {
+    return { pageOfBlock: [], listeners: new Set<() => void>() };
+  },
+  addAttributes() {
+    return {
+      title: quiet(
+        (el) => el.getAttribute("data-toc-title") ?? "Contents",
+        "Contents",
+      ),
+      /** Heading levels listed: 1 = only H1, 3 = H1–H3. */
+      depth: quiet((el) => Number(el.getAttribute("data-toc")) || 3, 3),
+    };
+  },
+  parseHTML() {
+    return [{ tag: "div[data-toc]" }];
+  },
+  renderHTML({ node, HTMLAttributes }) {
+    return [
+      "div",
+      mergeAttributes(HTMLAttributes, {
+        "data-toc": String(node.attrs.depth ?? 3),
+        "data-toc-title": String(node.attrs.title ?? "Contents"),
+        class: "doc-toc",
+      }),
+      [
+        "div",
+        { class: "doc-toc-title" },
+        String(node.attrs.title ?? "Contents"),
+      ],
+      ["ol", { class: "doc-toc-list" }],
+    ];
+  },
+  addNodeView() {
+    const storage = this.storage;
+    const editor = this.editor;
+    return ({ node, getPos }) => {
+      const dom = document.createElement("div");
+      dom.className = "doc-toc";
+      dom.contentEditable = "false";
+      const title = document.createElement("div");
+      title.className = "doc-toc-title";
+      const list = document.createElement("ol");
+      list.className = "doc-toc-list";
+      dom.append(title, list);
+      let current = node;
+      const paint = () => {
+        title.textContent = String(current.attrs.title ?? "Contents");
+        const depth = Number(current.attrs.depth ?? 3);
+        const entries = tocEntries(editor.state.doc, depth);
+        list.replaceChildren();
+        if (entries.length === 0) {
+          const li = document.createElement("li");
+          li.className = "doc-toc-empty";
+          li.textContent = "Headings you add will be listed here.";
+          list.append(li);
+          return;
+        }
+        for (const e of entries) {
+          const li = document.createElement("li");
+          li.className = `doc-toc-item level-${e.level}`;
+          const text = document.createElement("span");
+          text.className = "doc-toc-text";
+          text.textContent = e.text;
+          const page = document.createElement("span");
+          page.className = "doc-toc-page";
+          const p = storage.pageOfBlock[e.block];
+          page.textContent = p ? String(p) : "–";
+          li.append(text, page);
+          list.append(li);
+        }
+      };
+      paint();
+      storage.listeners.add(paint);
+      const onUpdate = () => paint();
+      editor.on("update", onUpdate);
+      return {
+        dom,
+        update: (next) => {
+          if (next.type.name !== "tableOfContents") return false;
+          current = next;
+          paint();
+          return true;
+        },
+        selectNode: () => dom.classList.add("ProseMirror-selectednode"),
+        deselectNode: () => dom.classList.remove("ProseMirror-selectednode"),
+        stopEvent: () => false,
+        ignoreMutation: () => true,
+        destroy: () => {
+          storage.listeners.delete(paint);
+          editor.off("update", onUpdate);
+          void getPos;
+        },
+      };
+    };
+  },
+  addCommands() {
+    return {
+      insertTableOfContents:
+        () =>
+        ({ chain }) =>
+          chain()
+            .insertContent({ type: this.name })
+            .createParagraphNear()
+            .run(),
+      setTocPages: (pageOfBlock) => () => {
+        this.storage.pageOfBlock = pageOfBlock;
+        this.storage.listeners.forEach((fn) => fn());
+        return true;
+      },
+    };
+  },
+});
+
+/**
+ * A footnote: a numbered reference in the text, its note at the foot of the
+ * page the reference lands on. The note's text lives on the node; the
+ * number is its place in reading order, worked out wherever it is drawn
+ * (node view, printer, Word export), so the stored HTML carries only a
+ * marker. Editing happens in a small popover the editor opens on click.
+ */
+export const Footnote = Node.create<
+  Record<string, never>,
+  { open: string | null; listeners: Set<() => void> }
+>({
+  name: "footnote",
+  group: "inline",
+  inline: true,
+  atom: true,
+  selectable: true,
+  addStorage() {
+    return { open: null, listeners: new Set<() => void>() };
+  },
+  addAttributes() {
+    return {
+      id: quiet((el) => el.getAttribute("data-footnote") ?? ""),
+      text: quiet((el) => el.getAttribute("data-note") ?? ""),
+    };
+  },
+  parseHTML() {
+    // Ahead of the superscript mark, which would otherwise claim the <sup>.
+    return [{ tag: "sup[data-footnote]", priority: 60 }];
+  },
+  renderHTML({ node, HTMLAttributes }) {
+    return [
+      "sup",
+      mergeAttributes(HTMLAttributes, {
+        "data-footnote": String(node.attrs.id ?? ""),
+        "data-note": String(node.attrs.text ?? ""),
+        class: "doc-footnote-ref",
+      }),
+      "*",
+    ];
+  },
+  addNodeView() {
+    const editor = this.editor;
+    const storage = this.storage;
+    return ({ node }) => {
+      const dom = document.createElement("sup");
+      dom.className = "doc-footnote-ref";
+      dom.contentEditable = "false";
+      let current = node;
+      const paint = () => {
+        const id = String(current.attrs.id ?? "");
+        dom.setAttribute("data-footnote", id);
+        dom.setAttribute("data-note", String(current.attrs.text ?? ""));
+        const n = footnotesIn(editor.state.doc).find((f) => f.id === id)?.n;
+        dom.textContent = n ? String(n) : "*";
+        dom.title =
+          String(current.attrs.text ?? "") || "Click to write the note";
+        dom.classList.toggle("is-open", storage.open === id);
+      };
+      paint();
+      const onUpdate = () => paint();
+      editor.on("update", onUpdate);
+      storage.listeners.add(paint);
+      dom.addEventListener("click", (e) => {
+        e.preventDefault();
+        editor.commands.setFootnoteOpen(String(current.attrs.id ?? ""));
+      });
+      return {
+        dom,
+        update: (next) => {
+          if (next.type.name !== "footnote") return false;
+          current = next;
+          paint();
+          return true;
+        },
+        selectNode: () => dom.classList.add("ProseMirror-selectednode"),
+        deselectNode: () => dom.classList.remove("ProseMirror-selectednode"),
+        ignoreMutation: () => true,
+        destroy: () => {
+          editor.off("update", onUpdate);
+          storage.listeners.delete(paint);
+        },
+      };
+    };
+  },
+  addCommands() {
+    return {
+      insertFootnote:
+        (text = "") =>
+        ({ chain }) => {
+          const id = Math.random().toString(36).slice(2, 10);
+          const ok = chain()
+            .insertContent({ type: this.name, attrs: { id, text } })
+            .run();
+          if (ok) {
+            this.storage.open = id;
+            this.storage.listeners.forEach((fn) => fn());
+          }
+          return ok;
+        },
+      setFootnoteText:
+        (id, text) =>
+        ({ tr, state, dispatch }) => {
+          let done = false;
+          state.doc.descendants((node, pos) => {
+            if (done) return false;
+            if (node.type.name === this.name && node.attrs.id === id) {
+              if (dispatch)
+                tr.setNodeMarkup(pos, undefined, { ...node.attrs, text });
+              done = true;
+              return false;
+            }
+            return true;
+          });
+          return done;
+        },
+      setFootnoteOpen: (id) => () => {
+        this.storage.open = id;
+        this.storage.listeners.forEach((fn) => fn());
+        return true;
+      },
+      removeFootnote:
+        (id) =>
+        ({ tr, state, dispatch }) => {
+          let done = false;
+          state.doc.descendants((node, pos) => {
+            if (done) return false;
+            if (node.type.name === this.name && node.attrs.id === id) {
+              if (dispatch) tr.delete(pos, pos + node.nodeSize);
+              done = true;
+              return false;
+            }
+            return true;
+          });
+          return done;
+        },
+    };
+  },
+});
+
 /** Pictures with a width (percent of the text column) and an alignment. */
 export const DocumentImage = Image.extend({
   addAttributes() {
@@ -340,5 +797,8 @@ export function documentExtensions(): Extensions {
     Indent,
     ParagraphSpacing,
     SignatureSlot,
+    MergeField,
+    TableOfContents,
+    Footnote,
   ];
 }

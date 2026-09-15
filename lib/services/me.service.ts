@@ -313,6 +313,8 @@ export type DeskSummary = {
   visitsThisMonth: number;
   /** Documents sent to me that I have not yet acknowledged or signed. */
   documentsPending: number;
+  /** Drafts I was asked to review and have not finished. */
+  reviewsPending: number;
 };
 
 export async function deskSummary(
@@ -327,6 +329,7 @@ export async function deskSummary(
     claimsPending,
     visitsThisMonth,
     documentsPending,
+    reviewsPending,
   ] = await Promise.all([
     SalesLead.countDocuments({
       ...leadFilter(session),
@@ -348,6 +351,13 @@ export async function deskSummary(
       deletedAt: null,
       status: "sent",
       recipients: { $elemMatch: { employeeId: employee, status: "pending" } },
+    }),
+    AuthoredDocument.countDocuments({
+      deletedAt: null,
+      status: { $in: ["draft", "in_review"] },
+      reviewers: {
+        $elemMatch: { userId: session.claims.sub, status: "pending" },
+      },
     }),
   ]);
   let unreadMail: number | null = null;
@@ -372,6 +382,7 @@ export async function deskSummary(
     openLeads,
     ordersInProgress,
     documentsPending,
+    reviewsPending,
     claimsPending,
     visitsThisMonth,
   };

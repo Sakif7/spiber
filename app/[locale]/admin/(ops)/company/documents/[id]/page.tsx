@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { setRequestLocale } from "next-intl/server";
-import { FileText, PenLine } from "lucide-react";
+import { FileDown, FileText, PenLine } from "lucide-react";
 import { getSessionUser } from "@/lib/auth/current-user";
 import { isSuperAdmin } from "@/lib/auth/rbac";
 import {
@@ -14,6 +14,7 @@ import { AdminPageHeader } from "@/components/admin/ui/page-header";
 import { DetailCard } from "@/components/admin/ui/detail";
 import { StatusBadge, statusTone } from "@/components/admin/ui/status-badge";
 import { Button } from "@/components/ui/button";
+import { ReissueButton } from "@/components/admin/documents/reissue-button";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,7 @@ export default async function DocumentDetailPage({
   const doc = await getDocument(id);
   if (!doc) notFound();
   const editable = doc.status === "draft" || doc.status === "in_review";
+  const openComments = (doc.comments ?? []).filter((c) => !c.resolvedAt).length;
   const recipients = doc.recipients ?? [];
   const people = recipients.length
     ? await listEmployees({ includeInactive: true })
@@ -83,6 +85,21 @@ export default async function DocumentDetailPage({
                 Preview PDF
               </a>
             </Button>
+            <Button asChild variant="outline" size="sm">
+              <a href={`/api/admin/company/documents/${id}/docx`}>
+                <FileDown className="size-4" aria-hidden />
+                Word
+              </a>
+            </Button>
+            {(doc.status === "sent" || doc.status === "completed") && (
+              <ReissueButton
+                documentId={id}
+                number={doc.number ?? null}
+                pending={
+                  recipients.filter((r) => r.status === "pending").length
+                }
+              />
+            )}
             <Button asChild size="sm">
               <Link href={`/${locale}/admin/company/documents/${id}/edit`}>
                 <PenLine className="size-4" aria-hidden />
@@ -132,6 +149,51 @@ export default async function DocumentDetailPage({
                   </li>
                 );
               })}
+            </ul>
+          )}
+        </DetailCard>
+      )}
+
+      {((doc.reviewers ?? []).length > 0 ||
+        (doc.comments ?? []).length > 0) && (
+        <DetailCard
+          title="Review"
+          description={
+            openComments
+              ? `${openComments} open comment${openComments === 1 ? "" : "s"} — answer and resolve them in the editor.`
+              : (doc.comments ?? []).length
+                ? "Every comment is resolved."
+                : "No comments yet."
+          }
+        >
+          {(doc.reviewers ?? []).length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              No one was asked to review.
+            </p>
+          ) : (
+            <ul className="divide-y">
+              {(doc.reviewers ?? []).map((r) => (
+                <li
+                  key={String(r.userId)}
+                  className="flex items-center justify-between gap-3 py-2 text-sm"
+                >
+                  <span className="min-w-0">
+                    <span className="text-foreground block truncate font-medium">
+                      {r.name}
+                    </span>
+                    <span className="text-muted-foreground block truncate text-xs">
+                      Asked {when(r.invitedAt)}
+                      {r.actedAt ? ` · finished ${when(r.actedAt)}` : ""}
+                    </span>
+                  </span>
+                  <StatusBadge
+                    tone={r.status === "done" ? "success" : "warning"}
+                    dot={false}
+                  >
+                    {r.status === "done" ? "reviewed" : "asked"}
+                  </StatusBadge>
+                </li>
+              ))}
             </ul>
           )}
         </DetailCard>

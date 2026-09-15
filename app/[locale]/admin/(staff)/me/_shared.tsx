@@ -1,5 +1,11 @@
 import { redirect } from "next/navigation";
-import { requireEmployee, type EmployeeSession } from "@/lib/auth/guard";
+import {
+  requireEmployee,
+  requireStaff,
+  type EmployeeSession,
+} from "@/lib/auth/guard";
+import { isAdmin } from "@/lib/auth/rbac";
+import type { ReviewActor } from "@/lib/services/documents/document-review.service";
 import { AdminPageHeader } from "@/components/admin/ui/page-header";
 import { DetailCard } from "@/components/admin/ui/detail";
 
@@ -14,6 +20,20 @@ export async function employeeOrRedirect(
   const session = await requireEmployee();
   if (!session) redirect(`/${locale}?auth=login&next=/${locale}${next}`);
   return session;
+}
+
+/**
+ * The review pages are the one corner of the portal that needs no
+ * Employee record: an admin asked to look at a draft reviews it here too.
+ * Which documents they may open is decided per document, in the service.
+ */
+export async function reviewerOrRedirect(
+  locale: string,
+  next: string,
+): Promise<ReviewActor> {
+  const claims = await requireStaff();
+  if (!claims) redirect(`/${locale}?auth=login&next=/${locale}${next}`);
+  return { sub: claims.sub, isAdmin: isAdmin(claims) };
 }
 
 export function NoEmployeeRecord({ title }: { title: string }) {

@@ -74,12 +74,23 @@ export const updateDocumentSchema = z
     title: z.string().trim().min(1).max(200).optional(),
     body: documentBodySchema.optional(),
     settings: documentSettingsPatchSchema.optional(),
+    /** Whose details fill the merge fields (a letter); null clears it. */
+    mergeEmployeeId: z
+      .string()
+      .regex(/^[0-9a-f]{24}$/i)
+      .nullable()
+      .optional(),
     /** The revision the client last saw; a stale save is refused. */
     rev: z.number().int().min(0).optional(),
   })
-  .refine((v) => v.title !== undefined || v.body || v.settings, {
-    message: "nothing to change",
-  });
+  .refine(
+    (v) =>
+      v.title !== undefined ||
+      v.body ||
+      v.settings ||
+      v.mergeEmployeeId !== undefined,
+    { message: "nothing to change" },
+  );
 export type UpdateDocumentInput = z.infer<typeof updateDocumentSchema>;
 
 export const snapshotSchema = z.object({
@@ -100,6 +111,35 @@ export const sendDocumentSchema = z.object({
   message: z.string().trim().max(1000).optional(),
 });
 export type SendDocumentInput = z.infer<typeof sendDocumentSchema>;
+
+/** Ask people to read the draft and comment; a line for their mail. */
+export const requestReviewSchema = z.object({
+  reviewers: z.array(objectId).min(1, "Pick at least one person").max(50),
+  message: z.string().trim().max(1000).optional(),
+});
+export type RequestReviewInput = z.infer<typeof requestReviewSchema>;
+
+/**
+ * A comment on the text: what was said, and the words it is about (with
+ * their context, see `lib/documents/anchors.ts`). No quote = a comment on
+ * the document as a whole.
+ */
+export const addCommentSchema = z.object({
+  text: z.string().trim().min(1, "Write something").max(4000),
+  quote: z.string().max(2000).default(""),
+  prefix: z.string().max(64).default(""),
+  suffix: z.string().max(64).default(""),
+  at: z.number().int().min(0).default(0),
+});
+export type AddCommentInput = z.infer<typeof addCommentSchema>;
+
+export const replyCommentSchema = z.object({
+  text: z.string().trim().min(1, "Write something").max(4000),
+});
+
+export const resolveCommentSchema = z.object({
+  resolved: z.boolean(),
+});
 
 /** The recipient's act: name typed as on their record, the box ticked. */
 export const acknowledgeDocumentSchema = z.object({

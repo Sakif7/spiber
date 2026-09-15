@@ -93,9 +93,76 @@ ${pagerSource()}
     var column = document.getElementById("column");
     var pages = document.getElementById("pages");
     var metrics = { pageHeight: PAGE_H, contentTop: ${m.top}, contentBottom: ${m.bottom}, gap: 0 };
+    // Footnotes: number the references in reading order and measure each
+    // note in the foot block's own styling, so the pager keeps exactly the
+    // room the notes will take.
+    var refs = column.querySelectorAll("[data-footnote]");
+    var noteNumber = {};
+    for (var f = 0; f < refs.length; f++) {
+      noteNumber[refs[f].getAttribute("data-footnote")] = f + 1;
+      refs[f].textContent = String(f + 1);
+    }
+    var measure = document.createElement("div");
+    measure.className = "doc-footnotes";
+    measure.style.cssText = "visibility:hidden;position:absolute;top:0;border-top:0;padding-top:0";
+    var mItem = document.createElement("div");
+    mItem.className = "doc-footnote-item";
+    var mNum = document.createElement("span");
+    mNum.className = "doc-footnote-num";
+    mNum.textContent = "9.";
+    var mText = document.createElement("span");
+    mText.className = "doc-footnote-text";
+    mItem.appendChild(mNum);
+    mItem.appendChild(mText);
+    measure.appendChild(mItem);
+    pages.parentNode.insertBefore(measure, pages);
+    var heights = {};
+    var notes = {
+      separator: 9,
+      heightOf: function (ref) {
+        var note = ref.getAttribute("data-note") || "";
+        if (heights[note] !== undefined) return heights[note];
+        mText.textContent = note || " ";
+        heights[note] = mItem.offsetHeight + 2;
+        return heights[note];
+      },
+    };
     // One clean pass over the untouched column (the pusher stylesheet is
-    // never needed here: every page gets its own blocks instead).
-    var r = window.__paginate(column, metrics, ".doc-column");
+    // never needed here: every page gets its own blocks instead). A table of
+    // contents is filled from that pass and the column paginated once more,
+    // because the filled list has height the first pass did not see.
+    var r = window.__paginate(column, metrics, ".doc-column", notes);
+    var tocs = column.querySelectorAll("[data-toc]");
+    if (tocs.length) {
+      var fill = function (pageOf) {
+        Array.prototype.forEach.call(tocs, function (toc) {
+          var depth = Number(toc.getAttribute("data-toc")) || 3;
+          var list = toc.querySelector(".doc-toc-list");
+          if (!list) return;
+          list.innerHTML = "";
+          var blocks = column.children;
+          for (var i = 0; i < blocks.length; i++) {
+            var m = /^H([1-6])$/.exec(blocks[i].tagName);
+            if (!m || Number(m[1]) > depth || !blocks[i].textContent.trim()) continue;
+            var li = document.createElement("li");
+            li.className = "doc-toc-item level-" + m[1];
+            var text = document.createElement("span");
+            text.className = "doc-toc-text";
+            text.textContent = blocks[i].textContent;
+            var page = document.createElement("span");
+            page.className = "doc-toc-page";
+            page.textContent = String(pageOf[i] || "");
+            li.appendChild(text);
+            li.appendChild(page);
+            list.appendChild(li);
+          }
+        });
+      };
+      fill(r.pageOfBlock);
+      r = window.__paginate(column, metrics, ".doc-column", notes);
+      fill(r.pageOfBlock);
+    }
+    measure.remove();
     var html = "";
     for (var p = 1; p <= r.pages; p++) {
       html += TEMPLATE.replace(/__PAGE__/g, String(p)).replace(/__PAGES__/g, String(r.pages)).replace(/__TOP__/g, String((p - 1) * PAGE_H));
@@ -108,6 +175,28 @@ ${pagerSource()}
       pages.children[p2 - 1].appendChild(body);
       for (var i = 0; i < blocks.length; i++) {
         if (r.pageOfBlock[i] === p2) body.appendChild(blocks[i]);
+      }
+      // This page's notes, at its foot.
+      var ids = r.notesByPage[p2 - 1] || [];
+      if (ids.length) {
+        var foot = document.createElement("div");
+        foot.className = "doc-footnotes";
+        foot.style.bottom = String(metrics.contentBottom) + "px";
+        for (var k = 0; k < ids.length; k++) {
+          var ref = column.querySelector('[data-footnote="' + ids[k] + '"]') || pages.querySelector('[data-footnote="' + ids[k] + '"]');
+          var item = document.createElement("div");
+          item.className = "doc-footnote-item";
+          var num = document.createElement("span");
+          num.className = "doc-footnote-num";
+          num.textContent = String(noteNumber[ids[k]] || "*") + ".";
+          var text = document.createElement("span");
+          text.className = "doc-footnote-text";
+          text.textContent = (ref && ref.getAttribute("data-note")) || " ";
+          item.appendChild(num);
+          item.appendChild(text);
+          foot.appendChild(item);
+        }
+        pages.children[p2 - 1].appendChild(foot);
       }
     }
     column.remove();

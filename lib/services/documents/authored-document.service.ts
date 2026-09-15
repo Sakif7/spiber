@@ -25,6 +25,7 @@ import {
   emptyBody,
   stripSignatureState,
 } from "@/lib/documents/render";
+import { stripMergeValues } from "@/lib/documents/merge";
 import { renderDocumentPdf } from "@/lib/documents/print/pdf";
 import {
   documentSettingsSchema,
@@ -187,8 +188,14 @@ export async function updateDocument(
   }
   const set: Record<string, unknown> = {};
   if (input.title !== undefined) set.title = input.title;
-  // Signed-slot images are render-time state; the stored body never has them.
-  if (input.body) set.body = stripSignatureState(input.body);
+  // Signed-slot images and merge values are render-time state; the stored
+  // body never has them.
+  if (input.body) set.body = stripMergeValues(stripSignatureState(input.body));
+  if (input.mergeEmployeeId !== undefined) {
+    set.mergeEmployeeId = input.mergeEmployeeId
+      ? oid(input.mergeEmployeeId)
+      : null;
+  }
   if (input.settings) {
     set.settings = documentSettingsSchema.parse({
       ...doc.settings,
@@ -349,7 +356,11 @@ export async function deleteDraft(
 ): Promise<DocumentResult<{ deleted: true }>> {
   const doc = await getDocument(id);
   if (!doc) return { ok: false, code: "not_found" };
-  if (!EDITABLE.has(doc.status)) return { ok: false, code: "locked" };
+  // Once numbered it is a record (it went out), even while reissued as a
+  // draft — it can be voided later, never deleted.
+  if (!EDITABLE.has(doc.status) || doc.number) {
+    return { ok: false, code: "locked" };
+  }
   await connectToDatabase();
   await AuthoredDocument.updateOne(
     { _id: oid(id) },

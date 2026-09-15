@@ -67,22 +67,31 @@ export default async function MyDocumentsPage({
     {
       key: "me",
       header: "You",
-      cell: (r) => (
-        <StatusBadge tone={MINE[r.me.status].tone} dot={false}>
-          {r.me.status === "pending"
-            ? r.me.role === "sign"
-              ? "Your signature is needed"
-              : "Please read"
-            : MINE[r.me.status].label}
-        </StatusBadge>
-      ),
+      cell: (r) =>
+        r.superseded ? (
+          <StatusBadge tone="neutral" dot={false}>
+            {r.me.status === "pending"
+              ? "Reissued since"
+              : MINE[r.me.status].label}
+          </StatusBadge>
+        ) : (
+          <StatusBadge tone={MINE[r.me.status].tone} dot={false}>
+            {r.me.status === "pending"
+              ? r.me.role === "sign"
+                ? "Your signature is needed"
+                : "Please read"
+              : MINE[r.me.status].label}
+          </StatusBadge>
+        ),
     },
     {
       key: "status",
       header: "Document",
       cell: (r) => (
         <span className="text-muted-foreground text-xs">
-          {DOCUMENT_STATUS_LABEL[r.status]}
+          {r.superseded
+            ? `v${r.version} · reissued`
+            : DOCUMENT_STATUS_LABEL[r.status]}
         </span>
       ),
     },
@@ -96,7 +105,7 @@ export default async function MyDocumentsPage({
           href={`/${locale}/admin/me/documents/${r.id}`}
           className="text-primary text-sm font-medium hover:underline"
         >
-          {r.me.status === "pending" ? "Open" : "View"}
+          {r.me.status === "pending" && !r.superseded ? "Open" : "View"}
         </Link>
       ),
     },

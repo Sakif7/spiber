@@ -26,6 +26,10 @@ export async function GET(req: Request) {
       kind: e.kind,
       status: e.status,
       businessEmail: e.businessEmail ?? null,
+      email: e.email ?? null,
+      phone: e.phone ?? null,
+      code: e.code,
+      joinedAt: e.joinedAt ? new Date(e.joinedAt).toISOString() : null,
       hasSignature: Boolean(e.signatureAssetId),
     })),
   });

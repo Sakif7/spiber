@@ -25,6 +25,8 @@ import {
   type SlotSignature,
 } from "@/lib/documents/render";
 import type { DocumentBody } from "@/lib/schemas/authored-document";
+import { mergeValues, withMergeValues } from "@/lib/documents/merge";
+import { companyContext } from "@/lib/pdf/engine/context";
 import {
   fileVersion,
   getDocument,
@@ -66,6 +68,37 @@ function event(actor: { sub: string } | null, action: string, note?: string) {
     action,
     note: note ?? null,
   };
+}
+
+/** The merge fields' values for this document: addressee, company, itself. */
+export async function mergeValuesFor(
+  doc: Pick<DocumentRow, "mergeEmployeeId" | "number" | "title" | "sentAt">,
+) {
+  const employee = doc.mergeEmployeeId
+    ? await Employee.findOne({ _id: doc.mergeEmployeeId, deletedAt: null })
+        .lean<Lean<IEmployee>>()
+        .exec()
+    : null;
+  return mergeValues({
+    employee,
+    company: companyContext(),
+    document: {
+      number: doc.number ?? null,
+      title: doc.title,
+      date: doc.sentAt ?? new Date(),
+    },
+  });
+}
+
+/**
+ * The body as it prints: merge fields filled from the addressee, signed
+ * slots carrying their signatures. Neither is ever stored.
+ */
+export async function printBodyFor(doc: DocumentRow): Promise<DocumentBody> {
+  return signedBodyFor(
+    { ...doc, body: withMergeValues(doc.body, await mergeValuesFor(doc)) },
+    "print",
+  );
 }
 
 /** The signatures already given, ready to draw: image as a data URI. */
@@ -193,14 +226,18 @@ export async function sendDocument(
   if (!updated) return { ok: false, code: "stale" };
 
   // The "sent" PDF: what everyone was asked to sign. Filed before anyone
-  // is told, so the mail can point at something that exists.
+  // is told, so the mail can point at something that exists. A document
+  // that already went out once is "reissued" from here on.
+  const wentBefore = (doc.versions ?? []).some(
+    (v) => v.label === "sent" || v.label === "reissued",
+  );
   const filed = await fileVersion(
     id,
-    status === "completed" ? "completed" : "sent",
+    status === "completed" ? "completed" : wentBefore ? "reissued" : "sent",
     actor,
     {
       req,
-      printBody: await signedBodyFor(updated),
+      printBody: await printBodyFor(updated),
     },
   );
   if (!filed.ok) {
@@ -298,6 +335,69 @@ export async function sendDocument(
   };
 }
 
+/**
+ * Reissue: unlock a sent or completed document for changes. The number
+ * stays, every filed version stays, and the people of this round — with
+ * what they signed — are frozen onto the latest filed version so they keep
+ * their copy. The next Send is a fresh round: new recipients, a "reissued"
+ * version, everyone signs again.
+ */
+export async function reissueDocument(
+  id: string,
+  actor: Actor,
+  req?: Request,
+): Promise<DocumentResult<{ status: "draft"; rounds: number }>> {
+  const doc = await getDocument(id);
+  if (!doc) return { ok: false, code: "not_found" };
+  if (doc.status !== "sent" && doc.status !== "completed") {
+    return { ok: false, code: "locked" };
+  }
+  await connectToDatabase();
+  const versions = doc.versions ?? [];
+  const last = [...versions].reverse().find((v) => v.vaultFileId);
+  const set: Record<string, unknown> = {
+    status: "draft",
+    sentAt: null,
+    completedAt: null,
+    recipients: [],
+  };
+  if (last && (doc.recipients ?? []).length) {
+    set[`versions.${versions.indexOf(last)}.recipients`] = doc.recipients;
+  }
+  const signedBy = (doc.recipients ?? []).filter((r) => r.status !== "pending");
+  const updated = await AuthoredDocument.updateOne(
+    { _id: oid(id), status: { $in: ["sent", "completed"] } },
+    {
+      $set: set,
+      $inc: { rev: 1 },
+      $push: {
+        activity: event(
+          actor,
+          "document.reissue",
+          signedBy.length
+            ? `${signedBy.length} of ${(doc.recipients ?? []).length} had acted on version ${last?.n ?? "—"}`
+            : undefined,
+        ),
+      },
+    },
+  ).exec();
+  if (updated.matchedCount === 0) return { ok: false, code: "stale" };
+  await writeAudit(
+    {
+      actorId: actor.sub,
+      action: "document.reissue",
+      entityType: "AuthoredDocument",
+      entityId: id,
+      before: { status: doc.status, version: last?.n ?? null },
+    },
+    req,
+  ).catch((e) => logger.warn("audit failed", { error: String(e) }));
+  const rounds = versions.filter(
+    (v) => v.label === "sent" || v.label === "reissued",
+  ).length;
+  return { ok: true, data: { status: "draft", rounds } };
+}
+
 // ───────────────────────────── the recipient's side ─────────────────────────────
 
 export type MyDocumentRow = {
@@ -306,6 +406,8 @@ export type MyDocumentRow = {
   title: string;
   type: IAuthoredDocument["type"];
   status: IAuthoredDocument["status"];
+  /** The text moved on after this person's round; they keep that version. */
+  superseded: boolean;
   sentAt: Date | null;
   me: {
     role: "sign" | "acknowledge";
@@ -328,11 +430,24 @@ async function rowFor(
   doc: DocumentRow,
   employeeId: string,
 ): Promise<MyDocumentRow | null> {
-  const me = (doc.recipients ?? []).find(
-    (r) => String(r.employeeId) === employeeId,
-  );
+  // The current round, or the last filed version that went to this person.
+  let recipients = doc.recipients ?? [];
+  let me = recipients.find((r) => String(r.employeeId) === employeeId);
+  let pinnedVersion: number | null = null;
+  const live = doc.status === "sent" || doc.status === "completed";
+  if (!me || !live) {
+    const past = [...(doc.versions ?? [])]
+      .reverse()
+      .find((v) =>
+        (v.recipients ?? []).some((r) => String(r.employeeId) === employeeId),
+      );
+    if (!past) return null;
+    recipients = past.recipients ?? [];
+    me = recipients.find((r) => String(r.employeeId) === employeeId);
+    pinnedVersion = past.n;
+  }
   if (!me) return null;
-  const otherIds = (doc.recipients ?? [])
+  const otherIds = recipients
     .map((r) => String(r.employeeId))
     .filter((e) => e !== employeeId);
   const names = otherIds.length
@@ -343,22 +458,27 @@ async function rowFor(
     : [];
   const nameOf = new Map(names.map((n) => [String(n._id), n.name]));
   const latest = [...(doc.versions ?? [])].filter((v) => v.vaultFileId).pop();
+  const version =
+    pinnedVersion !== null
+      ? (doc.versions ?? []).find((v) => v.n === pinnedVersion)
+      : latest;
   return {
     id: String(doc._id),
     number: doc.number ?? null,
     title: doc.title,
     type: doc.type,
     status: doc.status,
-    sentAt: doc.sentAt ?? null,
+    superseded: pinnedVersion !== null,
+    sentAt: version?.createdAt ?? doc.sentAt ?? null,
     me: { role: me.role, status: me.status, actedAt: me.actedAt ?? null },
-    others: (doc.recipients ?? [])
+    others: recipients
       .filter((r) => String(r.employeeId) !== employeeId)
       .map((r) => ({
         name: nameOf.get(String(r.employeeId)) ?? "Colleague",
         role: r.role,
         status: r.status,
       })),
-    version: latest?.n ?? null,
+    version: version?.n ?? null,
   };
 }
 
@@ -370,8 +490,13 @@ export async function myDocuments(
   const employeeId = String(session.employee._id);
   const docs = await AuthoredDocument.find({
     deletedAt: null,
-    status: { $in: ["sent", "completed"] },
-    "recipients.employeeId": oid(employeeId),
+    $or: [
+      {
+        status: { $in: ["sent", "completed"] },
+        "recipients.employeeId": oid(employeeId),
+      },
+      { "versions.recipients.employeeId": oid(employeeId) },
+    ],
   })
     .sort({ sentAt: -1 })
     .lean<DocumentRow[]>()
@@ -392,8 +517,7 @@ export async function myDocument(
 ): Promise<MyDocumentRow | null> {
   if (!mongoose.isValidObjectId(id)) return null;
   const doc = await getDocument(id);
-  if (!doc || (doc.status !== "sent" && doc.status !== "completed"))
-    return null;
+  if (!doc) return null;
   return rowFor(doc, String(session.employee._id));
 }
 
@@ -529,7 +653,7 @@ export async function acknowledgeDocument(
     // complete — a completed document always has its signed copy filed.
     const filed = await fileVersion(id, "completed", actor, {
       req,
-      printBody: await signedBodyFor(updated),
+      printBody: await printBodyFor(updated),
       note: `signed by ${employee.name}`,
     });
     if (!filed.ok) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useEditor, EditorContent } from "@tiptap/react";
+import { useEditor } from "@tiptap/react";
 import { Placeholder } from "@tiptap/extensions";
 import { toast } from "sonner";
 import { Link, useRouter } from "@/i18n/navigation";
@@ -12,6 +12,7 @@ import {
   FileDown,
   FileText,
   Loader2,
+  MessageSquareText,
   MoreHorizontal,
   Send,
   Trash2,
@@ -37,12 +38,7 @@ import {
 import { useUnsavedGuard } from "@/components/admin/ui/unsaved-changes";
 import { formatApiError } from "@/lib/http/form-error";
 import { documentExtensions } from "@/lib/documents/extensions";
-import {
-  columnMetrics,
-  documentCss,
-  pageChromeHtml,
-  type ChromeCompany,
-} from "@/lib/documents/chrome";
+import { columnMetrics, type ChromeCompany } from "@/lib/documents/chrome";
 import {
   DOCUMENT_FONTS,
   DOCUMENT_STATUS_LABEL,
@@ -52,6 +48,7 @@ import {
   type DocumentStatus,
   type DocumentType,
 } from "@/lib/documents/types";
+import type { ReviewState } from "@/lib/services/documents/document-review.service";
 import {
   documentSettingsSchema,
   type DocumentBody,
@@ -59,7 +56,18 @@ import {
 } from "@/lib/schemas/authored-document";
 import { EditorToolbar } from "./editor-toolbar";
 import { SendDialog } from "./send-dialog";
+import { ReissueButton } from "./reissue-button";
+import { SearchReplace } from "./search-replace";
+import { FindBar } from "./find-bar";
+import { FootnotePopover } from "./footnotes";
+import { PageStack, ZOOMS } from "./page-stack";
+import { CommentAnchors } from "./comment-anchors";
+import { CommentBubble } from "./comment-bubble";
+import { CommentsPanel, postJson } from "./comments-panel";
+import { ReviewDialog } from "./review-dialog";
 import { slotsIn, type SlotRef } from "@/lib/documents/slots";
+import { mergeValues } from "@/lib/documents/merge";
+import { useEmployees } from "./people-picker";
 import "./fonts.css";
 import { usePager } from "./use-pager";
 import { useEditorStat } from "./use-editor-stat";
@@ -86,16 +94,16 @@ export type EditorDocument = {
     pages: number | null;
     createdAt: string;
   }[];
+  /** Recipients of the current round who have not acted (sent documents). */
+  pendingRecipients?: number;
+  /** Whose details fill the merge fields. */
+  mergeEmployeeId: string | null;
+  /** The review: who was asked, and the threads. */
+  review: ReviewState;
 };
 
 type SaveState = "saved" | "dirty" | "saving" | "stale" | "error";
 const AUTOSAVE_MS = 1500;
-const ZOOMS = [
-  { value: "fit", label: "Fit" },
-  { value: "0.75", label: "75%" },
-  { value: "1", label: "100%" },
-  { value: "1.25", label: "125%" },
-];
 
 async function api<T>(
   url: string,
@@ -149,13 +157,18 @@ export function DocumentEditor({
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [zoom, setZoom] = useState("fit");
-  const [rail, setRail] = useState<"outline" | "versions" | "settings">(
-    "outline",
-  );
+  const [rail, setRail] = useState<
+    "outline" | "comments" | "versions" | "settings"
+  >("outline");
+  const [status, setStatus] = useState(initial.status);
+  const [review, setReview] = useState<ReviewState>(initial.review);
+  const [askReview, setAskReview] = useState(false);
+  const [asking, setAsking] = useState(false);
   const [filing, setFiling] = useState(false);
   const [askNote, setAskNote] = useState(false);
   const [askDelete, setAskDelete] = useState(false);
   const [askSend, setAskSend] = useState(false);
+  const [find, setFind] = useState<null | { replace: boolean }>(null);
   const [sending, setSending] = useState(false);
   const [sendSlots, setSendSlots] = useState<SlotRef[]>([]);
   const revRef = useRef(initial.rev);
@@ -164,15 +177,20 @@ export function DocumentEditor({
     body?: DocumentBody;
     title?: string;
     settings?: Partial<DocumentSettings>;
+    mergeEmployeeId?: string | null;
   }>({});
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const [canvasWidth, setCanvasWidth] = useState(0);
+  const [mergeEmployeeId, setMergeEmployeeId] = useState(
+    initial.mergeEmployeeId,
+  );
+  const people = useEmployees(true);
 
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
       ...documentExtensions(),
       Placeholder.configure({ placeholder: "Start writing…" }),
+      SearchReplace,
+      CommentAnchors,
     ],
     content: initial.body,
     editable: initial.status === "draft" || initial.status === "in_review",
@@ -189,7 +207,13 @@ export function DocumentEditor({
   // ── autosave ─────────────────────────────────────────────────────────
   const flush = useCallback(async () => {
     const patch = pending.current;
-    if (!patch.body && patch.title === undefined && !patch.settings) return;
+    if (
+      !patch.body &&
+      patch.title === undefined &&
+      !patch.settings &&
+      patch.mergeEmployeeId === undefined
+    )
+      return;
     pending.current = {};
     setSaveState("saving");
     const res = await api<{ rev: number; updatedAt: string }>(
@@ -221,7 +245,8 @@ export function DocumentEditor({
     setSaveState(
       pending.current.body ||
         pending.current.title !== undefined ||
-        pending.current.settings
+        pending.current.settings ||
+        pending.current.mergeEmployeeId !== undefined
         ? "dirty"
         : "saved",
     );
@@ -249,6 +274,16 @@ export function DocumentEditor({
         if (timer.current) clearTimeout(timer.current);
         void flush();
       }
+      // Find (Ctrl+F) and replace (Ctrl+H) — the document's, not the page's.
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        (e.key.toLowerCase() === "f" || e.key.toLowerCase() === "h") &&
+        !e.shiftKey &&
+        !e.altKey
+      ) {
+        e.preventDefault();
+        setFind({ replace: e.key.toLowerCase() === "h" });
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -260,6 +295,38 @@ export function DocumentEditor({
     setSaveState((s) => (s === "stale" ? s : "dirty"));
     schedule();
   }
+  // The merge fields' values, redrawn whenever the addressee, the title or
+  // the people list changes — on screen only; the printer works them out.
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    const person = people.people.find((p) => p.id === mergeEmployeeId) ?? null;
+    const values = mergeValues({
+      employee: person
+        ? {
+            name: person.name,
+            designation: person.designation,
+            code: person.code,
+            businessEmail: person.businessEmail,
+            email: person.email,
+            phone: person.phone,
+            joinedAt: person.joinedAt,
+            kind: person.kind,
+          }
+        : null,
+      company,
+      document: { number: initial.number, title, date: new Date() },
+    });
+    editor.commands.setMergeValues(values as Record<string, string>);
+  }, [editor, people.people, mergeEmployeeId, company, initial.number, title]);
+
+  function changeAddressee(id: string | null) {
+    setMergeEmployeeId(id);
+    pending.current.mergeEmployeeId = id;
+    setSaveState((s) => (s === "stale" ? s : "dirty"));
+    if (timer.current) clearTimeout(timer.current);
+    void flush();
+  }
+
   function changeSettings(patch: Partial<DocumentSettings>) {
     const next = documentSettingsSchema.parse({ ...settings, ...patch });
     setSettings(next);
@@ -283,6 +350,26 @@ export function DocumentEditor({
     };
   }, [settings]);
   const pager = usePager(editor, metrics, ".doc-pages .doc-column");
+  // The table of contents takes its page numbers from the pager.
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    editor.commands.setTocPages(pager.pageOfBlock);
+  }, [editor, pager.pageOfBlock]);
+  // The comment highlights follow the threads.
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    editor.commands.setCommentThreads(
+      review.comments.map((c) => ({
+        id: c.id,
+        quote: c.quote,
+        prefix: c.prefix,
+        suffix: c.suffix,
+        at: c.at,
+        resolved: Boolean(c.resolvedAt),
+      })),
+    );
+  }, [editor, review.comments]);
+
   const chrome = useMemo(
     () => ({
       settings,
@@ -293,31 +380,6 @@ export function DocumentEditor({
     }),
     [settings, company, initial.number, title, logoSrc],
   );
-  const css = useMemo(
-    () => documentCss(settings, { screen: true }),
-    [settings],
-  );
-  const pagesHtml = useMemo(() => {
-    let html = "";
-    for (let p = 1; p <= pager.pages; p++)
-      html += pageChromeHtml(chrome, p, pager.pages);
-    return html;
-  }, [chrome, pager.pages]);
-
-  useEffect(() => {
-    const el = canvasRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => setCanvasWidth(el.clientWidth));
-    ro.observe(el);
-    setCanvasWidth(el.clientWidth);
-    return () => ro.disconnect();
-  }, []);
-  const scale =
-    zoom === "fit"
-      ? Math.min(1, Math.max(0.4, (canvasWidth - 48) / PAGE.width))
-      : Number(zoom);
-  const stackHeight =
-    pager.pages * PAGE.height + (pager.pages - 1) * PAGE.screenGap;
 
   // ── outline ──────────────────────────────────────────────────────────
   const outline = useEditorStat(
@@ -449,15 +511,68 @@ export function DocumentEditor({
     router.push("/admin/company/documents");
   }
 
-  const editable = initial.status === "draft" || initial.status === "in_review";
+  // ── review ───────────────────────────────────────────────────────────
+  const commentApi = useMemo(() => {
+    const base = `/api/admin/company/documents/${initial.id}/comments`;
+    return {
+      list: base,
+      add: base,
+      reply: (c: string) => `${base}/${c}`,
+      resolve: (c: string) => `${base}/${c}`,
+    };
+  }, [initial.id]);
+
+  async function askForReview(input: { reviewers: string[]; message: string }) {
+    setAsking(true);
+    try {
+      if (timer.current) clearTimeout(timer.current);
+      await flush();
+      const res = await postJson<ReviewState>(
+        `/api/admin/company/documents/${initial.id}/review`,
+        { reviewers: input.reviewers, message: input.message || undefined },
+      );
+      if (!res.ok) {
+        toast.error(res.message);
+        return;
+      }
+      setReview(res.data);
+      setStatus(res.data.status);
+      setAskReview(false);
+      setRail("comments");
+      toast.success(
+        `Asked ${res.data.reviewers.filter((r) => r.status === "pending").length} to review.`,
+      );
+    } finally {
+      setAsking(false);
+    }
+  }
+
+  async function commentOnText(input: {
+    quote: string;
+    prefix: string;
+    suffix: string;
+    at: number;
+    text: string;
+  }) {
+    const res = await postJson<ReviewState>(commentApi.add, input);
+    if (!res.ok) {
+      toast.error(res.message);
+      return false;
+    }
+    setReview(res.data);
+    setRail("comments");
+    const added = res.data.comments[res.data.comments.length - 1];
+    if (added) editor?.commands.setCurrentComment(added.id);
+    return true;
+  }
+  const openComments = review.comments.filter((c) => !c.resolvedAt).length;
+
+  const editable = status === "draft" || status === "in_review";
   const font =
     DOCUMENT_FONTS.find((f) => f.id === settings.font) ?? DOCUMENT_FONTS[0];
 
   return (
     <div className="bg-card text-card-foreground flex h-[calc(100dvh-6rem)] min-h-[32rem] flex-col overflow-hidden rounded-md border">
-      <style>{css}</style>
-      <style>{EDITOR_CSS}</style>
-
       {/* ── title bar ── */}
       <div className="border-border flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-3 py-2">
         <Button
@@ -485,8 +600,8 @@ export function DocumentEditor({
               {initial.number ?? "No number yet"}
             </span>
           </span>
-          <StatusBadge tone={statusTone(initial.status)}>
-            {DOCUMENT_STATUS_LABEL[initial.status]}
+          <StatusBadge tone={statusTone(status)}>
+            {DOCUMENT_STATUS_LABEL[status]}
           </StatusBadge>
         </div>
         <div className="flex items-center gap-2">
@@ -555,6 +670,13 @@ export function DocumentEditor({
               Send…
             </Button>
           )}
+          {(status === "sent" || status === "completed") && (
+            <ReissueButton
+              documentId={initial.id}
+              number={initial.number}
+              pending={initial.pendingRecipients ?? 0}
+            />
+          )}
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <Button
@@ -567,11 +689,23 @@ export function DocumentEditor({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                disabled={!editable}
+                onSelect={() => setAskReview(true)}
+              >
+                <MessageSquareText className="size-4" />
+                Ask for a review…
+              </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <a
                   href={`/api/admin/company/documents/${initial.id}/pdf?download=1`}
                 >
                   Download PDF
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <a href={`/api/admin/company/documents/${initial.id}/docx`}>
+                  Download Word (.docx)
                 </a>
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -593,39 +727,33 @@ export function DocumentEditor({
           defaultFontId={settings.font}
           defaultSize={settings.fontSize}
           onSaveVersion={() => setAskNote(true)}
+          onFind={() => setFind({ replace: false })}
+        />
+      )}
+      {editor && find && (
+        <FindBar
+          editor={editor}
+          focusReplace={find.replace}
+          onClose={() => setFind(null)}
         />
       )}
 
       <div className="flex min-h-0 flex-1">
         {/* ── pages ── */}
-        <div
-          ref={canvasRef}
-          className="doc-canvas min-w-0 flex-1 overflow-auto"
+        <PageStack
+          editor={editor}
+          pager={pager}
+          contentBottom={metrics.contentBottom}
+          chrome={chrome}
+          zoom={zoom}
         >
-          <div
-            className="mx-auto"
-            style={{
-              width: PAGE.width * scale,
-              height: stackHeight * scale + 48,
-              paddingTop: 24,
-            }}
-          >
-            <div
-              className="doc-pages"
-              style={{
-                transform: `scale(${scale})`,
-                transformOrigin: "top left",
-                height: stackHeight,
-              }}
-            >
-              <div
-                aria-hidden
-                dangerouslySetInnerHTML={{ __html: pagesHtml }}
-              />
-              <EditorContent editor={editor} />
-            </div>
-          </div>
-        </div>
+          {editable && <FootnotePopover editor={editor} />}
+          <CommentBubble
+            editor={editor}
+            enabled={editable && !find}
+            onSubmit={commentOnText}
+          />
+        </PageStack>
 
         {/* ── rail ── */}
         <aside className="border-border hidden w-72 shrink-0 flex-col border-l lg:flex">
@@ -634,8 +762,16 @@ export function DocumentEditor({
             onValueChange={(v) => setRail(v as typeof rail)}
             className="flex min-h-0 flex-1 flex-col gap-0"
           >
-            <TabsList className="m-2 grid grid-cols-3">
+            <TabsList className="m-2 grid grid-cols-4">
               <TabsTrigger value="outline">Outline</TabsTrigger>
+              <TabsTrigger value="comments">
+                Notes
+                {openComments > 0 && (
+                  <span className="bg-primary text-primary-foreground ml-1 rounded-full px-1.5 text-[10px] leading-4">
+                    {openComments}
+                  </span>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="versions">Versions</TabsTrigger>
               <TabsTrigger value="settings">Page</TabsTrigger>
             </TabsList>
@@ -671,6 +807,50 @@ export function DocumentEditor({
                     ))}
                   </ul>
                 ))}
+              {rail === "comments" && (
+                <CommentsPanel
+                  editor={editor}
+                  state={review}
+                  onState={setReview}
+                  endpoints={commentApi}
+                  canResolve
+                  open={editable}
+                  header={
+                    <div className="space-y-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="w-full"
+                        disabled={!editable}
+                        onClick={() => setAskReview(true)}
+                      >
+                        <MessageSquareText className="size-4" aria-hidden />
+                        Ask for a review…
+                      </Button>
+                      {review.reviewers.length > 0 && (
+                        <ul className="divide-y rounded-md border text-xs">
+                          {review.reviewers.map((r) => (
+                            <li
+                              key={r.userId}
+                              className="flex items-center justify-between gap-2 px-2.5 py-1.5"
+                            >
+                              <span className="truncate">{r.name}</span>
+                              <StatusBadge
+                                tone={
+                                  r.status === "done" ? "success" : "warning"
+                                }
+                                dot={false}
+                              >
+                                {r.status === "done" ? "reviewed" : "asked"}
+                              </StatusBadge>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  }
+                />
+              )}
               {rail === "versions" &&
                 (versions.length === 0 ? (
                   <p className="text-muted-foreground text-xs">
@@ -764,6 +944,25 @@ export function DocumentEditor({
                     </p>
                   </div>
                   <div className="space-y-1.5">
+                    <Label>Addressed to</Label>
+                    <SelectField
+                      value={mergeEmployeeId ?? "none"}
+                      disabled={!editable}
+                      onChange={(v) => changeAddressee(v === "none" ? null : v)}
+                      options={[
+                        { value: "none", label: "No one in particular" },
+                        ...people.people.map((p) => ({
+                          value: p.id,
+                          label: `${p.name} — ${p.designation}`,
+                        })),
+                      ]}
+                    />
+                    <p className="text-muted-foreground text-xs">
+                      Fills the merge fields (Insert → Merge field): name,
+                      designation, joining date and so on.
+                    </p>
+                  </div>
+                  <div className="space-y-1.5">
                     <Label>Body font</Label>
                     <SelectField
                       value={settings.font}
@@ -817,6 +1016,13 @@ export function DocumentEditor({
         onConfirm={(v) => void fileVersionNow(v)}
         allowEmpty
       />
+      <ReviewDialog
+        open={askReview}
+        reviewers={review.reviewers}
+        busy={asking}
+        onCancel={() => setAskReview(false)}
+        onAsk={(input) => void askForReview(input)}
+      />
       <SendDialog
         open={askSend}
         slots={sendSlots}
@@ -839,22 +1045,3 @@ export function DocumentEditor({
 }
 
 const EMPTY_OUTLINE: { pos: number; level: number; text: string }[] = [];
-
-/** Screen-only styling: the grey desk, the page shadow, the editor chrome. */
-const EDITOR_CSS = `
-.doc-canvas{background:var(--color-surface-2);overflow-anchor:none}
-.dark .doc-canvas{background:#1a272c}
-.doc-pages{position:relative}
-.doc-pages .doc-column{z-index:1}
-.doc-pages .doc-page{z-index:0}
-.doc-pages .doc-column.ProseMirror{position:absolute}
-.doc-text p.is-editor-empty:first-child::before{content:attr(data-placeholder);color:#9aa5a9;float:left;height:0;pointer-events:none}
-.doc-pages .doc-page-break{height:0;margin:0!important;border-top:1px dashed #0d8f91}
-.doc-pages .doc-page-break::after{content:"page break";position:absolute;right:0;top:-9px;font:600 9px/1 "IBM Plex Sans",sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#0d8f91;background:#fff;padding:2px 6px}
-.doc-pages .ProseMirror-selectednode{outline:2px solid #0d8f91;outline-offset:2px}
-.doc-pages .selectedCell::after{content:"";position:absolute;inset:0;background:rgba(13,143,145,.12);pointer-events:none}
-.doc-pages .column-resize-handle{position:absolute;right:-2px;top:0;bottom:0;width:4px;background:#0d8f91;pointer-events:none}
-.doc-pages .tableWrapper{overflow:visible}
-.doc-pages .resize-cursor{cursor:col-resize}
-.doc-pages img.ProseMirror-selectednode{outline:2px solid #0d8f91}
-`;

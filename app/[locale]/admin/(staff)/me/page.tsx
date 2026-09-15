@@ -134,7 +134,9 @@ export default async function MyDeskPage({
         />
       </div>
 
-      {(summary.documentsPending > 0 || !employee.signatureAssetId) && (
+      {(summary.documentsPending > 0 ||
+        summary.reviewsPending > 0 ||
+        !employee.signatureAssetId) && (
         <div className="grid gap-3 sm:grid-cols-2">
           {summary.documentsPending > 0 && (
             <Stat
@@ -142,6 +144,14 @@ export default async function MyDeskPage({
               value={String(summary.documentsPending)}
               hint="read and acknowledge or sign"
               href="/admin/me/documents"
+            />
+          )}
+          {summary.reviewsPending > 0 && (
+            <Stat
+              label="Drafts to review"
+              value={String(summary.reviewsPending)}
+              hint="read and comment"
+              href="/admin/me/reviews"
             />
           )}
           {!employee.signatureAssetId && (

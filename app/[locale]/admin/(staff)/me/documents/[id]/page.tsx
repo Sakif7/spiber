@@ -74,7 +74,18 @@ export default async function MyDocumentPage({
           )}
         </div>
         <div className="grid gap-4">
-          {row.me.status === "pending" ? (
+          {row.superseded ? (
+            <DetailCard title="Reissued since">
+              <p className="text-muted-foreground text-sm">
+                The office changed this document after your round. You keep
+                version {row.version} as it was sent to you
+                {row.me.status === "pending"
+                  ? "; nothing is asked of you on it any more"
+                  : `, ${row.me.status} on ${day(row.me.actedAt)}`}
+                . If it comes to you again, it will appear as new.
+              </p>
+            </DetailCard>
+          ) : row.me.status === "pending" ? (
             <AcknowledgeForm
               documentId={id}
               role={row.me.role}

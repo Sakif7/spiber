@@ -169,6 +169,26 @@ export function documentCss(
 .doc-signature-name{font-weight:600;font-size:${(0.95 * size).toFixed(1)}px;margin-top:4px}
 .doc-signature-title{font-size:${(0.82 * size).toFixed(1)}px;color:#444}
 .doc-signature-line{font-size:${(0.72 * size).toFixed(1)}px;color:#6d7c82;margin-top:2px}
+.doc-merge-field{border:1px dashed #c4841d;border-radius:3px;padding:0 3px;color:#8a5a0c;background:#fff7e6;font-family:${fontById("plex-mono").family};font-size:0.85em}
+.doc-merge-field.is-filled{border:0;padding:0;background:transparent;color:inherit;font-family:inherit;font-size:inherit}
+.doc-toc{margin:0 0 1em}
+.doc-toc-title{font-weight:700;font-size:${(1.15 * size).toFixed(1)}px;margin:0 0 0.5em}
+.doc-toc-list{list-style:none;margin:0;padding:0}
+.doc-toc-item{display:flex;align-items:baseline;gap:6px;line-height:1.5}
+.doc-toc-item.level-2{padding-left:1.5em}
+.doc-toc-item.level-3{padding-left:3em}
+.doc-toc-text{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;position:relative}
+.doc-toc-text::after{content:"";position:absolute;left:0;right:0;bottom:0.32em;border-bottom:1px dotted #9aa5a9;z-index:-1}
+.doc-toc-text{background:#fff;padding-right:4px}
+.doc-toc-item{position:relative;z-index:0}
+.doc-toc-page{font-family:${fontById("plex-mono").family};font-size:0.9em;flex:0 0 auto}
+.doc-toc-empty{color:#6d7c82;font-style:italic;font-size:0.9em}
+.doc-footnote-ref{vertical-align:super;font-size:0.7em;line-height:0;color:#0d8f91;font-weight:600;padding:0 1px;cursor:pointer}
+.doc-footnote-ref.is-open{background:#0d8f91;color:#fff;border-radius:2px}
+.doc-footnotes{position:absolute;left:${PAGE.padX}px;width:${PAGE.width - 2 * PAGE.padX}px;border-top:1px solid #1a1a1a;padding-top:4px;font-size:${(0.8 * size).toFixed(1)}px;line-height:1.35;color:#1a1a1a}
+.doc-footnote-item{display:flex;gap:6px;margin:0 0 2px}
+.doc-footnote-num{flex:0 0 1.4em;color:#0d8f91;font-weight:600}
+.doc-footnote-text{flex:1;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}
 .doc-letterhead{position:absolute;left:0;top:0;width:100%;height:${PAGE.padTop + PAGE.letterheadHeight}px;font-family:"IBM Plex Sans","Arimo",sans-serif}
 .doc-lh-bar{position:absolute;left:0;top:0;width:29px;height:${Math.round(118 * PT)}px;background:${accent}}
 .doc-lh-logo-wrap{position:absolute;left:${PAGE.padX}px;top:${PAGE.padTop + 8}px;height:${Math.round(84 * PT)}px;display:flex;align-items:center}

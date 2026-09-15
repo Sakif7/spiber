@@ -41,12 +41,28 @@ export type PageResult = {
   pageOfBlock: number[];
   /** The stylesheet that pushes blocks to page tops via `selector > :nth-child(n)`. */
   css: string;
+  /** Per page (0-based): the footnote ids whose references landed on it. */
+  notesByPage: string[][];
+  /** Per page: the height reserved at the foot for those notes. */
+  notesHeight: number[];
+};
+
+/**
+ * Footnotes: each reference (`[data-footnote]` inside a block) needs its
+ * note at the foot of the same page, so a page's text area shrinks by the
+ * notes it carries. `heightOf` measures one note; `separator` is the rule
+ * above the first note on a page.
+ */
+export type NoteMetrics = {
+  heightOf: (ref: HTMLElement) => number;
+  separator: number;
 };
 
 export function paginate(
   column: HTMLElement,
   m: PageMetrics,
   selector: string,
+  notes?: NoteMetrics,
 ): PageResult {
   const blocks: HTMLElement[] = [];
   for (let i = 0; i < column.children.length; i++) {
@@ -71,6 +87,8 @@ export function paginate(
     solid: number;
     marginTop: number;
     brk: boolean;
+    /** The footnotes referenced inside this block: id and note height. */
+    notes: { id: string; height: number }[];
   };
   const boxes: Box[] = [];
   for (let i = 0; i < blocks.length; i++) {
@@ -79,17 +97,39 @@ export function paginate(
     const r = el.getBoundingClientRect();
     const marginTop = parseFloat(cs.marginTop) || 0;
     const marginBottom = parseFloat(cs.marginBottom) || 0;
+    const refs: { id: string; height: number }[] = [];
+    if (notes) {
+      const found = el.querySelectorAll("[data-footnote]");
+      for (let k = 0; k < found.length; k++) {
+        const ref = found[k] as HTMLElement;
+        refs.push({
+          id: ref.getAttribute("data-footnote") || "",
+          height: notes.heightOf(ref),
+        });
+      }
+    }
     boxes.push({
       top: (r.top - colRect.top) / scale - marginTop,
       height: marginTop + r.height / scale + marginBottom,
       solid: r.height / scale,
       marginTop,
       brk: el.hasAttribute("data-page-break"),
+      notes: refs,
     });
   }
 
   const pageOfBlock: number[] = [];
   const pushes: number[] = [];
+  const notesByPage: string[][] = [[]];
+  const notesHeight: number[] = [0];
+  // What a page's foot must hold once this block's notes join it.
+  const reserveWith = (p: number, b: Box) => {
+    let h = notesHeight[p] || 0;
+    if (b.notes.length && !(notesByPage[p] || []).length && notes)
+      h += notes.separator;
+    for (let k = 0; k < b.notes.length; k++) h += b.notes[k].height;
+    return h;
+  };
   let offset = 0;
   let page = 0;
   let forceNext = false;
@@ -99,14 +139,16 @@ export function paginate(
     const b = boxes[i];
     let top = b.top + offset;
     let pageStart = page * stride;
-    let pageEnd = pageStart + contentHeight;
+    let pageEnd = pageStart + contentHeight - reserveWith(page, b);
     let push = 0;
     const startsPage = Math.abs(top - pageStart) < 0.5;
     const overflows = top + b.height > pageEnd + 0.5;
     if ((forceNext || (overflows && !startsPage)) && i > 0) {
       page += 1;
+      notesByPage[page] = notesByPage[page] || [];
+      notesHeight[page] = notesHeight[page] || 0;
       pageStart = page * stride;
-      pageEnd = pageStart + contentHeight;
+      pageEnd = pageStart + contentHeight - reserveWith(page, b);
       // Adjoining margins collapse into their largest, and they fall
       // straight through empty blocks (a page break is one). The pushed
       // margin wins that collapse, so it is measured from the border-bottom
@@ -120,9 +162,17 @@ export function paginate(
     // A block taller than a page runs on: it starts here, and the cursor
     // moves past its end so the next block lands on the page after it.
     pageOfBlock.push(page + 1);
+    // Its notes belong to the page it starts on.
+    if (b.notes.length) {
+      notesHeight[page] = reserveWith(page, b);
+      for (let k = 0; k < b.notes.length; k++)
+        notesByPage[page].push(b.notes[k].id);
+    }
     const bottom = top + b.height;
     while (bottom > pageEnd + 0.5 && b.height > contentHeight) {
       page += 1;
+      notesByPage[page] = notesByPage[page] || [];
+      notesHeight[page] = notesHeight[page] || 0;
       pageEnd = page * stride + contentHeight;
     }
     if (b.solid > 0) solidBottom = top + b.marginTop + b.solid;
@@ -136,7 +186,12 @@ export function paginate(
       css += `${selector} > :nth-child(${i + 1}){margin-top:${(boxes[i].marginTop + pushes[i]).toFixed(2)}px !important}\n`;
     }
   }
-  return { pages: Math.max(1, page + 1), pageOfBlock, css };
+  const pages = Math.max(1, page + 1);
+  for (let p = 0; p < pages; p++) {
+    notesByPage[p] = notesByPage[p] || [];
+    notesHeight[p] = notesHeight[p] || 0;
+  }
+  return { pages, pageOfBlock, css, notesByPage, notesHeight };
 }
 
 /** The pager as source text, for the print page. */

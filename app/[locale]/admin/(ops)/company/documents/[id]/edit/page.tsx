@@ -5,6 +5,7 @@ import { isSuperAdmin } from "@/lib/auth/rbac";
 import { companyContext } from "@/lib/pdf/engine/context";
 import { getDocument } from "@/lib/services/documents/authored-document.service";
 import { signedBodyFor } from "@/lib/services/documents/document-signing.service";
+import { reviewStateOf } from "@/lib/services/documents/document-review.service";
 import { documentSettingsSchema } from "@/lib/schemas/authored-document";
 import { DocumentEditor } from "@/components/admin/documents/document-editor";
 
@@ -47,6 +48,13 @@ export default async function DocumentEditPage({
           pages: v.pages ?? null,
           createdAt: v.createdAt.toISOString(),
         })),
+        pendingRecipients: (doc.recipients ?? []).filter(
+          (r) => r.status === "pending",
+        ).length,
+        mergeEmployeeId: doc.mergeEmployeeId
+          ? String(doc.mergeEmployeeId)
+          : null,
+        review: reviewStateOf(doc),
       }}
       company={companyContext()}
       logoSrc="/pdf/letterhead-logo.png"

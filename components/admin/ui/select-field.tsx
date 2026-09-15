@@ -30,6 +30,7 @@ export function SelectField({
   ariaLabel,
   disabled,
   className,
+  keepFocus,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -40,6 +41,12 @@ export function SelectField({
   ariaLabel?: string;
   disabled?: boolean;
   className?: string;
+  /**
+   * Leave focus where `onChange` put it instead of returning it to the
+   * trigger — for a toolbar whose choice sends focus back into an editor,
+   * so the next keystroke types rather than reopening the list.
+   */
+  keepFocus?: boolean;
 }) {
   return (
     <Select
@@ -54,7 +61,9 @@ export function SelectField({
       >
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent
+        onCloseAutoFocus={keepFocus ? (e) => e.preventDefault() : undefined}
+      >
         {emptyLabel && <SelectItem value={NONE}>{emptyLabel}</SelectItem>}
         {options.map((o) => (
           <SelectItem key={o.value} value={o.value}>

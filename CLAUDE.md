@@ -203,8 +203,18 @@ These are the things the owner has had to repeat. Treat them as hard rules.
   replaced signature never changes a signed document; the last act renders
   the final PDF with every signature and files it as `completed`. Signed
   images are render-time state (`lib/documents/slots.ts`
-  `withSignatures`), never stored in the body. Directors + admins comment
-  (phase 3). Plan: `.docs/documents-plan.md`. **The vault is `/admin/company/vault`**
+  `withSignatures`), never stored in the body — nor are merge values
+  (`withMergeValues`), TOC page numbers or footnote numbers: the printer
+  works them out and `updateDocument` strips them. **Reissue** unlocks a
+  sent document keeping its number and freezes that round's recipients
+  onto the last filed version. **Review:** the author asks directors
+  (anyone with a login); the document goes `in_review` (still editable);
+  reviewers comment from `/admin/me/reviews/<id>` (any admin may join);
+  the author replies and resolves. **A comment never touches the body** —
+  it is anchored by quote + context (`lib/documents/anchors.ts`) and drawn
+  as editor-only decorations (`comment-anchors.ts`); review writes never
+  bump `rev`. Word in/out: `lib/documents/docx/*` (mammoth + docx). Plan:
+  `.docs/documents-plan.md` (complete). **The vault is `/admin/company/vault`**
   (file manager, API `/api/admin/company/fs/*`); `/admin/company/documents`
   and `/api/admin/company/documents/*` are the written documents. The
   Company section lands on its own dashboard (`/admin/company`). A super
@@ -392,6 +402,24 @@ tests`, `npm test`, and the browser pass above. Then `git status`.
   every frame (a paragraph blinking between two pages). Pushes are an
   `nth-child` stylesheet, never attributes on ProseMirror nodes, and are
   measured from the last block with height (margins fall through empty ones).
+  Footnotes reserve their room at the foot of the page their reference
+  lands on (`NoteMetrics`) — the screen and the printer measure the note in
+  the same `.doc-footnotes` styling, so a block whose note does not fit
+  moves with it.
+- A custom TipTap node whose tag a **mark** also matches (`sup` → the
+  superscript mark) needs `priority` on its parse rule, or pasted/imported
+  HTML comes back as the mark; and node attributes are never echoed as raw
+  HTML attributes (`quiet()` in `extensions.ts`) — a raw `title` is a
+  tooltip and a raw data-URL attribute doubles the printed HTML.
+- A Radix `Select` returns focus to its trigger after a choice; a toolbar
+  select that sends focus into an editor passes `keepFocus` on
+  `SelectField`, or the next keystroke reopens the list.
+- Playwright drives the Word-like editor by **mouse-dragging real text
+  ranges** (Range rects → `mouse.down/move/up`) and clicking at the end of
+  a paragraph's box; typing after opening a select without closing it
+  landed mid-word. The reviewer's read-only view still tracks the DOM
+  selection (ProseMirror observes `selectionchange` inside it), which is
+  what the "Comment" bubble relies on.
 - A react-pdf `View` `render` prop does get `totalPages` at runtime (the
   typings say otherwise); absolute children of `Page` are measured from the
   padded content box, not the sheet.

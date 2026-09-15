@@ -18,6 +18,7 @@ import { ListToolbar } from "@/components/admin/ui/list-toolbar";
 import { StatusBadge, statusTone } from "@/components/admin/ui/status-badge";
 import { FormPanelButton } from "@/components/admin/ui/form-panel";
 import { NewDocumentForm } from "@/components/admin/documents/new-document-form";
+import { ImportDocxButton } from "@/components/admin/documents/import-docx-dialog";
 
 export const dynamic = "force-dynamic";
 
@@ -147,7 +148,12 @@ export default async function DocumentsPage({
       <AdminPageHeader
         title="Documents"
         description="Notices, letters, memos and agreements written on the company letterhead, filed as PDF when sent."
-        action={newButton}
+        action={
+          <>
+            <ImportDocxButton />
+            {newButton}
+          </>
+        }
       />
       <ListToolbar
         search={{ placeholder: "Search title or number…" }}

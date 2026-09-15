@@ -9,6 +9,10 @@ export type PickableEmployee = {
   designation: string;
   kind: "director" | "staff";
   businessEmail: string | null;
+  email: string | null;
+  phone: string | null;
+  code: string;
+  joinedAt: string | null;
   hasSignature: boolean;
 };
 

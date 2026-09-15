@@ -18,13 +18,16 @@ import {
   Link2,
   List,
   ListOrdered,
+  ListTree,
   Minus,
   Outdent,
   PenLine,
+  Braces,
   Quote,
   Redo2,
   RemoveFormatting,
   Scissors,
+  Search,
   Strikethrough,
   Subscript,
   Superscript,
@@ -38,6 +41,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -57,6 +63,7 @@ import { cn } from "@/lib/cn";
 import { DOCUMENT_FONTS, FONT_SIZES, fontById } from "@/lib/documents/types";
 import { fileToDocumentImage } from "./editor-images";
 import { SignatureSlotDialog } from "./signature-slot-dialog";
+import { MERGE_FIELDS } from "@/lib/documents/merge";
 
 /**
  * The ribbon. One row of the controls a person expects from Word, grouped
@@ -218,11 +225,13 @@ export function EditorToolbar({
   defaultFontId,
   defaultSize,
   onSaveVersion,
+  onFind,
 }: {
   editor: Editor;
   defaultFontId: string;
   defaultSize: number;
   onSaveVersion?: () => void;
+  onFind?: () => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [slotOpen, setSlotOpen] = useState(false);
@@ -310,6 +319,7 @@ export function EditorToolbar({
 
         <Group>
           <SelectField
+            keepFocus
             ariaLabel="Paragraph style"
             value={String(s.heading)}
             onChange={(v) => {
@@ -330,6 +340,7 @@ export function EditorToolbar({
             className="h-7 w-32 text-xs"
           />
           <SelectField
+            keepFocus
             ariaLabel="Font"
             value={currentFont}
             onChange={(id) => {
@@ -344,6 +355,7 @@ export function EditorToolbar({
             className="h-7 w-40 text-xs"
           />
           <SelectField
+            keepFocus
             ariaLabel="Font size"
             value={currentSize}
             onChange={(v) => {
@@ -478,6 +490,7 @@ export function EditorToolbar({
             <Indent className="size-4" />
           </Tool>
           <SelectField
+            keepFocus
             ariaLabel="Line spacing"
             value={s.lineHeight ? String(s.lineHeight) : "default"}
             onChange={(v) =>
@@ -501,6 +514,11 @@ export function EditorToolbar({
           <Tool label="Link" on={s.link} onClick={setLink}>
             <Link2 className="size-4" />
           </Tool>
+          {onFind && (
+            <Tool label="Find & replace (Ctrl+F)" onClick={onFind}>
+              <Search className="size-4" />
+            </Tool>
+          )}
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <Button
@@ -533,9 +551,50 @@ export function EditorToolbar({
                 <PenLine className="size-4" />
                 Signature slot…
               </DropdownMenuItem>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <Braces className="size-4" />
+                  Merge field
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="max-h-80 overflow-y-auto">
+                  {(["Addressed to", "Company", "Document"] as const).map(
+                    (group, gi) => (
+                      <div key={group}>
+                        {gi > 0 && <DropdownMenuSeparator />}
+                        <DropdownMenuLabel>{group}</DropdownMenuLabel>
+                        {MERGE_FIELDS.filter((f) => f.group === group).map(
+                          (f) => (
+                            <DropdownMenuItem
+                              key={f.key}
+                              onSelect={() =>
+                                chain().insertMergeField(f.key).run()
+                              }
+                            >
+                              {f.label}
+                              <span className="text-muted-foreground ml-auto font-mono text-[10px]">
+                                {f.key}
+                              </span>
+                            </DropdownMenuItem>
+                          ),
+                        )}
+                      </div>
+                    ),
+                  )}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
               <DropdownMenuItem onSelect={() => chain().setPageBreak().run()}>
                 <Scissors className="size-4" />
                 Page break
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => chain().insertTableOfContents().run()}
+              >
+                <ListTree className="size-4" />
+                Table of contents
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => chain().insertFootnote().run()}>
+                <Superscript className="size-4" />
+                Footnote
               </DropdownMenuItem>
               <DropdownMenuItem
                 onSelect={() => chain().setHorizontalRule().run()}
