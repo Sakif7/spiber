@@ -87,7 +87,7 @@ export function LetterheadBlock({
   const accent = styles.edgeBar.backgroundColor as string;
 
   return (
-    <View fixed>
+    <View style={styles.letterhead} fixed>
       <View style={styles.head}>
         <View style={styles.edgeBar} />
         <View style={styles.logoWrap}>

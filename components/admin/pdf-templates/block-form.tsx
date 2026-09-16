@@ -1134,7 +1134,11 @@ export function BlockForm({
                 onChange={(v) =>
                   onChange({ ...block, keepTogether: v || undefined })
                 }
-                hint="Never split this block across pages."
+                hint={
+                  block.type === "lineTable" || block.type === "keyValueTable"
+                    ? "Never split this table across pages. Off, it breaks between rows: the head repeats and the totals stay with the last item."
+                    : "Never split this block across pages."
+                }
               />
               <NumberField
                 label="Space needed ahead (pt)"

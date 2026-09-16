@@ -68,6 +68,11 @@ function build(theme: Theme) {
     contactLabel: { fontFamily: "Helvetica-Bold", fontSize: 7.5, color: ink },
 
     /* the rule under the letterhead: thick on the left, hairline to the edge */
+    /* The gap between the rule and whatever follows lives here, not on the
+       first body block: the letterhead repeats on every page, so a table or
+       paragraph continuing on page 2 starts the same distance below the
+       rule as the title does on page 1. */
+    letterhead: { marginBottom: 12 },
     ruleRow: { flexDirection: "row", alignItems: "flex-end", marginTop: 6 },
     ruleThick: {
       marginLeft: -padX,
@@ -88,7 +93,6 @@ function build(theme: Theme) {
       fontSize: size + 2,
       textAlign: "center",
       textDecoration: "underline",
-      marginTop: 12,
       marginBottom: 10,
     },
     label: { fontFamily: font.bold },
@@ -114,16 +118,44 @@ function build(theme: Theme) {
        Ruled like the samples, but the weight is graded rather than uniform: a
        hairline between cells, a full rule around the table and under the head.
        A page of identical 1pt boxes is what made the old one read as a grid
-       first and a table second. */
-    table: { borderWidth: 1, borderColor: rule },
-    tr: { flexDirection: "row", borderBottomWidth: 0.5, borderColor: hairline },
+       first and a table second.
+
+       The frame is drawn by the rows, not by a box around them: the head
+       carries the top rule, every row its two sides, the closing row
+       (`trClose`) the bottom. A box would be stretched to the page edge when
+       the table breaks across pages — its sides running on below the last
+       row — and a row that moves whole to the next page must take its
+       piece of the frame with it. */
+    table: {},
+    tr: {
+      flexDirection: "row",
+      borderLeftWidth: 1,
+      borderRightWidth: 1,
+      borderBottomWidth: 0.5,
+      borderColor: rule,
+      borderBottomColor: hairline,
+    },
     /** Under the head: a full rule, so the columns start clearly. */
-    trHead: { flexDirection: "row", borderBottomWidth: 1, borderColor: rule },
-    trLast: { flexDirection: "row" },
+    trHead: {
+      flexDirection: "row",
+      borderTopWidth: 1,
+      borderLeftWidth: 1,
+      borderRightWidth: 1,
+      borderBottomWidth: 1,
+      borderColor: rule,
+    },
+    trLast: {
+      flexDirection: "row",
+      borderLeftWidth: 1,
+      borderRightWidth: 1,
+      borderColor: rule,
+    },
     /** The first totals row: separated from the items by a full rule. */
     trTotalsStart: {
       flexDirection: "row",
       borderTopWidth: 1,
+      borderLeftWidth: 1,
+      borderRightWidth: 1,
       borderBottomWidth: 0.5,
       borderColor: rule,
     },
@@ -131,8 +163,12 @@ function build(theme: Theme) {
     trTotalsOnly: {
       flexDirection: "row",
       borderTopWidth: 1,
+      borderLeftWidth: 1,
+      borderRightWidth: 1,
       borderColor: rule,
     },
+    /** Whatever row ends the table closes the frame with a full rule. */
+    trClose: { borderBottomWidth: 1, borderBottomColor: rule },
     th: {
       fontFamily: font.bold,
       fontSize: tableSize,

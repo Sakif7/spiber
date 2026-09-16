@@ -2,6 +2,7 @@ import React from "react";
 import { Text, View } from "@react-pdf/renderer";
 import { allPlaceholdersEmpty, interpolate, isShown } from "../resolve";
 import { frameProps, frameStyle, type BlockProps } from "./shared";
+import { PagedTable } from "./paged-table";
 
 /**
  * The header blocks: our reference on the left, the client on the right.
@@ -131,7 +132,8 @@ export function KeyValueListBlock({
 
 /**
  * A two-column ruled table of labels and figures — the payslip's basis.
- * The last row is closed by the table border rather than its own rule.
+ * The last row closes the table with a full rule rather than a hairline.
+ * Page breaks are `PagedTable`'s: rows move whole and the head repeats.
  */
 export function KeyValueTableBlock({
   block,
@@ -141,38 +143,56 @@ export function KeyValueTableBlock({
 }: BlockProps<"keyValueTable">) {
   const { header, headerRule, rows } = block.props;
   const shown = rows.filter((r) => isShown(ctx, r.showIf));
-  return (
+  // Without a head the first row opens the frame with the top rule.
+  const opens = header
+    ? {}
+    : { borderTopWidth: 1, borderTopColor: styles.trHead.borderColor };
+  const body = shown.map((r, i) => {
+    const last = i === shown.length - 1;
+    return (
+      <View
+        key={i}
+        style={[
+          last ? styles.trLast : styles.tr,
+          last ? styles.trClose : {},
+          i === 0 ? opens : {},
+        ]}
+      >
+        <Text style={[styles.td, { flex: 2 }, styles.label]}>
+          {interpolate(r.label, ctx, kind)}
+        </Text>
+        <Text
+          style={[
+            styles.td,
+            { flex: 2, textAlign: "right", borderRightWidth: 0 },
+            ...(r.strong ? [styles.label] : []),
+          ]}
+        >
+          {interpolate(r.value, ctx, kind)}
+        </Text>
+      </View>
+    );
+  });
+  const head = header ? (
     <View
-      style={[styles.table, frameStyle(block, styles)]}
-      {...frameProps(block)}
+      style={[
+        headerRule === "full" ? styles.trHead : styles.tr,
+        { borderTopWidth: 1, borderTopColor: styles.trHead.borderColor },
+      ]}
     >
-      {header ? (
-        <View style={headerRule === "full" ? styles.trHead : styles.tr}>
-          <Text style={[styles.th, { flex: 2 }]}>{header.label}</Text>
-          <Text style={[styles.th, { flex: 2, borderRightWidth: 0 }]}>
-            {header.value}
-          </Text>
-        </View>
-      ) : null}
-      {shown.map((r, i) => {
-        const last = i === shown.length - 1;
-        return (
-          <View key={i} style={last ? styles.trLast : styles.tr}>
-            <Text style={[styles.td, { flex: 2 }, styles.label]}>
-              {interpolate(r.label, ctx, kind)}
-            </Text>
-            <Text
-              style={[
-                styles.td,
-                { flex: 2, textAlign: "right", borderRightWidth: 0 },
-                ...(r.strong ? [styles.label] : []),
-              ]}
-            >
-              {interpolate(r.value, ctx, kind)}
-            </Text>
-          </View>
-        );
-      })}
+      <Text style={[styles.th, { flex: 2 }]}>{header.label}</Text>
+      <Text style={[styles.th, { flex: 2, borderRightWidth: 0 }]}>
+        {header.value}
+      </Text>
     </View>
+  ) : null;
+  return (
+    <PagedTable
+      head={head}
+      rows={body}
+      style={{ ...styles.table, ...frameStyle(block, styles) }}
+      keepTogether={block.keepTogether}
+      minPresenceAhead={block.minPresenceAhead}
+    />
   );
 }

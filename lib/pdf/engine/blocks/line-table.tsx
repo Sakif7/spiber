@@ -9,7 +9,8 @@ import { needsVatColumn, vatCell, type DocumentLine } from "../../types";
 import { formatTaka } from "../../format";
 import { formatPath, interpolate, isPresent, resolvePath } from "../resolve";
 import type { Styles } from "../theme";
-import { frameProps, frameStyle, type BlockProps } from "./shared";
+import { frameStyle, type BlockProps } from "./shared";
+import { PagedTable } from "./paged-table";
 
 /**
  * The ruled table of line items, with the totals stacked inside its border.
@@ -19,6 +20,9 @@ import { frameProps, frameStyle, type BlockProps } from "./shared";
  * columns to the left of a totals label are ONE empty cell rather than four
  * ruled ones — a stack of empty boxes running down the page was the thing
  * that made the old table read as a grid.
+ *
+ * Page breaks are `PagedTable`'s: rows move whole, the head repeats, the
+ * totals stay with the last item.
  */
 
 const col = (flex: number, last = false) => ({
@@ -159,116 +163,122 @@ export function LineTableBlock({
       )
     : null;
 
-  return (
-    <View
-      style={[styles.table, frameStyle(block, styles)]}
-      {...frameProps(block)}
-    >
-      {/* `fixed` inside a wrapping table repeats the head at the top of
-          every page the rows spill onto, so a continuation reads as a table
-          and not as a run of unlabelled cells. */}
-      <View style={styles.trHead} fixed>
-        {columns.map((c) => (
+  const head = (
+    <View style={styles.trHead}>
+      {columns.map((c) => (
+        <Text key={c.key} style={[styles.th, col(c.weight, c.key === lastKey)]}>
+          {c.label}
+        </Text>
+      ))}
+    </View>
+  );
+
+  // The row that closes the table takes the bottom rule with it.
+  const closes = (i: number, of: number) =>
+    i === of - 1 ? styles.trClose : {};
+  const tailCount = (aligned ? 1 : 0) + totalsRows.length;
+
+  const rows = lines.map((line, i) => (
+    <View key={i} style={[styles.tr, tailCount ? {} : closes(i, lines.length)]}>
+      {columns.map((c) => {
+        const raw = cellText(c.key, line, i + 1);
+        return (
           <Text
             key={c.key}
-            style={[styles.th, col(c.weight, c.key === lastKey)]}
+            style={[
+              styles.td,
+              alignStyle(c.align, styles),
+              col(c.weight, c.key === lastKey),
+            ]}
           >
-            {c.label}
+            {raw === "" && c.emptyText ? c.emptyText : raw}
           </Text>
-        ))}
-      </View>
-
-      {lines.map((line, i) => (
-        <View key={i} style={styles.tr}>
-          {columns.map((c) => {
-            const raw = cellText(c.key, line, i + 1);
-            return (
-              <Text
-                key={c.key}
-                style={[
-                  styles.td,
-                  alignStyle(c.align, styles),
-                  col(c.weight, c.key === lastKey),
-                ]}
-              >
-                {raw === "" && c.emptyText ? c.emptyText : raw}
-              </Text>
-            );
-          })}
-        </View>
-      ))}
-
-      {aligned ? (
-        // The full rule above it marks the end of the items; the row is the
-        // start of the totals whether or not a stack follows.
-        <View
-          style={totalsRows.length ? styles.trTotalsStart : styles.trTotalsOnly}
-        >
-          {aligned.map((c, i) =>
-            c.kind === "span" ? (
-              <Text
-                key={i}
-                style={[
-                  styles.td,
-                  styles.tdNum,
-                  col(c.weight, c.last),
-                  styles.label,
-                ]}
-              >
-                {c.label ? interpolate(c.label, ctx, kind) : ""}
-              </Text>
-            ) : (
-              <Text
-                key={i}
-                style={[
-                  styles.td,
-                  alignStyle(c.column.align, styles),
-                  col(c.weight, c.last),
-                  styles.label,
-                  c.emphasis ? styles.tdStrong : {},
-                ]}
-              >
-                {c.text}
-              </Text>
-            ),
-          )}
-        </View>
-      ) : null}
-
-      {totalsRows.map((r, i) => {
-        // With an aligned line above, the stack continues under a hairline
-        // rather than opening the totals with a second full rule.
-        const first = i === 0 && !aligned;
-        const last = i === totalsRows.length - 1;
-        const row = first
-          ? styles.trTotalsStart
-          : last
-            ? styles.trLast
-            : styles.tr;
-        return (
-          <View key={r.id} style={row}>
-            {spanWeight > 0 ? (
-              <View style={[styles.tdSpan, col(spanWeight)]} />
-            ) : null}
-            <Text
-              style={[styles.td, styles.tdNum, col(labelWeight), styles.label]}
-            >
-              {interpolate(r.label, ctx, kind)}
-            </Text>
-            <Text
-              style={[
-                styles.td,
-                r.valueAlign === "right" ? styles.tdNum : {},
-                col(valueWeight, valueIsLast),
-                styles.label,
-                r.emphasis ? styles.tdStrong : {},
-              ]}
-            >
-              {(r.prefix ?? "") + formatPath(ctx, kind, r.path)}
-            </Text>
-          </View>
         );
       })}
     </View>
+  ));
+
+  const tail: React.ReactElement<React.ComponentProps<typeof View>>[] = [];
+  if (aligned) {
+    // The full rule above it marks the end of the items; the row is the
+    // start of the totals whether or not a stack follows.
+    tail.push(
+      <View
+        key="aligned"
+        style={[
+          totalsRows.length ? styles.trTotalsStart : styles.trTotalsOnly,
+          closes(0, tailCount),
+        ]}
+      >
+        {aligned.map((c, i) =>
+          c.kind === "span" ? (
+            <Text
+              key={i}
+              style={[
+                styles.td,
+                styles.tdNum,
+                col(c.weight, c.last),
+                styles.label,
+              ]}
+            >
+              {c.label ? interpolate(c.label, ctx, kind) : ""}
+            </Text>
+          ) : (
+            <Text
+              key={i}
+              style={[
+                styles.td,
+                alignStyle(c.column.align, styles),
+                col(c.weight, c.last),
+                styles.label,
+                c.emphasis ? styles.tdStrong : {},
+              ]}
+            >
+              {c.text}
+            </Text>
+          ),
+        )}
+      </View>,
+    );
+  }
+
+  totalsRows.forEach((r, i) => {
+    // With an aligned line above, the stack continues under a hairline
+    // rather than opening the totals with a second full rule.
+    const first = i === 0 && !aligned;
+    const last = i === totalsRows.length - 1;
+    const row = first ? styles.trTotalsStart : last ? styles.trLast : styles.tr;
+    tail.push(
+      <View key={r.id} style={[row, last ? styles.trClose : {}]}>
+        {spanWeight > 0 ? (
+          <View style={[styles.tdSpan, col(spanWeight)]} />
+        ) : null}
+        <Text style={[styles.td, styles.tdNum, col(labelWeight), styles.label]}>
+          {interpolate(r.label, ctx, kind)}
+        </Text>
+        <Text
+          style={[
+            styles.td,
+            r.valueAlign === "right" ? styles.tdNum : {},
+            col(valueWeight, valueIsLast),
+            styles.label,
+            r.emphasis ? styles.tdStrong : {},
+          ]}
+        >
+          {(r.prefix ?? "") + formatPath(ctx, kind, r.path)}
+        </Text>
+      </View>,
+    );
+  });
+
+  return (
+    <PagedTable
+      head={head}
+      rows={rows}
+      tail={tail}
+      style={{ ...styles.table, ...frameStyle(block, styles) }}
+      keepTogether={block.keepTogether}
+      minPresenceAhead={block.minPresenceAhead}
+    />
   );
 }

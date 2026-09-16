@@ -438,6 +438,15 @@ tests`, `npm test`, and the browser pass above. Then `git status`.
 - Text runs are kerned per JSX fragment: `"Subject: " + x` and one string
   differ by sub-pixels. PDF parity is proven by text + Ghostscript pixel diff
   (`gswin64c -sDEVICE=pgmraw`), never by content-stream bytes.
+- **Tables break through `PagedTable`** (`lib/pdf/engine/blocks/paged-table.tsx`)
+  — never a bare wrapping `View` of rows: react-pdf slices a row at the page
+  edge, stretches the first piece to the page bottom (so the frame lives on
+  the rows, not the table box), and leaves a `fixed` head alone when the
+  next row moves. A `render` prop must never _add_ height on a page: the
+  page is re-laid-out at its pre-render height and `flexShrink` cannot be
+  0 (`0` reads as unset), so everything on the page gets squeezed; give the
+  node static children and let the render prop only remove. No React hooks
+  in `lib/pdf/engine` — routes import it as a server module.
 
 **CSS / layout**
 
