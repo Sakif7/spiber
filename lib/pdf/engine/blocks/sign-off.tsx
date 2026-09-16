@@ -11,9 +11,9 @@ import { frameStyle, type BlockProps } from "./shared";
  * left line when asked for, as they do on the documents the company actually
  * sent — a bare "Approved By" tells the reader nothing about who approved it.
  *
- * Two lines make two equal columns, each block centred in its own; a lone
- * "Approved By" (the proposal) stays at the left margin, where the company's
- * letters have always signed. Space is left above each line for a real pen.
+ * Two lines make two equal columns: "Approved By" against the left margin,
+ * "Received By" against the right; a lone left block (the proposal) sits
+ * where the company's letters have always signed. Space is left above each line for a real pen.
  * No signature image and no seal is ever drawn: those are what make the
  * paper copy the original. Never split across pages: a signature line
  * orphaned on a blank sheet is not a sign-off.
@@ -26,7 +26,7 @@ export function SignOffBlock({
 }: BlockProps<"signOff">) {
   const { left, right, includeSignatory, labelAlign } = block.props;
   const signatory = includeSignatory ? ctx.signatory : undefined;
-  const col = [styles.signCol, right ? {} : styles.signColAlone];
+
   const label = [
     styles.small,
     styles.label,
@@ -36,7 +36,7 @@ export function SignOffBlock({
   ];
   return (
     <View style={[styles.signRow, frameStyle(block, styles)]} wrap={false}>
-      <View style={col}>
+      <View style={styles.signCol}>
         <View style={styles.signBox}>
           <View style={{ height: 26 }} />
           <View style={styles.signLine}>
@@ -66,7 +66,7 @@ export function SignOffBlock({
       </View>
 
       {right ? (
-        <View style={col}>
+        <View style={[styles.signCol, styles.signColRight]}>
           <View style={styles.signBox}>
             <View style={{ height: 26 }} />
             <View style={styles.signLine}>

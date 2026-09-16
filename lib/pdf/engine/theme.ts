@@ -222,17 +222,17 @@ function build(theme: Theme) {
     },
 
     /* ── signatures ── */
-    /* Two equal columns with a little air above and below; each signature
-       block is centred in its column as one unit (rule, label and the name
-       lines under it), so "Received By" sits in the middle of the right
-       half rather than at its left edge. */
+    /* Two equal columns with a little air above and below: the left block
+       sits against the left margin, the right block against the right, each
+       moving as one unit (rule, label and the name lines under it). The
+       owner first asked for centred blocks, then corrected to the margins. */
     signRow: {
       flexDirection: "row",
       marginTop: 10,
       paddingVertical: 8,
     },
-    signCol: { flex: 1, alignItems: "center" },
-    signColAlone: { alignItems: "flex-start" },
+    signCol: { flex: 1, alignItems: "flex-start" },
+    signColRight: { alignItems: "flex-end" },
     /** Hugs its content — the rule, or the widest name line beneath it. */
     signBox: {},
     /**
