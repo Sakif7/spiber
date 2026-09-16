@@ -222,12 +222,19 @@ function build(theme: Theme) {
     },
 
     /* ── signatures ── */
+    /* Two equal columns with a little air above and below; each signature
+       block is centred in its column as one unit (rule, label and the name
+       lines under it), so "Received By" sits in the middle of the right
+       half rather than at its left edge. */
     signRow: {
       flexDirection: "row",
-      justifyContent: "space-between",
       marginTop: 10,
+      paddingVertical: 8,
     },
-    signBox: { width: 215 },
+    signCol: { flex: 1, alignItems: "center" },
+    signColAlone: { alignItems: "flex-start" },
+    /** Hugs its content — the rule, or the widest name line beneath it. */
+    signBox: {},
     /**
      * The ruled line, at half the box.
      *
