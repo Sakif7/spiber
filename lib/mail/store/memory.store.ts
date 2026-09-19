@@ -355,7 +355,10 @@ export const memoryMailStore: MailStore & {
       );
     }
     if (opts.unseenOnly) rows = rows.filter((m) => !m.seen);
-    rows.sort((a, c) => c.uid - a.uid);
+    // Arrival first, UID as the tie-break — the same order as the IMAP store.
+    rows.sort(
+      (a, c) => c.internalDate.localeCompare(a.internalDate) || c.uid - a.uid,
+    );
     const start = (opts.page - 1) * opts.pageSize;
     return {
       items: rows.slice(start, start + opts.pageSize).map(toItem),

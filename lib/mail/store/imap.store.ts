@@ -177,6 +177,28 @@ async function fillPreviews(
 
 const STARRED_PER_FOLDER = 200;
 
+/** When each message reached this folder (INTERNALDATE), by UID. */
+async function arrivalOf(
+  client: ImapFlow,
+  uids: number[],
+): Promise<Map<number, number>> {
+  const out = new Map<number, number>();
+  if (uids.length === 0) return out;
+  for await (const m of client.fetch(
+    uids,
+    { uid: true, internalDate: true },
+    { uid: true },
+  )) {
+    const t = m.internalDate ? new Date(m.internalDate).getTime() : 0;
+    out.set(m.uid, Number.isFinite(t) ? t : 0);
+  }
+  return out;
+}
+
+/** Newest arrival first; the UID breaks ties (same second, same order). */
+const byArrival = (arrival: Map<number, number>) => (a: number, b: number) =>
+  (arrival.get(b) ?? 0) - (arrival.get(a) ?? 0) || b - a;
+
 /** Envelope-level rows for a set of UIDs in the selected folder, previews optional. */
 async function fetchItems(
   client: ImapFlow,
@@ -299,14 +321,18 @@ export const imapStore: MailStore = {
           { uid: true },
         );
         const uids = Array.isArray(uidsRaw) ? uidsRaw : [];
-        // Newest first: UIDs are assigned in arrival order.
-        uids.sort((a, b) => b - a);
+        // Newest first by ARRIVAL, not by UID: a UID only says when the
+        // message was appended to this folder, and mail copied in from the
+        // old provider keeps its arrival date while taking a fresh UID —
+        // sorted by UID it sat in the middle of last week's mail.
+        const arrival = await arrivalOf(client, uids);
+        uids.sort(byArrival(arrival));
         const total = uids.length;
         const start = (opts.page - 1) * opts.pageSize;
         const pageUids = uids.slice(start, start + opts.pageSize);
         const items = await fetchItems(client, folder, pageUids, true);
         // fetch() yields in sequence order; keep the page newest-first.
-        items.sort((a, b) => b.uid - a.uid);
+        items.sort((a, b) => byArrival(arrival)(a.uid, b.uid));
         return { items, total, page: opts.page, pageSize: opts.pageSize };
       } finally {
         lock.release();

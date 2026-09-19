@@ -165,7 +165,9 @@ These are the things the owner has had to repeat. Treat them as hard rules.
   fallback. The mail page is the shadcn "mail" layout (resizable panes,
   pane widths in the `admin-mail-layout` cookie so SSR paints them);
   list previews are a partial IMAP peek (`lib/mail/preview.ts`), never a
-  download. The topbar bell shows unread mail for own + assigned mailboxes
+  download. The list is ordered by **arrival date (INTERNALDATE), UID as
+  the tie-break** — never by UID alone: mail copied in from the old
+  provider keeps its date but takes a fresh UID. The topbar bell shows unread mail for own + assigned mailboxes
   (`lib/services/mail-notify.service.ts`, cached ~20 s, never a super
   admin's elevated reach) and deep-links `?mailbox=&folder=&uid=`; mail
   items are read by opening them, never from the bell. Starred is a
@@ -327,6 +329,10 @@ tests`, `npm test`, and the browser pass above. Then `git status`.
 - **`.lean()` does not apply Mongoose defaults.** Every read of a new optional
   field needs `?? default`; type such fields optional so the compiler forces
   it. Documents saved before the field existed will otherwise crash `.map()`.
+- `doveadm fetch` folds long headers (Outlook Message-IDs) onto a
+  continuation line — a line-by-line parser reads them as blank. Prove a
+  message's absence with `doveadm search … header message-id "<id>"`, never
+  with a parsed dump.
 - Mongoose strips `createdAt` from `$set` (use the raw driver to age a row in
   tests); pipeline updates need `{ updatePipeline: true }`; `$in` works in
   partial-index filters; `null` inside `$in` also matches an absent field.
