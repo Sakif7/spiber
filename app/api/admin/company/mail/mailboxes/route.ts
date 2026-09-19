@@ -9,6 +9,7 @@ import {
   listStaffUsers,
 } from "@/lib/services/mail-admin.service";
 import { guardSales } from "../../sales/_guard";
+import { mailAdminStatus } from "../_status";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,7 @@ export async function GET() {
       status: m.status,
       ownerUserId: m.ownerUserId ? String(m.ownerUserId) : null,
       assignedUserIds: (m.assignedUserIds ?? []).map(String),
+      hasPassword: Boolean(m.passwordCiphertext),
     })),
     staff,
   });
@@ -46,25 +48,21 @@ export async function POST(req: Request) {
   }
   const res = await createSharedMailbox(parsed.data.local, g.actor);
   if (!res.ok) {
-    const status =
-      res.code === "exists"
-        ? 409
-        : res.code === "provisioner_not_configured"
-          ? 503
-          : res.code === "not_on_server"
-            ? 404
-            : 400;
-    return fail({ code: res.code, message: res.detail }, status);
+    return fail(
+      { code: res.code, message: res.detail },
+      mailAdminStatus(res.code),
+    );
   }
+  const { mailbox, created } = res.data;
   await writeAudit(
     {
       actorId: g.actor.sub,
       action: "mailbox.shared.create",
       entityType: "Mailbox",
-      entityId: String(res.data._id),
-      after: { address: res.data.address },
+      entityId: String(mailbox._id),
+      after: { address: mailbox.address, createdOnServer: created },
     },
     req,
   );
-  return ok({ id: String(res.data._id), address: res.data.address });
+  return ok({ id: String(mailbox._id), address: mailbox.address, created });
 }

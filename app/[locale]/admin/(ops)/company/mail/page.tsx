@@ -58,6 +58,7 @@ export default async function SharedMailboxesPage({
         rows={mailboxes.map((m) => ({
           id: String(m._id),
           address: m.address,
+          hasPassword: Boolean(m.passwordCiphertext),
           kind: m.kind,
           status: m.status,
           ownerUserId: m.ownerUserId ? String(m.ownerUserId) : null,

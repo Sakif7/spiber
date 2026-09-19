@@ -3,8 +3,24 @@
 import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { toast } from "sonner";
-import { Loader2, Trash2, Users } from "lucide-react";
+import {
+  Check,
+  Copy,
+  KeyRound,
+  Loader2,
+  RefreshCw,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -27,8 +43,10 @@ import type { StaffUser } from "@/lib/services/mail-admin.service";
 
 /**
  * Company → Shared mailboxes. Every mailbox row is listed (personal ones
- * read-only, they belong to their employee record); shared ones can be added
- * — the address must already exist on the mail server — and handed to staff.
+ * read-only, they belong to their employee record); shared ones are created
+ * here — on the mail server too, when the address is new — and handed to
+ * staff. A shared mailbox's own password (for a phone) can be revealed or
+ * reset like an employee's; both are audited.
  */
 export type MailboxRow = {
   id: string;
@@ -37,6 +55,8 @@ export type MailboxRow = {
   status: "pending" | "active" | "disabled" | "failed";
   ownerUserId: string | null;
   assignedUserIds: string[];
+  /** A password is on record (the account was created, or reset, here). */
+  hasPassword: boolean;
 };
 
 export function SharedMailboxesManager({
@@ -50,6 +70,68 @@ export function SharedMailboxesManager({
   const byId = new Map(staff.map((u) => [u.id, u]));
   const [assigning, setAssigning] = useState<MailboxRow | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [secret, setSecret] = useState<{
+    title: string;
+    description: string;
+    value: string;
+  } | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  async function password(
+    row: MailboxRow,
+    action: "reveal_password" | "reset_password",
+  ) {
+    if (
+      action === "reset_password" &&
+      !window.confirm(
+        `Set a new password for ${row.address}? Phones and mail apps using the old one stop working.`,
+      )
+    )
+      return;
+    setBusy(`${row.id}:${action}`);
+    try {
+      const res = await fetch(`/api/admin/company/mail/mailboxes/${row.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        const code = (json as { error?: { code?: string } } | null)?.error
+          ?.code;
+        toast.error(
+          code === "no_password"
+            ? "No password on record for this address — use Reset password to set one."
+            : formatApiError(json, "Could not get the password."),
+        );
+        return;
+      }
+      const d = (json as { data: { address: string; password: string } }).data;
+      setSecret({
+        title:
+          action === "reset_password"
+            ? "New mailbox password"
+            : "Mailbox password",
+        description: `For a phone or desktop mail app: ${d.address}. This reveal is recorded with your name and the time.`,
+        value: d.password,
+      });
+      if (action === "reset_password") router.refresh();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function copy() {
+    if (!secret) return;
+    try {
+      await navigator.clipboard.writeText(secret.value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error("Could not copy — select the text instead.");
+    }
+  }
 
   async function remove(row: MailboxRow) {
     if (
@@ -155,6 +237,48 @@ export function SharedMailboxesManager({
               type="button"
               size="icon-sm"
               variant="ghost"
+              aria-label={
+                r.hasPassword
+                  ? `Reveal the password of ${r.address}`
+                  : `Set a password for ${r.address}`
+              }
+              title={r.hasPassword ? "Reveal password" : "Set a password"}
+              disabled={busy !== null}
+              onClick={() =>
+                password(
+                  r,
+                  r.hasPassword ? "reveal_password" : "reset_password",
+                )
+              }
+            >
+              {busy === `${r.id}:reveal_password` ||
+              (!r.hasPassword && busy === `${r.id}:reset_password`) ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : (
+                <KeyRound className="size-4" aria-hidden />
+              )}
+            </Button>
+            {r.hasPassword && (
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                aria-label={`Reset the password of ${r.address}`}
+                title="Reset password"
+                disabled={busy !== null}
+                onClick={() => password(r, "reset_password")}
+              >
+                {busy === `${r.id}:reset_password` ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                ) : (
+                  <RefreshCw className="size-4" aria-hidden />
+                )}
+              </Button>
+            )}
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
               aria-label={`Remove ${r.address}`}
               disabled={removing === r.id}
               onClick={() => remove(r)}
@@ -176,9 +300,36 @@ export function SharedMailboxesManager({
         columns={columns}
         rows={rows}
         getRowKey={(r) => r.id}
-        empty="No mailboxes recorded yet — add the shared ones (info@, sales@) here; personal ones appear as employees are added."
+        empty="No mailboxes recorded yet — add the shared ones (info@, sales@, career@) here; personal ones appear as employees are added."
         minWidth={640}
       />
+      <Dialog
+        open={secret !== null}
+        onOpenChange={(o) => !o && setSecret(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{secret?.title}</DialogTitle>
+            <DialogDescription>{secret?.description}</DialogDescription>
+          </DialogHeader>
+          <div className="bg-muted rounded-md border px-3 py-2 font-mono text-sm break-all select-all">
+            {secret?.value}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={copy}>
+              {copied ? (
+                <Check className="size-3.5" aria-hidden />
+              ) : (
+                <Copy className="size-3.5" aria-hidden />
+              )}
+              {copied ? "Copied" : "Copy"}
+            </Button>
+            <Button type="button" onClick={() => setSecret(null)}>
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <FormPanel
         open={assigning !== null}
         onOpenChange={(o) => !o && setAssigning(null)}
@@ -293,7 +444,7 @@ export function AddSharedMailboxButton({ mailDomain }: { mailDomain: string }) {
     <FormPanelButton
       label="Add shared mailbox"
       title="Add shared mailbox"
-      description="An address that already exists on the mail server and that several people should open here."
+      description="An address several people open together — sales@, career@. Created on the mail server if it does not exist yet."
       width="max-w-[min(32rem,94vw)]"
     >
       <AddSharedMailboxForm mailDomain={mailDomain} />
@@ -321,17 +472,29 @@ function AddSharedMailboxForm({ mailDomain }: { mailDomain: string }) {
         const code = (json as { error?: { code?: string } } | null)?.error
           ?.code;
         setError(
-          code === "not_on_server"
-            ? `${local}@${mailDomain} does not exist on the mail server. Create the account there first (or as an employee's business email).`
-            : code === "exists"
-              ? "That mailbox is already recorded."
-              : code === "provisioner_not_configured"
-                ? "The mail server connection is not configured on this deployment."
-                : formatApiError(json, "Could not add the mailbox."),
+          code === "exists"
+            ? "That mailbox is already recorded."
+            : code === "provisioner_not_configured"
+              ? "The mail server connection is not configured on this deployment."
+              : code === "vault_not_configured"
+                ? "COMPANY_VAULT_KEY is not set, so the new account's password could not be kept."
+                : code === "provision_failed"
+                  ? formatApiError(
+                      json,
+                      "The mail server could not be reached or refused the account.",
+                    )
+                  : formatApiError(json, "Could not add the mailbox."),
         );
         return;
       }
-      toast.success(`${local}@${mailDomain} added. Assign people to it next.`);
+      const created = Boolean(
+        (json as { data?: { created?: boolean } }).data?.created,
+      );
+      toast.success(
+        created
+          ? `${local}@${mailDomain} created on the mail server. Assign people to it next.`
+          : `${local}@${mailDomain} was already on the server — recorded. Assign people to it next.`,
+      );
       afterSave("/admin/company/mail");
     } finally {
       setSaving(false);
@@ -345,7 +508,7 @@ function AddSharedMailboxForm({ mailDomain }: { mailDomain: string }) {
           label="Shared address"
           required
           htmlFor="shared-mailbox-local"
-          hint="Must already exist on the mail server. The app opens it with its master login; no password is stored."
+          hint="New addresses are created on the mail server with a password kept for phone setup; an existing account is simply recorded. The app itself opens it with its master login."
         >
           <div className="flex min-w-0">
             <Input

@@ -146,7 +146,13 @@ These are the things the owner has had to repeat. Treat them as hard rules.
   company server via `MAIL_MASTER_USER/PASSWORD`, login `<mailbox>*<master>`;
   `memory` = fixtures). A `Mailbox` row decides who may open what: owner,
   `assignedUserIds` (shared), or any super admin — the last is audited
-  (`mail.mailbox.open`); trash/junk moves are audited too. Bodies are
+  (`mail.mailbox.open`); trash/junk moves are audited too. **Shared
+  mailboxes (sales@, career@) are created from Company › Shared mailboxes**:
+  new on the server → the provisioner creates the account with a password
+  kept encrypted (reveal/reset in the row, audited); already there →
+  recorded. There is no catch-all: mail to an address that does not exist
+  is refused at the door with a bounce, never stored — check the server
+  log (`mail.log`, ~4 weeks) before assuming a message arrived. Bodies are
   sanitised server-side (`lib/mail/sanitize.ts`): remote images blocked
   until asked, `cid:` images served via the attachment route. Sending
   goes through `MAIL_TRANSPORT` (`smtp` as `<mailbox>*<master>` on 465;
@@ -306,7 +312,10 @@ tests`, `npm test`, and the browser pass above. Then `git status`.
   registry is cached per process and the stale schema silently strips new
   fields on save.
 - A killed dev server leaves a corrupt `.next/dev/types/validator.ts` →
-  phantom `tsc` errors. `rm -rf .next`, then typecheck.
+  phantom `tsc` errors. `rm -rf .next`, then typecheck. And `rm -rf .next`
+  while the dying server still holds `.next/dev` half-deletes it: the
+  next `next dev` boots on the remains and every nested route answers a
+  bare 404. Kill node, wait, confirm the directory is gone, then start.
 - Windows: free a port with `taskkill //PID <pid> //T //F` (netstat for the
   pid); stopping the npm wrapper orphans the Next child. `next dev -p 3005`,
   never `npm run dev -- --port`.
@@ -333,7 +342,9 @@ tests`, `npm test`, and the browser pass above. Then `git status`.
   `Buffer.from(binary)` returns garbage without throwing — go through
   `ciphertextToBuffer` (`lib/mail/credentials.ts`) or its `.buffer`.
 - Next refuses a re-exported segment config (`export { dynamic } from …`) —
-  declare it again in the re-exporting page.
+  declare it again in the re-exporting page. A `route.ts` may export only
+  handlers and config: a shared helper goes in a sibling `_status.ts` /
+  `_guard.ts`, never exported from the route.
 - `/admin/*` pages are guarded by the `(ops)` route-group layout (admin role)
   and `(staff)` pages by `requireEmployee`; the root admin layout only
   requires _staff_. A new admin page tree goes under `(ops)`, never beside
