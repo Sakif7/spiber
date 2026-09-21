@@ -43,6 +43,15 @@ import {
 } from "@/lib/schemas/sales-order";
 import { nextAction, goesBackwards } from "@/lib/sales/journey";
 import {
+  type EquipmentTerms,
+  type SalesOrderKind,
+} from "@/lib/sales/equipment";
+import {
+  EquipmentProposalFields,
+  equipmentProposalDraft,
+  type EquipmentProposalDraft,
+} from "./equipment-proposal-fields";
+import {
   useUnsavedChanges,
   hasUnsavedChanges,
   saveUnsavedChanges,
@@ -95,6 +104,9 @@ export function OrderActions({
   blockers = [],
   withholding = false,
   hasMultiples = false,
+  kind = "consumables",
+  equipmentSubject = "",
+  equipmentTerms = null,
 }: {
   id: string;
   status: SalesOrderStatus;
@@ -110,6 +122,12 @@ export function OrderActions({
   hasMultiples?: boolean;
   /** Reasons the next step cannot run yet; disables the primary action. */
   blockers?: string[];
+  /** Equipment orders get the letter's dialog instead of the quantity choice. */
+  kind?: SalesOrderKind;
+  /** "Quotation for the …", built from the lines on the server. */
+  equipmentSubject?: string;
+  /** The terms the last equipment proposal went out with, to start from. */
+  equipmentTerms?: EquipmentTerms | null;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -120,6 +138,11 @@ export function OrderActions({
     "Proposal for Medical and Surgical Consumables",
   );
   const [intro, setIntro] = useState("");
+  // The equipment letter: subject, optional opening, six numbered terms —
+  // opening with whatever the last version said, or the standard wording.
+  const [eqDraft, setEqDraft] = useState<EquipmentProposalDraft>(() =>
+    equipmentProposalDraft(equipmentSubject, equipmentTerms),
+  );
   // Invoice fields
   const [invoiceDate, setInvoiceDate] = useState(
     new Date().toISOString().slice(0, 10),
@@ -454,73 +477,81 @@ export function OrderActions({
         open={dialog.kind === "proposal"}
         onOpenChange={(o) => !o && setDialog({ kind: "none" })}
       >
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Generate proposal</DialogTitle>
             <DialogDescription>
               A new version is produced and filed in the company documents.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-3">
-            {hasMultiples && (
-              <fieldset className="grid gap-2 rounded-md border p-3">
-                <legend className="px-1 text-sm font-medium">
-                  Quantities on this quotation
-                </legend>
-                <label className="flex items-start gap-2 text-sm">
-                  <input
-                    type="radio"
-                    name="qty-mode"
-                    className="mt-1"
-                    checked={quantityMode === "single"}
-                    onChange={() => setQuantityMode("single")}
-                  />
-                  <span>
-                    <strong>Quote per piece</strong>
-                    <span className="text-muted-foreground block text-xs">
-                      Every line shows a quantity of 1 at its unit rate. The
-                      client orders the quantity they want.
+          {kind === "equipment" ? (
+            <EquipmentProposalFields
+              value={eqDraft}
+              onChange={setEqDraft}
+              idPrefix="p-eq"
+            />
+          ) : (
+            <div className="grid gap-3">
+              {hasMultiples && (
+                <fieldset className="grid gap-2 rounded-md border p-3">
+                  <legend className="px-1 text-sm font-medium">
+                    Quantities on this quotation
+                  </legend>
+                  <label className="flex items-start gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="qty-mode"
+                      className="mt-1"
+                      checked={quantityMode === "single"}
+                      onChange={() => setQuantityMode("single")}
+                    />
+                    <span>
+                      <strong>Quote per piece</strong>
+                      <span className="text-muted-foreground block text-xs">
+                        Every line shows a quantity of 1 at its unit rate. The
+                        client orders the quantity they want.
+                      </span>
                     </span>
-                  </span>
-                </label>
-                <label className="flex items-start gap-2 text-sm">
-                  <input
-                    type="radio"
-                    name="qty-mode"
-                    className="mt-1"
-                    checked={quantityMode === "ordered"}
-                    onChange={() => setQuantityMode("ordered")}
-                  />
-                  <span>
-                    <strong>Show the quantities entered</strong>
-                    <span className="text-muted-foreground block text-xs">
-                      Prints what is on the order, with each line totalled.
+                  </label>
+                  <label className="flex items-start gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="qty-mode"
+                      className="mt-1"
+                      checked={quantityMode === "ordered"}
+                      onChange={() => setQuantityMode("ordered")}
+                    />
+                    <span>
+                      <strong>Show the quantities entered</strong>
+                      <span className="text-muted-foreground block text-xs">
+                        Prints what is on the order, with each line totalled.
+                      </span>
                     </span>
-                  </span>
-                </label>
-              </fieldset>
-            )}
-            <div className="grid gap-1.5">
-              <Label htmlFor="p-subject">Subject</Label>
-              <Input
-                id="p-subject"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                maxLength={200}
-              />
+                  </label>
+                </fieldset>
+              )}
+              <div className="grid gap-1.5">
+                <Label htmlFor="p-subject">Subject</Label>
+                <Input
+                  id="p-subject"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  maxLength={200}
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="p-intro">Opening paragraph</Label>
+                <Textarea
+                  id="p-intro"
+                  value={intro}
+                  onChange={(e) => setIntro(e.target.value)}
+                  rows={3}
+                  placeholder="Leave blank to use the standard wording."
+                  maxLength={1500}
+                />
+              </div>
             </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="p-intro">Opening paragraph</Label>
-              <Textarea
-                id="p-intro"
-                value={intro}
-                onChange={(e) => setIntro(e.target.value)}
-                rows={3}
-                placeholder="Leave blank to use the standard wording."
-                maxLength={1500}
-              />
-            </div>
-          </div>
+          )}
           <DialogFooter>
             <Button
               variant="outline"
@@ -532,12 +563,19 @@ export function OrderActions({
               disabled={busy}
               onClick={() =>
                 post(
-                  {
-                    action: "proposal",
-                    subject,
-                    intro,
-                    quantityMode: hasMultiples ? quantityMode : undefined,
-                  },
+                  kind === "equipment"
+                    ? {
+                        action: "proposal",
+                        subject: eqDraft.subject,
+                        intro: eqDraft.intro,
+                        equipmentTerms: eqDraft.terms,
+                      }
+                    : {
+                        action: "proposal",
+                        subject,
+                        intro,
+                        quantityMode: hasMultiples ? quantityMode : undefined,
+                      },
                   "Proposal generated.",
                 )
               }

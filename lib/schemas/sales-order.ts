@@ -58,6 +58,17 @@ export const EDITABLE_STATUSES: SalesOrderStatus[] = [
   "invoiced",
 ];
 
+/**
+ * What kind of sale this is, which decides the paper it produces.
+ *
+ * Consumables go out on a quotation with a table of lines; a high-value
+ * machine goes out on a letter that names the equipment, states one price in
+ * words and lists the manufacturer in the terms. Everything underneath — the
+ * lines, stock, VAT, AIT, numbering — is the same order.
+ */
+export const salesOrderKindEnum = z.enum(["consumables", "equipment"]);
+export type SalesOrderKind = z.infer<typeof salesOrderKindEnum>;
+
 export const salesPaymentMethodEnum = z.enum([
   "cash",
   "bank",
@@ -86,6 +97,15 @@ export const salesOrderItemSchema = z
     description: z.string().trim().min(1, "is required").max(300),
     brandOrigin: z.string().trim().max(160).optional().or(z.literal("")),
     specification: z.string().trim().max(300).optional().or(z.literal("")),
+    /**
+     * Equipment lines only: the model, who makes it and where, and — once the
+     * machine is on the floor — its serial number, which the challan prints.
+     * All optional, so a consumables line never has to carry them.
+     */
+    model: z.string().trim().max(120).optional().or(z.literal("")),
+    manufacturer: z.string().trim().max(160).optional().or(z.literal("")),
+    origin: z.string().trim().max(80).optional().or(z.literal("")),
+    serialNo: z.string().trim().max(120).optional().or(z.literal("")),
     unit: z.string().trim().max(40).optional().or(z.literal("")),
     unitPriceMinor: z.number().int().min(0),
     /**
@@ -186,8 +206,33 @@ export const salesOrderTermsSchema = z.object({
 });
 export type SalesOrderTerms = z.infer<typeof salesOrderTermsSchema>;
 
+/**
+ * The terms an equipment quotation prints, each a line of free text.
+ *
+ * Partial on the way in: whatever is left blank takes the standard wording
+ * (`EQUIPMENT_TERM_DEFAULTS`), so a stored set is always complete.
+ */
+const term = z.string().trim().max(300).optional().or(z.literal(""));
+export const equipmentTermsInputSchema = z.object({
+  payment: term,
+  installation: term,
+  warranty: term,
+  afterWarranty: term,
+  delivery: term,
+  training: term,
+});
+export type EquipmentTermsInput = z.infer<typeof equipmentTermsInputSchema>;
+
 export const salesOrderCreateSchema = z.object({
   leadId: objectId,
+  /**
+   * Optional rather than defaulted on purpose: the update schema is derived
+   * from this one, and Zod fills a default into a partial — every amendment
+   * would then quietly turn an equipment order back into consumables. The
+   * service defaults a missing kind on create and ignores it on amend unless
+   * the order is still a draft.
+   */
+  kind: salesOrderKindEnum.optional(),
   items: z.array(salesOrderItemSchema).max(200).default([]),
   discountMinor: z.number().int().min(0).default(0),
   deliveryMinor: z.number().int().min(0).optional(),
@@ -250,6 +295,8 @@ export const proposalGenerateSchema = z.object({
    * entered, for the times the quantity is part of what is being agreed.
    */
   quantityMode: z.enum(["single", "ordered"]).optional(),
+  /** Equipment orders: the numbered terms on the letter. Ignored otherwise. */
+  equipmentTerms: equipmentTermsInputSchema.optional(),
 });
 export type ProposalGenerateInput = z.infer<typeof proposalGenerateSchema>;
 

@@ -19,11 +19,22 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FormSection, FormField } from "@/components/admin/ui/form-shell";
+import { SelectField } from "@/components/admin/ui/select-field";
 import { useUnsavedGuard } from "@/components/admin/ui/unsaved-changes";
 import { formatApiError } from "@/lib/http/form-error";
 import { priceSalesOrder } from "@/lib/schemas/sales-order";
 import { blockers } from "@/lib/sales/journey";
+import {
+  equipmentSummary,
+  SALES_ORDER_KIND_LABEL,
+  type SalesOrderKind,
+} from "@/lib/sales/equipment";
 import { cn } from "@/lib/cn";
+import {
+  EquipmentProposalFields,
+  equipmentProposalDraft,
+  type EquipmentProposalDraft,
+} from "./equipment-proposal-fields";
 
 /** A line as the editor holds it; prices are entered in taka, stored in poisha. */
 export type EditorLine = {
@@ -35,6 +46,12 @@ export type EditorLine = {
   description: string;
   brandOrigin: string;
   specification: string;
+  /** Equipment lines: shown instead of Brand/Origin and Unit. */
+  model: string;
+  manufacturer: string;
+  origin: string;
+  /** Known once the machine is on the floor; printed on the challan only. */
+  serialNo: string;
   unit: string;
   /** Taka, as typed. */
   unitPrice: string;
@@ -91,6 +108,9 @@ type ProductHit = {
   description: string;
   specification: string;
   brandOrigin: string;
+  /** The two halves of Brand/Origin, for an equipment line's own fields. */
+  brand?: string;
+  origin?: string;
 };
 
 const toMinor = (taka: string) => Math.round((Number(taka) || 0) * 100);
@@ -99,12 +119,17 @@ const fromMinor = (minor: number | null | undefined) =>
 const money = (minor: number) =>
   `৳${(minor / 100).toLocaleString("en-BD", { maximumFractionDigits: 2 })}`;
 
-const emptyExternal = (): EditorLine => ({
+const emptyExternal = (orderKind: SalesOrderKind): EditorLine => ({
   kind: "external",
   description: "",
   brandOrigin: "",
   specification: "",
-  unit: "",
+  model: "",
+  manufacturer: "",
+  origin: "",
+  serialNo: "",
+  // A machine is counted in units; the challan prints the word.
+  unit: orderKind === "equipment" ? "unit" : "",
   unitPrice: "",
   unitCost: "",
   vatValue: "",
@@ -122,6 +147,8 @@ const emptyExternal = (): EditorLine => ({
 export function OrderEditor({
   orderId,
   leadId,
+  initialKind = "consumables",
+  kindLocked = false,
   initialLines,
   initialDiscount,
   initialDelivery = 0,
@@ -132,6 +159,10 @@ export function OrderEditor({
 }: {
   orderId?: string;
   leadId?: string;
+  /** Consumables or equipment — which paper the order produces. */
+  initialKind?: SalesOrderKind;
+  /** True once a document exists or the order has left Draft: the kind stays. */
+  kindLocked?: boolean;
   initialLines: EditorLine[];
   initialDiscount: number;
   /** Transport / delivery charged on top; printed as its own invoice row. */
@@ -144,6 +175,8 @@ export function OrderEditor({
   canEdit: boolean;
 }) {
   const router = useRouter();
+  const [kind, setKind] = useState<SalesOrderKind>(initialKind);
+  const equipment = kind === "equipment";
   const [lines, setLines] = useState<EditorLine[]>(initialLines);
   const [discount, setDiscount] = useState(fromMinor(initialDiscount));
   const [delivery, setDelivery] = useState(fromMinor(initialDelivery));
@@ -158,6 +191,9 @@ export function OrderEditor({
   // the paper says — everything at qty 1 prints identically either way.
   const [askQty, setAskQty] = useState(false);
   const hasMultiples = lines.some((l) => (Number(l.qty) || 0) > 1);
+  // An equipment letter's terms are checked before it goes out. Prepared
+  // from the lines when the dialog opens: the subject names the machines.
+  const [askTerms, setAskTerms] = useState<EquipmentProposalDraft | null>(null);
 
   const totals = useMemo(
     () =>
@@ -220,7 +256,13 @@ export function OrderEditor({
         specification: hit.variantLabel
           ? `${hit.specification} · ${hit.variantLabel}`
           : hit.specification,
-        unit: "pcs",
+        // The catalogue's brand is the machine's maker; the model and the
+        // serial number are typed, since the catalogue knows neither.
+        model: "",
+        manufacturer: hit.brand ?? "",
+        origin: hit.origin ?? "",
+        serialNo: "",
+        unit: equipment ? "unit" : "pcs",
         unitPrice: fromMinor(hit.priceMinor),
         unitCost: fromMinor(hit.costPriceMinor),
         vatValue: "",
@@ -240,6 +282,7 @@ export function OrderEditor({
    */
   function buildPayload() {
     return {
+      kind,
       items: lines.map((l) => ({
         id: l.id,
         kind: l.kind,
@@ -249,6 +292,10 @@ export function OrderEditor({
         description: l.description,
         brandOrigin: l.brandOrigin,
         specification: l.specification,
+        model: l.model,
+        manufacturer: l.manufacturer,
+        origin: l.origin,
+        serialNo: l.serialNo,
         unit: l.unit,
         unitPriceMinor: toMinor(l.unitPrice),
         // Blank means nobody has said what it cost, which the report shows
@@ -280,6 +327,7 @@ export function OrderEditor({
   const dirty =
     JSON.stringify(buildPayload()) !==
     JSON.stringify({
+      kind: initialKind,
       items: initialLines.map((l) => ({
         id: l.id,
         kind: l.kind,
@@ -289,6 +337,10 @@ export function OrderEditor({
         description: l.description,
         brandOrigin: l.brandOrigin,
         specification: l.specification,
+        model: l.model,
+        manufacturer: l.manufacturer,
+        origin: l.origin,
+        serialNo: l.serialNo,
         unit: l.unit,
         unitPriceMinor: toMinor(l.unitPrice),
         unitCostMinor: l.unitCost.trim() ? toMinor(l.unitCost) : null,
@@ -316,6 +368,7 @@ export function OrderEditor({
   async function save(
     thenGenerateProposal = false,
     quantityMode: "single" | "ordered" = "ordered",
+    proposal?: EquipmentProposalDraft,
   ) {
     setSaving(true);
     setError(null);
@@ -344,7 +397,16 @@ export function OrderEditor({
         const gen = await fetch(`/api/admin/company/sales/orders/${savedId}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "proposal", quantityMode }),
+          body: JSON.stringify(
+            proposal
+              ? {
+                  action: "proposal",
+                  subject: proposal.subject,
+                  intro: proposal.intro,
+                  equipmentTerms: proposal.terms,
+                }
+              : { action: "proposal", quantityMode },
+          ),
         });
         if (gen.ok) {
           toast.success("Proposal generated.");
@@ -387,7 +449,7 @@ export function OrderEditor({
                 size="sm"
                 variant="outline"
                 className="gap-1.5"
-                onClick={() => setLines((p) => [...p, emptyExternal()])}
+                onClick={() => setLines((p) => [...p, emptyExternal(kind)])}
               >
                 <Plus className="size-4" />
                 External item
@@ -396,10 +458,36 @@ export function OrderEditor({
           ) : undefined
         }
       >
+        {/* Which paper this order produces. Fixed once a document exists:
+            a quotation already sent as a letter cannot become a table. */}
+        <div className="mb-4 grid gap-x-4 gap-y-3 sm:grid-cols-2">
+          <FormField
+            label="Order type"
+            hint={
+              kindLocked
+                ? "Fixed once a document has been generated."
+                : equipment
+                  ? "A letter naming the equipment, one price in words, the manufacturer in the terms."
+                  : "A quotation and invoice with a table of lines."
+            }
+          >
+            <SelectField
+              id="order-kind"
+              ariaLabel="Order type"
+              value={kind}
+              onChange={(v) => setKind(v as SalesOrderKind)}
+              disabled={!canEdit || kindLocked}
+              options={(
+                Object.keys(SALES_ORDER_KIND_LABEL) as SalesOrderKind[]
+              ).map((k) => ({ value: k, label: SALES_ORDER_KIND_LABEL[k] }))}
+            />
+          </FormField>
+        </div>
         {lines.length === 0 ? (
           <p className="text-muted-foreground text-sm">
-            No items yet. Add products from inventory, or an external item that
-            is bought in for this order.
+            {equipment
+              ? "No equipment yet. Add a machine from inventory, or an external item that is bought in for this order."
+              : "No items yet. Add products from inventory, or an external item that is bought in for this order."}
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -417,10 +505,25 @@ export function OrderEditor({
                     on a narrow screen. */}
                 <tr className="text-muted-foreground border-b text-left">
                   <th className="w-8 py-2">#</th>
-                  <th className="w-[26%] py-2">Description</th>
-                  <th className="w-[13%] py-2">Brand/Origin</th>
-                  <th className="w-[19%] py-2">Specification</th>
-                  <th className="w-16 py-2">Unit</th>
+                  {equipment ? (
+                    <>
+                      {/* A machine is named, modelled and made somewhere;
+                          brand/origin and a unit column say nothing here. */}
+                      <th className="w-[18%] py-2">Equipment</th>
+                      <th className="w-[10%] py-2">Model</th>
+                      <th className="w-[12%] py-2">Manufacturer</th>
+                      <th className="w-[8%] py-2">Origin</th>
+                      <th className="w-[14%] py-2">Specification</th>
+                      <th className="w-[10%] py-2">Serial no</th>
+                    </>
+                  ) : (
+                    <>
+                      <th className="w-[26%] py-2">Description</th>
+                      <th className="w-[13%] py-2">Brand/Origin</th>
+                      <th className="w-[19%] py-2">Specification</th>
+                      <th className="w-16 py-2">Unit</th>
+                    </>
+                  )}
                   {/* pr-5 = the cell's pr-2 plus the input's own 12px of
                       padding; without it the heading floats right of its
                       figures. VAT needs the width of its unit toggle too. */}
@@ -472,34 +575,99 @@ export function OrderEditor({
                           </span>
                         )}
                       </td>
-                      <td className="py-1 pr-2">
-                        <Input
-                          value={l.brandOrigin}
-                          onChange={(e) =>
-                            setLine(i, { brandOrigin: e.target.value })
-                          }
-                          disabled={!canEdit}
-                          className="h-8"
-                        />
-                      </td>
-                      <td className="py-1 pr-2">
-                        <Input
-                          value={l.specification}
-                          onChange={(e) =>
-                            setLine(i, { specification: e.target.value })
-                          }
-                          disabled={!canEdit}
-                          className="h-8"
-                        />
-                      </td>
-                      <td className="py-1 pr-2">
-                        <Input
-                          value={l.unit}
-                          onChange={(e) => setLine(i, { unit: e.target.value })}
-                          disabled={!canEdit}
-                          className="h-8"
-                        />
-                      </td>
+                      {equipment ? (
+                        <>
+                          <td className="py-1 pr-2">
+                            <Input
+                              value={l.model}
+                              onChange={(e) =>
+                                setLine(i, { model: e.target.value })
+                              }
+                              disabled={!canEdit}
+                              aria-label={`Model for line ${i + 1}`}
+                              className="h-8"
+                            />
+                          </td>
+                          <td className="py-1 pr-2">
+                            <Input
+                              value={l.manufacturer}
+                              onChange={(e) =>
+                                setLine(i, { manufacturer: e.target.value })
+                              }
+                              disabled={!canEdit}
+                              aria-label={`Manufacturer for line ${i + 1}`}
+                              className="h-8"
+                            />
+                          </td>
+                          <td className="py-1 pr-2">
+                            <Input
+                              value={l.origin}
+                              onChange={(e) =>
+                                setLine(i, { origin: e.target.value })
+                              }
+                              disabled={!canEdit}
+                              aria-label={`Country of origin for line ${i + 1}`}
+                              className="h-8"
+                            />
+                          </td>
+                          <td className="py-1 pr-2">
+                            <Input
+                              value={l.specification}
+                              onChange={(e) =>
+                                setLine(i, { specification: e.target.value })
+                              }
+                              disabled={!canEdit}
+                              aria-label={`Specification for line ${i + 1}`}
+                              className="h-8"
+                            />
+                          </td>
+                          <td className="py-1 pr-2">
+                            <Input
+                              value={l.serialNo}
+                              onChange={(e) =>
+                                setLine(i, { serialNo: e.target.value })
+                              }
+                              disabled={!canEdit}
+                              aria-label={`Serial number for line ${i + 1}`}
+                              placeholder="At delivery"
+                              className="h-8"
+                            />
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="py-1 pr-2">
+                            <Input
+                              value={l.brandOrigin}
+                              onChange={(e) =>
+                                setLine(i, { brandOrigin: e.target.value })
+                              }
+                              disabled={!canEdit}
+                              className="h-8"
+                            />
+                          </td>
+                          <td className="py-1 pr-2">
+                            <Input
+                              value={l.specification}
+                              onChange={(e) =>
+                                setLine(i, { specification: e.target.value })
+                              }
+                              disabled={!canEdit}
+                              className="h-8"
+                            />
+                          </td>
+                          <td className="py-1 pr-2">
+                            <Input
+                              value={l.unit}
+                              onChange={(e) =>
+                                setLine(i, { unit: e.target.value })
+                              }
+                              disabled={!canEdit}
+                              className="h-8"
+                            />
+                          </td>
+                        </>
+                      )}
                       <td className="py-1 pr-2">
                         <Input
                           value={l.unitCost}
@@ -717,9 +885,25 @@ export function OrderEditor({
             ) : (
               <>
                 <Button
-                  onClick={() =>
-                    hasMultiples ? setAskQty(true) : void save(true)
-                  }
+                  onClick={() => {
+                    if (equipment) {
+                      setAskTerms(
+                        equipmentProposalDraft(
+                          `Quotation for the ${equipmentSummary(
+                            lines.map((l) => ({
+                              description: l.description,
+                              model: l.model,
+                              qty: Number(l.qty) || 1,
+                            })),
+                          )}`,
+                        ),
+                      );
+                    } else if (hasMultiples) {
+                      setAskQty(true);
+                    } else {
+                      void save(true);
+                    }
+                  }}
                   disabled={saving || !ready}
                 >
                   {saving && <Loader2 className="size-4 animate-spin" />}
@@ -741,6 +925,52 @@ export function OrderEditor({
           )}
         </div>
       )}
+
+      {/* The equipment letter's subject and terms, checked before the first
+          version goes out. Saved and generated in one go, like the button
+          says. */}
+      <Dialog
+        open={askTerms !== null}
+        onOpenChange={(o) => !o && setAskTerms(null)}
+      >
+        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Generate the equipment proposal</DialogTitle>
+            <DialogDescription>
+              The order is created first, then the letter is produced and filed
+              in the company documents.
+            </DialogDescription>
+          </DialogHeader>
+          {askTerms && (
+            <EquipmentProposalFields
+              value={askTerms}
+              onChange={setAskTerms}
+              idPrefix="new-eq"
+            />
+          )}
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setAskTerms(null)}
+              disabled={saving}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={saving || !askTerms}
+              onClick={() => {
+                const draft = askTerms;
+                if (!draft) return;
+                setAskTerms(null);
+                void save(true, "ordered", draft);
+              }}
+            >
+              {saving && <Loader2 className="size-4 animate-spin" />}
+              Create and generate
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* A proposal quotes a rate, so the usual thing to send is a per-piece
           price — but the order may have been drafted with real quantities.

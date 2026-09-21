@@ -16,6 +16,12 @@ import { StageRail } from "@/components/admin/sales/stage-rail";
 import { blockers } from "@/lib/sales/journey";
 import { documentMatchesOrder } from "@/lib/sales/document-state";
 import {
+  equipmentSummary,
+  orderKindOf,
+  SALES_ORDER_KIND_LABEL,
+} from "@/lib/sales/equipment";
+import { StatusBadge } from "@/components/admin/ui/status-badge";
+import {
   OrderActions,
   type VersionRow,
 } from "@/components/admin/sales/order-actions";
@@ -35,6 +41,13 @@ export default async function SalesOrderPage({
   if (!order) notFound();
 
   const canEdit = EDITABLE_STATUSES.includes(order.status);
+  const kind = orderKindOf(order);
+  // The kind decides the paper, so it is fixed once any paper exists.
+  const kindLocked = order.status !== "draft" || order.proposals.length > 0;
+  /** The terms the latest equipment proposal went out with, if any. */
+  const lastEquipmentTerms =
+    [...order.proposals].reverse().find((p) => p.snapshot?.equipmentTerms)
+      ?.snapshot?.equipmentTerms ?? null;
   /** One line carrying its own VAT takes the whole order off the order rate. */
   const perLineVat = order.items.some(
     (i) => i.vatRateBp != null || i.vatAmountMinor != null,
@@ -113,7 +126,7 @@ export default async function SalesOrderPage({
         <h1 className="text-foreground text-2xl font-bold tracking-tight">
           {order.leadSnapshot.organisation}
         </h1>
-        <p className="text-muted-foreground mt-1">
+        <p className="text-muted-foreground mt-1 flex flex-wrap items-center gap-2">
           <span className="font-mono text-xs">{order.number}</span>
           {order.invoiceNumber ? (
             <>
@@ -121,6 +134,9 @@ export default async function SalesOrderPage({
               <span className="font-mono text-xs">{order.invoiceNumber}</span>
             </>
           ) : null}
+          <StatusBadge tone={kind === "equipment" ? "info" : "neutral"}>
+            {SALES_ORDER_KIND_LABEL[kind]}
+          </StatusBadge>
         </p>
       </div>
 
@@ -165,6 +181,9 @@ export default async function SalesOrderPage({
               withholding={Boolean(order.withholding)}
               hasMultiples={order.items.some((i) => i.qty > 1)}
               blockers={orderBlockers}
+              kind={kind}
+              equipmentSubject={`Quotation for the ${equipmentSummary(order.items)}`}
+              equipmentTerms={lastEquipmentTerms}
             />
 
             <DetailCard title="Client">
@@ -263,6 +282,8 @@ export default async function SalesOrderPage({
       >
         <OrderEditor
           orderId={id}
+          initialKind={kind}
+          kindLocked={kindLocked}
           initialLines={order.items.map((i) => ({
             id: i.id,
             kind: i.kind,
@@ -272,6 +293,10 @@ export default async function SalesOrderPage({
             description: i.description,
             brandOrigin: i.brandOrigin ?? "",
             specification: i.specification ?? "",
+            model: i.model ?? "",
+            manufacturer: i.manufacturer ?? "",
+            origin: i.origin ?? "",
+            serialNo: i.serialNo ?? "",
             unit: i.unit ?? "",
             unitPrice: String(i.unitPriceMinor / 100),
             unitCost:

@@ -4,15 +4,26 @@ import type { StampAssets } from "./types";
 import { DEFAULT_TEMPLATES } from "./engine/defaults";
 import {
   buildChallanContext,
+  buildEquipmentInvoiceContext,
+  buildEquipmentProposalContext,
   buildInvoiceContext,
   buildProposalContext,
 } from "./engine/context";
 import { TemplateDocument } from "./engine/render-template";
-import type { ChallanData, InvoiceData, ProposalData } from "./types";
+import type {
+  ChallanData,
+  EquipmentInvoiceData,
+  EquipmentProposalData,
+  InvoiceData,
+  ProposalData,
+} from "./types";
 
 export type {
   ChallanData,
   DocumentLine,
+  EquipmentInvoiceData,
+  EquipmentLine,
+  EquipmentProposalData,
   InvoiceData,
   Party,
   ProposalData,
@@ -21,12 +32,14 @@ export type {
 export { needsVatColumn, vatCell } from "./types";
 
 /**
- * The three documents the sales flow produces.
+ * The documents the sales flow produces.
  *
  * Each is the template engine applied to the document's data. The template
  * defaults to the built-in one — the layout as it was hand-coded — so a
  * caller that has no published template, and every document generated before
- * templates existed, renders exactly as before.
+ * templates existed, renders exactly as before. An equipment order has its
+ * own proposal and invoice (a letter and a one-line bill) and shares the
+ * challan.
  */
 
 export function ProposalDocument({
@@ -63,6 +76,44 @@ export function InvoiceDocument({
       template={template}
       assets={assets}
       ctx={buildInvoiceContext(data)}
+    />
+  );
+}
+
+export function EquipmentProposalDocument({
+  data,
+  template = DEFAULT_TEMPLATES.equipmentProposal,
+  assets,
+}: {
+  data: EquipmentProposalData;
+  template?: TemplateDoc;
+  assets?: StampAssets;
+}) {
+  return (
+    <TemplateDocument
+      kind="equipmentProposal"
+      template={template}
+      assets={assets}
+      ctx={buildEquipmentProposalContext(data)}
+    />
+  );
+}
+
+export function EquipmentInvoiceDocument({
+  data,
+  template = DEFAULT_TEMPLATES.equipmentInvoice,
+  assets,
+}: {
+  data: EquipmentInvoiceData;
+  template?: TemplateDoc;
+  assets?: StampAssets;
+}) {
+  return (
+    <TemplateDocument
+      kind="equipmentInvoice"
+      template={template}
+      assets={assets}
+      ctx={buildEquipmentInvoiceContext(data)}
     />
   );
 }

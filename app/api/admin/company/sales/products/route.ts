@@ -49,6 +49,10 @@ export async function GET(req: Request) {
         description: d?.description ?? u.name,
         specification: d?.specification ?? u.name,
         brandOrigin: d?.brandOrigin ?? "",
+        // Separately too: an equipment line keeps the maker and the country
+        // in fields of their own.
+        brand: d?.brand ?? "",
+        origin: d?.origin ?? "",
         costPriceMinor: d?.costPriceMinor ?? null,
       };
     }),

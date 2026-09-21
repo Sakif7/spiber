@@ -23,6 +23,8 @@ export const KIND_LABEL: Record<TemplateKind, string> = {
   invoice: "Sales invoice",
   challan: "Delivery challan",
   payslip: "Payslip",
+  equipmentProposal: "Equipment proposal",
+  equipmentInvoice: "Equipment invoice",
 };
 
 export const BLOCK_CATALOGUE: BlockInfo[] = [

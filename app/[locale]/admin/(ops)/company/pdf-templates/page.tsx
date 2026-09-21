@@ -57,7 +57,7 @@ export default async function PdfTemplatesPage({
     <div className="space-y-6">
       <AdminPageHeader
         title="PDF templates"
-        description="The layout of every proposal, invoice, challan and payslip. Publishing a template changes what is generated from now on; documents already issued keep their layout."
+        description="The layout of every proposal, invoice, challan and payslip — the equipment order's letter and one-line invoice included. Publishing a template changes what is generated from now on; documents already issued keep their layout."
       />
       <DataTable
         rows={rows}

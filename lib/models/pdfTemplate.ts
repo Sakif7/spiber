@@ -33,7 +33,14 @@ const pdfTemplateSchema = new Schema<IPdfTemplate>(
   {
     kind: {
       type: String,
-      enum: ["proposal", "invoice", "challan", "payslip"],
+      enum: [
+        "proposal",
+        "invoice",
+        "challan",
+        "payslip",
+        "equipmentProposal",
+        "equipmentInvoice",
+      ],
       required: true,
     },
     status: { type: String, enum: ["draft", "published"], required: true },

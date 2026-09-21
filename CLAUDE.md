@@ -113,6 +113,20 @@ These are the things the owner has had to repeat. Treat them as hard rules.
   vault. Sales stock is **reserved at invoicing, written off at delivery**;
   whole-order delivery and payment only. Invoice numbers come from one global
   counter that never resets; challans have their own.
+- **Two kinds of sales order, one pipeline.** `SalesOrder.kind` is
+  `consumables` (default; rows from before have no field — always read it
+  through `orderKindOf()` in `lib/sales/equipment.ts`) or `equipment`.
+  Equipment = the same lines, money, stock, numbering and challan, but its
+  proposal is a **letter** (`equipmentProposal` template: the machines named
+  in the opening sentence, one price in figures then words, the numbered
+  terms with the manufacturer last, MD sign-off with phone/e-mail) and its
+  invoice is **one price line** (`equipmentInvoice`). Equipment lines carry
+  `model`, `manufacturer`, `origin`, `serialNo` (the serial prints on the
+  challan only, folded into the Specification cell). The six letter terms
+  are per proposal (`snapshot.equipmentTerms`, defaults in
+  `EQUIPMENT_TERM_DEFAULTS`), never per template. The kind is chosen on New
+  order and fixed once a proposal exists; reprints choose the layout from
+  `templateRef.kind`, the challan from the order's kind.
 - **PDF layout is data.** Every document renders through the block-based
   template engine (`lib/pdf/engine`); the built-in template is **version 0**
   and lives in code (no seed). Published `PdfTemplate` rows are **immutable**
@@ -357,6 +371,10 @@ tests`, `npm test`, and the browser pass above. Then `git status`.
   it. The proxy sends an employee on an ops URL to `/admin/me`.
 - `templateRef` absent or `version: 0` on a document version means the built-in
   layout — never backfill it; `getTemplateForRender` is the one choke point.
+- A `bullets` block prints every item; `hideEmptyItems` is opt-in because
+  "Delivery: within {{terms.deliveryDays}} days" must still print at zero.
+  Don't make hide-when-empty the default on any block that existing
+  templates use.
 
 **React / Next**
 

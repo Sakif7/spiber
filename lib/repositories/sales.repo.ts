@@ -171,6 +171,8 @@ export type SalesOrderListParams = RepoListQuery & {
   status?: string;
   payment?: string;
   leadId?: string;
+  /** "consumables" | "equipment"; anything else lists both. */
+  kind?: string;
 };
 
 export async function listSalesOrders(
@@ -182,6 +184,11 @@ export async function listSalesOrders(
   if (params.payment && params.payment !== "all") {
     filter["payment.status"] = params.payment;
   }
+  if (params.kind === "equipment") filter.kind = "equipment";
+  // Orders raised before the kind existed have no field at all, and every
+  // one of them is consumables: null inside $in matches the absent field.
+  if (params.kind === "consumables")
+    filter.kind = { $in: ["consumables", null] };
   if (params.leadId && mongoose.isValidObjectId(params.leadId)) {
     filter.leadId = oid(params.leadId);
   }
@@ -365,6 +372,9 @@ export type SalesLineDetail = {
   description: string;
   specification: string;
   brandOrigin: string;
+  /** The two halves of "Brand / Origin" on their own, for an equipment line. */
+  brand: string;
+  origin: string;
   /** What a unit costs us, to prefill the line's cost. Null if never set. */
   costPriceMinor: number | null;
 };
@@ -489,6 +499,8 @@ export async function salesLineDetails(
       // Brand is resolved from the master Brand collection via `brandId`, so a
       // product with no brand assigned prints blank rather than guessing.
       brandOrigin: [brand, origin].filter(Boolean).join(" / "),
+      brand,
+      origin,
     });
   }
   return out;

@@ -11,8 +11,8 @@ import type {
 } from "@/lib/schemas/pdf-template";
 
 /**
- * The built-in templates: the company's four documents as they were
- * hand-coded, expressed as blocks.
+ * The built-in templates: the company's documents as they were hand-coded,
+ * expressed as blocks.
  *
  * These are what renders until a super-admin publishes a template of their
  * own, and what every document generated before templates existed re-renders
@@ -578,6 +578,487 @@ const challan: TemplateDoc = {
   ],
 };
 
+/* ─────────────────────── equipment proposal ─────────────────────── */
+
+/**
+ * The quotation for a high-value machine: a letter, not a table.
+ *
+ * Wording is the company's own equipment letter, tidied: the equipment is
+ * named in the opening paragraph, the price is one figure spelled out in
+ * words, and the manufacturer closes the numbered terms. Each term is a
+ * placeholder because each is negotiated per deal — the dialog that
+ * generates the proposal opens with the standard wording and lets it be
+ * changed. The opening paragraph has an override the same way: when
+ * `intro` is given it prints instead of the standard one.
+ */
+const equipmentProposal: TemplateDoc = {
+  documentTitle: "Quotation {{proposalNo}}",
+  theme: DEFAULT_THEME,
+  blocks: [
+    ...stationery(),
+    {
+      id: "header",
+      type: "metaColumns",
+      style: { marginTop: 0 },
+      props: {
+        gap: 24,
+        lineGap: 1,
+        columns: [
+          {
+            align: "left",
+            fields: [
+              field("Ref:", "{{proposalNo}}", { hideWhenEmpty: false }),
+              field("Date:", "{{date}}", { hideWhenEmpty: false }),
+              field(
+                "Validity:",
+                "{{terms.validityDays}} days from the date above",
+                {
+                  hideWhenEmpty: false,
+                },
+              ),
+            ],
+          },
+          {
+            heading: "To",
+            align: "left",
+            fields: [
+              field(undefined, "{{to.attention}}"),
+              field(undefined, "{{to.department}}"),
+              field(undefined, "{{to.organisation}}", {
+                hideWhenEmpty: false,
+                bold: true,
+              }),
+              field(undefined, "{{to.address}}", { hideWhenEmpty: false }),
+              field("Phone:", "{{to.phone}}"),
+              field("E-mail:", "{{to.email}}"),
+            ],
+          },
+        ],
+      },
+    },
+    {
+      id: "subject",
+      type: "heading",
+      props: { text: "Subject: {{subject}}", underline: true },
+      style: { marginTop: 10 },
+    },
+    {
+      id: "greeting",
+      type: "paragraph",
+      props: { text: "Dear Sir/Madam," },
+      style: { marginTop: 8 },
+    },
+    {
+      // The standard opening, naming the machines from the order's lines.
+      id: "intro",
+      type: "paragraph",
+      showIf: "!intro",
+      props: {
+        text: "Thank you for choosing {{company.name}} to help streamline your healthcare operations. We are pleased to quote our best price for the {{equipment.summary}}.",
+      },
+      style: { marginTop: 6, align: "justify" },
+    },
+    {
+      // What was typed in the dialog, when anything was.
+      id: "introCustom",
+      type: "paragraph",
+      showIf: "intro",
+      props: { text: "{{intro}}" },
+      style: { marginTop: 6, align: "justify" },
+    },
+    {
+      id: "spec",
+      type: "labelledText",
+      showIf: "equipment.specification",
+      style: { marginTop: 6, align: "justify" },
+      props: {
+        label: "Specification:",
+        labelStyle: "bold",
+        text: "{{equipment.specification}}",
+      },
+    },
+    {
+      // A negotiated discount is shown as the list price less the discount,
+      // so the offered price below reads as a concession and not a mystery.
+      id: "listPrice",
+      type: "labelledText",
+      showIf: "price.discountMinor",
+      style: { marginTop: 8 },
+      props: {
+        label: "List price:",
+        labelStyle: "bold",
+        text: "BDT {{price.subtotalMinor}}",
+      },
+    },
+    {
+      id: "discount",
+      type: "labelledText",
+      showIf: "price.discountMinor",
+      style: { marginTop: 3 },
+      props: {
+        label: "Less discount:",
+        labelStyle: "bold",
+        text: "BDT {{price.discountMinor}}",
+      },
+    },
+    {
+      // The figure the letter exists for: in numbers, then in words.
+      id: "price",
+      type: "labelledText",
+      style: { marginTop: 8, fontSize: 11.5 },
+      props: {
+        label: "Offered price:",
+        labelStyle: "bold",
+        text: "BDT {{price.goodsMinor}} ({{price.goodsInWords}})",
+      },
+    },
+    {
+      id: "vat",
+      type: "labelledText",
+      showIf: "price.vatMinor",
+      style: { marginTop: 3 },
+      props: {
+        label: "VAT{{price.vatSuffix}}:",
+        labelStyle: "bold",
+        text: "BDT {{price.vatMinor}}, payable in addition to the price above.",
+      },
+    },
+    {
+      id: "transport",
+      type: "labelledText",
+      showIf: "price.deliveryMinor",
+      style: { marginTop: 3 },
+      props: {
+        label: "Transport and delivery:",
+        labelStyle: "bold",
+        text: "BDT {{price.deliveryMinor}}",
+      },
+    },
+    {
+      id: "total",
+      type: "labelledText",
+      showIf: "price.hasExtras",
+      style: { marginTop: 3 },
+      props: {
+        label: "Total:",
+        labelStyle: "bold",
+        text: "BDT {{price.totalMinor}} ({{price.totalInWords}})",
+      },
+    },
+    {
+      // Stated so the client's accounts department knows what to expect;
+      // never added, because it is their deduction, not our charge.
+      id: "ait",
+      type: "labelledText",
+      showIf: "price.aitMinor",
+      style: { marginTop: 3, fontSize: 10 },
+      props: {
+        label: "AIT ({{price.aitPercent}}%):",
+        labelStyle: "bold",
+        text: "BDT {{price.aitMinor}} may be deducted at source under the Income Tax Act. It is not included in the price above.",
+      },
+    },
+    {
+      id: "terms",
+      type: "bullets",
+      style: { marginTop: 10 },
+      keepTogether: true,
+      minPresenceAhead: 120,
+      props: {
+        heading: "Terms and conditions:",
+        headingGap: 6,
+        numbered: true,
+        hideEmptyItems: true,
+        items: [
+          "Payment: {{terms.payment}}",
+          "Installation and commissioning: {{terms.installation}}",
+          "Warranty: {{terms.warranty}}",
+          "After the warranty period: {{terms.afterWarranty}}",
+          "Delivery: {{terms.delivery}}",
+          "Training: {{terms.training}}",
+          "Manufacturer: {{equipment.manufacturers}}",
+        ],
+      },
+    },
+    {
+      id: "closing",
+      type: "paragraph",
+      style: { marginTop: 10, align: "justify" },
+      props: {
+        text: "We trust that this price is our most competitive and will be acceptable to you, and we look forward to receiving your valued work order at your earliest convenience.",
+      },
+    },
+    {
+      id: "thanks",
+      type: "paragraph",
+      style: { marginTop: 5 },
+      props: { text: "Thank you for your continued cooperation." },
+    },
+    {
+      id: "regards",
+      type: "paragraph",
+      style: { marginTop: 5 },
+      props: { text: "With best regards," },
+    },
+    {
+      // The Managing Director signs the letter: name, title, company, phone
+      // and e-mail under the line, as the company's own template asks.
+      id: "signoff",
+      type: "signOff",
+      props: {
+        left: "Authorised Signatory",
+        includeSignatory: true,
+        labelAlign: "left",
+      },
+    },
+  ],
+};
+
+/* ─────────────────────── equipment invoice ─────────────────────── */
+
+/**
+ * The invoice for a machine: the sales invoice's header and foot around one
+ * price — in numbers, then in words — with VAT, transport and the AIT note
+ * beneath it. No ruled table, because there is nothing to tabulate: what
+ * was supplied is said in a sentence.
+ */
+const equipmentInvoice: TemplateDoc = {
+  documentTitle: "Sales Invoice {{invoiceNumber}}",
+  theme: DEFAULT_THEME,
+  blocks: [
+    ...stationery(),
+    { id: "title", type: "title", props: { text: "Sales Invoice" } },
+    {
+      id: "header",
+      type: "metaColumns",
+      style: { marginTop: 8 },
+      props: {
+        gap: 24,
+        lineGap: 1,
+        columns: [
+          {
+            align: "left",
+            fields: [
+              field("Invoice No:", "{{invoiceNumber}}", {
+                hideWhenEmpty: false,
+              }),
+              field("Date:", "{{invoiceDate}}", { hideWhenEmpty: false }),
+              field("Payment Due:", "{{paymentDue}}", { hideWhenEmpty: false }),
+              field("Customer ID:", "{{customerId}}"),
+              field("Reference/PO No:", "{{referenceNo}}"),
+              field("Date of Delivery:", "{{deliveryDate}}"),
+              field("BIN:", "{{company.bin}}", { hideWhenEmpty: false }),
+            ],
+          },
+          {
+            heading: "Bill To",
+            align: "left",
+            fields: [
+              field("Client Name:", "{{billTo.organisation}}", {
+                hideWhenEmpty: false,
+              }),
+              field("Address:", "{{billTo.address}}", { hideWhenEmpty: false }),
+              field("Contact Person:", "{{billTo.contactPerson}}"),
+              field("Phone:", "{{billTo.phone}}"),
+              field("Email:", "{{billTo.email}}"),
+            ],
+          },
+        ],
+      },
+    },
+    {
+      id: "details",
+      type: "heading",
+      props: { text: "Particulars", underline: true },
+      style: { marginTop: 14, marginBottom: 6 },
+    },
+    {
+      id: "description",
+      type: "paragraph",
+      style: { align: "justify" },
+      props: {
+        text: "Supply of the {{equipment.summary}}. Manufacturer: {{equipment.manufacturers}}.",
+      },
+    },
+    {
+      id: "spec",
+      type: "labelledText",
+      showIf: "equipment.specification",
+      style: { marginTop: 4, align: "justify" },
+      props: {
+        label: "Specification:",
+        labelStyle: "bold",
+        text: "{{equipment.specification}}",
+      },
+    },
+    {
+      id: "listPrice",
+      type: "labelledText",
+      showIf: "totals.discountMinor",
+      style: { marginTop: 10 },
+      props: {
+        label: "List price:",
+        labelStyle: "bold",
+        text: "BDT {{totals.subtotalMinor}}",
+      },
+    },
+    {
+      id: "discount",
+      type: "labelledText",
+      showIf: "totals.discountMinor",
+      style: { marginTop: 3 },
+      props: {
+        label: "Less discount:",
+        labelStyle: "bold",
+        text: "BDT {{totals.discountMinor}}",
+      },
+    },
+    {
+      id: "price",
+      type: "labelledText",
+      style: { marginTop: 10, fontSize: 11.5 },
+      props: {
+        label: "Price:",
+        labelStyle: "bold",
+        text: "BDT {{totals.goodsMinor}} ({{totals.goodsInWords}})",
+      },
+    },
+    {
+      id: "vat",
+      type: "labelledText",
+      showIf: "totals.vatMinor",
+      style: { marginTop: 3 },
+      props: {
+        label: "VAT{{vat.rateSuffix}}:",
+        labelStyle: "bold",
+        text: "BDT {{totals.vatMinor}}",
+      },
+    },
+    {
+      id: "transport",
+      type: "labelledText",
+      showIf: "totals.deliveryMinor",
+      style: { marginTop: 3 },
+      props: {
+        label: "Transport/ Delivery:",
+        labelStyle: "bold",
+        text: "BDT {{totals.deliveryMinor}}",
+      },
+    },
+    {
+      // Only when something sits on top of the price; otherwise the price
+      // line IS the total and repeating it in words would say nothing new.
+      id: "total",
+      type: "labelledText",
+      showIf: "totals.hasExtras",
+      style: { marginTop: 3, fontSize: 11.5 },
+      props: {
+        label: "Grand Total:",
+        labelStyle: "bold",
+        text: "BDT {{totals.grandTotalMinor}} ({{totals.amountInWords}})",
+      },
+    },
+    {
+      id: "paid",
+      type: "labelledText",
+      showIf: "totals.paidMinor",
+      style: { marginTop: 3 },
+      props: {
+        label: "Paid:",
+        labelStyle: "bold",
+        text: "BDT {{totals.paidMinor}}",
+      },
+    },
+    {
+      id: "balance",
+      type: "labelledText",
+      showIf: "totals.paidMinor",
+      style: { marginTop: 3 },
+      props: {
+        label: "Balance Due/ Outstanding:",
+        labelStyle: "bold",
+        text: "BDT {{totals.balanceMinor}}",
+      },
+    },
+    {
+      id: "ait",
+      type: "labelledText",
+      showIf: "ait.amountMinor",
+      style: { marginTop: 5, fontSize: 10 },
+      props: {
+        label: "AIT ({{ait.ratePercent}}%):",
+        labelStyle: "bold",
+        text: "BDT {{ait.amountMinor}} — deductible at source and NOT included in the total above.",
+      },
+    },
+    {
+      id: "bank",
+      type: "keyValueList",
+      style: { marginTop: 12 },
+      keepTogether: true,
+      minPresenceAhead: 96,
+      props: {
+        heading: "Payment Information:",
+        headingGap: 5,
+        items: [
+          {
+            label: "Bank Name:",
+            value: "{{bank.bankName}}",
+            hideWhenEmpty: false,
+          },
+          {
+            label: "Account Name:",
+            value: "{{bank.accountName}}",
+            hideWhenEmpty: false,
+          },
+          {
+            label: "Account No:",
+            value: "{{bank.accountNo}}",
+            hideWhenEmpty: false,
+          },
+          { label: "Branch:", value: "{{bank.branch}}", hideWhenEmpty: false },
+          {
+            label: "Routing No:",
+            value: "{{bank.routingNo}}",
+            hideWhenEmpty: false,
+          },
+          {
+            label: "Mobile Finance Service:",
+            value: "{{bank.mobileFinance}}",
+            hideWhenEmpty: false,
+          },
+        ],
+      },
+    },
+    {
+      id: "terms",
+      type: "bullets",
+      style: { marginTop: 9 },
+      keepTogether: true,
+      minPresenceAhead: 96,
+      props: {
+        heading: "Terms & Condition:",
+        headingGap: 5,
+        items: [
+          "Payment Terms: Payment due within {{terms.paymentDays}} days of this invoice.",
+          "If Advance Income Tax (AIT)/Tax Deducted at Source (TDS) is deducted under the applicable Income Tax laws, kindly provide the prescribed withholding tax certificate to {{company.name}}.",
+          "Installation, commissioning, training and warranty are as agreed in our quotation.",
+        ],
+      },
+    },
+    {
+      id: "signoff",
+      type: "signOff",
+      props: {
+        left: "Approved By",
+        right: "Received By",
+        includeSignatory: false,
+        labelAlign: "center",
+      },
+    },
+  ],
+};
+
 /* ─────────────────────────────── payslip ─────────────────────────────── */
 
 /**
@@ -755,6 +1236,8 @@ export const DEFAULT_TEMPLATES: Record<TemplateKind, TemplateDoc> = {
   invoice,
   challan,
   payslip,
+  equipmentProposal,
+  equipmentInvoice,
 };
 
 /** A deep copy, so an editor can mutate its working document freely. */

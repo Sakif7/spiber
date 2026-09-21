@@ -10,8 +10,14 @@ import {
   ProposalDocument,
   InvoiceDocument,
   ChallanDocument,
+  EquipmentProposalDocument,
+  EquipmentInvoiceDocument,
 } from "@/lib/pdf/documents";
 import { PayslipDocument } from "@/lib/pdf/payslip";
+import {
+  FIXTURE_EQUIPMENT_INVOICE,
+  FIXTURE_EQUIPMENT_PROPOSAL,
+} from "@/lib/pdf/engine/fixtures";
 
 const OUT = "public/_preview";
 fs.mkdirSync(OUT, { recursive: true });
@@ -134,5 +140,18 @@ it("renders every document for inspection", async () => {
   );
   fs.writeFileSync(OUT + "/payslip.pdf", payslip);
 
-  console.log("wrote proposal, invoice, challan and payslip PDFs");
+  // The equipment order's letter and one-line invoice, from the editor's
+  // own sample data so the preview and the pad agree with what is written.
+  const equipmentProposal = await renderPdf(
+    EquipmentProposalDocument({ data: FIXTURE_EQUIPMENT_PROPOSAL }) as never,
+  );
+  fs.writeFileSync(OUT + "/equipment-proposal.pdf", equipmentProposal);
+  const equipmentInvoice = await renderPdf(
+    EquipmentInvoiceDocument({ data: FIXTURE_EQUIPMENT_INVOICE }) as never,
+  );
+  fs.writeFileSync(OUT + "/equipment-invoice.pdf", equipmentInvoice);
+
+  console.log(
+    "wrote proposal, invoice, challan, payslip, equipment-proposal and equipment-invoice PDFs",
+  );
 }, 60000);

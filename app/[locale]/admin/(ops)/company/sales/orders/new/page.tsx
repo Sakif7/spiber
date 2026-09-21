@@ -10,6 +10,7 @@ import { getMedtradeCommerceSettings } from "@/lib/services/shop-settings.servic
 import { OrderEditor } from "@/components/admin/sales/order-editor";
 import { LeadPicker } from "@/components/admin/sales/lead-picker";
 import { activeEmployeeOptions } from "@/lib/repositories/expenses.repo";
+import type { SalesOrderKind } from "@/lib/sales/equipment";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,11 @@ export default async function NewSalesOrderPage({
   setRequestLocale(locale);
   const sp = await searchParams;
   const leadId = typeof sp.lead === "string" ? sp.lead : undefined;
+  // "?kind=equipment" pre-selects the type; otherwise the lead's own reasons
+  // decide — a lead that came in for equipment (and not consumables) starts
+  // as an equipment order. Either way it is a select on the form.
+  const askedKind: SalesOrderKind | null =
+    sp.kind === "equipment" || sp.kind === "consumables" ? sp.kind : null;
 
   const [lead, leads, commerce, employees] = await Promise.all([
     leadId ? getSalesLeadById(leadId) : Promise.resolve(null),
@@ -35,6 +41,13 @@ export default async function NewSalesOrderPage({
     activeEmployeeOptions().catch(() => []),
   ]);
   if (leadId && !lead) notFound();
+
+  const reasons = lead?.reasons ?? [];
+  const initialKind: SalesOrderKind =
+    askedKind ??
+    (reasons.includes("equipment") && !reasons.includes("consumable")
+      ? "equipment"
+      : "consumables");
 
   return (
     <div className="grid gap-6">
@@ -60,6 +73,7 @@ export default async function NewSalesOrderPage({
           </p>
           <OrderEditor
             leadId={String(lead._id)}
+            initialKind={initialKind}
             initialLines={[]}
             initialDiscount={0}
             initialVatRateBp={commerce.vatRateBp}

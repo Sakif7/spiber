@@ -601,6 +601,20 @@ function BulletsForm({ block, kind, onProps }: Props<"bullets">) {
           min={0}
           max={20}
         />
+        <SwitchField
+          label="Numbered"
+          checked={Boolean(block.props.numbered)}
+          onChange={(numbered) => onProps({ numbered: numbered || undefined })}
+          hint="1., 2., 3. instead of a dot."
+        />
+        <SwitchField
+          label="Skip empty items"
+          checked={Boolean(block.props.hideEmptyItems)}
+          onChange={(hideEmptyItems) =>
+            onProps({ hideEmptyItems: hideEmptyItems || undefined })
+          }
+          hint="Drop an item whose fields are all blank on this document."
+        />
       </FormGrid>
       <ListEditor
         label="Items"

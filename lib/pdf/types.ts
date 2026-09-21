@@ -120,6 +120,75 @@ export type InvoiceData = {
   signatory: Signatory;
 };
 
+/**
+ * One machine on an equipment order.
+ *
+ * Not a `DocumentLine`: the letter never tabulates these. It names them in a
+ * sentence, puts the manufacturer in the terms and states one price — so the
+ * fields are the ones a sentence needs, and `equipmentPrintedColumns` turns
+ * one into a table line for the challan.
+ */
+export type EquipmentLine = {
+  description: string;
+  model?: string | null;
+  manufacturer?: string | null;
+  origin?: string | null;
+  specification?: string | null;
+  serialNo?: string | null;
+  unitPriceMinor: number;
+  qty: number;
+  lineTotalMinor: number;
+  vatRateBp?: number | null;
+  vatMinor?: number | null;
+};
+
+/** The money an equipment document states, already priced by the order. */
+export type EquipmentPricing = {
+  subtotalMinor: number;
+  discountMinor: number;
+  vatRateBp: number;
+  vatMinor: number;
+  deliveryMinor: number;
+  totalMinor: number;
+  /** Informational, never added: what the buyer is expected to withhold. */
+  aitRateBp?: number;
+  /** True when a line carries its own VAT, so no single rate can be named. */
+  perLineVat?: boolean;
+};
+
+/**
+ * The equipment quotation: a letter, not a table.
+ *
+ * `intro` is an override — when empty the template's own opening paragraph
+ * prints, naming the equipment from the lines; when given it replaces it.
+ */
+export type EquipmentProposalData = EquipmentPricing & {
+  proposalNo: string;
+  date: Date;
+  to: Party;
+  subject: string;
+  intro?: string | null;
+  equipment: EquipmentLine[];
+  terms: EquipmentTermsData;
+  signatory: Signatory;
+};
+
+export type EquipmentTermsData = {
+  payment: string;
+  installation: string;
+  warranty: string;
+  afterWarranty: string;
+  delivery: string;
+  training: string;
+  validityDays: number;
+};
+
+/** The equipment invoice: the same header as a sales invoice, one price in words. */
+export type EquipmentInvoiceData = Omit<InvoiceData, "lines"> & {
+  equipment: EquipmentLine[];
+  perLineVat?: boolean;
+};
+
 export type ChallanData = {
   challanNumber: string;
   date: Date;

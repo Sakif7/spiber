@@ -72,10 +72,26 @@ export function BulletsBlock({
   ctx,
   kind,
 }: BlockProps<"bullets">) {
-  const { heading, headingGap, items } = block.props;
-  const list = items.map((item, i) => (
+  const { heading, headingGap, items, numbered, hideEmptyItems } = block.props;
+  const shown = hideEmptyItems
+    ? items.filter((item) => !allPlaceholdersEmpty(item, ctx))
+    : items;
+  const list = shown.map((item, i) => (
     <View key={i} style={styles.bulletRow}>
-      <Text style={styles.bulletDot}>•</Text>
+      {/* Numbers range right so "1." and "10." end on the same column;
+          the dot keeps the centred width every existing template prints. */}
+      <Text
+        style={
+          numbered
+            ? [
+                styles.bulletDot,
+                { width: 18, textAlign: "right", paddingRight: 4 },
+              ]
+            : styles.bulletDot
+        }
+      >
+        {numbered ? `${i + 1}.` : "•"}
+      </Text>
       <Text style={styles.bulletText}>{interpolate(item, ctx, kind)}</Text>
     </View>
   ));

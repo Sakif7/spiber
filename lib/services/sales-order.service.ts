@@ -118,6 +118,11 @@ function toItems(
       description: raw.description,
       brandOrigin: raw.brandOrigin || null,
       specification: raw.specification || null,
+      // Equipment fields; a consumables line simply leaves them blank.
+      model: raw.model || null,
+      manufacturer: raw.manufacturer || null,
+      origin: raw.origin || null,
+      serialNo: raw.serialNo || null,
       unit: raw.unit || null,
       unitPriceMinor: raw.unitPriceMinor,
       // Undefined means the caller sent no opinion, so keep what the line already
@@ -205,6 +210,7 @@ export async function createOrder(
 
   const doc = await createSalesOrder({
     number: salesOrderNumber(),
+    kind: input.kind ?? "consumables",
     leadId: String(lead._id),
     leadSnapshot: {
       organisation: lead.organisation,
@@ -227,7 +233,10 @@ export async function createOrder(
 
   await addSalesOrderActivity(String(doc._id), {
     authorId: actor.sub,
-    body: "Order created",
+    body:
+      input.kind === "equipment"
+        ? "Order created (equipment)"
+        : "Order created",
     to: "draft",
   });
   return done(doc.toObject() as Lean<ISalesOrder>);
@@ -335,10 +344,23 @@ export async function amendOrder(
     vatRateBp,
     deliveryMinor,
   );
+  // The kind decides which documents the order produces, so it may only
+  // change while none has been produced: a draft with no proposal behind it.
+  // Any later attempt is ignored rather than refused — the editor sends the
+  // field every time.
+  const kindChange =
+    input.kind !== undefined &&
+    order.status === "draft" &&
+    order.proposals.length === 0 &&
+    input.kind !== (order.kind ?? "consumables")
+      ? { kind: input.kind }
+      : {};
+
   const updated = await updateSalesOrder(id, {
     items: pricedItems,
     ...totals,
     vatRateBp,
+    ...kindChange,
     ...(input.aitRateBp !== undefined ? { aitRateBp: input.aitRateBp } : {}),
     ...(input.referenceNo !== undefined
       ? { referenceNo: input.referenceNo }
@@ -350,7 +372,9 @@ export async function amendOrder(
 
   await addSalesOrderActivity(id, {
     authorId: actor.sub,
-    body: "Order amended",
+    body: kindChange.kind
+      ? `Order amended — now an ${kindChange.kind} order`
+      : "Order amended",
   });
   return done(updated);
 }
@@ -395,6 +419,8 @@ export async function repeatOrder(
     ...i,
     id: lineId(),
     reservedQty: 0,
+    // A repeat is a new machine: its serial number is not the old one's.
+    serialNo: null,
   }));
 
   // Best effort: a catalogue lookup that fails must not stop the repeat. The
@@ -432,6 +458,7 @@ export async function repeatOrder(
 
   const doc = await createSalesOrder({
     number: salesOrderNumber(),
+    kind: source.kind ?? "consumables",
     leadId: String(lead._id),
     // Taken from the lead as it reads NOW: the client may have moved offices
     // or changed the person who signs since the order being copied.

@@ -8,9 +8,19 @@ import {
   ProposalDocument,
   InvoiceDocument,
   ChallanDocument,
+  EquipmentProposalDocument,
+  EquipmentInvoiceDocument,
   type DocumentLine,
+  type EquipmentLine,
   type Signatory,
 } from "@/lib/pdf/documents";
+import {
+  completeEquipmentTerms,
+  equipmentPrintedColumns,
+  equipmentSummary,
+  orderKindOf,
+} from "@/lib/sales/equipment";
+import type { TemplateKind } from "@/lib/schemas/pdf-template";
 import type { ISalesOrder, IDocumentVersion } from "@/lib/models/salesOrder";
 import type { Lean } from "@/lib/models/_shared";
 import { getSetting } from "@/lib/repositories/settings.repo";
@@ -117,18 +127,70 @@ function stripReservation(item: ISalesOrder["items"][number]) {
  * The stored order keeps the quantities that were entered either way; this
  * only changes what the paper says.
  */
+/**
+ * The printed text columns of a line.
+ *
+ * A consumables line prints as entered. An equipment line folds its model —
+ * and, on the challan, its serial number — into the columns the shared
+ * table already has, so the challan's layout is the same for both kinds.
+ */
+const printedColumns = (
+  order: Pick<Lean<ISalesOrder>, "kind">,
+  i: Pick<
+    ISalesOrder["items"][number],
+    | "description"
+    | "brandOrigin"
+    | "specification"
+    | "model"
+    | "manufacturer"
+    | "origin"
+    | "serialNo"
+    | "qty"
+  >,
+  opts: { serial?: boolean },
+) =>
+  orderKindOf(order) === "equipment"
+    ? equipmentPrintedColumns(i, { serial: opts.serial })
+    : {
+        description: i.description,
+        brandOrigin: i.brandOrigin ?? null,
+        specification: i.specification ?? null,
+      };
+
+/** An equipment order's lines as the letter and the one-line invoice read them. */
+const toEquipment = (
+  items: Omit<ISalesOrder["items"][number], "reservedQty">[],
+): EquipmentLine[] =>
+  items.map((i) => ({
+    description: i.description,
+    model: i.model ?? null,
+    manufacturer: i.manufacturer ?? null,
+    origin: i.origin ?? null,
+    specification: i.specification ?? null,
+    serialNo: i.serialNo ?? null,
+    unitPriceMinor: i.unitPriceMinor,
+    qty: i.qty,
+    lineTotalMinor: i.lineTotalMinor,
+    vatRateBp: effectiveVatRateBp(i),
+    vatMinor: i.vatMinor ?? 0,
+  }));
+
+/** Has any line its own VAT, taking the order off the configured rate? */
+const hasPerLineVat = (
+  items: Pick<ISalesOrder["items"][number], "vatRateBp" | "vatAmountMinor">[],
+) => items.some((i) => i.vatRateBp != null || i.vatAmountMinor != null);
+
 const toLines = (
   order: Lean<ISalesOrder>,
   quantityMode: "single" | "ordered" = "ordered",
+  opts: { serial?: boolean } = {},
 ): DocumentLine[] =>
   order.items.map((i) => {
     const qty = quantityMode === "single" ? 1 : i.qty;
     const lineTotalMinor = i.unitPriceMinor * qty;
     const rateBp = effectiveVatRateBp(i);
     return {
-      description: i.description,
-      brandOrigin: i.brandOrigin ?? null,
-      specification: i.specification ?? null,
+      ...printedColumns(order, i, opts),
       unit: i.unit ?? null,
       unitPriceMinor: i.unitPriceMinor,
       qty,
@@ -203,14 +265,30 @@ export async function generateProposal(
 
   const lead = await getSalesLeadById(String(order.leadId));
   const version = order.proposals.length + 1;
-  const quantityMode = input.quantityMode ?? "ordered";
+  const equipment = orderKindOf(order) === "equipment";
+  // An equipment letter names the machines and states one price; there is
+  // no per-piece quotation to choose.
+  const quantityMode = equipment
+    ? "ordered"
+    : (input.quantityMode ?? "ordered");
   const date = new Date();
   const terms = { ...order.terms, ...(input.terms ?? {}) };
+  const machines = equipment ? toEquipment(order.items) : [];
   const subject =
-    input.subject?.trim() || "Proposal for Medical and Surgical Consumables";
-  const intro =
-    input.intro?.trim() ||
-    "Thank you for giving us the opportunity to quote our Medical Disposable product within your esteemed organization; we are very much pleased to offer our Surgical Items as follows;";
+    input.subject?.trim() ||
+    (equipment
+      ? `Quotation for the ${equipmentSummary(machines)}`
+      : "Proposal for Medical and Surgical Consumables");
+  // On the letter the standard opening lives in the template, so a blank
+  // here means "print the template's"; the consumables proposal keeps its
+  // wording here as it always has.
+  const intro = equipment
+    ? input.intro?.trim() || null
+    : input.intro?.trim() ||
+      "Thank you for giving us the opportunity to quote our Medical Disposable product within your esteemed organization; we are very much pleased to offer our Surgical Items as follows;";
+  const equipmentTerms = equipment
+    ? completeEquipmentTerms(input.equipmentTerms)
+    : null;
   const addressee = {
     title: input.addresseeTitle?.trim() || lead?.addresseeTitle || null,
     dept: input.addresseeDept?.trim() || lead?.addresseeDept || null,
@@ -227,22 +305,48 @@ export async function generateProposal(
     email: order.leadSnapshot.email ?? null,
   };
 
-  const tpl = await getCurrentTemplate("proposal");
+  const tpl = await getCurrentTemplate(
+    equipment ? "equipmentProposal" : "proposal",
+  );
+  const who = await signatory();
   const pdf = await renderPdf(
-    React.createElement(ProposalDocument, {
-      template: tpl.template,
-      assets: tpl.assets,
-      data: {
-        proposalNo: order.number,
-        date,
-        to: proposalTo,
-        subject,
-        intro,
-        lines: toLines(order, quantityMode),
-        terms,
-        signatory: await signatory(),
-      },
-    }),
+    equipment && equipmentTerms
+      ? React.createElement(EquipmentProposalDocument, {
+          template: tpl.template,
+          assets: tpl.assets,
+          data: {
+            proposalNo: order.number,
+            date,
+            to: proposalTo,
+            subject,
+            intro,
+            equipment: machines,
+            subtotalMinor: order.subtotalMinor,
+            discountMinor: order.discountMinor,
+            vatRateBp: order.vatRateBp,
+            vatMinor: order.vatMinor,
+            deliveryMinor: order.deliveryMinor ?? 0,
+            totalMinor: order.totalMinor,
+            aitRateBp: order.aitRateBp ?? 0,
+            perLineVat: hasPerLineVat(order.items),
+            terms: { ...equipmentTerms, validityDays: terms.validityDays },
+            signatory: who,
+          },
+        })
+      : React.createElement(ProposalDocument, {
+          template: tpl.template,
+          assets: tpl.assets,
+          data: {
+            proposalNo: order.number,
+            date,
+            to: proposalTo,
+            subject,
+            intro: intro ?? "",
+            lines: toLines(order, quantityMode),
+            terms,
+            signatory: who,
+          },
+        }),
   );
 
   const filename = `Proposal ${order.number} v${version}.pdf`;
@@ -256,6 +360,7 @@ export async function generateProposal(
       items: order.items.map(stripReservation),
       subtotalMinor: order.subtotalMinor,
       discountMinor: order.discountMinor,
+      deliveryMinor: order.deliveryMinor ?? 0,
       vatRateBp: order.vatRateBp,
       vatMinor: order.vatMinor,
       aitRateBp: order.aitRateBp ?? 0,
@@ -264,6 +369,7 @@ export async function generateProposal(
       addressee,
       subject,
       intro,
+      equipmentTerms,
       quantityMode,
     },
     documentId,
@@ -377,43 +483,56 @@ export async function generateInvoice(
       seq: await nextInvoiceSeq(),
     });
 
-  const tpl = await getCurrentTemplate("invoice");
+  const equipment = orderKindOf(order) === "equipment";
+  const tpl = await getCurrentTemplate(
+    equipment ? "equipmentInvoice" : "invoice",
+  );
+  const invoiceData = {
+    invoiceNumber,
+    invoiceDate,
+    paymentDue: addDays(invoiceDate, paymentDays),
+    // The client's own code doubles as their customer reference; it is
+    // already the segment inside the invoice number.
+    customerId: order.leadSnapshot.code
+      ? `CUS-${order.leadSnapshot.code}`
+      : null,
+    referenceNo: order.referenceNo ?? null,
+    deliveryDate,
+    billTo: {
+      organisation: order.leadSnapshot.organisation,
+      address: order.leadSnapshot.address,
+      contactPerson: order.leadSnapshot.contactName ?? null,
+      phone: order.leadSnapshot.phone ?? null,
+      email: order.leadSnapshot.email ?? null,
+    },
+    subtotalMinor: order.subtotalMinor,
+    discountMinor: order.discountMinor,
+    vatRateBp: order.vatRateBp,
+    vatMinor: order.vatMinor,
+    deliveryMinor: order.deliveryMinor ?? 0,
+    totalMinor: order.totalMinor,
+    aitRateBp: order.aitRateBp ?? 0,
+    // Only whole-order payment is tracked, so this is all or nothing.
+    paidMinor: order.payment.status === "paid" ? order.totalMinor : 0,
+    paymentDays,
+    signatory: await signatory(),
+  };
   const pdf = await renderPdf(
-    React.createElement(InvoiceDocument, {
-      template: tpl.template,
-      assets: tpl.assets,
-      data: {
-        invoiceNumber,
-        invoiceDate,
-        paymentDue: addDays(invoiceDate, paymentDays),
-        // The client's own code doubles as their customer reference; it is
-        // already the segment inside the invoice number.
-        customerId: order.leadSnapshot.code
-          ? `CUS-${order.leadSnapshot.code}`
-          : null,
-        referenceNo: order.referenceNo ?? null,
-        deliveryDate,
-        billTo: {
-          organisation: order.leadSnapshot.organisation,
-          address: order.leadSnapshot.address,
-          contactPerson: order.leadSnapshot.contactName ?? null,
-          phone: order.leadSnapshot.phone ?? null,
-          email: order.leadSnapshot.email ?? null,
-        },
-        lines: toLines(order),
-        subtotalMinor: order.subtotalMinor,
-        discountMinor: order.discountMinor,
-        vatRateBp: order.vatRateBp,
-        vatMinor: order.vatMinor,
-        deliveryMinor: order.deliveryMinor ?? 0,
-        totalMinor: order.totalMinor,
-        aitRateBp: order.aitRateBp ?? 0,
-        // Only whole-order payment is tracked, so this is all or nothing.
-        paidMinor: order.payment.status === "paid" ? order.totalMinor : 0,
-        paymentDays,
-        signatory: await signatory(),
-      },
-    }),
+    equipment
+      ? React.createElement(EquipmentInvoiceDocument, {
+          template: tpl.template,
+          assets: tpl.assets,
+          data: {
+            ...invoiceData,
+            equipment: toEquipment(order.items),
+            perLineVat: hasPerLineVat(order.items),
+          },
+        })
+      : React.createElement(InvoiceDocument, {
+          template: tpl.template,
+          assets: tpl.assets,
+          data: { ...invoiceData, lines: toLines(order) },
+        }),
   );
 
   const filename = `Invoice ${invoiceNumber.replace(/\//g, "-")}.pdf`;
@@ -526,7 +645,9 @@ export async function generateChallan(
           phone: order.leadSnapshot.phone ?? null,
           email: order.leadSnapshot.email ?? null,
         },
-        lines: toLines(order),
+        // The one document that prints an equipment line's serial number:
+        // it is what the hospital's gate checks the machine against.
+        lines: toLines(order, "ordered", { serial: true }),
         dispatchNote,
       },
     }),
@@ -608,14 +729,35 @@ export async function renderVersion(
   // snapshot keeps the order's real quantities, so the mode has to be applied
   // again here or the reproduction is not the document that was sent.
   const perPiece = snap.quantityMode === "single";
+  // Which layout drew it: the pinned template's kind is the record. A row
+  // without one predates both templates and equipment orders, and is
+  // consumables; the order's own kind is only the fallback. The challan is
+  // one template for both kinds, so there the order's kind is the record —
+  // it cannot change once the order is invoiced, and a challan needs that.
+  const equipment =
+    kind === "challan"
+      ? orderKindOf(order) === "equipment"
+      : entry.templateRef?.kind
+        ? entry.templateRef.kind.startsWith("equipment")
+        : orderKindOf(order) === "equipment";
+  const layoutKind: TemplateKind =
+    kind === "proposal"
+      ? equipment
+        ? "equipmentProposal"
+        : "proposal"
+      : kind === "invoice"
+        ? equipment
+          ? "equipmentInvoice"
+          : "invoice"
+        : "challan";
   const lines: DocumentLine[] = snap.items.map((i) => {
     const qty = perPiece ? 1 : i.qty;
     const lineTotalMinor = perPiece ? i.unitPriceMinor : i.lineTotalMinor;
     const rateBp = effectiveVatRateBp(i);
     return {
-      description: i.description,
-      brandOrigin: i.brandOrigin ?? null,
-      specification: i.specification ?? null,
+      ...printedColumns({ kind: equipment ? "equipment" : "consumables" }, i, {
+        serial: kind === "challan",
+      }),
       unit: i.unit ?? null,
       unitPriceMinor: i.unitPriceMinor,
       qty,
@@ -629,32 +771,62 @@ export async function renderVersion(
   const who = await signatory();
   // The template it was drawn with, never today's: the layout is part of what
   // the client received.
-  const tpl = await getTemplateForRender(kind, entry.templateRef?.version);
+  const tpl = await getTemplateForRender(
+    layoutKind,
+    entry.templateRef?.version,
+  );
 
   if (kind === "proposal") {
+    const to = {
+      organisation: order.leadSnapshot.organisation,
+      address: order.leadSnapshot.address,
+      department: snap.addressee?.dept ?? null,
+      attention:
+        snap.addressee?.title ?? order.leadSnapshot.contactName ?? null,
+      phone: order.leadSnapshot.phone ?? null,
+      email: order.leadSnapshot.email ?? null,
+    };
     const pdf = await renderPdf(
-      React.createElement(ProposalDocument, {
-        template: tpl.template,
-        assets: tpl.assets,
-        data: {
-          proposalNo: order.number,
-          date: new Date(entry.generatedAt),
-          to: {
-            organisation: order.leadSnapshot.organisation,
-            address: order.leadSnapshot.address,
-            department: snap.addressee?.dept ?? null,
-            attention:
-              snap.addressee?.title ?? order.leadSnapshot.contactName ?? null,
-            phone: order.leadSnapshot.phone ?? null,
-            email: order.leadSnapshot.email ?? null,
-          },
-          subject: snap.subject ?? "Proposal",
-          intro: snap.intro ?? "",
-          lines,
-          terms: snap.terms,
-          signatory: who,
-        },
-      }),
+      equipment
+        ? React.createElement(EquipmentProposalDocument, {
+            template: tpl.template,
+            assets: tpl.assets,
+            data: {
+              proposalNo: order.number,
+              date: new Date(entry.generatedAt),
+              to,
+              subject: snap.subject ?? "Quotation",
+              intro: snap.intro ?? null,
+              equipment: toEquipment(snap.items),
+              subtotalMinor: snap.subtotalMinor,
+              discountMinor: snap.discountMinor,
+              vatRateBp: snap.vatRateBp,
+              vatMinor: snap.vatMinor,
+              deliveryMinor: snap.deliveryMinor ?? 0,
+              totalMinor: snap.totalMinor,
+              aitRateBp: snap.aitRateBp ?? 0,
+              perLineVat: hasPerLineVat(snap.items),
+              terms: {
+                ...completeEquipmentTerms(snap.equipmentTerms),
+                validityDays: snap.terms.validityDays,
+              },
+              signatory: who,
+            },
+          })
+        : React.createElement(ProposalDocument, {
+            template: tpl.template,
+            assets: tpl.assets,
+            data: {
+              proposalNo: order.number,
+              date: new Date(entry.generatedAt),
+              to,
+              subject: snap.subject ?? "Proposal",
+              intro: snap.intro ?? "",
+              lines,
+              terms: snap.terms,
+              signatory: who,
+            },
+          }),
     );
     return done({
       pdf,
@@ -690,42 +862,52 @@ export async function renderVersion(
     });
   }
 
+  const invoiceData = {
+    invoiceNumber: snap.invoiceNumber ?? order.number,
+    invoiceDate: new Date(snap.invoiceDate ?? entry.generatedAt),
+    paymentDue: addDays(
+      new Date(snap.invoiceDate ?? entry.generatedAt),
+      snap.terms.paymentDays,
+    ),
+    customerId: snap.customerId ?? null,
+    referenceNo: snap.referenceNo ?? null,
+    deliveryDate: snap.deliveryDate ? new Date(snap.deliveryDate) : null,
+    billTo: {
+      organisation: order.leadSnapshot.organisation,
+      address: order.leadSnapshot.address,
+      contactPerson: order.leadSnapshot.contactName ?? null,
+      phone: order.leadSnapshot.phone ?? null,
+      email: order.leadSnapshot.email ?? null,
+    },
+    subtotalMinor: snap.subtotalMinor,
+    discountMinor: snap.discountMinor,
+    vatRateBp: snap.vatRateBp,
+    vatMinor: snap.vatMinor,
+    aitRateBp: snap.aitRateBp ?? 0,
+    deliveryMinor: snap.deliveryMinor ?? 0,
+    totalMinor: snap.totalMinor,
+    // Reprints show what was paid AT THE TIME, not what is paid now: the
+    // document a client holds must stay reproducible.
+    paidMinor: snap.paidMinor ?? 0,
+    paymentDays: snap.terms.paymentDays,
+    signatory: who,
+  };
   const pdf = await renderPdf(
-    React.createElement(InvoiceDocument, {
-      template: tpl.template,
-      assets: tpl.assets,
-      data: {
-        invoiceNumber: snap.invoiceNumber ?? order.number,
-        invoiceDate: new Date(snap.invoiceDate ?? entry.generatedAt),
-        paymentDue: addDays(
-          new Date(snap.invoiceDate ?? entry.generatedAt),
-          snap.terms.paymentDays,
-        ),
-        customerId: snap.customerId ?? null,
-        referenceNo: snap.referenceNo ?? null,
-        deliveryDate: snap.deliveryDate ? new Date(snap.deliveryDate) : null,
-        billTo: {
-          organisation: order.leadSnapshot.organisation,
-          address: order.leadSnapshot.address,
-          contactPerson: order.leadSnapshot.contactName ?? null,
-          phone: order.leadSnapshot.phone ?? null,
-          email: order.leadSnapshot.email ?? null,
-        },
-        lines,
-        subtotalMinor: snap.subtotalMinor,
-        discountMinor: snap.discountMinor,
-        vatRateBp: snap.vatRateBp,
-        vatMinor: snap.vatMinor,
-        aitRateBp: snap.aitRateBp ?? 0,
-        deliveryMinor: snap.deliveryMinor ?? 0,
-        totalMinor: snap.totalMinor,
-        // Reprints show what was paid AT THE TIME, not what is paid now: the
-        // document a client holds must stay reproducible.
-        paidMinor: snap.paidMinor ?? 0,
-        paymentDays: snap.terms.paymentDays,
-        signatory: who,
-      },
-    }),
+    equipment
+      ? React.createElement(EquipmentInvoiceDocument, {
+          template: tpl.template,
+          assets: tpl.assets,
+          data: {
+            ...invoiceData,
+            equipment: toEquipment(snap.items),
+            perLineVat: hasPerLineVat(snap.items),
+          },
+        })
+      : React.createElement(InvoiceDocument, {
+          template: tpl.template,
+          assets: tpl.assets,
+          data: { ...invoiceData, lines },
+        }),
   );
   return done({
     pdf,

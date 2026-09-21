@@ -1,8 +1,10 @@
 import mongoose, { Schema, type Model, type Types } from "mongoose";
 import type {
+  SalesOrderKind,
   SalesOrderStatus,
   SalesPaymentMethod,
 } from "@/lib/schemas/sales-order";
+import type { EquipmentTerms } from "@/lib/sales/equipment";
 
 /**
  * An offline sale: negotiated with a hospital, quoted on a proposal, invoiced
@@ -24,6 +26,14 @@ export interface ISalesOrderItem {
   description: string;
   brandOrigin?: string | null;
   specification?: string | null;
+  /**
+   * Equipment lines: the model, the maker and its country, and the serial
+   * number once the machine is on the floor. Absent on a consumables line.
+   */
+  model?: string | null;
+  manufacturer?: string | null;
+  origin?: string | null;
+  serialNo?: string | null;
   unit?: string | null;
   unitPriceMinor: number;
   /** What the line cost us per unit; null until someone says. */
@@ -141,6 +151,8 @@ export interface IDocumentVersion {
     };
     subject?: string | null;
     intro?: string | null;
+    /** The numbered terms an equipment quotation printed. */
+    equipmentTerms?: EquipmentTerms | null;
     /**
      * How the quantities were printed on THIS document.
      *
@@ -183,6 +195,12 @@ export interface ISalesOrderActivity {
 
 export interface ISalesOrder {
   number: string;
+  /**
+   * Consumables or equipment — which set of documents the order produces.
+   * Optional because every order raised before it existed is consumables;
+   * read it as `orderKindOf(order)`, never bare.
+   */
+  kind?: SalesOrderKind | null;
   leadId: Types.ObjectId | string;
   /** The client as they were when the order was raised. */
   leadSnapshot: {
@@ -260,6 +278,10 @@ const itemSchema = new Schema<ISalesOrderItem>(
     description: { type: String, required: true },
     brandOrigin: { type: String, default: null },
     specification: { type: String, default: null },
+    model: { type: String, default: null },
+    manufacturer: { type: String, default: null },
+    origin: { type: String, default: null },
+    serialNo: { type: String, default: null },
     unit: { type: String, default: null },
     unitPriceMinor: { type: Number, required: true, min: 0 },
     // Null, not 0: "nobody has told us" and "it was free" are different, and
@@ -358,6 +380,12 @@ const activitySchema = new Schema<ISalesOrderActivity>(
 const salesOrderSchema = new Schema<ISalesOrder>(
   {
     number: { type: String, required: true, unique: true },
+    kind: {
+      type: String,
+      enum: ["consumables", "equipment"],
+      default: "consumables",
+      index: true,
+    },
     leadId: {
       type: Schema.Types.ObjectId,
       ref: "SalesLead",

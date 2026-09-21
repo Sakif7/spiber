@@ -20,6 +20,10 @@ export const templateKindSchema = z.enum([
   "invoice",
   "challan",
   "payslip",
+  // The equipment order's letter-style quotation and its one-line invoice.
+  // The challan is shared: it lists what left the building either way.
+  "equipmentProposal",
+  "equipmentInvoice",
 ]);
 export type TemplateKind = z.infer<typeof templateKindSchema>;
 export const TEMPLATE_KINDS = templateKindSchema.options;
@@ -257,6 +261,15 @@ export const blockSchema = z.discriminatedUnion("type", [
       heading: text.optional(),
       headingGap: pt(0, 20).default(6),
       items: z.array(text).max(20),
+      /** "1." … "7." in place of the dot — the equipment letter's terms. */
+      numbered: z.boolean().optional(),
+      /**
+       * Drop an item whose placeholders all resolve to nothing, so
+       * "Manufacturer: {{equipment.manufacturers}}" is not printed as a bare
+       * label. Off by default: an existing template's "Delivery: within
+       * {{terms.deliveryDays}} days" must keep printing at zero days.
+       */
+      hideEmptyItems: z.boolean().optional(),
     }),
   }),
   base.extend({

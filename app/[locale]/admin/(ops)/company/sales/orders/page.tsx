@@ -5,8 +5,10 @@ import { parseListQuery, type ListConfig } from "@/lib/admin/list-params";
 import { listSalesOrders } from "@/lib/repositories/sales.repo";
 import {
   salesOrderStatusEnum,
+  salesOrderKindEnum,
   SALES_ORDER_STATUS_LABEL,
 } from "@/lib/schemas/sales-order";
+import { orderKindOf, SALES_ORDER_KIND_LABEL } from "@/lib/sales/equipment";
 import { formatBDT } from "@/lib/money";
 import { AdminPageHeader } from "@/components/admin/ui/page-header";
 import { ListToolbar } from "@/components/admin/ui/list-toolbar";
@@ -20,7 +22,7 @@ export const dynamic = "force-dynamic";
 const LIST: ListConfig = {
   sortable: ["date", "number", "organisation", "status", "total"],
   defaultSort: "date",
-  filters: ["status", "payment", "from", "to"],
+  filters: ["status", "payment", "kind", "from", "to"],
 };
 
 type Row = {
@@ -28,6 +30,7 @@ type Row = {
   number: string;
   organisation: string;
   invoiceNumber: string | null;
+  kind: string;
   status: string;
   payment: string;
   total: string;
@@ -49,6 +52,7 @@ export default async function SalesOrdersPage({
     search: query.q,
     status: query.filters.status,
     payment: query.filters.payment,
+    kind: query.filters.kind,
     from: query.filters.from,
     to: query.filters.to,
     sort: query.sort,
@@ -62,6 +66,7 @@ export default async function SalesOrdersPage({
     number: o.number,
     organisation: o.leadSnapshot.organisation,
     invoiceNumber: o.invoiceNumber ?? null,
+    kind: SALES_ORDER_KIND_LABEL[orderKindOf(o)],
     status: o.status,
     payment: o.payment.status,
     total: formatBDT(o.totalMinor, "en"),
@@ -88,6 +93,12 @@ export default async function SalesOrdersPage({
       sortKey: "organisation",
       mobile: "meta",
       cell: (r) => <span>{r.organisation}</span>,
+    },
+    {
+      key: "kind",
+      header: "Type",
+      mobile: "meta",
+      cell: (r) => <span>{r.kind}</span>,
     },
     {
       key: "invoice",
@@ -172,6 +183,14 @@ export default async function SalesOrdersPage({
               { value: "unpaid", label: "Unpaid" },
               { value: "paid", label: "Paid" },
             ],
+          },
+          {
+            param: "kind",
+            label: "Type",
+            options: salesOrderKindEnum.options.map((k) => ({
+              value: k,
+              label: SALES_ORDER_KIND_LABEL[k],
+            })),
           },
         ]}
         sort={{

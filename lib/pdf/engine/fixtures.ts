@@ -2,6 +2,8 @@ import React from "react";
 import type { TemplateDoc, TemplateKind } from "@/lib/schemas/pdf-template";
 import {
   buildChallanContext,
+  buildEquipmentInvoiceContext,
+  buildEquipmentProposalContext,
   buildInvoiceContext,
   buildPayslipContext,
   buildProposalContext,
@@ -10,11 +12,15 @@ import { TemplateDocument, type BlockBox } from "./render-template";
 import type {
   ChallanData,
   DocumentLine,
+  EquipmentInvoiceData,
+  EquipmentLine,
+  EquipmentProposalData,
   InvoiceData,
   PayslipData,
   ProposalData,
   StampAssets,
 } from "../types";
+import { EQUIPMENT_TERM_DEFAULTS } from "@/lib/sales/equipment";
 
 /**
  * Sample data the template editor previews with.
@@ -158,8 +164,80 @@ export const FIXTURE_PAYSLIP: PayslipData = {
   signatory,
 };
 
+/**
+ * One machine, priced with VAT, a discount and AIT so every conditional line
+ * on the letter and the invoice can be seen.
+ */
+const equipment: EquipmentLine[] = [
+  {
+    description: "Colour Doppler Ultrasound System",
+    model: "Vivid E95",
+    manufacturer: "GE HealthCare",
+    origin: "USA",
+    specification:
+      "4D cardiac imaging · 22-inch LCD monitor · 3 active probe ports · UPS included",
+    serialNo: "VE95-2026-0417",
+    unitPriceMinor: 1_25_00_000_00,
+    qty: 1,
+    lineTotalMinor: 1_25_00_000_00,
+    vatRateBp: 1500,
+    vatMinor: 0,
+  },
+];
+const equipmentSubtotal = equipment.reduce((n, l) => n + l.lineTotalMinor, 0);
+const equipmentDiscount = 5_00_000_00;
+const equipmentVat = Math.round(
+  ((equipmentSubtotal - equipmentDiscount) * 1500) / 10000,
+);
+
+export const FIXTURE_EQUIPMENT_PROPOSAL: EquipmentProposalData = {
+  proposalNo: "SPM-SO-SAMPLE-002",
+  date: new Date("2026-09-21T06:00:00Z"),
+  to: party,
+  subject:
+    "Quotation for the Colour Doppler Ultrasound System (Model Vivid E95)",
+  intro: null,
+  equipment,
+  subtotalMinor: equipmentSubtotal,
+  discountMinor: equipmentDiscount,
+  vatRateBp: 1500,
+  vatMinor: equipmentVat,
+  deliveryMinor: 0,
+  totalMinor: equipmentSubtotal - equipmentDiscount + equipmentVat,
+  aitRateBp: 500,
+  perLineVat: false,
+  terms: { ...EQUIPMENT_TERM_DEFAULTS, validityDays: 15 },
+  signatory,
+};
+
+export const FIXTURE_EQUIPMENT_INVOICE: EquipmentInvoiceData = {
+  invoiceNumber: "SPIBER/PDC/21-9/26-102",
+  invoiceDate: new Date("2026-09-21T06:00:00Z"),
+  paymentDue: new Date("2026-09-28T06:00:00Z"),
+  customerId: "CUS-PDC",
+  referenceNo: "WO-2026-0088",
+  deliveryDate: new Date("2026-09-24T06:00:00Z"),
+  billTo: party,
+  equipment,
+  subtotalMinor: equipmentSubtotal,
+  discountMinor: equipmentDiscount,
+  vatRateBp: 1500,
+  vatMinor: equipmentVat,
+  deliveryMinor: 0,
+  totalMinor: equipmentSubtotal - equipmentDiscount + equipmentVat,
+  paidMinor: 0,
+  aitRateBp: 500,
+  perLineVat: false,
+  paymentDays: 7,
+  signatory,
+};
+
 function fixtureContext(kind: TemplateKind) {
   switch (kind) {
+    case "equipmentProposal":
+      return buildEquipmentProposalContext(FIXTURE_EQUIPMENT_PROPOSAL);
+    case "equipmentInvoice":
+      return buildEquipmentInvoiceContext(FIXTURE_EQUIPMENT_INVOICE);
     case "proposal":
       return buildProposalContext(FIXTURE_PROPOSAL);
     case "invoice":

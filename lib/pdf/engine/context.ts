@@ -5,11 +5,20 @@ import {
   needsVatColumn,
   type ChallanData,
   type DocumentLine,
+  type EquipmentInvoiceData,
+  type EquipmentLine,
+  type EquipmentProposalData,
   type InvoiceData,
   type PayslipData,
   type ProposalData,
   type Signatory,
 } from "../types";
+import {
+  equipmentManufacturers,
+  equipmentPrintedColumns,
+  equipmentSpecification,
+  equipmentSummary,
+} from "@/lib/sales/equipment";
 
 /**
  * The render context: everything a template's placeholders can reach.
@@ -104,6 +113,159 @@ export function buildInvoiceContext(data: InvoiceData): RenderContext {
     vat: {
       ratePercent: data.vatRateBp / 100,
       rateSuffix: vatSuffix(data.lines, data.vatRateBp),
+    },
+    ait: { ratePercent: (data.aitRateBp ?? 0) / 100, amountMinor: aitMinor },
+    terms: { paymentDays: data.paymentDays },
+    bank: { ...BANK },
+    company: companyContext(),
+    signatory: data.signatory,
+  };
+}
+
+/**
+ * The machines, as the letter's placeholders reach them.
+ *
+ * `lines` is filled in too — mapped through the same columns the challan
+ * prints — so a line table dropped into an equipment template by a
+ * super-admin shows the equipment rather than nothing.
+ */
+function equipmentContext(equipment: EquipmentLine[]): {
+  equipment: Record<string, unknown>;
+  lines: DocumentLine[];
+} {
+  const serials = equipment
+    .map((l) => (l.serialNo ?? "").trim())
+    .filter(Boolean);
+  return {
+    equipment: {
+      summary: equipmentSummary(equipment),
+      names: equipment.map((l) => l.description.trim()).join(", "),
+      models: equipment
+        .map((l) => (l.model ?? "").trim())
+        .filter(Boolean)
+        .join(", "),
+      manufacturers: equipmentManufacturers(equipment),
+      specification: equipmentSpecification(equipment),
+      serials: serials.join(", "),
+      count: equipment.reduce((n, l) => n + l.qty, 0),
+    },
+    lines: equipment.map((l) => ({
+      ...equipmentPrintedColumns(l, { serial: true }),
+      unit: "unit",
+      unitPriceMinor: l.unitPriceMinor,
+      qty: l.qty,
+      lineTotalMinor: l.lineTotalMinor,
+      vatRateBp: l.vatRateBp ?? null,
+      vatMinor: l.vatMinor ?? null,
+    })),
+  };
+}
+
+/**
+ * The rate "VAT (15%)" names on an equipment document.
+ *
+ * In per-line mode the order's configured rate says nothing about what was
+ * charged, so the rate is the lines' own — and only when they all agree.
+ */
+function equipmentVatRate(
+  equipment: EquipmentLine[],
+  orderRateBp: number,
+  perLineVat: boolean | undefined,
+): number | null {
+  if (!perLineVat) return orderRateBp;
+  const rates = [...new Set(equipment.map((l) => l.vatRateBp ?? 0))];
+  return rates.length === 1 ? rates[0] : null;
+}
+
+const rateSuffix = (rateBp: number | null) =>
+  rateBp == null ? "" : ` (${rateBp / 100}%)`;
+
+export function buildEquipmentProposalContext(
+  data: EquipmentProposalData,
+): RenderContext {
+  const goodsMinor = Math.max(0, data.subtotalMinor - data.discountMinor);
+  const vatRateBp = equipmentVatRate(
+    data.equipment,
+    data.vatRateBp,
+    data.perLineVat,
+  );
+  const aitMinor = aitOnGoods(
+    data.subtotalMinor,
+    data.discountMinor,
+    data.aitRateBp ?? 0,
+  );
+  const { equipment, lines } = equipmentContext(data.equipment);
+  return {
+    proposalNo: data.proposalNo,
+    date: data.date,
+    subject: data.subject,
+    intro: data.intro?.trim() || null,
+    equipment,
+    lines,
+    price: {
+      subtotalMinor: data.subtotalMinor,
+      discountMinor: data.discountMinor,
+      goodsMinor,
+      goodsInWords: amountInWords(goodsMinor),
+      vatMinor: data.vatMinor,
+      vatPercent: vatRateBp == null ? null : vatRateBp / 100,
+      vatSuffix: rateSuffix(vatRateBp),
+      deliveryMinor: data.deliveryMinor,
+      totalMinor: data.totalMinor,
+      totalInWords: amountInWords(data.totalMinor),
+      hasExtras: data.vatMinor > 0 || data.deliveryMinor > 0,
+      aitPercent: (data.aitRateBp ?? 0) / 100,
+      aitMinor,
+    },
+    terms: { ...data.terms },
+    to: { ...data.to },
+    company: companyContext(),
+    signatory: data.signatory,
+  };
+}
+
+export function buildEquipmentInvoiceContext(
+  data: EquipmentInvoiceData,
+): RenderContext {
+  const goodsMinor = Math.max(0, data.subtotalMinor - data.discountMinor);
+  const balanceMinor = Math.max(0, data.totalMinor - data.paidMinor);
+  const vatRateBp = equipmentVatRate(
+    data.equipment,
+    data.vatRateBp,
+    data.perLineVat,
+  );
+  const aitMinor = aitOnGoods(
+    data.subtotalMinor,
+    data.discountMinor,
+    data.aitRateBp ?? 0,
+  );
+  const { equipment, lines } = equipmentContext(data.equipment);
+  return {
+    invoiceNumber: data.invoiceNumber,
+    invoiceDate: data.invoiceDate,
+    paymentDue: data.paymentDue,
+    customerId: data.customerId ?? null,
+    referenceNo: data.referenceNo ?? null,
+    deliveryDate: data.deliveryDate ?? null,
+    billTo: { ...data.billTo },
+    equipment,
+    lines,
+    totals: {
+      subtotalMinor: data.subtotalMinor,
+      discountMinor: data.discountMinor,
+      goodsMinor,
+      goodsInWords: amountInWords(goodsMinor),
+      vatMinor: data.vatMinor,
+      deliveryMinor: data.deliveryMinor,
+      grandTotalMinor: data.totalMinor,
+      amountInWords: amountInWords(data.totalMinor),
+      hasExtras: data.vatMinor > 0 || data.deliveryMinor > 0,
+      paidMinor: data.paidMinor,
+      balanceMinor,
+    },
+    vat: {
+      ratePercent: vatRateBp == null ? null : vatRateBp / 100,
+      rateSuffix: rateSuffix(vatRateBp),
     },
     ait: { ratePercent: (data.aitRateBp ?? 0) / 100, amountMinor: aitMinor },
     terms: { paymentDays: data.paymentDays },
