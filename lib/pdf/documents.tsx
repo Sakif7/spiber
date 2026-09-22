@@ -21,6 +21,7 @@ import type {
 export type {
   ChallanData,
   DocumentLine,
+  EquipmentAccessory,
   EquipmentInvoiceData,
   EquipmentLine,
   EquipmentProposalData,

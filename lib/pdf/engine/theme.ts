@@ -109,6 +109,46 @@ function build(theme: Theme) {
       marginBottom: 3,
     },
 
+    /* ── the price offer's table ──
+       Three rules and nothing else: the company's own offer paper draws no
+       boxes and no vertical lines, so the rules live on the head and on the
+       total row, and the rows in between carry none. As with the ruled
+       table, the frame is on the rows rather than on the table box — a box
+       is stretched to the page edge when a long list of accessories breaks
+       across pages. */
+    offerCaption: { flexDirection: "row", marginBottom: 2 },
+    offerTable: {},
+    offerHead: {
+      flexDirection: "row",
+      borderTopWidth: 1,
+      borderBottomWidth: 1,
+      borderColor: rule,
+      paddingVertical: 2.5,
+    },
+    offerRow: { flexDirection: "row", paddingVertical: 1 },
+    /** A deduction between the items and the total: a little air above it. */
+    offerDeduct: { marginTop: 3 },
+    /** The closing line: separated from the items by a full rule. */
+    offerTotal: {
+      borderTopWidth: 1,
+      borderColor: rule,
+      marginTop: 2,
+      paddingTop: 3,
+    },
+    offerName: { flex: 1, paddingRight: 8 },
+    /** The accessory's number, indented from the margin as the sample sets it. */
+    offerNo: { width: 26, paddingLeft: 8 },
+    /** A second line under an accessory's name — a size, a plate format. */
+    offerSpec: { marginLeft: 26 },
+    offerQty: { width: 84, textAlign: "center" },
+    offerPrice: { width: 104, textAlign: "right" },
+
+    /* ── numbered "Label : value" terms ── */
+    termRow: { flexDirection: "row", marginBottom: 1.5 },
+    termNo: { width: 22, textAlign: "right", paddingRight: 6 },
+    termSep: { width: 14, textAlign: "center" },
+    termText: { flex: 1, textAlign: "justify" },
+
     /* ── bulleted terms ── */
     bulletRow: { flexDirection: "row", marginBottom: 1.5 },
     bulletDot: { width: 14, textAlign: "center" },

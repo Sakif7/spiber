@@ -17,6 +17,7 @@ import { blockers } from "@/lib/sales/journey";
 import { documentMatchesOrder } from "@/lib/sales/document-state";
 import {
   equipmentSummary,
+  machineLinesOf,
   orderKindOf,
   SALES_ORDER_KIND_LABEL,
 } from "@/lib/sales/equipment";
@@ -62,6 +63,7 @@ export default async function SalesOrderPage({
       qty: i.qty,
     })),
     canEdit,
+    kind,
   );
   /**
    * The order as it stands, for comparison against what each document says.
@@ -182,7 +184,9 @@ export default async function SalesOrderPage({
               hasMultiples={order.items.some((i) => i.qty > 1)}
               blockers={orderBlockers}
               kind={kind}
-              equipmentSubject={`Quotation for the ${equipmentSummary(order.items)}`}
+              equipmentSubject={`Price Offer for ${equipmentSummary(
+                machineLinesOf(order.items),
+              )}`}
               equipmentTerms={lastEquipmentTerms}
             />
 
@@ -291,6 +295,7 @@ export default async function SalesOrderPage({
             variantId: i.variantId ?? null,
             sku: i.sku ?? null,
             description: i.description,
+            role: i.role ?? undefined,
             brandOrigin: i.brandOrigin ?? "",
             specification: i.specification ?? "",
             model: i.model ?? "",

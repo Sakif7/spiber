@@ -12,6 +12,7 @@ import { TemplateDocument, type BlockBox } from "./render-template";
 import type {
   ChallanData,
   DocumentLine,
+  EquipmentAccessory,
   EquipmentInvoiceData,
   EquipmentLine,
   EquipmentProposalData,
@@ -184,7 +185,46 @@ const equipment: EquipmentLine[] = [
     vatMinor: 0,
   },
 ];
-const equipmentSubtotal = equipment.reduce((n, l) => n + l.lineTotalMinor, 0);
+/**
+ * Accessories the way a real offer lists them: named, counted, and priced
+ * only where the set price does not already cover them — the last one
+ * carries a figure so the price column can be seen working.
+ */
+const accessories: EquipmentAccessory[] = [
+  {
+    description: "Curved Array Probe C1-6",
+    specification: "1–6 MHz abdominal",
+    qty: 1,
+    unit: "set",
+    priceMinor: null,
+  },
+  {
+    description: "Linear Probe 9L-D",
+    qty: 1,
+    unit: "set",
+    priceMinor: null,
+  },
+  {
+    description: "Thermal Printer",
+    specification: "UP-D898MD, A6 paper",
+    qty: 1,
+    unit: "set",
+    priceMinor: null,
+  },
+  {
+    description: "Imaging Plates and Cassette",
+    specification: '(14"X17")',
+    qty: 2,
+    unit: "set",
+    priceMinor: 1_50_000_00,
+  },
+];
+const accessoriesMinor = accessories.reduce(
+  (n, a) => n + (a.priceMinor ?? 0) * a.qty,
+  0,
+);
+const equipmentSubtotal =
+  equipment.reduce((n, l) => n + l.lineTotalMinor, 0) + accessoriesMinor;
 const equipmentDiscount = 5_00_000_00;
 const equipmentVat = Math.round(
   ((equipmentSubtotal - equipmentDiscount) * 1500) / 10000,
@@ -195,9 +235,10 @@ export const FIXTURE_EQUIPMENT_PROPOSAL: EquipmentProposalData = {
   date: new Date("2026-09-21T06:00:00Z"),
   to: party,
   subject:
-    "Quotation for the Colour Doppler Ultrasound System (Model Vivid E95)",
+    "Price Offer for the Colour Doppler Ultrasound System (Model Vivid E95)",
   intro: null,
   equipment,
+  accessories,
   subtotalMinor: equipmentSubtotal,
   discountMinor: equipmentDiscount,
   vatRateBp: 1500,
@@ -219,6 +260,7 @@ export const FIXTURE_EQUIPMENT_INVOICE: EquipmentInvoiceData = {
   deliveryDate: new Date("2026-09-24T06:00:00Z"),
   billTo: party,
   equipment,
+  accessories,
   subtotalMinor: equipmentSubtotal,
   discountMinor: equipmentDiscount,
   vatRateBp: 1500,

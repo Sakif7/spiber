@@ -11,13 +11,16 @@ import {
   EquipmentProposalDocument,
   EquipmentInvoiceDocument,
   type DocumentLine,
+  type EquipmentAccessory,
   type EquipmentLine,
   type Signatory,
 } from "@/lib/pdf/documents";
 import {
+  accessoriesOf,
   completeEquipmentTerms,
   equipmentPrintedColumns,
   equipmentSummary,
+  machineLinesOf,
   orderKindOf,
 } from "@/lib/sales/equipment";
 import type { TemplateKind } from "@/lib/schemas/pdf-template";
@@ -74,6 +77,7 @@ export type DocError =
   | "not_found"
   | "vault_not_configured"
   | "no_items"
+  | "no_price"
   | "not_invoiced"
   | "recipient_mismatch"
   | "no_recipient";
@@ -157,11 +161,17 @@ const printedColumns = (
         specification: i.specification ?? null,
       };
 
-/** An equipment order's lines as the letter and the one-line invoice read them. */
+/**
+ * The machine an equipment order is for, as the price offer reads it.
+ *
+ * Only the lines that are not accessories — one of them, on any order the
+ * current rules allowed — so the table's bold row names the set and prices
+ * it, and the accessories are numbered beneath.
+ */
 const toEquipment = (
-  items: Omit<ISalesOrder["items"][number], "reservedQty">[],
+  all: Omit<ISalesOrder["items"][number], "reservedQty">[],
 ): EquipmentLine[] =>
-  items.map((i) => ({
+  machineLinesOf(all).map((i) => ({
     description: i.description,
     model: i.model ?? null,
     manufacturer: i.manufacturer ?? null,
@@ -173,6 +183,20 @@ const toEquipment = (
     lineTotalMinor: i.lineTotalMinor,
     vatRateBp: effectiveVatRateBp(i),
     vatMinor: i.vatMinor ?? 0,
+  }));
+
+/** The accessories listed under the machine, in the order they were added. */
+const toAccessories = (
+  all: Omit<ISalesOrder["items"][number], "reservedQty">[],
+): EquipmentAccessory[] =>
+  accessoriesOf(all).map((i) => ({
+    description: i.description,
+    specification: i.specification ?? null,
+    qty: i.qty,
+    unit: i.unit ?? null,
+    // Zero is "the set price covers it": the offer prints an empty cell
+    // rather than a free-of-charge figure nobody typed.
+    priceMinor: i.unitPriceMinor > 0 ? i.unitPriceMinor : null,
   }));
 
 /** Has any line its own VAT, taking the order off the configured rate? */
@@ -277,7 +301,7 @@ export async function generateProposal(
   const subject =
     input.subject?.trim() ||
     (equipment
-      ? `Quotation for the ${equipmentSummary(machines)}`
+      ? `Price Offer for ${equipmentSummary(machines)}`
       : "Proposal for Medical and Surgical Consumables");
   // On the letter the standard opening lives in the template, so a blank
   // here means "print the template's"; the consumables proposal keeps its
@@ -321,6 +345,7 @@ export async function generateProposal(
             subject,
             intro,
             equipment: machines,
+            accessories: toAccessories(order.items),
             subtotalMinor: order.subtotalMinor,
             discountMinor: order.discountMinor,
             vatRateBp: order.vatRateBp,
@@ -484,6 +509,10 @@ export async function generateInvoice(
     });
 
   const equipment = orderKindOf(order) === "equipment";
+  // A price offer may go out before the figure is agreed; a bill may not.
+  // Nothing downstream — the report, payroll, the client's own ledger —
+  // can tell an invoice that is genuinely free from one nobody priced.
+  if (equipment && order.totalMinor <= 0) return fail("no_price");
   const tpl = await getCurrentTemplate(
     equipment ? "equipmentInvoice" : "invoice",
   );
@@ -525,6 +554,7 @@ export async function generateInvoice(
           data: {
             ...invoiceData,
             equipment: toEquipment(order.items),
+            accessories: toAccessories(order.items),
             perLineVat: hasPerLineVat(order.items),
           },
         })
@@ -798,6 +828,7 @@ export async function renderVersion(
               subject: snap.subject ?? "Quotation",
               intro: snap.intro ?? null,
               equipment: toEquipment(snap.items),
+              accessories: toAccessories(snap.items),
               subtotalMinor: snap.subtotalMinor,
               discountMinor: snap.discountMinor,
               vatRateBp: snap.vatRateBp,
@@ -900,6 +931,7 @@ export async function renderVersion(
           data: {
             ...invoiceData,
             equipment: toEquipment(snap.items),
+            accessories: toAccessories(snap.items),
             perLineVat: hasPerLineVat(snap.items),
           },
         })

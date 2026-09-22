@@ -581,25 +581,35 @@ const challan: TemplateDoc = {
 /* ─────────────────────── equipment proposal ─────────────────────── */
 
 /**
- * The quotation for a high-value machine: a letter, not a table.
+ * The price offer for a machine: a letter with one table.
  *
- * Wording is the company's own equipment letter, tidied: the equipment is
- * named in the opening paragraph, the price is one figure spelled out in
- * words, and the manufacturer closes the numbered terms. Each term is a
- * placeholder because each is negotiated per deal — the dialog that
- * generates the proposal opens with the standard wording and lets it be
- * changed. The opening paragraph has an override the same way: when
- * `intro` is given it prints instead of the standard one.
+ * Laid out from the offers the company competes against — title, the
+ * addressee and the date, a reference, one sentence naming what is quoted,
+ * then the table: the set in bold carrying the price, its accessories
+ * numbered beneath, and the total spelled out in words. The terms follow as
+ * numbered "Label : value" rows with the manufacturer last, and the letter
+ * closes over the signatory's own name.
+ *
+ * Every term is a placeholder because every one is negotiated per deal — the
+ * dialog that generates the proposal opens with the standard wording and
+ * lets it be changed. The opening sentence has an override the same way:
+ * when `intro` is given it prints instead of the standard one.
  */
 const equipmentProposal: TemplateDoc = {
-  documentTitle: "Quotation {{proposalNo}}",
+  documentTitle: "Commercial Proposal {{proposalNo}}",
   theme: DEFAULT_THEME,
   blocks: [
     ...stationery(),
     {
+      id: "title",
+      type: "title",
+      props: { text: "Commercial Proposal" },
+      style: { marginBottom: 8 },
+    },
+    {
+      // The addressee on the left as a letter sets it, the date on the right.
       id: "header",
       type: "metaColumns",
-      style: { marginTop: 0 },
       props: {
         gap: 24,
         lineGap: 1,
@@ -607,21 +617,7 @@ const equipmentProposal: TemplateDoc = {
           {
             align: "left",
             fields: [
-              field("Ref:", "{{proposalNo}}", { hideWhenEmpty: false }),
-              field("Date:", "{{date}}", { hideWhenEmpty: false }),
-              field(
-                "Validity:",
-                "{{terms.validityDays}} days from the date above",
-                {
-                  hideWhenEmpty: false,
-                },
-              ),
-            ],
-          },
-          {
-            heading: "To",
-            align: "left",
-            fields: [
+              field(undefined, "To,", { hideWhenEmpty: false }),
               field(undefined, "{{to.attention}}"),
               field(undefined, "{{to.department}}"),
               field(undefined, "{{to.organisation}}", {
@@ -629,34 +625,38 @@ const equipmentProposal: TemplateDoc = {
                 bold: true,
               }),
               field(undefined, "{{to.address}}", { hideWhenEmpty: false }),
-              field("Phone:", "{{to.phone}}"),
-              field("E-mail:", "{{to.email}}"),
             ],
+          },
+          {
+            align: "right",
+            fields: [field("Date:", "{{date}}", { hideWhenEmpty: false })],
           },
         ],
       },
     },
     {
+      id: "ref",
+      type: "labelledText",
+      style: { marginTop: 8 },
+      props: { label: "Ref:", labelStyle: "bold", text: "{{proposalNo}}" },
+    },
+    {
+      // What the offer is for, as the company's other proposals say it —
+      // the title names the document, this names the deal.
       id: "subject",
       type: "heading",
       props: { text: "Subject: {{subject}}", underline: true },
-      style: { marginTop: 10 },
-    },
-    {
-      id: "greeting",
-      type: "paragraph",
-      props: { text: "Dear Sir/Madam," },
       style: { marginTop: 8 },
     },
     {
-      // The standard opening, naming the machines from the order's lines.
+      // The standard opening, naming the set from the order's own line.
       id: "intro",
       type: "paragraph",
       showIf: "!intro",
       props: {
-        text: "Thank you for choosing {{company.name}} to help streamline your healthcare operations. We are pleased to quote our best price for the {{equipment.summary}}.",
+        text: "We would like to quote our best price for {{equipment.setPhrase}}.",
       },
-      style: { marginTop: 6, align: "justify" },
+      style: { marginTop: 9, align: "justify" },
     },
     {
       // What was typed in the dialog, when anything was.
@@ -664,13 +664,13 @@ const equipmentProposal: TemplateDoc = {
       type: "paragraph",
       showIf: "intro",
       props: { text: "{{intro}}" },
-      style: { marginTop: 6, align: "justify" },
+      style: { marginTop: 9, align: "justify" },
     },
     {
       id: "spec",
       type: "labelledText",
       showIf: "equipment.specification",
-      style: { marginTop: 6, align: "justify" },
+      style: { marginTop: 7, align: "justify" },
       props: {
         label: "Specification:",
         labelStyle: "bold",
@@ -678,45 +678,29 @@ const equipmentProposal: TemplateDoc = {
       },
     },
     {
-      // A negotiated discount is shown as the list price less the discount,
-      // so the offered price below reads as a concession and not a mystery.
-      id: "listPrice",
-      type: "labelledText",
-      showIf: "price.discountMinor",
-      style: { marginTop: 8 },
+      id: "table",
+      type: "equipmentTable",
+      style: { marginTop: 9 },
       props: {
-        label: "List price:",
-        labelStyle: "bold",
-        text: "BDT {{price.subtotalMinor}}",
+        captionLeft: "Price: BDT",
+        captionRight: "Delivery: {{terms.deliveryScope}}",
+        headings: { no: "NO", qty: "Qty", price: "Price" },
+        setLabel: "{{equipment.setName}}",
+        discountLabel: "Less discount",
+        totalLabel: "Total Price BDT. {{price.goodsInWords}}",
+        amountSuffix: "/=",
+        showQty: true,
+        showPrice: true,
+        showTotal: true,
       },
     },
     {
-      id: "discount",
-      type: "labelledText",
-      showIf: "price.discountMinor",
-      style: { marginTop: 3 },
-      props: {
-        label: "Less discount:",
-        labelStyle: "bold",
-        text: "BDT {{price.discountMinor}}",
-      },
-    },
-    {
-      // The figure the letter exists for: in numbers, then in words.
-      id: "price",
-      type: "labelledText",
-      style: { marginTop: 8, fontSize: 11.5 },
-      props: {
-        label: "Offered price:",
-        labelStyle: "bold",
-        text: "BDT {{price.goodsMinor}} ({{price.goodsInWords}})",
-      },
-    },
-    {
+      // VAT and transport sit under the table: they are charged on top of
+      // the price it states, and the sample's table has no room for them.
       id: "vat",
       type: "labelledText",
       showIf: "price.vatMinor",
-      style: { marginTop: 3 },
+      style: { marginTop: 8 },
       props: {
         label: "VAT{{price.vatSuffix}}:",
         labelStyle: "bold",
@@ -760,53 +744,89 @@ const equipmentProposal: TemplateDoc = {
     },
     {
       id: "terms",
-      type: "bullets",
+      type: "labelledList",
       style: { marginTop: 10 },
       keepTogether: true,
       minPresenceAhead: 120,
       props: {
-        heading: "Terms and conditions:",
+        heading: "Terms & Conditions:-",
         headingGap: 6,
         numbered: true,
-        hideEmptyItems: true,
+        labelWidth: 150,
+        separator: ":",
         items: [
-          "Payment: {{terms.payment}}",
-          "Installation and commissioning: {{terms.installation}}",
-          "Warranty: {{terms.warranty}}",
-          "After the warranty period: {{terms.afterWarranty}}",
-          "Delivery: {{terms.delivery}}",
-          "Training: {{terms.training}}",
-          "Manufacturer: {{equipment.manufacturers}}",
+          {
+            label: "Payment Terms",
+            text: "{{terms.payment}}",
+            hideWhenEmpty: true,
+          },
+          {
+            label: "Installation & Commissioning",
+            text: "{{terms.installation}}",
+            hideWhenEmpty: true,
+          },
+          {
+            label: "Warranty",
+            text: "{{terms.warranty}}",
+            hideWhenEmpty: true,
+          },
+          {
+            label: "After Warranty Period",
+            text: "{{terms.afterWarranty}}",
+            hideWhenEmpty: true,
+          },
+          {
+            label: "Delivery",
+            text: "{{terms.delivery}}",
+            hideWhenEmpty: true,
+          },
+          {
+            label: "Training",
+            text: "{{terms.training}}",
+            hideWhenEmpty: true,
+          },
+          {
+            label: "Manufacturer",
+            text: "{{equipment.manufacturers}}",
+            hideWhenEmpty: true,
+          },
         ],
       },
     },
     {
       id: "closing",
       type: "paragraph",
-      style: { marginTop: 10, align: "justify" },
+      style: { marginTop: 11, align: "justify" },
+      // The letter's tail travels as one piece: a page holding nothing but
+      // a signature reads as a stray sheet, so when the closing cannot fit
+      // with it, both start the next page together. 155pt is what the
+      // thanks, the regards and the signature measure between them.
+      minPresenceAhead: 155,
       props: {
-        text: "We trust that this price is our most competitive and will be acceptable to you, and we look forward to receiving your valued work order at your earliest convenience.",
+        text: "We trust that this price is our most competitive and will be acceptable to you, and we look forward to receiving your valued order at an early date.",
       },
     },
     {
       id: "thanks",
       type: "paragraph",
-      style: { marginTop: 5 },
-      props: { text: "Thank you for your continued cooperation." },
+      style: { marginTop: 6 },
+      props: {
+        text: "Thank you very much for your kind and continued cooperation.",
+      },
     },
     {
       id: "regards",
       type: "paragraph",
-      style: { marginTop: 5 },
+      style: { marginTop: 6 },
       props: { text: "With best regards," },
     },
     {
-      // The Managing Director signs the letter: name, title, company, phone
+      // The Managing Director signs the offer: name, title, company, phone
       // and e-mail under the line, as the company's own template asks.
       id: "signoff",
       type: "signOff",
       props: {
-        left: "Authorised Signatory",
+        left: "",
         includeSignatory: true,
         labelAlign: "left",
       },
@@ -817,17 +837,21 @@ const equipmentProposal: TemplateDoc = {
 /* ─────────────────────── equipment invoice ─────────────────────── */
 
 /**
- * The invoice for a machine: the sales invoice's header and foot around one
- * price — in numbers, then in words — with VAT, transport and the AIT note
- * beneath it. No ruled table, because there is nothing to tabulate: what
- * was supplied is said in a sentence.
+ * The invoice for a machine: the sales invoice's header and foot around the
+ * offer's own table.
+ *
+ * The table is the one the client already agreed to on the price offer —
+ * the set, its accessories, the total in words — so the bill reads as the
+ * same document with an invoice number on it. VAT, transport and what has
+ * been paid follow beneath, and the AIT note states what the buyer will
+ * keep back without ever adding it to the bill.
  */
 const equipmentInvoice: TemplateDoc = {
-  documentTitle: "Sales Invoice {{invoiceNumber}}",
+  documentTitle: "Commercial Invoice {{invoiceNumber}}",
   theme: DEFAULT_THEME,
   blocks: [
     ...stationery(),
-    { id: "title", type: "title", props: { text: "Sales Invoice" } },
+    { id: "title", type: "title", props: { text: "Commercial Invoice" } },
     {
       id: "header",
       type: "metaColumns",
@@ -870,21 +894,13 @@ const equipmentInvoice: TemplateDoc = {
       id: "details",
       type: "heading",
       props: { text: "Particulars", underline: true },
-      style: { marginTop: 14, marginBottom: 6 },
-    },
-    {
-      id: "description",
-      type: "paragraph",
-      style: { align: "justify" },
-      props: {
-        text: "Supply of the {{equipment.summary}}. Manufacturer: {{equipment.manufacturers}}.",
-      },
+      style: { marginTop: 14, marginBottom: 4 },
     },
     {
       id: "spec",
       type: "labelledText",
       showIf: "equipment.specification",
-      style: { marginTop: 4, align: "justify" },
+      style: { marginBottom: 4, align: "justify" },
       props: {
         label: "Specification:",
         labelStyle: "bold",
@@ -892,42 +908,26 @@ const equipmentInvoice: TemplateDoc = {
       },
     },
     {
-      id: "listPrice",
-      type: "labelledText",
-      showIf: "totals.discountMinor",
-      style: { marginTop: 10 },
+      id: "table",
+      type: "equipmentTable",
+      style: { marginTop: 6 },
       props: {
-        label: "List price:",
-        labelStyle: "bold",
-        text: "BDT {{totals.subtotalMinor}}",
-      },
-    },
-    {
-      id: "discount",
-      type: "labelledText",
-      showIf: "totals.discountMinor",
-      style: { marginTop: 3 },
-      props: {
-        label: "Less discount:",
-        labelStyle: "bold",
-        text: "BDT {{totals.discountMinor}}",
-      },
-    },
-    {
-      id: "price",
-      type: "labelledText",
-      style: { marginTop: 10, fontSize: 11.5 },
-      props: {
-        label: "Price:",
-        labelStyle: "bold",
-        text: "BDT {{totals.goodsMinor}} ({{totals.goodsInWords}})",
+        captionLeft: "Price: BDT",
+        headings: { no: "NO", qty: "Qty", price: "Price" },
+        setLabel: "{{equipment.setName}}",
+        discountLabel: "Less discount",
+        totalLabel: "Total Price BDT. {{price.goodsInWords}}",
+        amountSuffix: "/=",
+        showQty: true,
+        showPrice: true,
+        showTotal: true,
       },
     },
     {
       id: "vat",
       type: "labelledText",
       showIf: "totals.vatMinor",
-      style: { marginTop: 3 },
+      style: { marginTop: 8 },
       props: {
         label: "VAT{{vat.rateSuffix}}:",
         labelStyle: "bold",
@@ -946,8 +946,8 @@ const equipmentInvoice: TemplateDoc = {
       },
     },
     {
-      // Only when something sits on top of the price; otherwise the price
-      // line IS the total and repeating it in words would say nothing new.
+      // Only when something sits on top of the price; otherwise the table's
+      // own total IS the grand total and repeating it says nothing new.
       id: "total",
       type: "labelledText",
       showIf: "totals.hasExtras",
@@ -1042,7 +1042,7 @@ const equipmentInvoice: TemplateDoc = {
         items: [
           "Payment Terms: Payment due within {{terms.paymentDays}} days of this invoice.",
           "If Advance Income Tax (AIT)/Tax Deducted at Source (TDS) is deducted under the applicable Income Tax laws, kindly provide the prescribed withholding tax certificate to {{company.name}}.",
-          "Installation, commissioning, training and warranty are as agreed in our quotation.",
+          "Installation, commissioning, training and warranty are as agreed in our price offer.",
         ],
       },
     },

@@ -111,6 +111,52 @@ export function BulletsBlock({
   );
 }
 
+/**
+ * Numbered terms with their values aligned in a column.
+ *
+ * "1.  Payment Terms      :  100% advance payment." — the label column is a
+ * fixed width so every separator lines up, and a value that runs on wraps
+ * under itself rather than under the number. A row whose value is empty is
+ * dropped when it says so, which is how "Manufacturer" disappears from an
+ * offer for a machine nobody has named a maker for.
+ */
+export function LabelledListBlock({
+  block,
+  styles,
+  ctx,
+  kind,
+}: BlockProps<"labelledList">) {
+  const { heading, headingGap, numbered, labelWidth, separator, items } =
+    block.props;
+  const shown = items.filter(
+    (i) => !(i.hideWhenEmpty && allPlaceholdersEmpty(i.text, ctx)),
+  );
+  const list = shown.map((item, i) => (
+    <View key={i} style={styles.termRow}>
+      {numbered ? <Text style={styles.termNo}>{`${i + 1}.`}</Text> : null}
+      <Text style={[{ width: labelWidth }, styles.label]}>
+        {interpolate(item.label, ctx, kind)}
+      </Text>
+      <Text style={styles.termSep}>{separator}</Text>
+      <Text style={styles.termText}>{interpolate(item.text, ctx, kind)}</Text>
+    </View>
+  ));
+  return (
+    <View style={frameStyle(block, styles)} {...frameProps(block)}>
+      {heading ? (
+        <>
+          <Text style={styles.underlineLabel}>
+            {interpolate(heading, ctx, kind)}
+          </Text>
+          <View style={{ marginTop: headingGap }}>{list}</View>
+        </>
+      ) : (
+        list
+      )}
+    </View>
+  );
+}
+
 /** "Payment Information": a heading over "Label: value" lines. */
 export function KeyValueListBlock({
   block,

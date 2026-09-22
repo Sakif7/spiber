@@ -255,6 +255,67 @@ export const blockSchema = z.discriminatedUnion("type", [
         .optional(),
     }),
   }),
+  /**
+   * The price offer's table: one machine, its accessories numbered beneath
+   * it, one total spelled out in words.
+   *
+   * Not a `lineTable`: that one is a ruled grid of equal rows driven by the
+   * document's lines. This is the company's own offer layout — three
+   * horizontal rules and no boxes, a bold set row carrying the price, and a
+   * total row whose label holds the amount in words.
+   */
+  base.extend({
+    type: z.literal("equipmentTable"),
+    props: z.object({
+      /** The two lines above the top rule: "Price: BDT" | "Delivery: …". */
+      captionLeft: text.optional(),
+      captionRight: text.optional(),
+      /** Column heads. The first sits over the names. */
+      headings: z.object({
+        no: z.string().max(40).default("NO"),
+        qty: z.string().max(40).default("Qty"),
+        price: z.string().max(40).default("Price"),
+      }),
+      /** The bold row naming what is quoted, e.g. "{{equipment.setName}}". */
+      setLabel: text,
+      /** Printed above the total when the order carries a discount. */
+      discountLabel: text.optional(),
+      /** "Total Price BDT. {{price.goodsInWords}}". */
+      totalLabel: text,
+      /** Printed after every figure — the company's own offers end "/=". */
+      amountSuffix: z.string().max(4).default("/="),
+      showQty: z.boolean().default(true),
+      showPrice: z.boolean().default(true),
+      showTotal: z.boolean().default(true),
+    }),
+  }),
+
+  /**
+   * Numbered "Label : value" terms, the values aligned in a column — the
+   * way the company's price offers set their terms and conditions.
+   */
+  base.extend({
+    type: z.literal("labelledList"),
+    props: z.object({
+      heading: text.optional(),
+      headingGap: pt(0, 20).default(6),
+      numbered: z.boolean().default(true),
+      /** Width of the label column, so every separator lines up. */
+      labelWidth: pt(40, 300).default(150),
+      separator: z.string().max(3).default(":"),
+      items: z
+        .array(
+          z.object({
+            label: text,
+            text,
+            /** Drop the row when every placeholder in its value is empty. */
+            hideWhenEmpty: z.boolean().default(false),
+          }),
+        )
+        .max(20),
+    }),
+  }),
+
   base.extend({
     type: z.literal("bullets"),
     props: z.object({

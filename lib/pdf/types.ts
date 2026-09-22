@@ -142,6 +142,20 @@ export type EquipmentLine = {
   vatMinor?: number | null;
 };
 
+/**
+ * One accessory under the machine: a numbered row of the price offer's
+ * table. Its price is optional — the usual offer quotes one figure for the
+ * whole set and leaves every accessory blank.
+ */
+export type EquipmentAccessory = {
+  description: string;
+  specification?: string | null;
+  qty: number;
+  unit?: string | null;
+  /** Null when the set price covers it. */
+  priceMinor?: number | null;
+};
+
 /** The money an equipment document states, already priced by the order. */
 export type EquipmentPricing = {
   subtotalMinor: number;
@@ -169,6 +183,7 @@ export type EquipmentProposalData = EquipmentPricing & {
   subject: string;
   intro?: string | null;
   equipment: EquipmentLine[];
+  accessories: EquipmentAccessory[];
   terms: EquipmentTermsData;
   signatory: Signatory;
 };
@@ -180,12 +195,15 @@ export type EquipmentTermsData = {
   afterWarranty: string;
   delivery: string;
   training: string;
+  /** "Local Delivery" — printed beside the price, above the table. */
+  deliveryScope: string;
   validityDays: number;
 };
 
 /** The equipment invoice: the same header as a sales invoice, one price in words. */
 export type EquipmentInvoiceData = Omit<InvoiceData, "lines"> & {
   equipment: EquipmentLine[];
+  accessories: EquipmentAccessory[];
   perLineVat?: boolean;
 };
 

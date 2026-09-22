@@ -69,6 +69,13 @@ export const EDITABLE_STATUSES: SalesOrderStatus[] = [
 export const salesOrderKindEnum = z.enum(["consumables", "equipment"]);
 export type SalesOrderKind = z.infer<typeof salesOrderKindEnum>;
 
+/**
+ * What a line is on an equipment order: the machine, or one of the
+ * accessories listed under it. Absent on every consumables line.
+ */
+export const lineRoleEnum = z.enum(["machine", "accessory"]);
+export type LineRole = z.infer<typeof lineRoleEnum>;
+
 export const salesPaymentMethodEnum = z.enum([
   "cash",
   "bank",
@@ -91,6 +98,12 @@ export const salesOrderItemSchema = z
   .object({
     id: z.string().trim().min(1).max(40).optional(),
     kind: z.enum(["inventory", "external"]),
+    /**
+     * Equipment orders only. An accessory is an ordinary line — it may come
+     * from the catalogue and it reserves stock like anything else — flagged
+     * so the price offer prints it numbered beneath the machine.
+     */
+    role: lineRoleEnum.optional(),
     productId: objectId.nullish(),
     variantId: z.string().trim().max(40).nullish(),
     sku: z.string().trim().max(80).nullish(),
@@ -107,6 +120,14 @@ export const salesOrderItemSchema = z
     origin: z.string().trim().max(80).optional().or(z.literal("")),
     serialNo: z.string().trim().max(120).optional().or(z.literal("")),
     unit: z.string().trim().max(40).optional().or(z.literal("")),
+    /**
+     * Zero is allowed and means "no price on this line".
+     *
+     * A price offer for a machine often quotes one figure for the set and
+     * leaves the accessories blank — and sometimes goes out before the
+     * figure is agreed at all. Nothing may be INVOICED at zero; that is
+     * checked where the invoice is raised, not here.
+     */
     unitPriceMinor: z.number().int().min(0),
     /**
      * What this line cost us, per unit.
@@ -220,6 +241,8 @@ export const equipmentTermsInputSchema = z.object({
   afterWarranty: term,
   delivery: term,
   training: term,
+  /** Printed beside the price above the table, not in the numbered terms. */
+  deliveryScope: z.string().trim().max(80).optional().or(z.literal("")),
 });
 export type EquipmentTermsInput = z.infer<typeof equipmentTermsInputSchema>;
 
@@ -253,6 +276,26 @@ export const salesOrderCreateSchema = z.object({
   note: z.string().trim().max(2000).optional(),
 });
 export type SalesOrderCreateInput = z.infer<typeof salesOrderCreateSchema>;
+
+/**
+ * One machine to a price offer.
+ *
+ * The document is a letter about a single set — named in the opening
+ * sentence, priced once, with its accessories numbered beneath it — so a
+ * second machine has nowhere to print. Accessories are unlimited.
+ *
+ * Only checkable when the kind is in hand: an amendment that does not
+ * mention the kind is checked by the service against the stored order.
+ */
+export function tooManyMachines(
+  kind: SalesOrderKind | undefined,
+  items: { role?: LineRole | null }[],
+): boolean {
+  return (
+    kind === "equipment" &&
+    items.filter((i) => i.role !== "accessory").length > 1
+  );
+}
 
 export const salesOrderUpdateSchema = salesOrderCreateSchema
   .omit({ leadId: true })

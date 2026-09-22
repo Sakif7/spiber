@@ -9,6 +9,8 @@ import {
   priceSalesOrder,
   aitBaseMinor,
   aitOnGoods,
+  tooManyMachines,
+  type SalesOrderKind,
   type SalesOrderStatus,
   type SalesOrderItemInput,
   type SalesOrderCreateInput,
@@ -61,6 +63,8 @@ export type SalesOrderError =
   | "insufficient_stock"
   | "paid_order"
   | "no_items"
+  | "too_many_machines"
+  | "no_price"
   | "lead_not_found";
 
 export type SalesResult<T> =
@@ -101,9 +105,17 @@ async function defaultTerms() {
   };
 }
 
-/** Turn validated input lines into stored items, keeping ids stable. */
+/**
+ * Turn validated input lines into stored items, keeping ids stable.
+ *
+ * `role` says whether a line is the machine or one of the accessories
+ * listed under it, and is read only by the equipment documents. It STICKS:
+ * switching a draft to consumables and back must not flatten the set into
+ * four machines, and nothing reads the field in between.
+ */
 function toItems(
   input: SalesOrderItemInput[],
+  kind: SalesOrderKind,
   existing: ISalesOrderItem[] = [],
 ): ISalesOrderItem[] {
   const byId = new Map(existing.map((i) => [i.id, i]));
@@ -116,6 +128,10 @@ function toItems(
       variantId: raw.kind === "inventory" ? (raw.variantId ?? null) : null,
       sku: raw.sku ?? null,
       description: raw.description,
+      // A line with no role on an equipment order is the machine: that is
+      // what every equipment order held before accessories existed.
+      role:
+        raw.role ?? prior?.role ?? (kind === "equipment" ? "machine" : null),
       brandOrigin: raw.brandOrigin || null,
       specification: raw.specification || null,
       // Equipment fields; a consumables line simply leaves them blank.
@@ -199,9 +215,12 @@ export async function createOrder(
   const lead = await getSalesLeadById(input.leadId);
   if (!lead) return fail("lead_not_found");
 
+  const kind = input.kind ?? "consumables";
+  if (tooManyMachines(kind, input.items)) return fail("too_many_machines");
+
   const vatRateBp = input.vatRateBp ?? 0;
   const { items, totals } = priceOrder(
-    toItems(input.items),
+    toItems(input.items, kind),
     input.discountMinor ?? 0,
     vatRateBp,
     input.deliveryMinor ?? 0,
@@ -210,7 +229,7 @@ export async function createOrder(
 
   const doc = await createSalesOrder({
     number: salesOrderNumber(),
-    kind: input.kind ?? "consumables",
+    kind,
     leadId: String(lead._id),
     leadSnapshot: {
       organisation: lead.organisation,
@@ -233,10 +252,7 @@ export async function createOrder(
 
   await addSalesOrderActivity(String(doc._id), {
     authorId: actor.sub,
-    body:
-      input.kind === "equipment"
-        ? "Order created (equipment)"
-        : "Order created",
+    body: kind === "equipment" ? "Order created (equipment)" : "Order created",
     to: "draft",
   });
   return done(doc.toObject() as Lean<ISalesOrder>);
@@ -260,8 +276,22 @@ export async function amendOrder(
   if (!order) return fail("not_found");
   if (!EDITABLE_STATUSES.includes(order.status)) return fail("not_editable");
 
+  // The kind decides which documents the order produces, so it may only
+  // change while none has been produced: a draft with no proposal behind it.
+  // Any later attempt is ignored rather than refused — the editor sends the
+  // field every time.
+  const canChangeKind =
+    order.status === "draft" && order.proposals.length === 0;
+  const nextKind: SalesOrderKind =
+    input.kind !== undefined && canChangeKind
+      ? input.kind
+      : (order.kind ?? "consumables");
+
   const nextItems =
-    input.items !== undefined ? toItems(input.items, order.items) : order.items;
+    input.items !== undefined
+      ? toItems(input.items, nextKind, order.items)
+      : order.items;
+  if (tooManyMachines(nextKind, nextItems)) return fail("too_many_machines");
   const discountMinor = input.discountMinor ?? order.discountMinor;
   const deliveryMinor = input.deliveryMinor ?? order.deliveryMinor ?? 0;
   const vatRateBp = input.vatRateBp ?? order.vatRateBp;
@@ -344,17 +374,8 @@ export async function amendOrder(
     vatRateBp,
     deliveryMinor,
   );
-  // The kind decides which documents the order produces, so it may only
-  // change while none has been produced: a draft with no proposal behind it.
-  // Any later attempt is ignored rather than refused — the editor sends the
-  // field every time.
   const kindChange =
-    input.kind !== undefined &&
-    order.status === "draft" &&
-    order.proposals.length === 0 &&
-    input.kind !== (order.kind ?? "consumables")
-      ? { kind: input.kind }
-      : {};
+    nextKind !== (order.kind ?? "consumables") ? { kind: nextKind } : {};
 
   const updated = await updateSalesOrder(id, {
     items: pricedItems,
@@ -604,6 +625,13 @@ export async function transitionOrder(
 
   if (to === "invoiced") {
     if (order.items.length === 0) return fail("no_items");
+    // A price offer may go out before the figure is agreed; a bill may not.
+    if (
+      (order.kind ?? "consumables") === "equipment" &&
+      order.totalMinor <= 0
+    ) {
+      return fail("no_price");
+    }
     const reserved = await reserveForInvoice(order, actor);
     if (!reserved.ok) return reserved;
 

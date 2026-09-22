@@ -64,6 +64,10 @@ const party = (prefix: string, label: string): DataPath[] => [
 /** What an equipment document knows about the machines it is for. */
 const EQUIPMENT: DataPath[] = [
   p("equipment.summary", "Equipment, as a sentence lists it"),
+  p("equipment.setName", "Equipment name (the table's bold row)"),
+  p("equipment.setPhrase", "“one set of …” for the opening sentence"),
+  p("equipment.accessories", "Accessories, listed in a sentence"),
+  p("equipment.accessoryCount", "Number of accessories", "number"),
   p("equipment.names", "Equipment names"),
   p("equipment.models", "Equipment models"),
   p("equipment.manufacturers", "Manufacturer(s) and country"),
@@ -74,6 +78,7 @@ const EQUIPMENT: DataPath[] = [
 
 /** The numbered terms on the equipment letter. */
 const EQUIPMENT_TERMS: DataPath[] = [
+  p("terms.deliveryScope", "Delivery note beside the price"),
   p("terms.payment", "Term: payment"),
   p("terms.installation", "Term: installation and commissioning"),
   p("terms.warranty", "Term: warranty"),
@@ -160,6 +165,8 @@ export const DATA_PATHS: Record<TemplateKind, DataPath[]> = {
     ...SIGNATORY,
   ],
   equipmentInvoice: [
+    p("price.goodsMinor", "Price (after discount)", "money"),
+    p("price.goodsInWords", "Price in words"),
     p("invoiceNumber", "Invoice number"),
     p("invoiceDate", "Invoice date", "date"),
     p("paymentDue", "Payment due", "date"),

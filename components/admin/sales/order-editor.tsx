@@ -3,14 +3,9 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { toast } from "sonner";
-import { Plus, Search, Trash2, Loader2, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, Loader2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import {
   Dialog,
   DialogContent,
@@ -25,7 +20,9 @@ import { formatApiError } from "@/lib/http/form-error";
 import { priceSalesOrder } from "@/lib/schemas/sales-order";
 import { blockers } from "@/lib/sales/journey";
 import {
+  accessoriesOf,
   equipmentSummary,
+  machineOf,
   SALES_ORDER_KIND_LABEL,
   type SalesOrderKind,
 } from "@/lib/sales/equipment";
@@ -35,107 +32,18 @@ import {
   equipmentProposalDraft,
   type EquipmentProposalDraft,
 } from "./equipment-proposal-fields";
+import { EquipmentLineEditor } from "./equipment-line-editor";
+import { ProductPicker, type ProductHit } from "./product-picker";
+import {
+  emptyExternal,
+  fromMinor,
+  money,
+  toMinor,
+  vatOf,
+  type EditorLine,
+} from "./editor-line";
 
-/** A line as the editor holds it; prices are entered in taka, stored in poisha. */
-export type EditorLine = {
-  id?: string;
-  kind: "inventory" | "external";
-  productId?: string | null;
-  variantId?: string | null;
-  sku?: string | null;
-  description: string;
-  brandOrigin: string;
-  specification: string;
-  /** Equipment lines: shown instead of Brand/Origin and Unit. */
-  model: string;
-  manufacturer: string;
-  origin: string;
-  /** Known once the machine is on the floor; printed on the challan only. */
-  serialNo: string;
-  unit: string;
-  /** Taka, as typed. */
-  unitPrice: string;
-  /**
-   * What the line costs US, in taka as typed.
-   *
-   * Prefilled from the catalogue when a product is picked, and free to type on
-   * an external item that was bought in for this order. Always editable: the
-   * price actually paid to a supplier is not always the price on the product.
-   */
-  unitCost: string;
-  /**
-   * VAT for this line, as typed — a percentage or a taka figure, per
-   * `vatMode`. Blank means "not set on this line".
-   *
-   * Setting it on ANY line takes the whole order out of the configured rate
-   * and onto per-line VAT, at which point a blank line carries none. The
-   * editor says so where it can be read.
-   */
-  vatValue: string;
-  vatMode: "percent" | "amount";
-  qty: string;
-  /** What inventory says is still available, for a visible warning. */
-  available?: number | null;
-};
-
-/** What a line contributes to pricing, from what was typed into it. */
-function vatOf(l: EditorLine): {
-  vatRateBp?: number | null;
-  vatAmountMinor?: number | null;
-} {
-  const raw = l.vatValue.trim();
-  if (raw === "") return {};
-  const n = Number(raw);
-  if (!Number.isFinite(n) || n < 0) return {};
-  return l.vatMode === "percent"
-    ? { vatRateBp: Math.round(n * 100) }
-    : { vatAmountMinor: Math.round(n * 100) };
-}
-
-type ProductHit = {
-  productId: string;
-  variantId: string | null;
-  name: string;
-  variantLabel: string | null;
-  sku: string;
-  priceMinor: number | null;
-  costPriceMinor: number | null;
-  onHand: number;
-  reserved: number;
-  available: number;
-  tracked: boolean;
-  /** Prefill for the printed columns, resolved server-side from the catalogue. */
-  description: string;
-  specification: string;
-  brandOrigin: string;
-  /** The two halves of Brand/Origin, for an equipment line's own fields. */
-  brand?: string;
-  origin?: string;
-};
-
-const toMinor = (taka: string) => Math.round((Number(taka) || 0) * 100);
-const fromMinor = (minor: number | null | undefined) =>
-  minor == null ? "" : String(minor / 100);
-const money = (minor: number) =>
-  `৳${(minor / 100).toLocaleString("en-BD", { maximumFractionDigits: 2 })}`;
-
-const emptyExternal = (orderKind: SalesOrderKind): EditorLine => ({
-  kind: "external",
-  description: "",
-  brandOrigin: "",
-  specification: "",
-  model: "",
-  manufacturer: "",
-  origin: "",
-  serialNo: "",
-  // A machine is counted in units; the challan prints the word.
-  unit: orderKind === "equipment" ? "unit" : "",
-  unitPrice: "",
-  unitCost: "",
-  vatValue: "",
-  vatMode: "percent",
-  qty: "1",
-});
+export type { EditorLine } from "./editor-line";
 
 /**
  * The order builder.
@@ -195,6 +103,15 @@ export function OrderEditor({
   // from the lines when the dialog opens: the subject names the machines.
   const [askTerms, setAskTerms] = useState<EquipmentProposalDraft | null>(null);
 
+  // An equipment order is one machine with accessories listed under it; the
+  // lines array holds both, so the editor splits it rather than keeping two.
+  const machineLines = lines.filter((l) => l.role !== "accessory");
+  const machine = machineOf(lines);
+  const accessories = accessoriesOf(lines);
+  const accessoryIndexes = lines
+    .map((l, i) => (l.role === "accessory" ? i : -1))
+    .filter((i) => i >= 0);
+
   const totals = useMemo(
     () =>
       priceSalesOrder({
@@ -223,8 +140,10 @@ export function OrderEditor({
           unitPriceMinor: toMinor(l.unitPrice),
           qty: Number(l.qty) || 0,
         })),
+        true,
+        kind,
       ),
-    [lines],
+    [lines, kind],
   );
   const ready = problems.length === 0;
 
@@ -242,6 +161,7 @@ export function OrderEditor({
     setLines((prev) => [
       ...prev,
       {
+        ...emptyExternal(kind),
         kind: "inventory",
         productId: hit.productId,
         variantId: hit.variantId,
@@ -256,21 +176,31 @@ export function OrderEditor({
         specification: hit.variantLabel
           ? `${hit.specification} · ${hit.variantLabel}`
           : hit.specification,
-        // The catalogue's brand is the machine's maker; the model and the
-        // serial number are typed, since the catalogue knows neither.
-        model: "",
         manufacturer: hit.brand ?? "",
         origin: hit.origin ?? "",
-        serialNo: "",
-        unit: equipment ? "unit" : "pcs",
+        unit: "pcs",
         unitPrice: fromMinor(hit.priceMinor),
         unitCost: fromMinor(hit.costPriceMinor),
-        vatValue: "",
-        vatMode: "percent",
-        qty: "1",
         available: hit.tracked ? hit.available : null,
       },
     ]);
+
+  /** Add, patch and drop the lines of an equipment order. */
+  const addMachine = (line: EditorLine) => setLines((prev) => [line, ...prev]);
+  const patchMachine = (p: Partial<EditorLine>) =>
+    setLines((prev) =>
+      prev.map((l) => (l.role === "accessory" ? l : { ...l, ...p })),
+    );
+  const removeMachine = () =>
+    setLines((prev) => prev.filter((l) => l.role === "accessory"));
+  const addAccessory = (line: EditorLine) =>
+    setLines((prev) => [...prev, line]);
+  const patchAccessory = (i: number, p: Partial<EditorLine>) =>
+    setLines((prev) =>
+      prev.map((l, n) => (n === accessoryIndexes[i] ? { ...l, ...p } : l)),
+    );
+  const removeAccessory = (i: number) =>
+    setLines((prev) => prev.filter((_, n) => n !== accessoryIndexes[i]));
 
   /**
    * The order exactly as a save would send it.
@@ -286,6 +216,7 @@ export function OrderEditor({
       items: lines.map((l) => ({
         id: l.id,
         kind: l.kind,
+        role: kind === "equipment" ? (l.role ?? "machine") : undefined,
         productId: l.productId ?? undefined,
         variantId: l.variantId ?? undefined,
         sku: l.sku ?? undefined,
@@ -331,6 +262,7 @@ export function OrderEditor({
       items: initialLines.map((l) => ({
         id: l.id,
         kind: l.kind,
+        role: initialKind === "equipment" ? (l.role ?? "machine") : undefined,
         productId: l.productId ?? undefined,
         variantId: l.variantId ?? undefined,
         sku: l.sku ?? undefined,
@@ -440,9 +372,9 @@ export function OrderEditor({
   return (
     <div className="grid gap-4">
       <FormSection
-        title="Items"
+        title={equipment ? "Equipment" : "Items"}
         action={
-          canEdit ? (
+          canEdit && !equipment ? (
             <div className="flex gap-1.5">
               <ProductPicker onPick={addProduct} />
               <Button
@@ -483,11 +415,22 @@ export function OrderEditor({
             />
           </FormField>
         </div>
-        {lines.length === 0 ? (
+        {equipment ? (
+          <EquipmentLineEditor
+            machine={machine}
+            accessories={accessories}
+            canEdit={canEdit}
+            onMachine={patchMachine}
+            onAddMachine={addMachine}
+            onRemoveMachine={removeMachine}
+            onAccessory={patchAccessory}
+            onAddAccessory={addAccessory}
+            onRemoveAccessory={removeAccessory}
+          />
+        ) : lines.length === 0 ? (
           <p className="text-muted-foreground text-sm">
-            {equipment
-              ? "No equipment yet. Add a machine from inventory, or an external item that is bought in for this order."
-              : "No items yet. Add products from inventory, or an external item that is bought in for this order."}
+            No items yet. Add products from inventory, or an external item that
+            is bought in for this order.
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -889,8 +832,8 @@ export function OrderEditor({
                     if (equipment) {
                       setAskTerms(
                         equipmentProposalDraft(
-                          `Quotation for the ${equipmentSummary(
-                            lines.map((l) => ({
+                          `Price Offer for ${equipmentSummary(
+                            machineLines.map((l) => ({
                               description: l.description,
                               model: l.model,
                               qty: Number(l.qty) || 1,
@@ -1021,115 +964,6 @@ export function OrderEditor({
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
-
-/** Search the catalogue and add a product as a line. */
-function ProductPicker({ onPick }: { onPick: (hit: ProductHit) => void }) {
-  const [open, setOpen] = useState(false);
-  const [q, setQ] = useState("");
-  const [hits, setHits] = useState<ProductHit[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  async function search(value: string) {
-    setQ(value);
-    setLoading(true);
-    try {
-      const res = await fetch(
-        `/api/admin/company/sales/products?q=${encodeURIComponent(value)}`,
-      );
-      const json = await res.json().catch(() => null);
-      if (res.ok) setHits(json?.data?.items ?? []);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <Popover
-      open={open}
-      onOpenChange={(o) => {
-        setOpen(o);
-        if (o && hits.length === 0) void search("");
-      }}
-    >
-      <PopoverTrigger asChild>
-        <Button size="sm" className="gap-1.5">
-          <Plus className="size-4" />
-          Add product
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[420px] p-2" align="end">
-        <div className="relative">
-          <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2" />
-          <Input
-            value={q}
-            onChange={(e) => void search(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key !== "Enter" || !hits[0]) return;
-              e.preventDefault();
-              onPick(hits[0]);
-              setQ("");
-              void search("");
-            }}
-            placeholder="Search by name or SKU…"
-            className="h-8 pl-8"
-            autoFocus
-          />
-        </div>
-        <p className="text-muted-foreground text-admin-2xs mt-1.5">
-          Press Enter to add the first match. The list stays open so you can add
-          several.
-        </p>
-        <div className="mt-2 max-h-72 overflow-y-auto">
-          {loading && hits.length === 0 ? (
-            <p className="text-muted-foreground p-3 text-sm">Searching…</p>
-          ) : hits.length === 0 ? (
-            <p className="text-muted-foreground p-3 text-sm">
-              No products match.
-            </p>
-          ) : (
-            hits.map((h) => (
-              <button
-                key={`${h.productId}:${h.variantId ?? ""}`}
-                type="button"
-                onClick={() => {
-                  onPick(h);
-                  setQ("");
-                  void search("");
-                }}
-                className="hover:bg-accent flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left"
-              >
-                <span className="min-w-0">
-                  <span className="block truncate font-medium">
-                    {h.name}
-                    {h.variantLabel ? ` · ${h.variantLabel}` : ""}
-                  </span>
-                  <span className="text-muted-foreground text-admin-2xs block font-mono">
-                    {h.sku}
-                  </span>
-                </span>
-                <span className="shrink-0 text-right">
-                  <span className="block">
-                    {h.priceMinor == null ? "—" : money(h.priceMinor)}
-                  </span>
-                  <span
-                    className={cn(
-                      "text-admin-2xs block",
-                      h.tracked && h.available <= 0
-                        ? "text-destructive"
-                        : "text-muted-foreground",
-                    )}
-                  >
-                    {h.tracked ? `${h.available} available` : "not tracked"}
-                  </span>
-                </span>
-              </button>
-            ))
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
   );
 }
 

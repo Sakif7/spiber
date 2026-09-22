@@ -28,9 +28,11 @@ import {
   BulletsBlock,
   KeyValueListBlock,
   KeyValueTableBlock,
+  LabelledListBlock,
   MetaColumnsBlock,
 } from "./blocks/lists";
 import { LineTableBlock } from "./blocks/line-table";
+import { EquipmentTableBlock } from "./blocks/equipment-table";
 import { SignOffBlock } from "./blocks/sign-off";
 import { AnchoredStamp, PageStamp } from "./blocks/stamp";
 import type { StampAssets } from "../types";
@@ -77,6 +79,10 @@ function FlowBlock({ block, ...rest }: { block: Block } & Common) {
       return <MetaColumnsBlock block={block} {...rest} />;
     case "lineTable":
       return <LineTableBlock block={block} {...rest} />;
+    case "equipmentTable":
+      return <EquipmentTableBlock block={block} {...rest} />;
+    case "labelledList":
+      return <LabelledListBlock block={block} {...rest} />;
     case "bullets":
       return <BulletsBlock block={block} {...rest} />;
     case "keyValueList":

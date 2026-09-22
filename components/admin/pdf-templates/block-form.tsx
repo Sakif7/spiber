@@ -45,6 +45,7 @@ type MetaColumn = BlockOf<"metaColumns">["props"]["columns"][number];
 type LetterheadLine = BlockOf<"letterhead">["props"]["lines"][number];
 type KeyValueRow = BlockOf<"keyValueTable">["props"]["rows"][number];
 type KeyValueItem = BlockOf<"keyValueList">["props"]["items"][number];
+type LabelledItem = BlockOf<"labelledList">["props"]["items"][number];
 
 const COLUMN_LABELS: Record<LineColumnKey, string> = {
   sn: "S/N",
@@ -637,6 +638,203 @@ function BulletsForm({ block, kind, onProps }: Props<"bullets">) {
   );
 }
 
+/**
+ * The price offer's table.
+ *
+ * The rows come from the order — the machine and its accessories — so what
+ * is editable here is the wording around them: the caption above the rule,
+ * the three column heads, the bold set row, and the closing line that
+ * spells the total out in words.
+ */
+function EquipmentTableForm({ block, kind, onProps }: Props<"equipmentTable">) {
+  const { headings } = block.props;
+  return (
+    <>
+      <FormGrid>
+        <TemplateText
+          label="Caption, left"
+          kind={kind}
+          value={block.props.captionLeft ?? ""}
+          onChange={(captionLeft) =>
+            onProps({ captionLeft: captionLeft || undefined })
+          }
+          hint="Above the rule. “Price: BDT”."
+        />
+        <TemplateText
+          label="Caption, right"
+          kind={kind}
+          value={block.props.captionRight ?? ""}
+          onChange={(captionRight) =>
+            onProps({ captionRight: captionRight || undefined })
+          }
+          hint="Optional. “Delivery: …”."
+        />
+      </FormGrid>
+      <FormGrid>
+        <FormField label="Heading: names">
+          <Input
+            value={headings.no}
+            onChange={(e) =>
+              onProps({ headings: { ...headings, no: e.target.value } })
+            }
+            maxLength={40}
+          />
+        </FormField>
+        <FormField label="Heading: quantity">
+          <Input
+            value={headings.qty}
+            onChange={(e) =>
+              onProps({ headings: { ...headings, qty: e.target.value } })
+            }
+            maxLength={40}
+          />
+        </FormField>
+        <FormField label="Heading: price">
+          <Input
+            value={headings.price}
+            onChange={(e) =>
+              onProps({ headings: { ...headings, price: e.target.value } })
+            }
+            maxLength={40}
+          />
+        </FormField>
+        <FormField
+          label="After every figure"
+          hint="“/=” on the company's own offers."
+        >
+          <Input
+            value={block.props.amountSuffix}
+            onChange={(e) => onProps({ amountSuffix: e.target.value })}
+            maxLength={4}
+          />
+        </FormField>
+      </FormGrid>
+      <TemplateText
+        label="The set's row"
+        kind={kind}
+        value={block.props.setLabel}
+        onChange={(setLabel) => onProps({ setLabel })}
+        hint="Bold, carrying the whole price."
+      />
+      <FormGrid>
+        <TemplateText
+          label="Discount row"
+          kind={kind}
+          value={block.props.discountLabel ?? ""}
+          onChange={(discountLabel) =>
+            onProps({ discountLabel: discountLabel || undefined })
+          }
+          hint="Printed above the total, only when there is a discount."
+        />
+        <TemplateText
+          label="Total row"
+          kind={kind}
+          value={block.props.totalLabel}
+          onChange={(totalLabel) => onProps({ totalLabel })}
+          hint="The amount in words belongs here."
+        />
+      </FormGrid>
+      <FormGrid>
+        <SwitchField
+          label="Quantity column"
+          checked={block.props.showQty}
+          onChange={(showQty) => onProps({ showQty })}
+        />
+        <SwitchField
+          label="Price column"
+          checked={block.props.showPrice}
+          onChange={(showPrice) => onProps({ showPrice })}
+        />
+        <SwitchField
+          label="Total row"
+          checked={block.props.showTotal}
+          onChange={(showTotal) => onProps({ showTotal })}
+        />
+      </FormGrid>
+    </>
+  );
+}
+
+/** Numbered "Label : value" terms, the values aligned in a column. */
+function LabelledListForm({ block, kind, onProps }: Props<"labelledList">) {
+  return (
+    <>
+      <FormGrid>
+        <TemplateText
+          label="Heading"
+          kind={kind}
+          value={block.props.heading ?? ""}
+          onChange={(heading) => onProps({ heading: heading || undefined })}
+          hint="Optional."
+        />
+        <NumberField
+          label="Space under heading (pt)"
+          value={block.props.headingGap}
+          onChange={(headingGap) => onProps({ headingGap: headingGap ?? 0 })}
+          min={0}
+          max={20}
+        />
+        <NumberField
+          label="Label column (pt)"
+          value={block.props.labelWidth}
+          onChange={(labelWidth) => onProps({ labelWidth: labelWidth ?? 150 })}
+          min={40}
+          max={300}
+          hint="Every separator lines up at this width."
+        />
+        <FormField label="Separator">
+          <Input
+            value={block.props.separator}
+            onChange={(e) => onProps({ separator: e.target.value })}
+            maxLength={3}
+          />
+        </FormField>
+        <SwitchField
+          label="Numbered"
+          checked={block.props.numbered}
+          onChange={(numbered) => onProps({ numbered })}
+          hint="1., 2., 3. down the left."
+        />
+      </FormGrid>
+      <ListEditor<LabelledItem>
+        label="Terms"
+        items={block.props.items}
+        onChange={(items) => onProps({ items })}
+        max={20}
+        addLabel="Add term"
+        itemLabel={(i, it) => it.label || `Term ${i + 1}`}
+        newItem={() => ({ label: "Label", text: "", hideWhenEmpty: false })}
+        render={(it, patchItem) => (
+          <>
+            <FormGrid>
+              <TemplateText
+                label="Label"
+                kind={kind}
+                value={it.label}
+                onChange={(label) => patchItem({ label })}
+              />
+              <TemplateText
+                label="Value"
+                kind={kind}
+                multiline
+                rows={2}
+                value={it.text}
+                onChange={(text) => patchItem({ text })}
+              />
+            </FormGrid>
+            <SwitchField
+              label="Hide when empty"
+              checked={it.hideWhenEmpty}
+              onChange={(hideWhenEmpty) => patchItem({ hideWhenEmpty })}
+              hint="Drops the row when the value resolves to nothing."
+            />
+          </>
+        )}
+      />
+    </>
+  );
+}
+
 function KeyValueListForm({ block, kind, onProps }: Props<"keyValueList">) {
   return (
     <>
@@ -983,6 +1181,14 @@ function PropsForm({
       );
     case "lineTable":
       return <LineTableForm block={block} kind={kind} onProps={patch(block)} />;
+    case "equipmentTable":
+      return (
+        <EquipmentTableForm block={block} kind={kind} onProps={patch(block)} />
+      );
+    case "labelledList":
+      return (
+        <LabelledListForm block={block} kind={kind} onProps={patch(block)} />
+      );
     case "bullets":
       return <BulletsForm block={block} kind={kind} onProps={patch(block)} />;
     case "keyValueList":

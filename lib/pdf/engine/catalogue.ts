@@ -71,6 +71,17 @@ export const BLOCK_CATALOGUE: BlockInfo[] = [
     description: "The ruled table of items, with optional totals inside it.",
   },
   {
+    type: "equipmentTable",
+    label: "Price offer table",
+    description:
+      "The machine, its numbered accessories and the total in words.",
+  },
+  {
+    type: "labelledList",
+    label: "Numbered terms",
+    description: "Numbered “Label : value” rows with the values aligned.",
+  },
+  {
     type: "bullets",
     label: "Bullet list",
     description: "An optional heading over bulleted terms.",
@@ -129,6 +140,10 @@ export function blockSummary(block: Block): string {
       return `${block.props.columns.filter((c) => c.visible).length} columns${
         block.props.totals ? `, ${block.props.totals.rows.length} totals` : ""
       }`;
+    case "equipmentTable":
+      return block.props.setLabel;
+    case "labelledList":
+      return block.props.heading ?? `${block.props.items.length} terms`;
     case "bullets":
       return block.props.heading ?? `${block.props.items.length} items`;
     case "keyValueList":
@@ -291,6 +306,40 @@ export function newBlock(
             },
           ],
           vatColumn: "auto",
+        },
+      };
+    case "equipmentTable":
+      return {
+        id,
+        type,
+        style: { marginTop: 10 },
+        props: {
+          captionLeft: "Price: BDT",
+          captionRight: "Delivery: {{terms.deliveryScope}}",
+          headings: { no: "NO", qty: "Qty", price: "Price" },
+          setLabel: "{{equipment.setName}}",
+          discountLabel: "Less discount",
+          totalLabel: "Total Price BDT. {{price.goodsInWords}}",
+          amountSuffix: "/=",
+          showQty: true,
+          showPrice: true,
+          showTotal: true,
+        },
+      };
+    case "labelledList":
+      return {
+        id,
+        type,
+        style: { marginTop: 10 },
+        keepTogether: true,
+        minPresenceAhead: 96,
+        props: {
+          heading: "Terms & Conditions:-",
+          headingGap: 6,
+          numbered: true,
+          labelWidth: 150,
+          separator: ":",
+          items: [{ label: "Label", text: "Value", hideWhenEmpty: false }],
         },
       };
     case "bullets":

@@ -7,7 +7,8 @@ import { frameStyle, type BlockProps } from "./shared";
  * The closing signature row.
  *
  * The templates label the left line "Approved By" and, on an invoice, add
- * "Received By" on the right. The signatory's name and role sit under the
+ * "Received By" on the right; a blank label draws the rule alone, which is
+ * how a letter signs off. The signatory's name and role sit under the
  * left line when asked for, as they do on the documents the company actually
  * sent — a bare "Approved By" tells the reader nothing about who approved it.
  *
@@ -40,7 +41,12 @@ export function SignOffBlock({
         <View style={styles.signBox}>
           <View style={{ height: 26 }} />
           <View style={styles.signLine}>
-            <Text style={label}>{interpolate(left, ctx, kind)}</Text>
+            {/* An empty label draws the rule and nothing else — the company's
+                price offers sign over a bare line, with the name beneath it.
+                An empty Text would still take a line's height. */}
+            {left ? (
+              <Text style={label}>{interpolate(left, ctx, kind)}</Text>
+            ) : null}
           </View>
           {signatory ? (
             /* Ranged left under the rule: a centred address block reads as

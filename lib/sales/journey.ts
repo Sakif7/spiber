@@ -154,12 +154,20 @@ export function blockers(
   lines: { description: string; unitPriceMinor: number; qty: number }[],
   /** Whether the lines can be edited at this status. */
   editable = true,
+  /**
+   * Equipment orders price differently: one figure covers the set, so a
+   * line without a price is normal and only the ORDER's total has to be
+   * there — and only by the time an invoice is raised.
+   */
+  kind: "consumables" | "equipment" = "consumables",
 ): string[] {
   const out: string[] = [];
   if (status === "cancelled" || status === "delivered") return out;
 
   if (!lines.length) {
-    out.push("Add at least one item.");
+    out.push(
+      kind === "equipment" ? "Add the equipment." : "Add at least one item.",
+    );
     return out;
   }
   const unnamed = lines.filter((l) => !l.description.trim()).length;
@@ -168,11 +176,21 @@ export function blockers(
       `${unnamed} ${unnamed === 1 ? "line has" : "lines have"} no description.`,
     );
   }
-  const unpriced = lines.filter((l) => l.unitPriceMinor <= 0).length;
-  if (unpriced) {
-    out.push(
-      `${unpriced} ${unpriced === 1 ? "line has" : "lines have"} no price.`,
-    );
+  if (kind === "equipment") {
+    // The offer can go out unpriced; the invoice is what needs a figure.
+    const total = lines.reduce((n, l) => n + l.unitPriceMinor * l.qty, 0);
+    if (total <= 0 && status === "proposal_returned") {
+      out.push(
+        "No price on the equipment or any accessory — an invoice cannot be raised.",
+      );
+    }
+  } else {
+    const unpriced = lines.filter((l) => l.unitPriceMinor <= 0).length;
+    if (unpriced) {
+      out.push(
+        `${unpriced} ${unpriced === 1 ? "line has" : "lines have"} no price.`,
+      );
+    }
   }
   const noQty = lines.filter((l) => l.qty <= 0).length;
   if (noQty) {

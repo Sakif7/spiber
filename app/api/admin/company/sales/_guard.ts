@@ -43,6 +43,8 @@ export function salesStatus(code: string): number {
       return 409;
     case "insufficient_stock":
     case "no_items":
+    case "too_many_machines":
+    case "no_price":
       return 409;
     case "paid_order":
     case "not_editable":

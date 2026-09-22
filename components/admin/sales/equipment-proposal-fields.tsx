@@ -72,13 +72,27 @@ export function EquipmentProposalFields({
           maxLength={1500}
         />
       </div>
+      <div className="grid gap-1.5">
+        <Label htmlFor={`${idPrefix}-deliveryScope`}>Delivery</Label>
+        <Input
+          id={`${idPrefix}-deliveryScope`}
+          value={value.terms.deliveryScope}
+          onChange={(e) => setTerm("deliveryScope", e.target.value)}
+          maxLength={80}
+          placeholder={EQUIPMENT_TERM_DEFAULTS.deliveryScope}
+        />
+        <p className="text-muted-foreground text-xs">
+          Printed beside the price, above the table.
+        </p>
+      </div>
       <fieldset className="grid gap-2 rounded-md border p-3">
         <legend className="px-1 text-sm font-medium">
           Terms and conditions
         </legend>
         <p className="text-muted-foreground text-xs">
-          Printed as a numbered list, in this order, with the manufacturer last.
-          Blank means the standard wording.
+          Printed as a numbered list, in this order, with the manufacturer last
+          — it comes from the equipment&rsquo;s own Manufacturer field. Blank
+          means the standard wording.
         </p>
         {EQUIPMENT_TERM_FIELDS.map((f, i) => (
           <div key={f.key} className="grid gap-1.5">

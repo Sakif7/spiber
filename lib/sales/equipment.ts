@@ -4,10 +4,14 @@ import type { DocumentLine } from "@/lib/pdf/types";
  * Equipment orders: the same pipeline as consumables, different paper.
  *
  * A consumables order is a table of lines on a quotation. A high-value
- * machine is sold on a letter — the equipment is named in the opening
- * paragraph, the manufacturer sits in the terms, and the price is one figure
- * spelled out in words — so the documents read differently while the order
- * behind them (lines, stock, VAT, AIT, numbering) is exactly the same thing.
+ * machine is sold on a price offer — ONE machine, its accessories numbered
+ * beneath it, one price for the set spelled out in words, the manufacturer
+ * in the terms — so the documents read differently while the order behind
+ * them (lines, stock, VAT, AIT, numbering) is exactly the same thing.
+ *
+ * Accessories are ordinary order LINES carrying `role: "accessory"`, not a
+ * nested array: they may come from the catalogue, and that way every bit of
+ * reservation, costing and delivery machinery already works on them.
  *
  * Client-safe: the order editor and the proposal dialog import this, so it
  * must never touch a model.
@@ -28,11 +32,39 @@ export function orderKindOf(o: {
 }
 
 /**
- * The terms an equipment quotation carries, one line each.
+ * What a line is on an equipment order.
  *
- * Every one is free text because every one is negotiated: a second year of
- * warranty, a 50% advance, delivery after a letter of credit. These are the
- * defaults the dialog opens with, worded as the company's own letter is.
+ * Absent on every consumables line, and on equipment orders raised before
+ * accessories existed — which are the machine, so read it through
+ * `isAccessory` rather than comparing to `"machine"`.
+ */
+export type LineRole = "machine" | "accessory";
+
+export type RoledLine = { role?: LineRole | null };
+
+export const isAccessory = (l: RoledLine): boolean => l.role === "accessory";
+
+/** The machine an equipment order is for: the one line that is not an accessory. */
+export function machineOf<T extends RoledLine>(items: T[]): T | undefined {
+  return items.find((i) => !isAccessory(i));
+}
+
+export function accessoriesOf<T extends RoledLine>(items: T[]): T[] {
+  return items.filter(isAccessory);
+}
+
+/** Every line that is not an accessory — more than one is refused on an equipment order. */
+export function machineLinesOf<T extends RoledLine>(items: T[]): T[] {
+  return items.filter((i) => !isAccessory(i));
+}
+
+/**
+ * The terms an equipment quotation carries.
+ *
+ * The six numbered ones are free text because every one is negotiated: a
+ * second year of warranty, a 50% advance, delivery after a letter of credit.
+ * `deliveryScope` is not one of them — it is the short note printed beside
+ * the price above the table ("Delivery: Local Delivery").
  */
 export type EquipmentTerms = {
   payment: string;
@@ -41,6 +73,7 @@ export type EquipmentTerms = {
   afterWarranty: string;
   delivery: string;
   training: string;
+  deliveryScope: string;
 };
 
 export const EQUIPMENT_TERM_DEFAULTS: EquipmentTerms = {
@@ -53,17 +86,18 @@ export const EQUIPMENT_TERM_DEFAULTS: EquipmentTerms = {
   delivery: "Within 3 business days of receiving the advance payment.",
   training:
     "User training will be provided at your premises by our foreign-trained biomedical engineers, free of charge.",
+  deliveryScope: "Local Delivery",
 };
 
-/** The dialog's fields, in the order they print. */
+/** The six numbered terms, labelled as they print, in the order they print. */
 export const EQUIPMENT_TERM_FIELDS: {
-  key: keyof EquipmentTerms;
+  key: Exclude<keyof EquipmentTerms, "deliveryScope">;
   label: string;
 }[] = [
-  { key: "payment", label: "Payment" },
-  { key: "installation", label: "Installation and commissioning" },
+  { key: "payment", label: "Payment Terms" },
+  { key: "installation", label: "Installation & Commissioning" },
   { key: "warranty", label: "Warranty" },
-  { key: "afterWarranty", label: "After the warranty period" },
+  { key: "afterWarranty", label: "After Warranty Period" },
   { key: "delivery", label: "Delivery" },
   { key: "training", label: "Training" },
 ];
@@ -75,7 +109,9 @@ export function completeEquipmentTerms(
   > | null,
 ): EquipmentTerms {
   const out = { ...EQUIPMENT_TERM_DEFAULTS };
-  for (const { key } of EQUIPMENT_TERM_FIELDS) {
+  for (const key of Object.keys(
+    EQUIPMENT_TERM_DEFAULTS,
+  ) as (keyof EquipmentTerms)[]) {
     const v = input?.[key]?.trim();
     if (v) out[key] = v;
   }
@@ -102,7 +138,7 @@ export function joinNaturally(parts: string[]): string {
   return `${p.slice(0, -1).join(", ")} and ${p[p.length - 1]}`;
 }
 
-/** "Vivid E95 Ultrasound System (Model Vivid E95)" — one machine as the letter names it. */
+/** "Colour Doppler Ultrasound System (Model Vivid E95)" — the machine, named. */
 export function equipmentName(l: EquipmentLike): string {
   const name = clean(l.description);
   const model = clean(l.model);
@@ -110,9 +146,9 @@ export function equipmentName(l: EquipmentLike): string {
 }
 
 /**
- * The machines the document is about, as they read in a sentence: "2 × X
- * (Model M) and Y". A quantity of one is left unsaid, as it would be in a
- * letter.
+ * The machines the document is about, as they read in a sentence. One
+ * machine is the usual case; the plural form survives for an order raised
+ * before the one-machine rule.
  */
 export function equipmentSummary(lines: EquipmentLike[]): string {
   return joinNaturally(
@@ -122,7 +158,17 @@ export function equipmentSummary(lines: EquipmentLike[]): string {
   );
 }
 
-/** "GE Healthcare, USA" — who makes it and where, once per maker. */
+/** "one set of X", "2 sets of X" — the opening sentence's object. */
+export function equipmentSetPhrase(lines: EquipmentLike[]): string {
+  const name = equipmentSummary(lines);
+  if (!name) return "";
+  const qty = lines.length === 1 ? lines[0].qty : 0;
+  if (qty === 1) return `one set of ${name}`;
+  if (qty > 1) return `${qty} sets of ${clean(lines[0].description)}`;
+  return name;
+}
+
+/** "GE HealthCare, USA" — who makes it and where, once per maker. */
 export function equipmentManufacturers(lines: EquipmentLike[]): string {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -147,6 +193,15 @@ export function equipmentSpecification(lines: EquipmentLike[]): string {
   return specs.map((s) => `${s.name}: ${s.spec}`).join(" · ");
 }
 
+/** "1 set", "4 pcs" — an accessory's quantity as the table prints it. */
+export function accessoryQtyLabel(a: {
+  qty: number;
+  unit?: string | null;
+}): string {
+  const unit = clean(a.unit) || "set";
+  return `${a.qty} ${unit}`;
+}
+
 /**
  * An equipment line as the ruled tables print it — the challan, or a line
  * table a super-admin adds to an equipment template.
@@ -154,12 +209,20 @@ export function equipmentSpecification(lines: EquipmentLike[]): string {
  * The model and, when asked for, the serial number go into the specification
  * cell rather than columns of their own: the challan's built-in layout is
  * shared with consumables orders and must not grow a column that is blank on
- * every one of those.
+ * every one of those. An accessory prints plainly — it has no model of its
+ * own, and its name is what was delivered.
  */
 export function equipmentPrintedColumns(
-  l: EquipmentLike,
+  l: EquipmentLike & RoledLine,
   opts: { serial?: boolean } = {},
 ): Pick<DocumentLine, "description" | "brandOrigin" | "specification"> {
+  if (isAccessory(l)) {
+    return {
+      description: clean(l.description),
+      brandOrigin: clean(l.manufacturer) || null,
+      specification: clean(l.specification) || null,
+    };
+  }
   const parts: string[] = [];
   if (clean(l.model)) parts.push(`Model: ${clean(l.model)}`);
   if (opts.serial && clean(l.serialNo))

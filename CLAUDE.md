@@ -116,17 +116,28 @@ These are the things the owner has had to repeat. Treat them as hard rules.
 - **Two kinds of sales order, one pipeline.** `SalesOrder.kind` is
   `consumables` (default; rows from before have no field — always read it
   through `orderKindOf()` in `lib/sales/equipment.ts`) or `equipment`.
-  Equipment = the same lines, money, stock, numbering and challan, but its
-  proposal is a **letter** (`equipmentProposal` template: the machines named
-  in the opening sentence, one price in figures then words, the numbered
-  terms with the manufacturer last, MD sign-off with phone/e-mail) and its
-  invoice is **one price line** (`equipmentInvoice`). Equipment lines carry
-  `model`, `manufacturer`, `origin`, `serialNo` (the serial prints on the
-  challan only, folded into the Specification cell). The six letter terms
-  are per proposal (`snapshot.equipmentTerms`, defaults in
-  `EQUIPMENT_TERM_DEFAULTS`), never per template. The kind is chosen on New
-  order and fixed once a proposal exists; reprints choose the layout from
-  `templateRef.kind`, the challan from the order's kind.
+  Equipment = the same lines, money, stock, numbering and challan, but the
+  paper is the company's **price offer**: headed "Commercial Proposal", the
+  set named in one sentence, the `equipmentTable` (three rules, no boxes)
+  carrying the machine in bold with its accessories numbered beneath and the
+  total spelled out in words, then numbered "Label : value" terms
+  (`labelledList`) with the manufacturer last. The bill is the same table
+  headed "Commercial Invoice".
+  **ONE machine per order** (`tooManyMachines`, refused on create and amend);
+  **accessories are ordinary lines** carrying `role: "accessory"`, so they may
+  come from the catalogue and reserve stock like anything else, and a priced
+  one adds to the total — never a nested array, never a second money path.
+  The role **sticks** through a kind change, or switching back and forth
+  flattens a set into many machines. Equipment lines carry `model`,
+  `manufacturer`, `origin`, `serialNo` (the serial prints on the challan
+  only, folded into the Specification cell). **A price is optional** — zero
+  means "not priced yet": the offer may go out, the invoice may not
+  (`no_price`, refused in `transitionOrder` and `generateInvoice`).
+  The six letter terms plus `deliveryScope` are per proposal
+  (`snapshot.equipmentTerms`, defaults in `EQUIPMENT_TERM_DEFAULTS`), never
+  per template. The kind is chosen on New order and fixed once a proposal
+  exists; reprints choose the layout from `templateRef.kind`, the challan
+  from the order's kind.
 - **PDF layout is data.** Every document renders through the block-based
   template engine (`lib/pdf/engine`); the built-in template is **version 0**
   and lives in code (no seed). Published `PdfTemplate` rows are **immutable**
@@ -375,6 +386,17 @@ tests`, `npm test`, and the browser pass above. Then `git status`.
   "Delivery: within {{terms.deliveryDays}} days" must still print at zero.
   Don't make hide-when-empty the default on any block that existing
   templates use.
+- A price column beside a quantity column prints **quantity × unit price**,
+  or the column does not add up to the total under it.
+- Adding a block type means four places, not one: the schema union, the
+  renderer's switch, `catalogue.ts` (info + `newBlock` + `blockSummary`) and
+  an inspector form in `block-form.tsx`. The renderer's switch is not
+  exhaustive-checked, so a missing form fails silently — the inspector just
+  shows the shared spacing fields.
+- Page budgets are measured, not guessed: render with `TemplateDocument`'s
+  `onLayout` and read the block boxes (A4 content runs 171→790 pt with the
+  letterhead). A letter's closing + signature travel as one piece via
+  `minPresenceAhead`, or a page arrives holding nothing but a signature.
 
 **React / Next**
 

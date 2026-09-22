@@ -4,7 +4,7 @@ import type {
   SalesOrderStatus,
   SalesPaymentMethod,
 } from "@/lib/schemas/sales-order";
-import type { EquipmentTerms } from "@/lib/sales/equipment";
+import type { EquipmentTerms, LineRole } from "@/lib/sales/equipment";
 
 /**
  * An offline sale: negotiated with a hospital, quoted on a proposal, invoiced
@@ -26,6 +26,12 @@ export interface ISalesOrderItem {
   description: string;
   brandOrigin?: string | null;
   specification?: string | null;
+  /**
+   * On an equipment order: the machine, or one of the accessories listed
+   * under it. Absent on a consumables line, and on an equipment order
+   * raised before accessories existed — which is the machine.
+   */
+  role?: LineRole | null;
   /**
    * Equipment lines: the model, the maker and its country, and the serial
    * number once the machine is on the floor. Absent on a consumables line.
@@ -278,6 +284,7 @@ const itemSchema = new Schema<ISalesOrderItem>(
     description: { type: String, required: true },
     brandOrigin: { type: String, default: null },
     specification: { type: String, default: null },
+    role: { type: String, enum: ["machine", "accessory"], default: null },
     model: { type: String, default: null },
     manufacturer: { type: String, default: null },
     origin: { type: String, default: null },
