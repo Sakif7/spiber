@@ -11,6 +11,12 @@ import {
  * A cost incurred on company business that a director is owed back — a meal on
  * a visit, fuel for someone's car, a fare.
  *
+ * A claim is a bill: `lines`, each with its own day, category, note and
+ * amount, and `amountMinor` their total — the one figure every money path
+ * reads. A claim from before bills has no `lines` and keeps its single
+ * `category`; read lines through `expenseLinesOf()` (lib/hr/expense-lines),
+ * never the fields directly.
+ *
  * Two settlement routes, chosen when the claim is approved:
  *
  *   payroll — it rides along on a monthly payroll run as a reimbursement line,
@@ -37,6 +43,13 @@ export type {
   ExpenseSettlement,
 } from "@/lib/hr/expense-constants";
 
+export interface IExpenseLine {
+  spentAt: Date;
+  category: ExpenseCategory;
+  description?: string | null;
+  amountMinor: number;
+}
+
 export interface IExpense {
   /** SPM-EXP-… */
   ref: string;
@@ -44,11 +57,19 @@ export interface IExpense {
   visitId?: Types.ObjectId | string | null;
   /** Who paid, and therefore who is owed. */
   employeeId: Types.ObjectId | string;
-  category: ExpenseCategory;
+  /** The bill. Absent on a claim recorded before bills had lines. */
+  lines?: IExpenseLine[];
+  /** Only on a claim from before bills; a bill's categories are its lines'. */
+  category?: ExpenseCategory | null;
+  /** The total of the lines. */
   amountMinor: number;
+  /** The bill's first day — what the lists sort and filter by. */
   spentAt: Date;
+  /** What the bill was for. */
   description: string;
-  /** The receipt, filed encrypted in the company vault. */
+  /** The receipts, filed encrypted in the company vault. */
+  receiptDocumentIds?: (Types.ObjectId | string)[];
+  /** Only on a claim from before bills: its one receipt. */
   receiptDocumentId?: Types.ObjectId | string | null;
 
   status: ExpenseStatus;
@@ -90,10 +111,39 @@ const expenseSchema = new Schema<IExpense>(
       ref: "Employee",
       required: true,
     },
-    category: { type: String, enum: EXPENSE_CATEGORIES, required: true },
+    lines: {
+      type: [
+        new Schema<IExpenseLine>(
+          {
+            spentAt: { type: Date, required: true },
+            category: {
+              type: String,
+              enum: EXPENSE_CATEGORIES,
+              required: true,
+            },
+            description: {
+              type: String,
+              trim: true,
+              maxlength: 300,
+              default: null,
+            },
+            amountMinor: { type: Number, required: true, min: 1 },
+          },
+          { _id: false },
+        ),
+      ],
+      default: undefined,
+    },
+    // Not required any more: a bill keeps its categories on its lines, and
+    // only a claim from before bills has one here.
+    category: { type: String, enum: EXPENSE_CATEGORIES },
     amountMinor: { type: Number, required: true, min: 1 },
     spentAt: { type: Date, required: true },
     description: { type: String, required: true, trim: true, maxlength: 300 },
+    receiptDocumentIds: {
+      type: [{ type: Schema.Types.ObjectId, ref: "CompanyDocument" }],
+      default: undefined,
+    },
     receiptDocumentId: {
       type: Schema.Types.ObjectId,
       ref: "CompanyDocument",

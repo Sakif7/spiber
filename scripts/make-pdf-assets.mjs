@@ -1,5 +1,6 @@
 /**
- * Produce print-sized copies of the brand assets used in generated PDFs.
+ * Produce print-sized copies of the brand assets used in generated PDFs —
+ * and the small logo that sits above an email signature.
  *
  * WHY
  *   @react-pdf/renderer embeds whatever image bytes it is given, at full size.
@@ -9,6 +10,9 @@
  *
  *   The copies written here are ~3x the printed size, which is ample at 300dpi,
  *   and take a generated PDF from ~1.8 MB to ~70 KB.
+ *
+ *   The email logo is sent inside every message that carries a signature, so
+ *   it is 2x its drawn width (150px) and no more.
  *
  * WHEN TO RUN
  *   Only when a brand asset changes. The output is committed, so neither the
@@ -21,10 +25,10 @@ import path from "node:path";
 import { createCanvas, loadImage } from "canvas";
 
 const PUBLIC = path.join(process.cwd(), "public");
-const OUT_DIR = path.join(PUBLIC, "pdf");
 
 /**
- * Source → output, and the width the PDF copy should have.
+ * Source → output (under public/<dir>, "pdf" unless named), and the width the
+ * copy should have.
  *
  * `trim` crops the transparent/white margin around the artwork. The source logo
  * is a 1024 square with the lockup floating in the middle, but the letterhead
@@ -40,6 +44,13 @@ const ASSETS = [
     src: "spibermed-logo.png",
     out: "letterhead-logo.png",
     width: 520,
+    trim: true,
+  },
+  {
+    src: "spibermed-logo.png",
+    dir: "email",
+    out: "logo.png",
+    width: 300,
     trim: true,
   },
 ];
@@ -68,9 +79,9 @@ function contentBox(ctx, w, h) {
   return { x: left, y: top, w: right - left + 1, h: bottom - top + 1 };
 }
 
-fs.mkdirSync(OUT_DIR, { recursive: true });
-
 for (const asset of ASSETS) {
+  const dir = asset.dir ?? "pdf";
+  fs.mkdirSync(path.join(PUBLIC, dir), { recursive: true });
   const from = path.join(PUBLIC, asset.src);
   if (!fs.existsSync(from)) {
     console.warn(`skipped ${asset.src} — not in public/`);
@@ -95,9 +106,9 @@ for (const asset of ASSETS) {
   ctx.imageSmoothingQuality = "high";
   ctx.drawImage(img, box.x, box.y, box.w, box.h, 0, 0, w, h);
   const buf = canvas.toBuffer("image/png", { compressionLevel: 9 });
-  fs.writeFileSync(path.join(OUT_DIR, asset.out), buf);
+  fs.writeFileSync(path.join(PUBLIC, dir, asset.out), buf);
   console.log(
-    `${asset.src} (${fs.statSync(from).size} B) → public/pdf/${asset.out} ` +
+    `${asset.src} (${fs.statSync(from).size} B) → public/${dir}/${asset.out} ` +
       `${w}x${h}, ${buf.length} B`,
   );
 }

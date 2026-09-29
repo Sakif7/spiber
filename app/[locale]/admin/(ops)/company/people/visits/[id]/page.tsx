@@ -11,6 +11,7 @@ import { getSalesLeadById } from "@/lib/repositories/sales.repo";
 import { EditorHeader } from "@/components/admin/ui/form-shell";
 import { FormPanelButton } from "@/components/admin/ui/form-panel";
 import { ExpenseForm } from "@/components/admin/hr/expense-form";
+import { expenseCategoryLabel, expenseSpanLabel } from "@/lib/hr/expense-lines";
 import {
   DetailLayout,
   DetailCard,
@@ -62,8 +63,8 @@ export default async function VisitDetailPage({
         subtitle={`${visit.ref} · ${day(visit.visitedAt)}`}
         action={
           <FormPanelButton
-            label="Add a cost"
-            title="Record a cost"
+            label="Record a bill"
+            title="Record a bill"
             description="Charged against this visit."
           >
             <ExpenseForm
@@ -135,7 +136,7 @@ export default async function VisitDetailPage({
                     </Link>
                     <span className="text-muted-foreground text-admin-xs block">
                       {claimNames.get(String(c.employeeId))?.name ?? "—"} ·{" "}
-                      {c.category} · {day(c.spentAt)}
+                      {expenseCategoryLabel(c)} · {expenseSpanLabel(c, day)}
                     </span>
                   </span>
                   <span className="flex items-center gap-3">

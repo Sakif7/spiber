@@ -27,6 +27,13 @@ import {
   type OutgoingAttachment,
 } from "@/lib/mail/transport";
 import { mailDomain } from "@/lib/mail/config";
+import {
+  SIGNATURE_LOGO_FILE,
+  signatureBlockHtml,
+  type SignatureChoices,
+} from "@/lib/mail/signature";
+import { publicImage } from "@/lib/pdf/engine/assets";
+import { Employee, type IEmployeeEmailSignature } from "@/lib/models/employee";
 import { findUserById } from "@/lib/repositories/users.repo";
 import { siteConfig } from "@/lib/site-config";
 import { logger } from "@/lib/log";
@@ -466,6 +473,74 @@ export async function moveMessages(
   return { ok: true, target: target.path };
 }
 
+// ──────────────────────────── signatures ────────────────────────────
+
+/**
+ * The email signatures the composer offers for a mailbox.
+ *
+ * A personal mailbox signs with its owner's and nobody else's — whoever is
+ * writing, since the message goes out as that person. A shared mailbox
+ * (info@, sales@, career@) offers every active employee's signature, and
+ * starts on the writer's own when they have one.
+ */
+export async function signatureChoices(
+  access: MailAccess,
+  claims: AccessClaims,
+): Promise<SignatureChoices> {
+  await connectToDatabase();
+  const { mailbox } = access;
+  const shared = mailbox.kind === "shared";
+  const withSignature = { deletedAt: null, emailSignature: { $ne: null } };
+  // A personal mailbox names its person; one from before that link existed
+  // is found through the login that owns it.
+  const filter = shared
+    ? { ...withSignature, status: "active" as const }
+    : mailbox.employeeId
+      ? { ...withSignature, _id: mailbox.employeeId }
+      : mailbox.ownerUserId
+        ? { ...withSignature, userId: mailbox.ownerUserId }
+        : null;
+  if (!filter) return { shared, options: [], defaultId: null };
+
+  const rows = await Employee.find(filter)
+    .select("name designation userId emailSignature")
+    .sort({ name: 1 })
+    .limit(shared ? 500 : 1)
+    .lean<
+      {
+        _id: unknown;
+        name: string;
+        designation?: string | null;
+        userId?: unknown;
+        emailSignature?: IEmployeeEmailSignature | null;
+      }[]
+    >()
+    .exec();
+  const options = rows.flatMap((r) =>
+    r.emailSignature?.html
+      ? [
+          {
+            id: String(r._id),
+            name: r.name,
+            designation: r.designation ?? null,
+            html: signatureBlockHtml({
+              html: r.emailSignature.html,
+              logo: r.emailSignature.logo !== false,
+            }),
+          },
+        ]
+      : [],
+  );
+  const start = shared
+    ? rows.find((r) => r.userId && String(r.userId) === claims.sub)
+    : rows[0];
+  const defaultId =
+    start && options.some((o) => o.id === String(start._id))
+      ? String(start._id)
+      : null;
+  return { shared, options, defaultId };
+}
+
 // ───────────────────────────── sending ─────────────────────────────
 
 export type SendInput = {
@@ -568,6 +643,28 @@ export async function sendMessage(
         });
     }
   }
+  // The signature's company logo goes as an inline part, referenced by cid:
+  // — a remote image would be blocked by most mail apps. Without the file
+  // the sanitiser drops the logo rather than send a broken image.
+  const logo = publicImage(SIGNATURE_LOGO_FILE.join("/"));
+  const logoCid = logo ? `signature-logo@${mailDomain()}` : undefined;
+  // Browsers submit textareas with CRLF; keep one convention before the
+  // composer re-encodes line endings for the wire.
+  const richHtml = input.html
+    ? sanitizeOutgoingHtml(input.html, { logoCid })
+    : "";
+  const text = richHtml
+    ? htmlToText(richHtml)
+    : input.text.replace(/\r\n?/g, "\n");
+  const html = richHtml || textToHtml(text);
+  if (logo && logoCid && html.includes(`cid:${logoCid}`)) {
+    attachments.push({
+      filename: "spibermed-logo.png",
+      contentType: "image/png",
+      content: logo,
+      cid: logoCid,
+    });
+  }
   const bytes =
     attachments.reduce((n, a) => n + a.content.length, 0) +
     input.text.length +
@@ -580,13 +677,6 @@ export async function sendMessage(
   } catch (e) {
     return { ok: false, code: "transport_not_configured", detail: String(e) };
   }
-  // Browsers submit textareas with CRLF; keep one convention before the
-  // composer re-encodes line endings for the wire.
-  const richHtml = input.html ? sanitizeOutgoingHtml(input.html) : "";
-  const text = richHtml
-    ? htmlToText(richHtml)
-    : input.text.replace(/\r\n?/g, "\n");
-  const html = richHtml || textToHtml(text);
   const composed = await composeMessage(
     {
       from: { name, address },

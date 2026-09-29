@@ -27,7 +27,7 @@ export async function POST(req: Request) {
       after: {
         ref: expense.ref,
         amountMinor: expense.amountMinor,
-        category: expense.category,
+        lines: expense.lines?.length ?? 1,
       },
     },
     req,

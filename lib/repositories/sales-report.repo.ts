@@ -1,8 +1,10 @@
 import { connectToDatabase } from "@/lib/db/connect";
 import { Order } from "@/lib/models/order";
 import { SalesOrder } from "@/lib/models/salesOrder";
-import { Expense } from "@/lib/models/expense";
+import { Expense, type IExpense } from "@/lib/models/expense";
 import { Visit } from "@/lib/models/visit";
+import type { Lean } from "@/lib/models/_shared";
+import { expenseLinesOf } from "@/lib/hr/expense-lines";
 
 /**
  * The sales report: what we sold, what it cost us, and what we kept.
@@ -272,6 +274,10 @@ async function onlineOrders(range: ReportRange): Promise<ReportOrder[]> {
  * against what that hospital actually earned us. Anything not tied to a visit,
  * or to a visit with no lead, is genuinely general overhead and is left out of
  * a per-client figure rather than being spread arbitrarily.
+ *
+ * A claim is a bill whose lines can fall on different days, so each line is
+ * counted in the period its own day falls in — a trip from the 30th to the
+ * 2nd costs each month what was spent in it.
  */
 async function attributedExpenses(
   range: ReportRange,
@@ -287,20 +293,25 @@ async function attributedExpenses(
     visits.map((v: Record<string, any>) => [String(v._id), String(v.leadId)]),
   );
 
+  const within = { $gte: range.start, $lt: range.end };
   const expenses = await Expense.find({
     deletedAt: null,
     status: { $in: ["approved", "reimbursed"] },
     visitId: { $in: visits.map((v: Record<string, any>) => v._id) },
-    spentAt: { $gte: range.start, $lt: range.end },
+    $or: [{ spentAt: within }, { "lines.spentAt": within }],
   })
-    .select("visitId amountMinor")
-    .lean()
+    .select("visitId amountMinor spentAt category lines")
+    .lean<Lean<IExpense>[]>()
     .exec();
 
-  for (const e of expenses as Record<string, any>[]) {
+  for (const e of expenses) {
     const lead = leadByVisit.get(String(e.visitId));
     if (!lead) continue;
-    out.set(lead, (out.get(lead) ?? 0) + num(e.amountMinor));
+    for (const line of expenseLinesOf(e)) {
+      const at = new Date(line.spentAt);
+      if (at < range.start || at >= range.end) continue;
+      out.set(lead, (out.get(lead) ?? 0) + num(line.amountMinor));
+    }
   }
   return out;
 }

@@ -9,9 +9,15 @@ import {
   activeEmployeeOptions,
   listVisits,
 } from "@/lib/repositories/expenses.repo";
-import { getCompanyDocumentById } from "@/lib/repositories/company-documents.repo";
+import { getDocumentsByIds } from "@/lib/repositories/company-documents.repo";
 import { FormPanelButton } from "@/components/admin/ui/form-panel";
 import { ExpenseForm } from "@/components/admin/hr/expense-form";
+import { ExpenseLinesCard } from "@/components/admin/hr/expense-lines-card";
+import {
+  expenseFormLines,
+  expenseReceiptIdsOf,
+  expenseSpanLabel,
+} from "@/lib/hr/expense-lines";
 import { EditorHeader } from "@/components/admin/ui/form-shell";
 import {
   DetailLayout,
@@ -41,7 +47,8 @@ export default async function ExpenseDetailPage({
   // A claim can only be edited while it is still awaiting a decision, so the
   // form's data is only loaded when the panel could actually be offered.
   const editable = expense.status === "submitted";
-  const [names, visit, people, visitPage, receipt] = await Promise.all([
+  const receiptIds = expenseReceiptIdsOf(expense);
+  const [names, visit, people, visitPage, receiptDocs] = await Promise.all([
     employeeNames([String(expense.employeeId)]).catch(() => new Map()),
     expense.visitId
       ? getVisitById(String(expense.visitId)).catch(() => null)
@@ -50,12 +57,17 @@ export default async function ExpenseDetailPage({
     editable
       ? listVisits({ pageSize: 100 }).catch(() => null)
       : Promise.resolve(null),
-    editable && expense.receiptDocumentId
-      ? getCompanyDocumentById(String(expense.receiptDocumentId)).catch(
-          () => null,
-        )
-      : Promise.resolve(null),
+    receiptIds.length
+      ? getDocumentsByIds(receiptIds).catch(() => [])
+      : Promise.resolve([]),
   ]);
+  const titleOf = new Map(receiptDocs.map((d) => [String(d._id), d.title]));
+  const receipts = receiptIds.map((rid, i) => ({
+    id: rid,
+    title:
+      titleOf.get(rid) ??
+      (receiptIds.length === 1 ? "Receipt" : `Receipt ${i + 1}`),
+  }));
 
   const who = names.get(String(expense.employeeId))?.name ?? "—";
   const amountLabel = formatBDT(expense.amountMinor, "en");
@@ -93,20 +105,9 @@ export default async function ExpenseDetailPage({
                   id,
                   visitId: expense.visitId ? String(expense.visitId) : "",
                   employeeId: String(expense.employeeId),
-                  category: expense.category,
-                  amount: (expense.amountMinor / 100).toString(),
-                  // Claims are stored at Dhaka midnight, so reading the day
-                  // back in UTC lands on the day before and saving would
-                  // silently walk the date backwards on every edit.
-                  spentAt: new Date(expense.spentAt).toLocaleDateString(
-                    "en-CA",
-                    { timeZone: "Asia/Dhaka" },
-                  ),
                   description: expense.description,
-                  receiptDocumentId: expense.receiptDocumentId
-                    ? String(expense.receiptDocumentId)
-                    : "",
-                  receiptTitle: receipt?.title ?? "",
+                  lines: expenseFormLines(expense),
+                  receipts,
                 }}
               />
             </FormPanelButton>
@@ -131,8 +132,9 @@ export default async function ExpenseDetailPage({
                 </span>
               </DetailRow>
               <DetailRow label="Paid by">{who}</DetailRow>
-              <DetailRow label="Category">{cap(expense.category)}</DetailRow>
-              <DetailRow label="Date spent">{day(expense.spentAt)}</DetailRow>
+              <DetailRow label="Spent">
+                {expenseSpanLabel(expense, day)}
+              </DetailRow>
               <DetailRow label="Visit">
                 {visit ? (
                   <Link
@@ -152,17 +154,24 @@ export default async function ExpenseDetailPage({
                     ? "Direct payout"
                     : "Not decided"}
               </DetailRow>
-              {expense.receiptDocumentId && (
-                <DetailRow label="Receipt">
-                  <a
-                    href={`/api/media/company-document/${String(expense.receiptDocumentId)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-primary inline-flex items-center gap-1.5 hover:underline"
-                  >
-                    <Paperclip className="size-3.5" aria-hidden />
-                    View receipt
-                  </a>
+              {receipts.length > 0 && (
+                <DetailRow
+                  label={receipts.length === 1 ? "Receipt" : "Receipts"}
+                >
+                  <span className="grid gap-1">
+                    {receipts.map((r) => (
+                      <a
+                        key={r.id}
+                        href={`/api/media/company-document/${r.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary inline-flex min-w-0 items-center gap-1.5 hover:underline"
+                      >
+                        <Paperclip className="size-3.5 shrink-0" aria-hidden />
+                        <span className="truncate">{r.title}</span>
+                      </a>
+                    ))}
+                  </span>
                 </DetailRow>
               )}
             </DetailCard>
@@ -177,6 +186,8 @@ export default async function ExpenseDetailPage({
           </>
         }
       >
+        <ExpenseLinesCard claim={expense} formatDay={day} />
+
         <DetailCard
           title="History"
           description="Every decision on this claim, with who made it."

@@ -38,11 +38,21 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { EmptyState } from "@/components/admin/ui/empty-state";
+import { SelectField } from "@/components/admin/ui/select-field";
 import { cn } from "@/lib/cn";
 import type { MailFolder, SpecialUse } from "@/lib/mail/store/types";
+import type { SignatureChoices } from "@/lib/mail/signature";
 import type { RenderedMessage } from "@/lib/services/mail.service";
 import { seedFields, type ComposeMode } from "./compose-panel";
 import { MailEditor } from "./mail-editor";
+import { signatureBlock } from "./mail-nodes";
+import {
+  rememberSignature,
+  signatureHtmlFor,
+  signatureOptions,
+  startingSignature,
+  useSignatureChoices,
+} from "./use-signatures";
 import {
   enc,
   fullDate,
@@ -439,20 +449,46 @@ export function MailDisplay({
   );
 }
 
-/** Reply in place, as a real reply (In-Reply-To, quoted original, filed in Sent). */
-function QuickReply({
-  address,
-  folder,
-  message,
-  onSent,
-  onOpenComposer,
-}: {
+/**
+ * Reply in place, as a real reply (In-Reply-To, quoted original, filed in
+ * Sent). The box stays a few lines tall so the message being answered stays
+ * readable: the signature is named by the picker beside Send and goes under
+ * what was typed when it is sent. The full composer shows it in the body,
+ * editable, for when it needs changing for one message.
+ */
+function QuickReply(props: {
   address: string;
   folder: string;
   message: RenderedMessage;
   onSent: () => void;
   onOpenComposer: () => void;
 }) {
+  const signatures = useSignatureChoices(props.address);
+  // Usually already fetched by the mail page; the first signature is part
+  // of the editor's starting content, so the box waits for it.
+  if (signatures.isPending) return null;
+  return <QuickReplyForm {...props} choices={signatures.data ?? null} />;
+}
+
+function QuickReplyForm({
+  address,
+  folder,
+  message,
+  onSent,
+  onOpenComposer,
+  choices,
+}: {
+  address: string;
+  folder: string;
+  message: RenderedMessage;
+  onSent: () => void;
+  onOpenComposer: () => void;
+  choices: SignatureChoices | null;
+}) {
+  const [signatureId, setSignatureId] = useState(() =>
+    choices ? startingSignature(address, choices) : "",
+  );
+  const signature = signatureHtmlFor(choices ?? undefined, signatureId);
   const [text, setText] = useState("");
   const [html, setHtml] = useState("");
   // A new editor after each send clears the box (TipTap owns its content).
@@ -473,7 +509,7 @@ function QuickReply({
       fd.set("bcc", "");
       fd.set("subject", seed.subject);
       fd.set("text", `${text.trim()}${seed.text}`);
-      fd.set("html", `${html}${seed.html}`);
+      fd.set("html", `${html}${signatureBlock(signature)}${seed.html}`);
       fd.set("replyFolder", folder);
       fd.set("replyUid", String(message.uid));
       const data = await mailApi<{ filed?: boolean }>(
@@ -516,7 +552,7 @@ function QuickReply({
             onSubmit={() => void send()}
             disabled={sending}
           />
-          <div className="flex items-center">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               type="button"
               variant="ghost"
@@ -526,10 +562,25 @@ function QuickReply({
             >
               Open full composer
             </Button>
+            {choices && choices.options.length > 0 && (
+              <SelectField
+                value={signatureId}
+                onChange={(id) => {
+                  setSignatureId(id);
+                  rememberSignature(address, id);
+                }}
+                ariaLabel="Signature"
+                emptyLabel="No signature"
+                options={signatureOptions(choices)}
+                className="ml-auto w-auto max-w-56 min-w-0 data-[size=default]:h-8"
+              />
+            )}
             <Button
               type="submit"
               size="sm"
-              className="ml-auto"
+              className={cn(
+                !(choices && choices.options.length > 0) && "ml-auto",
+              )}
               disabled={sending || !text.trim()}
             >
               {sending ? "Sending…" : "Send"}

@@ -108,3 +108,15 @@ export const signatureImageSchema = z.object({
   source: z.enum(["upload", "draw"]).default("upload"),
 });
 export type SignatureImageInput = z.infer<typeof signatureImageSchema>;
+
+/**
+ * An email signature from the employee page: the composer's HTML (sanitised
+ * again by the service) and whether the company logo goes above it. The
+ * length cap is checked on the sanitised text, not here — pasted markup can
+ * be long and still clean down to a short signature.
+ */
+export const emailSignatureSchema = z.object({
+  html: z.string().max(100_000),
+  logo: z.boolean(),
+});
+export type EmailSignatureInput = z.infer<typeof emailSignatureSchema>;

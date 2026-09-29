@@ -3,10 +3,12 @@ import { setRequestLocale } from "next-intl/server";
 import { parseListQuery, type ListConfig } from "@/lib/admin/list-params";
 import { myClaims, myVisitOptions } from "@/lib/services/me.service";
 import { formatBDT } from "@/lib/money";
+import { EXPENSE_STATUSES } from "@/lib/hr/expense-constants";
 import {
-  EXPENSE_CATEGORY_LABEL,
-  EXPENSE_STATUSES,
-} from "@/lib/hr/expense-constants";
+  expenseCategoryLabel,
+  expenseLinesOf,
+  expenseSpanLabel,
+} from "@/lib/hr/expense-lines";
 import { AdminPageHeader } from "@/components/admin/ui/page-header";
 import { ListToolbar } from "@/components/admin/ui/list-toolbar";
 import { DataTable, type Column } from "@/components/admin/ui/data-table";
@@ -24,6 +26,7 @@ type Row = {
   id: string;
   ref: string;
   description: string;
+  lineCount: number;
   category: string;
   amount: string;
   spentAt: string;
@@ -64,9 +67,10 @@ export default async function MyClaimsPage({
     id: String(e._id),
     ref: e.ref,
     description: e.description,
-    category: EXPENSE_CATEGORY_LABEL[e.category] ?? cap(e.category),
+    lineCount: expenseLinesOf(e).length,
+    category: expenseCategoryLabel(e),
     amount: formatBDT(e.amountMinor, "en"),
-    spentAt: day(e.spentAt),
+    spentAt: expenseSpanLabel(e, day),
     status: e.status,
     settlement:
       e.status === "reimbursed"
@@ -94,6 +98,7 @@ export default async function MyClaimsPage({
           </Link>
           <span className="text-muted-foreground block font-mono text-xs">
             {r.ref}
+            {r.lineCount > 1 ? ` · ${r.lineCount} lines` : ""}
           </span>
         </span>
       ),

@@ -111,7 +111,7 @@ export async function PATCH(req: Request, { params }: Params) {
   if (!parsed.success) {
     return fail({ code: "invalid_input", details: parsed.error.issues }, 400);
   }
-  const res = await updateExpense(id, parsed.data);
+  const res = await updateExpense(id, parsed.data, g.actor);
   if (!res.ok) return fail({ code: res.code }, peopleStatus(res.code));
   await writeAudit(
     {

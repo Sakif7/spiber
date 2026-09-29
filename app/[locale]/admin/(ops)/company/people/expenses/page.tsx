@@ -10,8 +10,14 @@ import {
 } from "@/lib/repositories/expenses.repo";
 import {
   EXPENSE_CATEGORIES,
+  EXPENSE_CATEGORY_LABEL,
   EXPENSE_STATUSES,
 } from "@/lib/hr/expense-constants";
+import {
+  expenseCategoryLabel,
+  expenseLinesOf,
+  expenseSpanLabel,
+} from "@/lib/hr/expense-lines";
 import { AdminPageHeader } from "@/components/admin/ui/page-header";
 import { ListToolbar } from "@/components/admin/ui/list-toolbar";
 import { DataTable, type Column } from "@/components/admin/ui/data-table";
@@ -26,7 +32,7 @@ import { ExpenseForm } from "@/components/admin/hr/expense-form";
 export const dynamic = "force-dynamic";
 
 const LIST: ListConfig = {
-  sortable: ["date", "amount", "status", "category", "created"],
+  sortable: ["date", "amount", "status", "created"],
   defaultSort: "date",
   filters: ["status", "category", "settlement", "from", "to"],
 };
@@ -35,6 +41,7 @@ type Row = {
   id: string;
   ref: string;
   description: string;
+  lineCount: number;
   who: string;
   category: string;
   amount: string;
@@ -93,12 +100,13 @@ export default async function ExpensesPage({
     id: String(e._id),
     ref: e.ref,
     description: e.description,
+    lineCount: expenseLinesOf(e).length,
     who: names.get(String(e.employeeId))?.name ?? "—",
-    category: cap(e.category),
+    category: expenseCategoryLabel(e),
     amount: formatBDT(e.amountMinor, "en"),
-    date: new Date(e.spentAt).toLocaleDateString("en-GB", {
-      timeZone: "Asia/Dhaka",
-    }),
+    date: expenseSpanLabel(e, (d) =>
+      d.toLocaleDateString("en-GB", { timeZone: "Asia/Dhaka" }),
+    ),
     status: e.status,
     settlement:
       e.status === "approved" && e.settlement === "payroll"
@@ -113,12 +121,19 @@ export default async function ExpensesPage({
       key: "description",
       header: "Claim",
       cell: (r) => (
-        <Link
-          href={`/admin/company/people/expenses/${r.id}`}
-          className="text-primary font-medium hover:underline"
-        >
-          {r.description}
-        </Link>
+        <span>
+          <Link
+            href={`/admin/company/people/expenses/${r.id}`}
+            className="text-primary font-medium hover:underline"
+          >
+            {r.description}
+          </Link>
+          {r.lineCount > 1 && (
+            <span className="text-muted-foreground text-admin-2xs block">
+              {r.lineCount} lines
+            </span>
+          )}
+        </span>
       ),
     },
     {
@@ -130,7 +145,6 @@ export default async function ExpensesPage({
     {
       key: "category",
       header: "Category",
-      sortKey: "category",
       mobile: "meta",
       cell: (r) => <span className="text-muted-foreground">{r.category}</span>,
     },
@@ -174,9 +188,9 @@ export default async function ExpensesPage({
         description="Costs incurred on company business, and how each one gets paid back."
         action={
           <FormPanelButton
-            label="Record a cost"
-            title="Record a cost"
-            description="What was spent, by whom, and what for."
+            label="Record a bill"
+            title="Record a bill"
+            description="Who paid, what for, and each cost on the bill."
           >
             <ExpenseForm people={people} visits={visitOptions} />
           </FormPanelButton>
@@ -222,7 +236,7 @@ export default async function ExpensesPage({
             label: "Category",
             options: EXPENSE_CATEGORIES.map((c) => ({
               value: c,
-              label: cap(c),
+              label: EXPENSE_CATEGORY_LABEL[c] ?? cap(c),
             })),
           },
           {

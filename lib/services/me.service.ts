@@ -209,7 +209,11 @@ export async function myClaims(
   await connectToDatabase();
   const filter = claimFilter(session);
   if (q.status && q.status !== "all") filter.status = q.status;
-  applyPartialSearch(filter, q.search, ["description", "ref"]);
+  applyPartialSearch(filter, q.search, [
+    "description",
+    "ref",
+    "lines.description",
+  ]);
   return paginate<IExpense>(Expense, filter, {
     sort: { spentAt: -1, createdAt: -1 },
     page: q.page,

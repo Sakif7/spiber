@@ -52,6 +52,7 @@ import {
   mailApi,
   useIsDesktop,
 } from "./mail-shared";
+import { useSignatureChoices } from "./use-signatures";
 
 /**
  * The mailbox, locked to the viewport: three resizable panes (account +
@@ -124,6 +125,9 @@ export function MailClient({
   const searchRef = useRef<HTMLInputElement>(null);
   const current = mailboxes.find((m) => m.address === address) ?? mailboxes[0];
   const starred = folder === STARRED;
+  // Fetched with the mailbox, so the composer and the quick reply open with
+  // the signature already in place instead of waiting for it.
+  useSignatureChoices(address);
 
   const applyQuery = useDebouncedCallback((q: string) => {
     setQuery(q);

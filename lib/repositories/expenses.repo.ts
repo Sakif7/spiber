@@ -59,11 +59,34 @@ export async function getVisitById(id: string): Promise<Lean<IVisit> | null> {
 
 // ───────────────────────────── expenses ─────────────────────────────
 
+/**
+ * "From"/"to" as Dhaka calendar days. A claim's days are stored at Dhaka
+ * midnight (18:00 UTC the day before), so the list kit's UTC day bounds
+ * put every claim one day off: filtering the 10th missed the 10th's claims.
+ */
+function dhakaDayRange(
+  from: string | undefined,
+  to: string | undefined,
+): { $gte?: Date; $lt?: Date } | null {
+  const start = (v: string | undefined) => {
+    if (!v || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
+    const d = new Date(`${v}T00:00:00+06:00`);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+  const a = start(from);
+  const b = start(to);
+  if (!a && !b) return null;
+  return {
+    ...(a ? { $gte: a } : {}),
+    ...(b ? { $lt: new Date(b.getTime() + 86_400_000) } : {}),
+  };
+}
+
+// No category sort: a bill carries several categories, one per line.
 const EXPENSE_SORT: Record<string, string> = {
   date: "spentAt",
   amount: "amountMinor",
   status: "status",
-  category: "category",
   created: "createdAt",
 };
 
@@ -80,9 +103,17 @@ export async function listExpenses(
 ): Promise<Paged<IExpense>> {
   await connectToDatabase();
   const filter: Record<string, unknown> = { deletedAt: null };
+  const and: Record<string, unknown>[] = [];
   if (params.status && params.status !== "all") filter.status = params.status;
   if (params.category && params.category !== "all") {
-    filter.category = params.category;
+    // A bill matches on any of its lines; a claim from before bills on the
+    // one category it carries.
+    and.push({
+      $or: [
+        { "lines.category": params.category },
+        { category: params.category, "lines.0": { $exists: false } },
+      ],
+    });
   }
   if (params.settlement && params.settlement !== "all") {
     filter.settlement = params.settlement;
@@ -93,8 +124,18 @@ export async function listExpenses(
   if (params.visitId && mongoose.isValidObjectId(params.visitId)) {
     filter.visitId = new mongoose.Types.ObjectId(params.visitId);
   }
-  applyPartialSearch(filter, params.search, ["ref", "description"]);
-  applyDateRange(filter, params.from, params.to, "spentAt");
+  // The date range catches a bill if any of its days falls inside it, not
+  // only its first — a trip from the 30th to the 2nd is in both months.
+  const range = dhakaDayRange(params.from, params.to);
+  if (range) {
+    and.push({ $or: [{ spentAt: range }, { "lines.spentAt": range }] });
+  }
+  if (and.length) filter.$and = and;
+  applyPartialSearch(filter, params.search, [
+    "ref",
+    "description",
+    "lines.description",
+  ]);
   return paginate<IExpense>(Expense, filter, {
     sort: sortSpec(params.sort, params.dir, EXPENSE_SORT, {
       key: "date",

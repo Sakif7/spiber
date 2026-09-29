@@ -29,6 +29,12 @@ export interface IEmployeeEvent {
   note?: string | null;
 }
 
+export interface IEmployeeEmailSignature {
+  html: string;
+  logo: boolean;
+  updatedAt: Date;
+}
+
 export interface IEmployee {
   code: string;
   name: string;
@@ -70,6 +76,13 @@ export interface IEmployee {
    */
   signatureAssetId?: Types.ObjectId | string | null;
   signatureUpdatedAt?: Date | null;
+  /**
+   * What sits under a message they send from a company mailbox: rich text
+   * from the composer's allowlist (sanitised on save) and whether the
+   * company logo goes above it. Set on this page by a super admin; absent
+   * means none. See lib/mail/signature.ts.
+   */
+  emailSignature?: IEmployeeEmailSignature | null;
   deletedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -118,6 +131,17 @@ const employeeSchema = new Schema<IEmployee>(
       default: null,
     },
     signatureUpdatedAt: { type: Date, default: null },
+    emailSignature: {
+      type: new Schema<IEmployeeEmailSignature>(
+        {
+          html: { type: String, required: true },
+          logo: { type: Boolean, default: true },
+          updatedAt: { type: Date, required: true },
+        },
+        { _id: false },
+      ),
+      default: null,
+    },
     designation: { type: String, required: true, trim: true },
     kind: { type: String, enum: ["director", "staff"], default: "director" },
     payScheme: {

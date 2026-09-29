@@ -157,6 +157,22 @@ These are the things the owner has had to repeat. Treat them as hard rules.
   the reimbursement itself never does. `rateBp` rows are legacy (percentage of
   revenue) and computed the old way until `migrate-share-rates-to-shares`
   rewrites them.
+- **An expense claim is a bill.** `Expense.lines` (day, category, note,
+  amount) with `amountMinor` = their sum, computed by the service — every
+  money path (payroll, totals, dashboard) reads only the sum. A bill is
+  approved and paid **whole**; a wrong line is taken off by editing it while
+  `submitted` (logged in its history). Claims from before bills have no
+  `lines`: read through `expenseLinesOf()` / `expenseReceiptIdsOf()`
+  (`lib/hr/expense-lines.ts`), never `category` / `receiptDocumentId`. The
+  sales report costs each line on its own day.
+- **Email signatures** are `Employee.emailSignature` (allowlisted HTML + a
+  logo flag), set on the employee page by a super admin. A personal mailbox
+  signs with its owner's only; every shared mailbox offers everyone's
+  (`signatureChoices`). In the composer it is a `mailSignature` block between
+  the typing line and a `mailQuote` block (`mail-nodes.ts`); the quick reply
+  appends it at send. The logo is `img[data-mail-logo]`, sent as an inline
+  `cid:` part — `sanitizeOutgoingHtml(html, { logoCid })` drops every other
+  image. Never a remote image.
 - **Super-admin only:** Documents vault, Sales, People/HR, hard-delete.
 - **Employees have one company address.** Creating an Employee creates
   `businessEmail` (= portal login = mailbox on the company mail server), the
@@ -354,6 +370,11 @@ tests`, `npm test`, and the browser pass above. Then `git status`.
 - **`.lean()` does not apply Mongoose defaults.** Every read of a new optional
   field needs `?? default`; type such fields optional so the compiler forces
   it. Documents saved before the field existed will otherwise crash `.map()`.
+- **The list kit's `dayBounds` / `applyDateRange` are UTC days**, but a day
+  field stored at Dhaka midnight (`Expense.spentAt` and its lines,
+  `Visit.visitedAt`) sits at 18:00 UTC the day before — filter such a field
+  with Dhaka bounds (`dhakaDayRange` in `expenses.repo.ts`) or every row lands
+  a day off. The visits list still uses UTC bounds.
 - `doveadm fetch` folds long headers (Outlook Message-IDs) onto a
   continuation line — a line-by-line parser reads them as blank. Prove a
   message's absence with `doveadm search … header message-id "<id>"`, never
@@ -451,7 +472,10 @@ tests`, `npm test`, and the browser pass above. Then `git status`.
   editor is still `null` (Next, `immediatelyRender: false`) keeps that
   empty snapshot until the first transaction — use `useEditorStat`
   (`components/admin/documents/use-editor-stat.ts`) for anything shown
-  before the user types.
+  before the user types (it follows document updates only; the mail
+  toolbar, which follows the caret, reads the marks directly until the
+  snapshot exists). StarterKit 3 keeps an empty trailing paragraph, so
+  inserting at `doc.content.size` lands below a blank line.
 - **The document pager must never measure its own output.** It blanks its
   stylesheet, measures the untouched layout (client rects ÷ zoom scale — not
   `offsetTop`, which rounds), writes the pushes back, all in one frame.
@@ -513,6 +537,10 @@ tests`, `npm test`, and the browser pass above. Then `git status`.
   `border-b` paints in text colour.
 - Any token set on `.admin-root` that `.dark` also sets needs an explicit
   `.dark .admin-root` line, or light values win in dark mode.
+- A `FormPanel` is portaled outside `.admin-root`: its text inherits the
+  body's 16px, not the admin's 13px. Size new text in a panel against that
+  form's own labels (14px), and lay a panel form out with container queries
+  (`@container` / `@2xl:`) — its width is not the viewport's.
 - Field borders use `--color-border-field` (3:1), decorative borders use
   `--color-border`. Don't darken the shared token to "fix" visibility.
 - Grid/flex children default to `min-width: auto` — add `min-width: 0` before
@@ -548,6 +576,11 @@ clip }` that makes body the sticky containing block: a menu inside a sticky
 - A blocked dialog stays open behind a toast; `Escape` first.
 - "It didn't scroll/save" is usually your measurement, not the app — assert on
   what changed, never on two nulls being equal.
+- ProseMirror applies a caret move (click, Ctrl+End) on `selectionchange`; a
+  key sent in the same instant uses the **old** selection (Enter split the
+  first line). Pause ~150 ms after moving the caret before typing.
+- The payroll page opens on the **previous** month; a claim approved today
+  sits on the current month's run — open it with `?month=`.
 
 **Patching files from the shell**
 

@@ -10,12 +10,23 @@ import { FormPanel } from "@/components/admin/ui/form-panel";
 import {
   EditorForm,
   FormField,
+  FormGrid,
   FormSection,
   SaveBar,
 } from "@/components/admin/ui/form-shell";
+import { SelectField } from "@/components/admin/ui/select-field";
 import { formatApiError } from "@/lib/http/form-error";
 import { textToHtml } from "@/lib/mail/text-html";
+import type { SignatureChoices } from "@/lib/mail/signature";
 import { MailEditor } from "./mail-editor";
+import { initialMailHtml } from "./mail-nodes";
+import {
+  rememberSignature,
+  signatureHtmlFor,
+  signatureOptions,
+  startingSignature,
+  useSignatureChoices,
+} from "./use-signatures";
 import type { RenderedMessage } from "@/lib/services/mail.service";
 
 /**
@@ -56,22 +67,28 @@ function quote(text: string | null): string {
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-/** Pre-fill for a reply / reply-all / forward; shared with the reader's quick reply. */
+/**
+ * Pre-fill for a reply / reply-all / forward; shared with the reader's quick
+ * reply. `quote` is the quoted original on its own (the composer puts the
+ * signature above it); `html` is the same with an empty line in front.
+ */
 export function seedFields(seed: ComposeSeed, self: string) {
   const o = seed.original;
   const notMe = (a: { address: string }) => a.address.toLowerCase() !== self;
   if (!o || seed.mode === "new") {
-    return { to: "", cc: "", subject: "", text: "", html: "" };
+    return { to: "", cc: "", subject: "", text: "", html: "", quote: "" };
   }
   const subjectBase = o.subject.replace(/^\s*((re|fwd?|aw|wg)\s*:\s*)+/i, "");
   if (seed.mode === "forward") {
     const header = `---------- Forwarded message ----------\nFrom: ${o.from ? fmtAddr(o.from) : "—"}\nDate: ${when(o.date)}\nSubject: ${o.subject}\nTo: ${o.to.map(fmtAddr).join(", ")}`;
+    const quote = `<p>${esc(header).replace(/\n/g, "<br>")}</p>${textToHtml(o.text ?? "")}`;
     return {
       to: "",
       cc: "",
       subject: `Fwd: ${subjectBase}`,
       text: `\n\n${header}\n\n${o.text ?? ""}`,
-      html: `<p></p><p>${esc(header).replace(/\n/g, "<br>")}</p>${textToHtml(o.text ?? "")}`,
+      html: `<p></p>${quote}`,
+      quote,
     };
   }
   const replyTarget = o.replyTo[0] ?? o.from;
@@ -83,12 +100,14 @@ export function seedFields(seed: ComposeSeed, self: string) {
           .filter((a) => a.address !== replyTarget?.address)
       : [];
   const attribution = `On ${when(o.date)}, ${o.from ? fmtAddr(o.from) : "someone"} wrote:`;
+  const quoted = `<p>${esc(attribution)}</p><blockquote>${textToHtml(o.text ?? "")}</blockquote>`;
   return {
     to: to.map(fmtAddr).join(", "),
     cc: cc.map(fmtAddr).join(", "),
     subject: `Re: ${subjectBase}`,
     text: `\n\n${attribution}\n${quote(o.text)}`,
-    html: `<p></p><p>${esc(attribution)}</p><blockquote>${textToHtml(o.text ?? "")}</blockquote>`,
+    html: `<p></p>${quoted}`,
+    quote: quoted,
   };
 }
 
@@ -131,6 +150,11 @@ export function ComposePanel({
   );
 }
 
+/**
+ * Waits for the mailbox's signatures (usually already fetched by the mail
+ * page), because the first one is part of the editor's starting content.
+ * If they cannot be read the message is simply written without one.
+ */
 function ComposeForm({
   address,
   seed,
@@ -140,14 +164,48 @@ function ComposeForm({
   seed: ComposeSeed;
   onSent: () => void;
 }) {
+  const signatures = useSignatureChoices(address);
+  if (signatures.isPending) {
+    return <p className="text-muted-foreground text-sm">Loading…</p>;
+  }
+  return (
+    <ComposeFields
+      address={address}
+      seed={seed}
+      onSent={onSent}
+      choices={signatures.data ?? null}
+    />
+  );
+}
+
+function ComposeFields({
+  address,
+  seed,
+  onSent,
+  choices,
+}: {
+  address: string;
+  seed: ComposeSeed;
+  onSent: () => void;
+  choices: SignatureChoices | null;
+}) {
   const init = seedFields(seed, address.toLowerCase());
+  const [signatureId, setSignatureId] = useState(() =>
+    choices ? startingSignature(address, choices) : "",
+  );
+  const signature = signatureHtmlFor(choices ?? undefined, signatureId);
+  // The editor's first content; later signature changes are swapped in by
+  // the editor itself, so this is only read once.
+  const [initialHtml] = useState(() =>
+    initialMailHtml({ signature, quote: init.quote }),
+  );
   const [to, setTo] = useState(init.to);
   const [cc, setCc] = useState(init.cc);
   const [bcc, setBcc] = useState("");
   const [showCcBcc, setShowCcBcc] = useState(Boolean(init.cc));
   const [subject, setSubject] = useState(init.subject);
   const [text, setText] = useState(init.text);
-  const [html, setHtml] = useState(init.html);
+  const [html, setHtml] = useState(initialHtml);
   const [files, setFiles] = useState<File[]>([]);
   const forwardable =
     seed.mode === "forward" && seed.original
@@ -251,7 +309,8 @@ function ComposeForm({
       <FormSection title="Message">
         <FormField label="Body">
           <MailEditor
-            initialHtml={init.html}
+            initialHtml={initialHtml}
+            signature={signature}
             onChange={(h, t) => {
               setHtml(h);
               setText(t);
@@ -260,6 +319,28 @@ function ComposeForm({
             autoFocus={seed.mode === "reply" || seed.mode === "replyAll"}
           />
         </FormField>
+        {choices && choices.options.length > 0 && (
+          <FormGrid cols={2}>
+            <FormField
+              label="Signature"
+              hint={
+                choices.shared
+                  ? "Whose signature goes under this message."
+                  : undefined
+              }
+            >
+              <SelectField
+                value={signatureId}
+                onChange={(id) => {
+                  setSignatureId(id);
+                  rememberSignature(address, id);
+                }}
+                emptyLabel="No signature"
+                options={signatureOptions(choices)}
+              />
+            </FormField>
+          </FormGrid>
+        )}
       </FormSection>
 
       <FormSection title="Attachments">

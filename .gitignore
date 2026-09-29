@@ -86,3 +86,6 @@ Thumbs.db
 
 # Rendered PDF previews (npm run pdf-preview)
 /public/_preview/
+
+# /brag launch-video output (video, composition, plan) - never committed
+brag-output/

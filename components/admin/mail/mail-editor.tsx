@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import {
   useEditor,
   useEditorState,
@@ -23,12 +24,17 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { applySignature, MAIL_NODES } from "./mail-nodes";
 
 /**
  * The mail body editor: the blog's TipTap setup trimmed to what belongs in
  * a message (marks, lists, quotes, links — no headings, images or code).
  * Hands back HTML for the wire and the plain text that goes with it; the
  * server sanitises the HTML again before anything is sent.
+ *
+ * A signature, when there is one, is a block of its own under the typed
+ * text (see mail-nodes.ts). `initialHtml` carries the first one; changing
+ * `signature` afterwards swaps that block in place.
  */
 export function MailEditor({
   initialHtml,
@@ -39,6 +45,7 @@ export function MailEditor({
   onSubmit,
   disabled,
   className,
+  signature,
 }: {
   initialHtml?: string;
   onChange: (html: string, text: string) => void;
@@ -49,6 +56,8 @@ export function MailEditor({
   onSubmit?: () => void;
   disabled?: boolean;
   className?: string;
+  /** The signature block's content; null for none. */
+  signature?: string | null;
 }) {
   const editor = useEditor({
     immediatelyRender: false, // required under Next SSR
@@ -61,6 +70,7 @@ export function MailEditor({
         link: { openOnClick: false, autolink: true },
       }),
       Placeholder.configure({ placeholder }),
+      ...MAIL_NODES,
     ],
     content: initialHtml || "",
     autofocus: autoFocus ? "start" : false,
@@ -80,6 +90,17 @@ export function MailEditor({
     },
   });
 
+  // The signature the editor's content holds now: the first one came in
+  // with `initialHtml`, so only a later change is applied.
+  const applied = useRef(signature ?? null);
+  useEffect(() => {
+    if (!editor || signature === undefined) return;
+    const next = signature ?? null;
+    if (applied.current === next) return;
+    applied.current = next;
+    applySignature(editor, next);
+  }, [editor, signature]);
+
   return (
     <div
       className={cn(
@@ -90,9 +111,20 @@ export function MailEditor({
     >
       <Toolbar editor={editor} />
       <EditorContent editor={editor} />
-      {/* The editor body is contenteditable DOM owned by TipTap, so its
-          typography is styled with a scoped sheet rather than utilities. */}
-      <style>{`
+      <MailRteStyles />
+    </div>
+  );
+}
+
+/**
+ * The editor's typography. The body is contenteditable DOM owned by TipTap,
+ * so it is styled with a scoped sheet rather than utilities — and a
+ * read-only preview of what the editor makes (a signature on the employee
+ * page) uses the same sheet, so the two cannot drift apart.
+ */
+export function MailRteStyles() {
+  return (
+    <style>{`
         .mail-rte { padding: 10px 12px; outline: none; font-size: 0.875rem; line-height: 1.6; }
         .mail-rte p { margin: 0 0 0.5em; }
         .mail-rte p:last-child { margin-bottom: 0; }
@@ -101,9 +133,10 @@ export function MailEditor({
         .mail-rte ol { list-style: decimal; }
         .mail-rte blockquote { border-left: 2px solid var(--color-border); margin: 0 0 0.5em; padding-left: 0.75em; color: var(--color-text-muted); }
         .mail-rte a { color: var(--color-brand-deep); text-decoration: underline; }
-        .mail-rte p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: var(--color-text-subtle); float: left; height: 0; pointer-events: none; }
+        .mail-rte img[data-mail-logo] { display: inline-block; max-width: 100%; height: auto; vertical-align: bottom; }
+        .mail-rte [data-mail-signature] { margin-top: 1em; }
+        .mail-rte > p.is-empty:first-child::before { content: attr(data-placeholder); color: var(--color-text-subtle); float: left; height: 0; pointer-events: none; }
       `}</style>
-    </div>
   );
 }
 
@@ -141,27 +174,30 @@ function B({
   );
 }
 
+const marksOf = (e: Editor) => ({
+  bold: e.isActive("bold"),
+  italic: e.isActive("italic"),
+  underline: e.isActive("underline"),
+  strike: e.isActive("strike"),
+  bulletList: e.isActive("bulletList"),
+  orderedList: e.isActive("orderedList"),
+  blockquote: e.isActive("blockquote"),
+  link: e.isActive("link"),
+  undo: e.can().undo(),
+  redo: e.can().redo(),
+});
+
 function Toolbar({ editor }: { editor: Editor | null }) {
   // TipTap 3 does not re-render on every transaction; read the active marks
   // through a selector so the buttons follow the caret.
-  const on = useEditorState({
+  const tracked = useEditorState({
     editor,
-    selector: ({ editor: e }) =>
-      e
-        ? {
-            bold: e.isActive("bold"),
-            italic: e.isActive("italic"),
-            underline: e.isActive("underline"),
-            strike: e.isActive("strike"),
-            bulletList: e.isActive("bulletList"),
-            orderedList: e.isActive("orderedList"),
-            blockquote: e.isActive("blockquote"),
-            link: e.isActive("link"),
-            undo: e.can().undo(),
-            redo: e.can().redo(),
-          }
-        : null,
+    selector: ({ editor: e }) => (e ? marksOf(e) : null),
   });
+  // That selector keeps the snapshot it took while the editor was still
+  // null until the first transaction, so an editor nobody had clicked yet
+  // showed an empty toolbar. Read the marks directly until then.
+  const on = tracked ?? (editor ? marksOf(editor) : null);
   if (!editor || !on) return <div className="border-border h-8 border-b" />;
 
   function toggleLink() {

@@ -4,7 +4,8 @@ import { setRequestLocale } from "next-intl/server";
 import { ArrowLeft } from "lucide-react";
 import { myClaim, myVisit } from "@/lib/services/me.service";
 import { formatBDT } from "@/lib/money";
-import { EXPENSE_CATEGORY_LABEL } from "@/lib/hr/expense-constants";
+import { expenseReceiptIdsOf, expenseSpanLabel } from "@/lib/hr/expense-lines";
+import { ExpenseLinesCard } from "@/components/admin/hr/expense-lines-card";
 import {
   DetailCard,
   DetailLayout,
@@ -30,6 +31,7 @@ export default async function MyClaimPage({
   const visit = claim.visitId
     ? await myVisit(session, String(claim.visitId))
     : null;
+  const receiptCount = expenseReceiptIdsOf(claim).length;
 
   return (
     <div className="grid gap-6">
@@ -81,13 +83,10 @@ export default async function MyClaimPage({
         }
       >
         <DetailCard title="The claim">
-          <DetailRow label="Category">
-            {EXPENSE_CATEGORY_LABEL[claim.category] ?? cap(claim.category)}
-          </DetailRow>
           <DetailRow label="Amount" mono>
             {formatBDT(claim.amountMinor, "en")}
           </DetailRow>
-          <DetailRow label="Spent on">{day(claim.spentAt)}</DetailRow>
+          <DetailRow label="Spent on">{expenseSpanLabel(claim, day)}</DetailRow>
           <DetailRow label="Visit">
             {visit ? (
               <Link
@@ -100,10 +99,16 @@ export default async function MyClaimPage({
               "—"
             )}
           </DetailRow>
-          <DetailRow label="Receipt">
-            {claim.receiptDocumentId ? "Filed in the vault" : "None attached"}
+          <DetailRow label="Receipts">
+            {receiptCount === 0
+              ? "None attached"
+              : receiptCount === 1
+                ? "1 filed in the vault"
+                : `${receiptCount} filed in the vault`}
           </DetailRow>
         </DetailCard>
+
+        <ExpenseLinesCard claim={claim} formatDay={day} />
 
         <DetailCard title="History">
           <ul className="grid gap-2 text-sm">

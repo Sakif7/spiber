@@ -1,13 +1,20 @@
 import { connectToDatabase } from "@/lib/db/connect";
-import { Expense, type IExpense } from "@/lib/models/expense";
+import {
+  Expense,
+  type IExpense,
+  type IExpenseLine,
+} from "@/lib/models/expense";
 import { Employee } from "@/lib/models/employee";
 import { PayrollRun } from "@/lib/models/payrollRun";
 import type { Lean } from "@/lib/models/_shared";
 import { expenseRef } from "@/lib/ids";
+import { formatBDT } from "@/lib/money";
 import { monthOf, nextMonth, isPayrollMonth } from "@/lib/hr/months";
 import type { PayrollMonth } from "@/lib/hr/months";
+import { expenseLinesOf, type ExpenseLine } from "@/lib/hr/expense-lines";
 import type {
   ExpenseCreateInput,
+  ExpenseLineInput,
   ExpenseUpdateInput,
   ExpenseApproveInput,
   ExpenseRejectInput,
@@ -16,6 +23,10 @@ import type {
 
 /**
  * Expense claims.
+ *
+ * A claim is a bill of lines, and it is decided and paid as a whole: there is
+ * no per-line approval. A wrong line is taken off by editing the bill while
+ * it is still submitted.
  *
  * The lifecycle is submitted → approved → reimbursed, with rejected as the
  * other ending. Approving is where the settlement route is chosen: `payroll`
@@ -77,31 +88,78 @@ export async function openPayrollMonth(
   return month;
 }
 
+/**
+ * The bill as stored: its lines on Dhaka days, and the total and first day
+ * worked out from them. The total is never taken from the client — it is
+ * the sum of what the lines say, so the two cannot disagree.
+ */
+function billFrom(lines: ExpenseLineInput[]): {
+  lines: IExpenseLine[];
+  amountMinor: number;
+  spentAt: Date;
+} {
+  const stored = lines.map<IExpenseLine>((l) => ({
+    spentAt: dhakaDay(l.spentAt),
+    category: l.category,
+    description: l.description?.trim() || null,
+    amountMinor: l.amountMinor,
+  }));
+  return {
+    lines: stored,
+    amountMinor: stored.reduce((sum, l) => sum + l.amountMinor, 0),
+    spentAt: new Date(Math.min(...stored.map((l) => l.spentAt.getTime()))),
+  };
+}
+
+/** Two bills' lines compared as the reader sees them. */
+const linesKey = (lines: ExpenseLine[]) =>
+  JSON.stringify(
+    lines.map((l) => [
+      new Date(l.spentAt).getTime(),
+      l.category,
+      l.description ?? "",
+      l.amountMinor,
+    ]),
+  );
+
 export async function createExpense(
   input: ExpenseCreateInput,
   actor: Actor,
 ): Promise<Lean<IExpense>> {
   await connectToDatabase();
+  const bill = billFrom(input.lines);
   const doc = await Expense.create({
     ref: expenseRef(),
     visitId: input.visitId || null,
     employeeId: input.employeeId,
-    category: input.category,
-    amountMinor: input.amountMinor,
-    spentAt: dhakaDay(input.spentAt),
     description: input.description,
-    receiptDocumentId: input.receiptDocumentId || null,
+    ...bill,
+    receiptDocumentIds: input.receiptDocumentIds ?? [],
     status: "submitted",
     createdBy: actor.sub,
-    activity: [{ authorId: actor.sub, body: "Claim recorded", at: new Date() }],
+    activity: [
+      {
+        authorId: actor.sub,
+        body:
+          bill.lines.length === 1
+            ? "Claim recorded"
+            : `Claim recorded — a bill of ${bill.lines.length} lines`,
+        at: new Date(),
+      },
+    ],
   });
   return doc.toObject() as Lean<IExpense>;
 }
 
-/** Only a claim nobody has ruled on yet can be edited. */
+/**
+ * Only a claim nobody has ruled on yet can be edited — which is also how a
+ * wrong line is taken off a bill before it is approved, so a change to the
+ * lines is written into the claim's history with what it did to the total.
+ */
 export async function updateExpense(
   id: string,
   input: ExpenseUpdateInput,
+  actor?: Actor,
 ): Promise<ExpenseResult<Lean<IExpense>>> {
   await connectToDatabase();
   const current = await Expense.findOne({ _id: id, deletedAt: null })
@@ -111,18 +169,39 @@ export async function updateExpense(
   if (current.status !== "submitted") return fail("not_editable");
 
   const set: Record<string, unknown> = {};
+  const unset: Record<string, ""> = {};
+  let note: string | null = null;
   if (input.visitId !== undefined) set.visitId = input.visitId || null;
   if (input.employeeId !== undefined) set.employeeId = input.employeeId;
-  if (input.category !== undefined) set.category = input.category;
-  if (input.amountMinor !== undefined) set.amountMinor = input.amountMinor;
-  if (input.spentAt !== undefined) set.spentAt = dhakaDay(input.spentAt);
   if (input.description !== undefined) set.description = input.description;
-  if (input.receiptDocumentId !== undefined)
-    set.receiptDocumentId = input.receiptDocumentId || null;
+  if (input.lines !== undefined) {
+    const bill = billFrom(input.lines);
+    Object.assign(set, bill);
+    // A claim from before bills becomes a bill on its first edit; its old
+    // single category now lives on its line.
+    unset.category = "";
+    if (linesKey(bill.lines) !== linesKey(expenseLinesOf(current))) {
+      note =
+        bill.amountMinor === current.amountMinor
+          ? "Lines edited"
+          : `Lines edited — total ${formatBDT(current.amountMinor, "en")} → ${formatBDT(bill.amountMinor, "en")}`;
+    }
+  }
+  if (input.receiptDocumentIds !== undefined) {
+    set.receiptDocumentIds = input.receiptDocumentIds;
+    set.receiptDocumentId = null;
+  }
 
+  const update: Record<string, unknown> = { $set: set };
+  if (Object.keys(unset).length) update.$unset = unset;
+  if (note && actor) {
+    update.$push = {
+      activity: { authorId: actor.sub, body: note, at: new Date() },
+    };
+  }
   const doc = await Expense.findOneAndUpdate(
     { _id: id, status: "submitted", deletedAt: null },
-    { $set: set },
+    update,
     { returnDocument: "after" },
   )
     .lean<Lean<IExpense>>()

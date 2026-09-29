@@ -14,6 +14,8 @@ import { monthLabel, monthOf } from "@/lib/hr/months";
 import { EmployeeForm } from "@/components/admin/hr/employee-form";
 import { EmployeeAccessCard } from "@/components/admin/hr/employee-access-card";
 import { SignatureCard } from "@/components/admin/hr/signature-card";
+import { EmailSignatureCard } from "@/components/admin/hr/email-signature-card";
+import { defaultEmailSignatureHtml } from "@/lib/mail/signature";
 import { RateHistory } from "@/components/admin/hr/rate-history";
 import { mailboxForEmployee } from "@/lib/services/hr/employee-access.service";
 import { findUserById } from "@/lib/repositories/users.repo";
@@ -107,6 +109,24 @@ export default async function EmployeePage({
                   ? { updatedAt: isoFull(employee.signatureUpdatedAt) }
                   : null
               }
+            />
+            <EmailSignatureCard
+              endpoint={`/api/admin/company/hr/employees/${id}/email-signature`}
+              initial={
+                employee.emailSignature?.html
+                  ? {
+                      html: employee.emailSignature.html,
+                      logo: employee.emailSignature.logo !== false,
+                      updatedAt: isoFull(employee.emailSignature.updatedAt),
+                    }
+                  : null
+              }
+              fromRecord={defaultEmailSignatureHtml({
+                name: employee.name,
+                designation: employee.designation,
+                phone: employee.phone,
+                businessEmail: employee.businessEmail,
+              })}
             />
             <RateHistory
               employeeId={id}
