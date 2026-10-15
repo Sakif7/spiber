@@ -103,6 +103,11 @@ export type InvoiceData = {
   subtotalMinor: number;
   discountMinor: number;
   vatRateBp: number;
+  /**
+   * The order's VAT, when it was given as a figure rather than a rate; the
+   * rate printed beside it is then what that figure comes to on the goods.
+   */
+  vatAmountMinor?: number | null;
   vatMinor: number;
   deliveryMinor: number;
   totalMinor: number;
@@ -161,6 +166,8 @@ export type EquipmentPricing = {
   subtotalMinor: number;
   discountMinor: number;
   vatRateBp: number;
+  /** VAT typed as a figure (the order's VAT line in taka); null = the rate. */
+  vatAmountMinor?: number | null;
   vatMinor: number;
   deliveryMinor: number;
   totalMinor: number;

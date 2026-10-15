@@ -12,6 +12,12 @@ import type { RenderContext } from "./context";
 import { interpolate, isShown } from "./resolve";
 import { makeStyles, type Styles } from "./theme";
 import {
+  fitTemplate,
+  paginationOf,
+  TABLE_BLOCK_TYPES,
+  type PageFit,
+} from "./fit";
+import {
   FooterBandBlock,
   LetterheadBlock,
   WatermarkBlock,
@@ -65,7 +71,11 @@ Font.registerHyphenationCallback((word) => [word]);
 
 type Common = { styles: Styles; ctx: RenderContext; kind: TemplateKind };
 
-function FlowBlock({ block, ...rest }: { block: Block } & Common) {
+function FlowBlock({
+  block,
+  after,
+  ...rest
+}: { block: Block; after?: React.ReactNode } & Common) {
   switch (block.type) {
     case "title":
       return <TitleBlock block={block} {...rest} />;
@@ -78,9 +88,9 @@ function FlowBlock({ block, ...rest }: { block: Block } & Common) {
     case "metaColumns":
       return <MetaColumnsBlock block={block} {...rest} />;
     case "lineTable":
-      return <LineTableBlock block={block} {...rest} />;
+      return <LineTableBlock block={block} after={after} {...rest} />;
     case "equipmentTable":
-      return <EquipmentTableBlock block={block} {...rest} />;
+      return <EquipmentTableBlock block={block} after={after} {...rest} />;
     case "labelledList":
       return <LabelledListBlock block={block} {...rest} />;
     case "bullets":
@@ -88,7 +98,7 @@ function FlowBlock({ block, ...rest }: { block: Block } & Common) {
     case "keyValueList":
       return <KeyValueListBlock block={block} {...rest} />;
     case "keyValueTable":
-      return <KeyValueTableBlock block={block} {...rest} />;
+      return <KeyValueTableBlock block={block} after={after} {...rest} />;
     case "signOff":
       return <SignOffBlock block={block} {...rest} />;
     case "spacer":
@@ -116,6 +126,10 @@ export type BlockBox = {
 
 /** The prop the renderer stamps on a block's root so it can be found again. */
 const BLOCK_MARK = "data-block-id";
+
+/** A4's width in points, and a sheet tall enough to hold any document whole. */
+const A4_WIDTH = 595.28;
+const MEASURE_HEIGHT = 14_000;
 
 /**
  * Walk react-pdf's laid-out tree and report every marked block's box.
@@ -147,12 +161,28 @@ export function collectBlockBoxes(layout: unknown): BlockBox[] {
   return out;
 }
 
+/**
+ * Where a long document's tail starts: just after the last table that has
+ * anything printed after it, or -1 when there is no such table.
+ *
+ * A page break after it is a deliberate new page, so nothing is carried
+ * across one.
+ */
+function lastTableWithTail(flow: Block[]): number {
+  for (let i = flow.length - 2; i >= 0; i--) {
+    if (!TABLE_BLOCK_TYPES.has(flow[i].type)) continue;
+    return flow.slice(i + 1).some((b) => b.type === "pageBreak") ? -1 : i;
+  }
+  return -1;
+}
+
 export function TemplateDocument({
   kind,
-  template,
+  template: designed,
   ctx,
   assets = {},
   onLayout,
+  fit,
 }: {
   kind: TemplateKind;
   template: TemplateDoc;
@@ -161,8 +191,16 @@ export function TemplateDocument({
   assets?: StampAssets;
   /** Receives where every flow block landed, once the PDF is laid out. */
   onLayout?: (boxes: BlockBox[]) => void;
+  /**
+   * How tightly to lay the document out, and whether its tail travels with
+   * its last table — chosen by `renderFitted`, never by a caller. Absent,
+   * the template prints exactly as designed.
+   */
+  fit?: PageFit;
 }) {
-  const styles = makeStyles(template.theme);
+  const level = fit?.level ?? 0;
+  const template = fitTemplate(designed, level);
+  const styles = makeStyles(template.theme, level > 0);
   const visible = template.blocks.filter(
     (b) => !b.hidden && isShown(ctx, b.showIf),
   );
@@ -197,9 +235,9 @@ export function TemplateDocument({
    * refuses to split when the block itself does, so a signature can never be
    * left on the page before its signature line.
    */
-  const flowNode = (b: Block) => {
+  const flowNode = (b: Block, after?: React.ReactNode) => {
     const riders = anchored.get(b.id) ?? [];
-    const node = <FlowBlock key={b.id} block={b} {...common} />;
+    const node = <FlowBlock key={b.id} block={b} after={after} {...common} />;
     if (riders.length === 0 && !onLayout) return node;
     const keep = b.keepTogether || b.type === "signOff";
     return (
@@ -218,25 +256,62 @@ export function TemplateDocument({
     );
   };
 
+  /**
+   * A document too long for one page keeps everything after its last table
+   * with that table's closing rows (`PagedTable`'s `after`), so the page the
+   * table continues onto opens with rows — never with the terms and the
+   * signature alone. The tail is reset to the page's own text style first:
+   * nested in the table, it would otherwise inherit whatever size, colour or
+   * alignment the table block was given.
+   */
+  const split = fit?.tailWithTable ? lastTableWithTail(flow) : -1;
+  const body =
+    split < 0 ? (
+      flow.map((b) => flowNode(b))
+    ) : (
+      <>
+        {flow.slice(0, split).map((b) => flowNode(b))}
+        {flowNode(
+          flow[split],
+          <View
+            style={{
+              fontFamily: styles.page.fontFamily,
+              fontSize: styles.page.fontSize,
+              color: styles.page.color,
+              textAlign: "left",
+            }}
+          >
+            {flow.slice(split + 1).map((b) => flowNode(b))}
+          </View>,
+        )}
+      </>
+    );
+
+  const report = fit?.report;
   return (
     <Document
       title={interpolate(template.documentTitle, ctx, kind)}
       onRender={
-        onLayout
-          ? (p) =>
-              onLayout(
-                collectBlockBoxes(
-                  (p as { _INTERNAL__LAYOUT__DATA_?: unknown })
-                    ._INTERNAL__LAYOUT__DATA_,
-                ),
-              )
+        onLayout || report
+          ? (p) => {
+              const layout = (p as { _INTERNAL__LAYOUT__DATA_?: unknown })
+                ._INTERNAL__LAYOUT__DATA_;
+              onLayout?.(collectBlockBoxes(layout));
+              report?.(paginationOf(layout));
+            }
           : undefined
       }
     >
-      <Page size="A4" style={styles.page}>
+      {/* A measuring layout is one endless sheet, never broken, so the
+          piece the tail rides in shows its natural height (`fit.ts`). */}
+      <Page
+        size={fit?.measure ? [A4_WIDTH, MEASURE_HEIGHT] : "A4"}
+        wrap={!fit?.measure}
+        style={styles.page}
+      >
         {watermark ? <WatermarkBlock block={watermark} {...common} /> : null}
         {letterhead ? <LetterheadBlock block={letterhead} {...common} /> : null}
-        {flow.map(flowNode)}
+        {body}
         {footer ? <FooterBandBlock block={footer} {...common} /> : null}
         {/* Overlays last, so a seal sits over the text it stamps. */}
         {pageStamps.map((b) => (

@@ -76,6 +76,22 @@ const EQUIPMENT: DataPath[] = [
   p("equipment.count", "Number of units", "number"),
 ];
 
+/**
+ * The price offer table's own total — read by its total row only, where it
+ * is always the figure printed beside the words, VAT row or not.
+ */
+const OFFER_TABLE: DataPath[] = [
+  p(
+    "table.totalMinor",
+    "The price table's total (its total row only)",
+    "money",
+  ),
+  p(
+    "table.totalInWords",
+    "The price table's total, in words (its total row only)",
+  ),
+];
+
 /** The numbered terms on the equipment letter. */
 const EQUIPMENT_TERMS: DataPath[] = [
   p("terms.deliveryScope", "Delivery note beside the price"),
@@ -152,6 +168,9 @@ export const DATA_PATHS: Record<TemplateKind, DataPath[]> = {
     p("price.vatMinor", "VAT amount", "money"),
     p("price.vatPercent", "VAT rate (%)", "number"),
     p("price.vatSuffix", "VAT rate suffix"),
+    p("price.withVatMinor", "Price with VAT", "money"),
+    p("price.withVatInWords", "Price with VAT, in words"),
+    ...OFFER_TABLE,
     p("price.deliveryMinor", "Transport / delivery", "money"),
     p("price.totalMinor", "Total including VAT and transport", "money"),
     p("price.totalInWords", "Total in words"),
@@ -167,6 +186,12 @@ export const DATA_PATHS: Record<TemplateKind, DataPath[]> = {
   equipmentInvoice: [
     p("price.goodsMinor", "Price (after discount)", "money"),
     p("price.goodsInWords", "Price in words"),
+    p("price.vatMinor", "VAT amount", "money"),
+    p("price.vatPercent", "VAT rate (%)", "number"),
+    p("price.vatSuffix", "VAT rate suffix"),
+    p("price.withVatMinor", "Price with VAT", "money"),
+    p("price.withVatInWords", "Price with VAT, in words"),
+    ...OFFER_TABLE,
     p("invoiceNumber", "Invoice number"),
     p("invoiceDate", "Invoice date", "date"),
     p("paymentDue", "Payment due", "date"),

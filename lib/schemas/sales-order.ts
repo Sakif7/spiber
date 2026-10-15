@@ -264,6 +264,13 @@ export const salesOrderCreateSchema = z.object({
   /** Overrides the configured VAT rate for this order; omitted = use settings. */
   vatRateBp: z.number().int().min(0).max(10000).optional(),
   /**
+   * VAT as a figure instead of a rate — the equipment order's VAT line,
+   * typed in taka. Charged on top of the goods after discount like the
+   * rate, never on transport; while it is set the rate is not used. Null
+   * clears it, which puts the order back on `vatRateBp`.
+   */
+  vatAmountMinor: z.number().int().min(0).nullable().optional(),
+  /**
    * The rate the client is expected to withhold at source.
    *
    * Informational: AIT is the buyer's deduction from what they pay us, not a
@@ -425,6 +432,8 @@ export function effectiveVatRateBp(l: PricedLine): number {
  *  - **Order rate** (the usual case): nobody has touched VAT on a line, so the
  *    configured rate is charged on the goods after the discount — never on a
  *    figure that already includes tax, and never on the transport charge.
+ *    An equipment order may give that VAT as a figure instead
+ *    (`vatAmountMinor`); it then IS the VAT, on the same goods.
  *  - **Per line**: the moment ANY line carries its own VAT, the order rate
  *    stops applying and the total becomes the sum of the lines. A line left
  *    blank in this mode carries no VAT, which is the client's instruction and
@@ -434,6 +443,8 @@ export function priceSalesOrder(input: {
   items: PricedLine[];
   discountMinor: number;
   vatRateBp: number;
+  /** The order's VAT as a figure; null or absent, the rate applies. */
+  vatAmountMinor?: number | null;
   /** Transport / delivery, billed on top. Optional so existing callers are unchanged. */
   deliveryMinor?: number;
 }): {
@@ -458,7 +469,9 @@ export function priceSalesOrder(input: {
   const lineVatMinor = perLineVat ? input.items.map(lineVat) : [];
   const vatMinor = perLineVat
     ? lineVatMinor.reduce((sum, v) => sum + v, 0)
-    : Math.round((base * input.vatRateBp) / 10000);
+    : input.vatAmountMinor != null
+      ? Math.max(0, Math.round(input.vatAmountMinor))
+      : Math.round((base * input.vatRateBp) / 10000);
 
   return {
     subtotalMinor,
@@ -469,6 +482,32 @@ export function priceSalesOrder(input: {
     lineVatMinor,
     perLineVat,
   };
+}
+
+/**
+ * The rate an order-level VAT is named by, in basis points.
+ *
+ * A rate entered is that rate. A figure entered — an equipment order's VAT
+ * line, in taka — is named by what it comes to on the goods after the
+ * discount, the base it is charged on, so the "15%" printed beside a VAT
+ * figure can always be checked against it. Null when there are no goods to
+ * divide by.
+ */
+export function namedVatRateBp(o: {
+  subtotalMinor: number;
+  discountMinor: number;
+  vatRateBp: number;
+  vatAmountMinor?: number | null;
+}): number | null {
+  if (o.vatAmountMinor == null) return o.vatRateBp;
+  const goods = Math.max(0, (o.subtotalMinor || 0) - (o.discountMinor || 0));
+  return goods > 0 ? Math.round((o.vatAmountMinor * 10000) / goods) : null;
+}
+
+/** "15", "7.5", "14.81" — a rate in basis points, as a percentage prints. */
+export function percentOf(rateBp: number): string {
+  const pct = rateBp / 100;
+  return Number.isInteger(pct) ? String(pct) : String(Number(pct.toFixed(2)));
 }
 
 /**

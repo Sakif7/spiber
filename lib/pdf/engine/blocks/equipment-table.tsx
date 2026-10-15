@@ -1,9 +1,10 @@
 import React from "react";
 import { Text, View } from "@react-pdf/renderer";
+import { amountInWords } from "@/lib/money-words";
 import { formatTaka } from "../../format";
 import { interpolate } from "../resolve";
 import type { RenderContext } from "../context";
-import { frameStyle, type BlockProps } from "./shared";
+import { frameStyle, type TableBlockProps } from "./shared";
 import { PagedTable } from "./paged-table";
 
 /**
@@ -22,12 +23,19 @@ import { PagedTable } from "./paged-table";
  *   FUJIFILM Brand Computed Radiography                   14,00,000/=
  *    1.  FCR PRIMA T 2                  1 set
  *    2.  FCR Console                    1 set
+ *   VAT (15%)                                              2,10,000/=
  *   ──────────────────────────────────────────────────────────────────
- *   Total Price BDT. Fourteen Lac Only                    14,00,000/=
+ *   Total Price BDT. Sixteen Lakh Ten Thousand Taka Only  16,10,000/=
  *
  * An accessory's price cell is empty unless one was entered — the usual
  * offer quotes one figure for the set — and the whole price column can be
  * switched off for a document that states no money at all.
+ *
+ * VAT is a row of its own above the total, its rate in the label and its
+ * figure in the column, and the total then includes it — the owner's
+ * choice, so the client reads one figure for what the machine costs them.
+ * A template saved before the row existed has no `vatLabel`, and keeps
+ * totalling the goods alone with VAT stated under the table.
  */
 
 /** An accessory as the context hands it over. */
@@ -68,11 +76,13 @@ function setRowOf(ctx: RenderContext): { qty: string; priceMinor: number } {
 function priceOf(ctx: RenderContext): {
   goodsMinor: number;
   discountMinor: number;
+  vatMinor: number;
 } {
   const p = (ctx.price ?? {}) as Record<string, unknown>;
   return {
     goodsMinor: typeof p.goodsMinor === "number" ? p.goodsMinor : 0,
     discountMinor: typeof p.discountMinor === "number" ? p.discountMinor : 0,
+    vatMinor: typeof p.vatMinor === "number" ? p.vatMinor : 0,
   };
 }
 
@@ -81,13 +91,15 @@ export function EquipmentTableBlock({
   styles,
   ctx,
   kind,
-}: BlockProps<"equipmentTable">) {
+  after,
+}: TableBlockProps<"equipmentTable">) {
   const {
     captionLeft,
     captionRight,
     headings,
     setLabel,
     discountLabel,
+    vatLabel,
     totalLabel,
     amountSuffix,
     showQty,
@@ -172,17 +184,50 @@ export function EquipmentTableBlock({
         ]
       : [];
 
+  /**
+   * VAT, on the goods after the discount: its rate in the label, its figure
+   * in the column. Only with a price column to put the figure in — a
+   * document that states no money states no tax either.
+   */
+  const vatShown = Boolean(vatLabel) && price.vatMinor > 0 && showPrice;
+  const vatRow = vatShown
+    ? [
+        <View
+          key="vat"
+          style={[
+            styles.offerRow,
+            // Directly under the discount it needs no air of its own.
+            discountRow.length ? {} : styles.offerDeduct,
+          ]}
+        >
+          <Text style={styles.offerName}>
+            {interpolate(vatLabel ?? "", ctx, kind)}
+          </Text>
+          {showQty ? <Text style={qtyCell} /> : null}
+          <Text style={priceCell}>{money(price.vatMinor)}</Text>
+        </View>,
+      ]
+    : [];
+
+  // What the client pays for the set: the goods, and the VAT when it is a
+  // row of this table — otherwise the column would not add up to it.
+  const totalMinor = price.goodsMinor + (vatShown ? price.vatMinor : 0);
+  // The total row's own figure, for its label to spell out: `table.*` is
+  // always the number printed beside it, whether or not the VAT row shows,
+  // so a template can never print words that disagree with the figure.
+  const totalCtx: RenderContext = {
+    ...ctx,
+    table: { totalMinor, totalInWords: amountInWords(totalMinor) },
+  };
   const total = showTotal
     ? [
         <View key="total" style={[styles.offerRow, styles.offerTotal]}>
           <Text style={[styles.offerName, styles.label]}>
-            {interpolate(totalLabel, ctx, kind)}
+            {interpolate(totalLabel, totalCtx, kind)}
           </Text>
           {showQty ? <Text style={qtyCell} /> : null}
           {showPrice ? (
-            <Text style={[priceCell, styles.label]}>
-              {money(price.goodsMinor)}
-            </Text>
+            <Text style={[priceCell, styles.label]}>{money(totalMinor)}</Text>
           ) : null}
         </View>,
       ]
@@ -203,10 +248,11 @@ export function EquipmentTableBlock({
       <PagedTable
         head={head}
         rows={[setRow, ...accessoryRows]}
-        tail={[...discountRow, ...total]}
+        tail={[...discountRow, ...vatRow, ...total]}
         style={styles.offerTable}
         keepTogether={block.keepTogether}
         minPresenceAhead={block.minPresenceAhead}
+        after={after}
       />
     </View>
   );

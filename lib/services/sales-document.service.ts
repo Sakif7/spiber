@@ -2,7 +2,7 @@ import React from "react";
 import { logger } from "@/lib/log";
 import { CONTACT } from "@/lib/contact";
 import { amountInWords } from "@/lib/money-words";
-import { renderPdf } from "@/lib/pdf/render";
+import { renderFitted } from "@/lib/pdf/render";
 import { addDays } from "@/lib/pdf/format";
 import {
   ProposalDocument,
@@ -333,9 +333,10 @@ export async function generateProposal(
     equipment ? "equipmentProposal" : "proposal",
   );
   const who = await signatory();
-  const pdf = await renderPdf(
+  const pdf = await renderFitted((fit) =>
     equipment && equipmentTerms
       ? React.createElement(EquipmentProposalDocument, {
+          fit,
           template: tpl.template,
           assets: tpl.assets,
           data: {
@@ -349,6 +350,7 @@ export async function generateProposal(
             subtotalMinor: order.subtotalMinor,
             discountMinor: order.discountMinor,
             vatRateBp: order.vatRateBp,
+            vatAmountMinor: order.vatAmountMinor ?? null,
             vatMinor: order.vatMinor,
             deliveryMinor: order.deliveryMinor ?? 0,
             totalMinor: order.totalMinor,
@@ -359,6 +361,7 @@ export async function generateProposal(
           },
         })
       : React.createElement(ProposalDocument, {
+          fit,
           template: tpl.template,
           assets: tpl.assets,
           data: {
@@ -387,6 +390,7 @@ export async function generateProposal(
       discountMinor: order.discountMinor,
       deliveryMinor: order.deliveryMinor ?? 0,
       vatRateBp: order.vatRateBp,
+      vatAmountMinor: order.vatAmountMinor ?? null,
       vatMinor: order.vatMinor,
       aitRateBp: order.aitRateBp ?? 0,
       totalMinor: order.totalMinor,
@@ -537,6 +541,7 @@ export async function generateInvoice(
     subtotalMinor: order.subtotalMinor,
     discountMinor: order.discountMinor,
     vatRateBp: order.vatRateBp,
+    vatAmountMinor: order.vatAmountMinor ?? null,
     vatMinor: order.vatMinor,
     deliveryMinor: order.deliveryMinor ?? 0,
     totalMinor: order.totalMinor,
@@ -546,9 +551,10 @@ export async function generateInvoice(
     paymentDays,
     signatory: await signatory(),
   };
-  const pdf = await renderPdf(
+  const pdf = await renderFitted((fit) =>
     equipment
       ? React.createElement(EquipmentInvoiceDocument, {
+          fit,
           template: tpl.template,
           assets: tpl.assets,
           data: {
@@ -559,6 +565,7 @@ export async function generateInvoice(
           },
         })
       : React.createElement(InvoiceDocument, {
+          fit,
           template: tpl.template,
           assets: tpl.assets,
           data: { ...invoiceData, lines: toLines(order) },
@@ -582,6 +589,7 @@ export async function generateInvoice(
       discountMinor: order.discountMinor,
       deliveryMinor: order.deliveryMinor ?? 0,
       vatRateBp: order.vatRateBp,
+      vatAmountMinor: order.vatAmountMinor ?? null,
       vatMinor: order.vatMinor,
       aitRateBp: order.aitRateBp ?? 0,
       totalMinor: order.totalMinor,
@@ -659,8 +667,9 @@ export async function generateChallan(
     });
 
   const tpl = await getCurrentTemplate("challan");
-  const pdf = await renderPdf(
+  const pdf = await renderFitted((fit) =>
     React.createElement(ChallanDocument, {
+      fit,
       template: tpl.template,
       assets: tpl.assets,
       data: {
@@ -699,6 +708,7 @@ export async function generateChallan(
       discountMinor: order.discountMinor,
       deliveryMinor: order.deliveryMinor ?? 0,
       vatRateBp: order.vatRateBp,
+      vatAmountMinor: order.vatAmountMinor ?? null,
       vatMinor: order.vatMinor,
       totalMinor: order.totalMinor,
       referenceNo: order.referenceNo ?? null,
@@ -816,9 +826,10 @@ export async function renderVersion(
       phone: order.leadSnapshot.phone ?? null,
       email: order.leadSnapshot.email ?? null,
     };
-    const pdf = await renderPdf(
+    const pdf = await renderFitted((fit) =>
       equipment
         ? React.createElement(EquipmentProposalDocument, {
+            fit,
             template: tpl.template,
             assets: tpl.assets,
             data: {
@@ -832,6 +843,7 @@ export async function renderVersion(
               subtotalMinor: snap.subtotalMinor,
               discountMinor: snap.discountMinor,
               vatRateBp: snap.vatRateBp,
+              vatAmountMinor: snap.vatAmountMinor ?? null,
               vatMinor: snap.vatMinor,
               deliveryMinor: snap.deliveryMinor ?? 0,
               totalMinor: snap.totalMinor,
@@ -845,6 +857,7 @@ export async function renderVersion(
             },
           })
         : React.createElement(ProposalDocument, {
+            fit,
             template: tpl.template,
             assets: tpl.assets,
             data: {
@@ -866,8 +879,9 @@ export async function renderVersion(
   }
 
   if (kind === "challan") {
-    const pdf = await renderPdf(
+    const pdf = await renderFitted((fit) =>
       React.createElement(ChallanDocument, {
+        fit,
         template: tpl.template,
         assets: tpl.assets,
         data: {
@@ -913,6 +927,7 @@ export async function renderVersion(
     subtotalMinor: snap.subtotalMinor,
     discountMinor: snap.discountMinor,
     vatRateBp: snap.vatRateBp,
+    vatAmountMinor: snap.vatAmountMinor ?? null,
     vatMinor: snap.vatMinor,
     aitRateBp: snap.aitRateBp ?? 0,
     deliveryMinor: snap.deliveryMinor ?? 0,
@@ -923,9 +938,10 @@ export async function renderVersion(
     paymentDays: snap.terms.paymentDays,
     signatory: who,
   };
-  const pdf = await renderPdf(
+  const pdf = await renderFitted((fit) =>
     equipment
       ? React.createElement(EquipmentInvoiceDocument, {
+          fit,
           template: tpl.template,
           assets: tpl.assets,
           data: {
@@ -936,6 +952,7 @@ export async function renderVersion(
           },
         })
       : React.createElement(InvoiceDocument, {
+          fit,
           template: tpl.template,
           assets: tpl.assets,
           data: { ...invoiceData, lines },

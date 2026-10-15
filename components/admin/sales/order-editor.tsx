@@ -17,7 +17,11 @@ import { FormSection, FormField } from "@/components/admin/ui/form-shell";
 import { SelectField } from "@/components/admin/ui/select-field";
 import { useUnsavedGuard } from "@/components/admin/ui/unsaved-changes";
 import { formatApiError } from "@/lib/http/form-error";
-import { priceSalesOrder } from "@/lib/schemas/sales-order";
+import {
+  namedVatRateBp,
+  percentOf,
+  priceSalesOrder,
+} from "@/lib/schemas/sales-order";
 import { blockers } from "@/lib/sales/journey";
 import {
   accessoriesOf,
@@ -46,6 +50,134 @@ import {
 export type { EditorLine } from "./editor-line";
 
 /**
+ * An equipment order's VAT, as typed: one box with a unit toggle — a rate,
+ * or a figure in taka — the way a consumables line takes its VAT. It is one
+ * entry for the whole set, charged on the price after discount.
+ */
+type VatEntry = { value: string; mode: "percent" | "amount" };
+
+const lineHasVat = (l: EditorLine) => l.vatValue.trim() !== "";
+
+/**
+ * VAT set line by line, shown as the one figure it comes to.
+ *
+ * The equipment form has no VAT on its lines, so a draft that was
+ * consumables with VAT on them shows that VAT as a figure, and saves it that
+ * way: the same total, now somewhere it can be seen and changed.
+ */
+function perLineVatEntry(lines: EditorLine[]): VatEntry {
+  const { vatMinor } = priceSalesOrder({
+    items: lines.map((l) => ({
+      unitPriceMinor: toMinor(l.unitPrice),
+      qty: Number(l.qty) || 0,
+      ...vatOf(l),
+    })),
+    discountMinor: 0,
+    vatRateBp: 0,
+  });
+  return { value: fromMinor(vatMinor), mode: "amount" };
+}
+
+/** Where the VAT box starts, from what the order holds. */
+function initialVatEntry(
+  lines: EditorLine[],
+  rateBp: number,
+  amountMinor: number | null,
+): VatEntry {
+  if (lines.some(lineHasVat)) return perLineVatEntry(lines);
+  if (amountMinor != null) {
+    return { value: fromMinor(amountMinor), mode: "amount" };
+  }
+  return { value: rateBp > 0 ? String(rateBp / 100) : "", mode: "percent" };
+}
+
+/**
+ * The order-level VAT an equipment entry stands for. A blank box is no VAT;
+ * a figure leaves the stored rate alone, since it is not used while the
+ * figure is set.
+ */
+function orderVatOf(
+  vat: VatEntry,
+  rateBp: number,
+): { vatRateBp: number; vatAmountMinor: number | null } {
+  const raw = vat.value.trim();
+  const n = Number(raw);
+  if (raw === "" || !Number.isFinite(n) || n < 0) {
+    return { vatRateBp: 0, vatAmountMinor: null };
+  }
+  return vat.mode === "amount"
+    ? { vatRateBp: rateBp, vatAmountMinor: Math.round(n * 100) }
+    : { vatRateBp: Math.round(n * 100), vatAmountMinor: null };
+}
+
+/** Everything the editor holds, in the form a save needs it. */
+type EditorDraft = {
+  kind: SalesOrderKind;
+  lines: EditorLine[];
+  discount: string;
+  delivery: string;
+  referenceNo: string;
+  aitPercent: string;
+  /** The order's stored (or configured) rate. */
+  vatRateBp: number;
+  /** Equipment orders only. */
+  vat: VatEntry;
+};
+
+/**
+ * The order exactly as a save would send it.
+ *
+ * Shared by the save itself and by the unsaved-changes check, so the two can
+ * never disagree about what counts as an edit — and so a difference of
+ * FORMATTING ("60" against "60.00") is not mistaken for one, since both
+ * sides are compared after conversion to poisha.
+ */
+function payloadOf(d: EditorDraft) {
+  const equipment = d.kind === "equipment";
+  // An equipment order's VAT is the one entry for the set; consumables keep
+  // the configured rate, or VAT line by line.
+  const orderVat = equipment
+    ? orderVatOf(d.vat, d.vatRateBp)
+    : { vatRateBp: d.vatRateBp, vatAmountMinor: null };
+  return {
+    kind: d.kind,
+    items: d.lines.map((l) => ({
+      id: l.id,
+      kind: l.kind,
+      role: equipment ? (l.role ?? "machine") : undefined,
+      productId: l.productId ?? undefined,
+      variantId: l.variantId ?? undefined,
+      sku: l.sku ?? undefined,
+      description: l.description,
+      brandOrigin: l.brandOrigin,
+      specification: l.specification,
+      model: l.model,
+      manufacturer: l.manufacturer,
+      origin: l.origin,
+      serialNo: l.serialNo,
+      unit: l.unit,
+      unitPriceMinor: toMinor(l.unitPrice),
+      // Blank means nobody has said what it cost, which the report shows
+      // as a gap rather than as a 100% margin.
+      unitCostMinor: l.unitCost.trim() ? toMinor(l.unitCost) : null,
+      // Null, not omitted: an amend has to be able to CLEAR a line's VAT,
+      // and the service reads undefined as "no opinion".
+      vatRateBp: equipment ? null : (vatOf(l).vatRateBp ?? null),
+      vatAmountMinor: equipment ? null : (vatOf(l).vatAmountMinor ?? null),
+      qty: Number(l.qty) || 1,
+    })),
+    discountMinor: toMinor(d.discount),
+    deliveryMinor: toMinor(d.delivery),
+    referenceNo: d.referenceNo,
+    // On a consumables order this is the configured rate, carried through
+    // unchanged so an amend cannot silently re-rate the order.
+    vatRateBp: orderVat.vatRateBp,
+    vatAmountMinor: orderVat.vatAmountMinor,
+    aitRateBp: Math.round((Number(d.aitPercent) || 0) * 100),
+  };
+}
+
+/**
  * The order builder.
  *
  * Two kinds of line: catalogue products, which move real stock and show what is
@@ -62,6 +194,7 @@ export function OrderEditor({
   initialDelivery = 0,
   initialReferenceNo = "",
   initialVatRateBp,
+  initialVatAmountMinor = null,
   initialAitRateBp = 0,
   canEdit,
 }: {
@@ -78,6 +211,8 @@ export function OrderEditor({
   /** The client's own purchase-order reference. */
   initialReferenceNo?: string;
   initialVatRateBp: number;
+  /** An equipment order's VAT, when it was typed as a figure. */
+  initialVatAmountMinor?: number | null;
   /** Expected withholding. Printed on the invoice; never added to the total. */
   initialAitRateBp?: number;
   canEdit: boolean;
@@ -89,9 +224,16 @@ export function OrderEditor({
   const [discount, setDiscount] = useState(fromMinor(initialDiscount));
   const [delivery, setDelivery] = useState(fromMinor(initialDelivery));
   const [referenceNo, setReferenceNo] = useState(initialReferenceNo);
-  // The order-level rate comes from settings and is shown, not edited: VAT is
-  // now either that rate on the whole invoice, or set line by line.
+  // On a consumables order the order-level rate comes from settings and is
+  // shown, not edited: VAT is either that rate on the whole invoice, or set
+  // line by line. An equipment order takes its VAT as one entry for the set.
   const vatRateBp = initialVatRateBp;
+  const startVat = useMemo(
+    () =>
+      initialVatEntry(initialLines, initialVatRateBp, initialVatAmountMinor),
+    [initialLines, initialVatRateBp, initialVatAmountMinor],
+  );
+  const [vat, setVat] = useState<VatEntry>(startVat);
   const [aitPercent, setAitPercent] = useState(String(initialAitRateBp / 100));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -112,20 +254,51 @@ export function OrderEditor({
     .map((l, i) => (l.role === "accessory" ? i : -1))
     .filter((i) => i >= 0);
 
+  const orderVat = useMemo(
+    () =>
+      equipment
+        ? orderVatOf(vat, vatRateBp)
+        : { vatRateBp, vatAmountMinor: null },
+    [equipment, vat, vatRateBp],
+  );
   const totals = useMemo(
     () =>
       priceSalesOrder({
         items: lines.map((l) => ({
           unitPriceMinor: toMinor(l.unitPrice),
           qty: Number(l.qty) || 0,
-          ...vatOf(l),
+          // The set's VAT is the one entry below, never a line's.
+          ...(equipment ? {} : vatOf(l)),
         })),
         discountMinor: toMinor(discount),
         deliveryMinor: toMinor(delivery),
-        vatRateBp,
+        vatRateBp: orderVat.vatRateBp,
+        vatAmountMinor: orderVat.vatAmountMinor,
       }),
-    [lines, discount, delivery, vatRateBp],
+    [lines, discount, delivery, equipment, orderVat],
   );
+  /** "VAT (15%)" — what a typed figure comes to, when it was a figure. */
+  const vatLabel = totals.perLineVat
+    ? "VAT (per line)"
+    : (() => {
+        const bp = namedVatRateBp({
+          subtotalMinor: totals.subtotalMinor,
+          discountMinor: totals.discountMinor,
+          ...orderVat,
+        });
+        return bp == null ? "VAT" : `VAT (${percentOf(bp)}%)`;
+      })();
+  // What is wrong with the VAT box, if anything. A rate is a share of the
+  // price, so one above 100% is a typing slip.
+  const vatProblem =
+    !equipment || vat.value.trim() === ""
+      ? null
+      : !Number.isFinite(Number(vat.value)) || Number(vat.value) < 0
+        ? "Enter a number."
+        : vat.mode === "percent" && Number(vat.value) > 100
+          ? "A rate is a share of the price: 100% at most."
+          : null;
+  const vatInvalid = vatProblem !== null;
 
   /**
    * The same checks the stage rail runs, applied as you type — so the editor
@@ -145,7 +318,7 @@ export function OrderEditor({
       ),
     [lines, kind],
   );
-  const ready = problems.length === 0;
+  const ready = problems.length === 0 && !vatInvalid;
 
   /** Per-row flags, so an error shows on the line that has it. */
   const rowIssue = (l: EditorLine) => ({
@@ -202,90 +375,41 @@ export function OrderEditor({
   const removeAccessory = (i: number) =>
     setLines((prev) => prev.filter((_, n) => n !== accessoryIndexes[i]));
 
-  /**
-   * The order exactly as a save would send it.
-   *
-   * Shared by the save itself and by the unsaved-changes check, so the two can
-   * never disagree about what counts as an edit — and so a difference of
-   * FORMATTING ("60" against "60.00") is not mistaken for one, since both
-   * sides are compared after conversion to poisha.
-   */
   function buildPayload() {
-    return {
+    return payloadOf({
       kind,
-      items: lines.map((l) => ({
-        id: l.id,
-        kind: l.kind,
-        role: kind === "equipment" ? (l.role ?? "machine") : undefined,
-        productId: l.productId ?? undefined,
-        variantId: l.variantId ?? undefined,
-        sku: l.sku ?? undefined,
-        description: l.description,
-        brandOrigin: l.brandOrigin,
-        specification: l.specification,
-        model: l.model,
-        manufacturer: l.manufacturer,
-        origin: l.origin,
-        serialNo: l.serialNo,
-        unit: l.unit,
-        unitPriceMinor: toMinor(l.unitPrice),
-        // Blank means nobody has said what it cost, which the report shows
-        // as a gap rather than as a 100% margin.
-        unitCostMinor: l.unitCost.trim() ? toMinor(l.unitCost) : null,
-        // Null, not omitted: an amend has to be able to CLEAR a line's VAT,
-        // and the service reads undefined as "no opinion".
-        vatRateBp: vatOf(l).vatRateBp ?? null,
-        vatAmountMinor: vatOf(l).vatAmountMinor ?? null,
-        qty: Number(l.qty) || 1,
-      })),
-      discountMinor: toMinor(discount),
-      deliveryMinor: toMinor(delivery),
+      lines,
+      discount,
+      delivery,
       referenceNo,
-      // Not editable here — it is the configured rate, carried through
-      // unchanged so an amend cannot silently re-rate the order.
+      aitPercent,
       vatRateBp,
-      aitRateBp: Math.round((Number(aitPercent) || 0) * 100),
-    };
+      vat,
+    });
   }
 
   /**
    * Is there anything typed here that the database does not have?
    *
-   * Compared against the props the server just rendered, so a successful save
-   * clears it by itself: the save refreshes the page, the props come back with
-   * the new figures, and the two sides match again.
+   * Compared against the props the server just rendered, put through the
+   * same `payloadOf`, so a successful save clears it by itself: the save
+   * refreshes the page, the props come back with the new figures, and the
+   * two sides match again.
    */
   const dirty =
     JSON.stringify(buildPayload()) !==
-    JSON.stringify({
-      kind: initialKind,
-      items: initialLines.map((l) => ({
-        id: l.id,
-        kind: l.kind,
-        role: initialKind === "equipment" ? (l.role ?? "machine") : undefined,
-        productId: l.productId ?? undefined,
-        variantId: l.variantId ?? undefined,
-        sku: l.sku ?? undefined,
-        description: l.description,
-        brandOrigin: l.brandOrigin,
-        specification: l.specification,
-        model: l.model,
-        manufacturer: l.manufacturer,
-        origin: l.origin,
-        serialNo: l.serialNo,
-        unit: l.unit,
-        unitPriceMinor: toMinor(l.unitPrice),
-        unitCostMinor: l.unitCost.trim() ? toMinor(l.unitCost) : null,
-        vatRateBp: vatOf(l).vatRateBp ?? null,
-        vatAmountMinor: vatOf(l).vatAmountMinor ?? null,
-        qty: Number(l.qty) || 1,
-      })),
-      discountMinor: initialDiscount,
-      deliveryMinor: initialDelivery,
-      referenceNo: initialReferenceNo,
-      vatRateBp: initialVatRateBp,
-      aitRateBp: initialAitRateBp,
-    });
+    JSON.stringify(
+      payloadOf({
+        kind: initialKind,
+        lines: initialLines,
+        discount: fromMinor(initialDiscount),
+        delivery: fromMinor(initialDelivery),
+        referenceNo: initialReferenceNo,
+        aitPercent: String(initialAitRateBp / 100),
+        vatRateBp: initialVatRateBp,
+        vat: startVat,
+      }),
+    );
 
   // Publishes to the panels beside this one, and guards a browser reload.
   useUnsavedGuard(dirty && Boolean(orderId), () => save());
@@ -407,7 +531,19 @@ export function OrderEditor({
               id="order-kind"
               ariaLabel="Order type"
               value={kind}
-              onChange={(v) => setKind(v as SalesOrderKind)}
+              onChange={(v) => {
+                const next = v as SalesOrderKind;
+                // VAT typed on the consumables lines has no box on the
+                // equipment form: carry it over as the one figure it is.
+                if (
+                  next === "equipment" &&
+                  kind !== "equipment" &&
+                  lines.some(lineHasVat)
+                ) {
+                  setVat(perLineVatEntry(lines));
+                }
+                setKind(next);
+              }}
               disabled={!canEdit || kindLocked}
               options={(
                 Object.keys(SALES_ORDER_KIND_LABEL) as SalesOrderKind[]
@@ -760,6 +896,52 @@ export function OrderEditor({
               inputMode="decimal"
             />
           </FormField>
+          {equipment && (
+            /* One VAT for the whole set, as a rate or a figure — the same box
+               and toggle a consumables line takes its VAT with. */
+            <FormField
+              label="VAT"
+              htmlFor="order-vat"
+              hint={
+                vatProblem ??
+                "On the price after discount, never on transport. Printed as a row above the total."
+              }
+            >
+              <div className="flex items-center gap-1.5">
+                <Input
+                  id="order-vat"
+                  value={vat.value}
+                  onChange={(e) =>
+                    setVat((v) => ({ ...v, value: e.target.value }))
+                  }
+                  disabled={!canEdit}
+                  inputMode="decimal"
+                  placeholder="—"
+                  aria-invalid={vatInvalid}
+                  className={cn(vatInvalid && "border-destructive")}
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  disabled={!canEdit}
+                  aria-label={
+                    vat.mode === "percent"
+                      ? "VAT entered as a percentage; switch to an amount"
+                      : "VAT entered as an amount; switch to a percentage"
+                  }
+                  className="shrink-0 font-mono"
+                  onClick={() =>
+                    setVat((v) => ({
+                      ...v,
+                      mode: v.mode === "percent" ? "amount" : "percent",
+                    }))
+                  }
+                >
+                  {vat.mode === "percent" ? "%" : "৳"}
+                </Button>
+              </div>
+            </FormField>
+          )}
           <FormField
             label="AIT (%)"
             hint="What the client withholds. Printed on the invoice; never added to the total."
@@ -785,14 +967,7 @@ export function OrderEditor({
             />
           )}
           {totals.vatMinor > 0 && (
-            <TotalRow
-              label={
-                totals.perLineVat
-                  ? "VAT (per line)"
-                  : `VAT (${vatRateBp / 100}%)`
-              }
-              value={money(totals.vatMinor)}
-            />
+            <TotalRow label={vatLabel} value={money(totals.vatMinor)} />
           )}
           {totals.deliveryMinor > 0 && (
             <TotalRow label="Transport" value={money(totals.deliveryMinor)} />

@@ -1,7 +1,12 @@
 import React from "react";
 import { Text, View } from "@react-pdf/renderer";
 import { allPlaceholdersEmpty, interpolate, isShown } from "../resolve";
-import { frameProps, frameStyle, type BlockProps } from "./shared";
+import {
+  frameProps,
+  frameStyle,
+  type BlockProps,
+  type TableBlockProps,
+} from "./shared";
 import { PagedTable } from "./paged-table";
 
 /**
@@ -170,7 +175,7 @@ export function KeyValueListBlock({
       return null;
     }
     return (
-      <Text key={i} style={{ marginBottom: 1 }}>
+      <Text key={i} style={styles.keyValueLine}>
         <Text style={styles.label}>{interpolate(item.label, ctx, kind)} </Text>
         {interpolate(item.value, ctx, kind)}
       </Text>
@@ -202,7 +207,8 @@ export function KeyValueTableBlock({
   styles,
   ctx,
   kind,
-}: BlockProps<"keyValueTable">) {
+  after,
+}: TableBlockProps<"keyValueTable">) {
   const { header, headerRule, rows } = block.props;
   const shown = rows.filter((r) => isShown(ctx, r.showIf));
   // Without a head the first row opens the frame with the top rule.
@@ -255,6 +261,7 @@ export function KeyValueTableBlock({
       style={{ ...styles.table, ...frameStyle(block, styles) }}
       keepTogether={block.keepTogether}
       minPresenceAhead={block.minPresenceAhead}
+      after={after}
     />
   );
 }

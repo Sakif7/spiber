@@ -3,7 +3,11 @@ import { notFound } from "next/navigation";
 import { setRequestLocale } from "next-intl/server";
 import { ArrowLeft } from "lucide-react";
 import { getSalesOrderById } from "@/lib/repositories/sales.repo";
-import { EDITABLE_STATUSES } from "@/lib/schemas/sales-order";
+import {
+  EDITABLE_STATUSES,
+  namedVatRateBp,
+  percentOf,
+} from "@/lib/schemas/sales-order";
 import { formatBDT } from "@/lib/money";
 import {
   DetailLayout,
@@ -53,6 +57,13 @@ export default async function SalesOrderPage({
   const perLineVat = order.items.some(
     (i) => i.vatRateBp != null || i.vatAmountMinor != null,
   );
+  /** The rate the order's VAT is named by — a typed figure's, worked out. */
+  const vatNamedBp = namedVatRateBp({
+    subtotalMinor: order.subtotalMinor,
+    discountMinor: order.discountMinor,
+    vatRateBp: order.vatRateBp,
+    vatAmountMinor: order.vatAmountMinor ?? null,
+  });
   // What stops the next step, in the words of whoever has to fix it. Shared by
   // the rail (which lists them) and the actions panel (which disables on them).
   const orderBlockers = blockers(
@@ -247,7 +258,9 @@ export default async function SalesOrderPage({
                   label={
                     perLineVat
                       ? "VAT (per line)"
-                      : `VAT (${order.vatRateBp / 100}%)`
+                      : vatNamedBp == null
+                        ? "VAT"
+                        : `VAT (${percentOf(vatNamedBp)}%)`
                   }
                 >
                   {formatBDT(order.vatMinor, "en")}
@@ -325,6 +338,7 @@ export default async function SalesOrderPage({
           initialDelivery={order.deliveryMinor ?? 0}
           initialReferenceNo={order.referenceNo ?? ""}
           initialVatRateBp={order.vatRateBp}
+          initialVatAmountMinor={order.vatAmountMinor ?? null}
           initialAitRateBp={order.aitRateBp ?? 0}
           canEdit={canEdit}
         />

@@ -1,6 +1,10 @@
 import { LEGAL, BANK, CONTACT, OFFICES } from "@/lib/contact";
 import { amountInWords } from "@/lib/money-words";
-import { aitOnGoods } from "@/lib/schemas/sales-order";
+import {
+  aitOnGoods,
+  namedVatRateBp,
+  percentOf,
+} from "@/lib/schemas/sales-order";
 import {
   needsVatColumn,
   type ChallanData,
@@ -64,8 +68,10 @@ export function companyContext(): CompanyContext {
 }
 
 /** "VAT (15%)" in the totals — unless a per-line column already says. */
-function vatSuffix(lines: DocumentLine[], rateBp: number): string {
-  return needsVatColumn(lines) ? "" : ` (${rateBp / 100}%)`;
+function vatSuffix(lines: DocumentLine[], rateBp: number | null): string {
+  return needsVatColumn(lines) || rateBp == null
+    ? ""
+    : ` (${percentOf(rateBp)}%)`;
 }
 
 export function buildProposalContext(data: ProposalData): RenderContext {
@@ -93,6 +99,9 @@ export function buildInvoiceContext(data: InvoiceData): RenderContext {
     data.discountMinor,
     data.aitRateBp ?? 0,
   );
+  // The rate the VAT is named by: the order's, or what a typed figure
+  // comes to on the goods.
+  const vatRateBp = namedVatRateBp(data);
   return {
     invoiceNumber: data.invoiceNumber,
     invoiceDate: data.invoiceDate,
@@ -114,8 +123,8 @@ export function buildInvoiceContext(data: InvoiceData): RenderContext {
       amountInWords: amountInWords(data.totalMinor),
     },
     vat: {
-      ratePercent: data.vatRateBp / 100,
-      rateSuffix: vatSuffix(data.lines, data.vatRateBp),
+      ratePercent: vatRateBp == null ? null : vatRateBp / 100,
+      rateSuffix: vatSuffix(data.lines, vatRateBp),
     },
     ait: { ratePercent: (data.aitRateBp ?? 0) / 100, amountMinor: aitMinor },
     terms: { paymentDays: data.paymentDays },
@@ -206,30 +215,39 @@ function equipmentContext(
  * The rate "VAT (15%)" names on an equipment document.
  *
  * In per-line mode the order's configured rate says nothing about what was
- * charged, so the rate is the lines' own — and only when they all agree.
+ * charged, so the rate is the lines' own — and only when they all agree. A
+ * VAT typed as a figure is named by what it comes to on the goods.
  */
-function equipmentVatRate(
-  equipment: EquipmentLine[],
-  orderRateBp: number,
-  perLineVat: boolean | undefined,
-): number | null {
-  if (!perLineVat) return orderRateBp;
-  const rates = [...new Set(equipment.map((l) => l.vatRateBp ?? 0))];
+function equipmentVatRate(data: {
+  equipment: EquipmentLine[];
+  perLineVat?: boolean;
+  subtotalMinor: number;
+  discountMinor: number;
+  vatRateBp: number;
+  vatAmountMinor?: number | null;
+}): number | null {
+  if (!data.perLineVat) return namedVatRateBp(data);
+  const rates = [...new Set(data.equipment.map((l) => l.vatRateBp ?? 0))];
   return rates.length === 1 ? rates[0] : null;
 }
 
 const rateSuffix = (rateBp: number | null) =>
-  rateBp == null ? "" : ` (${rateBp / 100}%)`;
+  rateBp == null ? "" : ` (${percentOf(rateBp)}%)`;
+
+/**
+ * The goods with their VAT — what the offer's table totals to once VAT is a
+ * row of it, and what the words under that total have to say.
+ */
+function withVat(goodsMinor: number, vatMinor: number) {
+  const withVatMinor = goodsMinor + vatMinor;
+  return { withVatMinor, withVatInWords: amountInWords(withVatMinor) };
+}
 
 export function buildEquipmentProposalContext(
   data: EquipmentProposalData,
 ): RenderContext {
   const goodsMinor = Math.max(0, data.subtotalMinor - data.discountMinor);
-  const vatRateBp = equipmentVatRate(
-    data.equipment,
-    data.vatRateBp,
-    data.perLineVat,
-  );
+  const vatRateBp = equipmentVatRate(data);
   const aitMinor = aitOnGoods(
     data.subtotalMinor,
     data.discountMinor,
@@ -255,6 +273,7 @@ export function buildEquipmentProposalContext(
       vatMinor: data.vatMinor,
       vatPercent: vatRateBp == null ? null : vatRateBp / 100,
       vatSuffix: rateSuffix(vatRateBp),
+      ...withVat(goodsMinor, data.vatMinor),
       deliveryMinor: data.deliveryMinor,
       totalMinor: data.totalMinor,
       totalInWords: amountInWords(data.totalMinor),
@@ -274,11 +293,7 @@ export function buildEquipmentInvoiceContext(
 ): RenderContext {
   const goodsMinor = Math.max(0, data.subtotalMinor - data.discountMinor);
   const balanceMinor = Math.max(0, data.totalMinor - data.paidMinor);
-  const vatRateBp = equipmentVatRate(
-    data.equipment,
-    data.vatRateBp,
-    data.perLineVat,
-  );
+  const vatRateBp = equipmentVatRate(data);
   const aitMinor = aitOnGoods(
     data.subtotalMinor,
     data.discountMinor,
@@ -299,11 +314,16 @@ export function buildEquipmentInvoiceContext(
     equipment,
     accessories,
     lines,
-    // The offer's table reads the same `price` object on both documents.
+    // The offer's table reads the same `price` object on both documents,
+    // VAT row included.
     price: {
       goodsMinor,
       goodsInWords: amountInWords(goodsMinor),
       discountMinor: data.discountMinor,
+      vatMinor: data.vatMinor,
+      vatPercent: vatRateBp == null ? null : vatRateBp / 100,
+      vatSuffix: rateSuffix(vatRateBp),
+      ...withVat(goodsMinor, data.vatMinor),
     },
     totals: {
       subtotalMinor: data.subtotalMinor,

@@ -1,5 +1,6 @@
 import React from "react";
 import { View } from "@react-pdf/renderer";
+import { TAIL_MARK } from "../fit";
 
 /**
  * A ruled table that breaks across pages the way a typeset one does.
@@ -46,6 +47,12 @@ import { View } from "@react-pdf/renderer";
  * Rows carry the frame (see `theme.ts`): react-pdf stretches the first
  * piece of a split view to the page edge, so a border on the table box
  * would run on below the last row.
+ *
+ * On a document too long for one page (`fit.ts`), everything printed after
+ * the table — words, bank details, terms, the signature — comes in as
+ * `after` and joins the closing piece. That piece moves whole, so the page
+ * the table continues onto opens with its last rows and never with the
+ * closing parts alone.
  */
 
 /** Rows the table must open with, on top of the head. */
@@ -67,6 +74,8 @@ type Props = {
   keepTogether?: boolean;
   /** The block's `minPresenceAhead`. */
   minPresenceAhead?: number;
+  /** The rest of the document, kept with the closing rows — see above. */
+  after?: React.ReactNode;
 };
 
 const solid = (row: Row) => React.cloneElement(row, { wrap: false });
@@ -97,14 +106,25 @@ export function PagedTable({
   style,
   keepTogether,
   minPresenceAhead,
+  after,
 }: Props) {
+  // The piece the rest of the document rides in is marked, so the fitting
+  // loop can measure it before trusting it to a page (`fit.ts`).
+  const carries = after ? { [TAIL_MARK]: true } : {};
+
   // Small enough to be one piece: nothing to repeat, nothing to split.
   if (keepTogether || rows.length <= OPENING_ROWS + 1) {
     return (
-      <View style={style} wrap={false} minPresenceAhead={minPresenceAhead}>
+      <View
+        style={style}
+        wrap={false}
+        minPresenceAhead={minPresenceAhead}
+        {...carries}
+      >
         {head}
         {rows}
         {tail}
+        {after}
       </View>
     );
   }
@@ -125,9 +145,10 @@ export function PagedTable({
         {opening}
       </View>
       {middle}
-      <View wrap={false}>
+      <View wrap={false} {...carries}>
         {closing}
         {tail}
+        {after}
       </View>
     </View>
   );

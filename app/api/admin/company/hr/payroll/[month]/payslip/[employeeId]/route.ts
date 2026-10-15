@@ -1,7 +1,7 @@
 import React from "react";
 import { getRun } from "@/lib/services/hr/payroll.service";
 import { monthLabel } from "@/lib/hr/months";
-import { renderPdf } from "@/lib/pdf/render";
+import { renderFitted } from "@/lib/pdf/render";
 import { PayslipDocument } from "@/lib/pdf/payslip";
 import { getSetting } from "@/lib/repositories/settings.repo";
 import { getCurrentTemplate } from "@/lib/services/pdf-template.service";
@@ -50,8 +50,9 @@ export async function GET(
   // Payslips are not filed or versioned, so a re-opened one is drawn with
   // whatever template is current — unlike the sales documents.
   const tpl = await getCurrentTemplate("payslip");
-  const pdf = await renderPdf(
+  const pdf = await renderFitted((fit) =>
     React.createElement(PayslipDocument, {
+      fit,
       template: tpl.template,
       assets: tpl.assets,
       data: {

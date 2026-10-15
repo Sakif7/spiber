@@ -175,11 +175,13 @@ function priceOrder(
   discountMinor: number,
   vatRateBp: number,
   deliveryMinor = 0,
+  vatAmountMinor: number | null = null,
 ): { items: ISalesOrderItem[]; totals: OrderTotals } {
   const priced = priceSalesOrder({
     items,
     discountMinor,
     vatRateBp,
+    vatAmountMinor,
     deliveryMinor,
   });
   return {
@@ -219,11 +221,13 @@ export async function createOrder(
   if (tooManyMachines(kind, input.items)) return fail("too_many_machines");
 
   const vatRateBp = input.vatRateBp ?? 0;
+  const vatAmountMinor = input.vatAmountMinor ?? null;
   const { items, totals } = priceOrder(
     toItems(input.items, kind),
     input.discountMinor ?? 0,
     vatRateBp,
     input.deliveryMinor ?? 0,
+    vatAmountMinor,
   );
   const terms = { ...(await defaultTerms()), ...(input.terms ?? {}) };
 
@@ -242,6 +246,7 @@ export async function createOrder(
     items,
     ...totals,
     vatRateBp,
+    vatAmountMinor,
     aitRateBp: input.aitRateBp ?? 0,
     referenceNo: input.referenceNo || null,
     terms,
@@ -295,6 +300,11 @@ export async function amendOrder(
   const discountMinor = input.discountMinor ?? order.discountMinor;
   const deliveryMinor = input.deliveryMinor ?? order.deliveryMinor ?? 0;
   const vatRateBp = input.vatRateBp ?? order.vatRateBp;
+  // Undefined is "no opinion", so the figure stays; null clears it.
+  const vatAmountMinor =
+    input.vatAmountMinor !== undefined
+      ? input.vatAmountMinor
+      : (order.vatAmountMinor ?? null);
 
   // Only an invoiced order holds stock; a draft has nothing to adjust.
   const applied: { item: ISalesOrderItem; qty: number }[] = [];
@@ -373,6 +383,7 @@ export async function amendOrder(
     discountMinor,
     vatRateBp,
     deliveryMinor,
+    vatAmountMinor,
   );
   const kindChange =
     nextKind !== (order.kind ?? "consumables") ? { kind: nextKind } : {};
@@ -381,6 +392,7 @@ export async function amendOrder(
     items: pricedItems,
     ...totals,
     vatRateBp,
+    vatAmountMinor,
     ...kindChange,
     ...(input.aitRateBp !== undefined ? { aitRateBp: input.aitRateBp } : {}),
     ...(input.referenceNo !== undefined
@@ -475,6 +487,7 @@ export async function repeatOrder(
     source.discountMinor,
     source.vatRateBp,
     source.deliveryMinor ?? 0,
+    source.vatAmountMinor ?? null,
   );
 
   const doc = await createSalesOrder({
@@ -494,6 +507,7 @@ export async function repeatOrder(
     items: priced,
     ...totals,
     vatRateBp: source.vatRateBp,
+    vatAmountMinor: source.vatAmountMinor ?? null,
     aitRateBp: source.aitRateBp ?? 0,
     // The client's old purchase-order number belongs to the old order.
     referenceNo: null,

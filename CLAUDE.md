@@ -135,7 +135,11 @@ These are the things the owner has had to repeat. Treat them as hard rules.
   (`no_price`, refused in `transitionOrder` and `generateInvoice`).
   The six letter terms plus `deliveryScope` are per proposal
   (`snapshot.equipmentTerms`, defaults in `EQUIPMENT_TERM_DEFAULTS`), never
-  per template. The kind is chosen on New order and fixed once a proposal
+  per template. **VAT is ONE entry for the set** — `vatRateBp`, or the
+  figure `vatAmountMinor` (on goods after discount, never transport; named
+  by `namedVatRateBp`) — never per line; it prints as the table's VAT row
+  (`vatLabel`) above a total that includes it, whose words are
+  `{{table.totalInWords}}` (the row's own figure). The kind is chosen on New order and fixed once a proposal
   exists; reprints choose the layout from `templateRef.kind`, the challan
   from the order's kind.
 - **PDF layout is data.** Every document renders through the block-based
@@ -147,6 +151,14 @@ These are the things the owner has had to repeat. Treat them as hard rules.
   to a block (rides with it across pages) — stored
   **encrypted** (`PdfAsset`, needs `COMPANY_VAULT_KEY`), undeletable while
   referenced — and always printed by a template that carries them.
+- **A small document prints on ONE page.** Template documents render through
+  `renderFitted` / `fitDocument` (`lib/pdf/render.ts`), never bare
+  `renderPdf`: as designed → tighter levels (`lib/pdf/engine/fit.ts`:
+  spacing, then text −0.5 / −1 pt) → a long one keeps everything after its
+  last table with the table's closing rows (`tailWithTable`, measured on an
+  unbroken sheet first), so a page never opens with only terms + signature.
+  Level 0 is the template untouched; the pen space and stationery never
+  shrink.
 - **Directors are shareholders.** The company issued a fixed pool of shares
   (Settings `hr.sharePool`, 14,000 at ৳100); each director holds some
   (`employee_share_rates.shares`, append-only, effective from a month). A
@@ -417,7 +429,9 @@ tests`, `npm test`, and the browser pass above. Then `git status`.
 - Page budgets are measured, not guessed: render with `TemplateDocument`'s
   `onLayout` and read the block boxes (A4 content runs 171→790 pt with the
   letterhead). A letter's closing + signature travel as one piece via
-  `minPresenceAhead`, or a page arrives holding nothing but a signature.
+  `minPresenceAhead`, or a page arrives holding nothing but a signature —
+  but `renderFitted` decides first, from how the pages came out; the
+  built-ins' hand-set presences only matter where it cannot fit or glue.
 
 **React / Next**
 
@@ -506,9 +520,14 @@ tests`, `npm test`, and the browser pass above. Then `git status`.
   padded content box, not the sheet.
 - Where blocks landed: `TemplateDocument`'s `onLayout` reads react-pdf's
   laid-out tree from `Document onRender` (`_INTERNAL__LAYOUT__DATA_`); the
-  container's `document` is the un-laid tree (boxes NaN). Boxes are
-  page-absolute. The editor rasterises previews with `pdfjs-dist` in the
+  container's `document` is the un-laid tree (boxes NaN). Only a page's
+  direct children have page-absolute boxes; nested boxes are relative to
+  their parent. The editor rasterises previews with `pdfjs-dist` in the
   browser only — the server has no rasteriser.
+- **react-pdf never refuses an unbreakable piece taller than the room**: one
+  taller than a page is placed anyway and every child squeezed to fit (rows
+  at 5 pt) — nothing "overflows", so a box check finds nothing. Measure such
+  a piece on a `Page wrap={false}` sheet first (`fit.measure`).
 - `@react-pdf/renderer` is **server-only**: the template editor previews via
   `POST /api/admin/company/pdf-templates/preview`; client code may import only
   `lib/schemas/pdf-template.ts` and `lib/pdf/engine/{paths,catalogue,defaults}`.

@@ -1,3 +1,4 @@
+import type React from "react";
 import type {
   Block,
   BlockOf,
@@ -13,6 +14,14 @@ export type BlockProps<T extends BlockType> = {
   styles: Styles;
   ctx: RenderContext;
   kind: TemplateKind;
+};
+
+/**
+ * What a table block receives: on a document too long for one page, the
+ * rest of the document rides in its closing rows (`PagedTable`'s `after`).
+ */
+export type TableBlockProps<T extends BlockType> = BlockProps<T> & {
+  after?: React.ReactNode;
 };
 
 type Style = Record<string, string | number>;

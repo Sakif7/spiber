@@ -9,6 +9,7 @@ import {
   buildProposalContext,
 } from "./context";
 import { TemplateDocument, type BlockBox } from "./render-template";
+import type { PageFit } from "./fit";
 import type {
   ChallanData,
   DocumentLine,
@@ -293,13 +294,15 @@ function fixtureContext(kind: TemplateKind) {
 
 /**
  * The element to render for a preview of `template` as document `kind`.
- * `onLayout` receives where each block landed, for the editor's position pad.
+ * `onLayout` receives where each block landed, for the editor's position pad;
+ * `fit` is `renderFitted`'s, so the preview is laid out as a real document.
  */
 export function fixtureElement(
   kind: TemplateKind,
   template: TemplateDoc,
   assets: StampAssets = {},
   onLayout?: (boxes: BlockBox[]) => void,
+  fit?: PageFit,
 ): React.ReactElement {
   return React.createElement(TemplateDocument, {
     kind,
@@ -307,5 +310,6 @@ export function fixtureElement(
     ctx: fixtureContext(kind),
     assets,
     onLayout,
+    fit,
   });
 }

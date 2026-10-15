@@ -280,7 +280,16 @@ export const blockSchema = z.discriminatedUnion("type", [
       setLabel: text,
       /** Printed above the total when the order carries a discount. */
       discountLabel: text.optional(),
-      /** "Total Price BDT. {{price.goodsInWords}}". */
+      /**
+       * "VAT{{price.vatSuffix}}" — printed above the total, with the VAT
+       * figure in the price column, when the order carries VAT; the total
+       * then includes it (`table.totalInWords` spells out whichever total
+       * the row prints).
+       * Absent on templates saved before the row existed, which keep
+       * stating VAT under the table and totalling the goods alone.
+       */
+      vatLabel: text.optional(),
+      /** "Total Price BDT. {{table.totalInWords}}" — the figure beside it, in words. */
       totalLabel: text,
       /** Printed after every figure — the company's own offers end "/=". */
       amountSuffix: z.string().max(4).default("/="),

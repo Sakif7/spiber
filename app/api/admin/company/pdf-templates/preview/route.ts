@@ -1,7 +1,7 @@
 import { fail } from "@/lib/http/respond";
 import { parseJson } from "@/lib/http/validate";
 import { logger } from "@/lib/log";
-import { renderPdf } from "@/lib/pdf/render";
+import { fitDocument } from "@/lib/pdf/render";
 import { fixtureElement } from "@/lib/pdf/engine/fixtures";
 import type { BlockBox } from "@/lib/pdf/engine/render-template";
 import { previewInputSchema, stampAssetIds } from "@/lib/schemas/pdf-template";
@@ -30,11 +30,20 @@ export async function POST(req: Request) {
   let boxes: BlockBox[] = [];
   try {
     const assets = await loadAssets(stampAssetIds(template));
-    pdf = await renderPdf(
-      fixtureElement(kind, template, assets, (b) => {
-        boxes = b;
-      }),
+    // Laid out the way a real document is — fitted onto one page when it
+    // runs over — so the preview shows what will print. Every attempt
+    // reports its boxes; the pad gets the ones of the layout that was kept.
+    const seen = new Map<string, BlockBox[]>();
+    const key = (f: {
+      level: number;
+      tailWithTable?: boolean;
+      measure?: boolean;
+    }) => `${f.level}:${f.tailWithTable ? "tail" : ""}:${f.measure ? "m" : ""}`;
+    const fitted = await fitDocument((fit) =>
+      fixtureElement(kind, template, assets, (b) => seen.set(key(fit), b), fit),
     );
+    pdf = fitted.pdf;
+    boxes = seen.get(key(fitted.fit)) ?? [];
   } catch (err) {
     logger.warn("pdf-template preview failed", { kind, err });
     return fail(

@@ -727,13 +727,20 @@ function EquipmentTableForm({ block, kind, onProps }: Props<"equipmentTable">) {
           hint="Printed above the total, only when there is a discount."
         />
         <TemplateText
-          label="Total row"
+          label="VAT row"
           kind={kind}
-          value={block.props.totalLabel}
-          onChange={(totalLabel) => onProps({ totalLabel })}
-          hint="The amount in words belongs here."
+          value={block.props.vatLabel ?? ""}
+          onChange={(vatLabel) => onProps({ vatLabel: vatLabel || undefined })}
+          hint="Printed above the total when the order carries VAT, and the total then includes it. Empty: no VAT row."
         />
       </FormGrid>
+      <TemplateText
+        label="Total row"
+        kind={kind}
+        value={block.props.totalLabel}
+        onChange={(totalLabel) => onProps({ totalLabel })}
+        hint="The amount in words belongs here: “The price table's total, in words” always matches the figure printed beside it."
+      />
       <FormGrid>
         <SwitchField
           label="Quantity column"

@@ -678,6 +678,8 @@ const equipmentProposal: TemplateDoc = {
       },
     },
     {
+      // VAT is a row of the table, above its total, and the total includes
+      // it — the owner's choice: one figure for what the set costs.
       id: "table",
       type: "equipmentTable",
       style: { marginTop: 9 },
@@ -687,7 +689,8 @@ const equipmentProposal: TemplateDoc = {
         headings: { no: "NO", qty: "Qty", price: "Price" },
         setLabel: "{{equipment.setName}}",
         discountLabel: "Less discount",
-        totalLabel: "Total Price BDT. {{price.goodsInWords}}",
+        vatLabel: "VAT{{price.vatSuffix}}",
+        totalLabel: "Total Price BDT. {{table.totalInWords}}",
         amountSuffix: "/=",
         showQty: true,
         showPrice: true,
@@ -695,23 +698,12 @@ const equipmentProposal: TemplateDoc = {
       },
     },
     {
-      // VAT and transport sit under the table: they are charged on top of
-      // the price it states, and the sample's table has no room for them.
-      id: "vat",
-      type: "labelledText",
-      showIf: "price.vatMinor",
-      style: { marginTop: 8 },
-      props: {
-        label: "VAT{{price.vatSuffix}}:",
-        labelStyle: "bold",
-        text: "BDT {{price.vatMinor}}, payable in addition to the price above.",
-      },
-    },
-    {
+      // Transport sits under the table: it is charged on top of the price
+      // the table states, and is never part of what VAT is charged on.
       id: "transport",
       type: "labelledText",
       showIf: "price.deliveryMinor",
-      style: { marginTop: 3 },
+      style: { marginTop: 8 },
       props: {
         label: "Transport and delivery:",
         labelStyle: "bold",
@@ -719,9 +711,11 @@ const equipmentProposal: TemplateDoc = {
       },
     },
     {
+      // Only with transport: otherwise the table's own total, VAT and all,
+      // is the whole price and repeating it says nothing new.
       id: "total",
       type: "labelledText",
-      showIf: "price.hasExtras",
+      showIf: "price.deliveryMinor",
       style: { marginTop: 3 },
       props: {
         label: "Total:",
@@ -908,6 +902,8 @@ const equipmentInvoice: TemplateDoc = {
       },
     },
     {
+      // The same table as the offer, VAT row and all: the bill reads as the
+      // document the client agreed to, with an invoice number on it.
       id: "table",
       type: "equipmentTable",
       style: { marginTop: 6 },
@@ -916,7 +912,8 @@ const equipmentInvoice: TemplateDoc = {
         headings: { no: "NO", qty: "Qty", price: "Price" },
         setLabel: "{{equipment.setName}}",
         discountLabel: "Less discount",
-        totalLabel: "Total Price BDT. {{price.goodsInWords}}",
+        vatLabel: "VAT{{price.vatSuffix}}",
+        totalLabel: "Total Price BDT. {{table.totalInWords}}",
         amountSuffix: "/=",
         showQty: true,
         showPrice: true,
@@ -924,21 +921,10 @@ const equipmentInvoice: TemplateDoc = {
       },
     },
     {
-      id: "vat",
-      type: "labelledText",
-      showIf: "totals.vatMinor",
-      style: { marginTop: 8 },
-      props: {
-        label: "VAT{{vat.rateSuffix}}:",
-        labelStyle: "bold",
-        text: "BDT {{totals.vatMinor}}",
-      },
-    },
-    {
       id: "transport",
       type: "labelledText",
       showIf: "totals.deliveryMinor",
-      style: { marginTop: 3 },
+      style: { marginTop: 8 },
       props: {
         label: "Transport/ Delivery:",
         labelStyle: "bold",
@@ -946,11 +932,11 @@ const equipmentInvoice: TemplateDoc = {
       },
     },
     {
-      // Only when something sits on top of the price; otherwise the table's
-      // own total IS the grand total and repeating it says nothing new.
+      // Only with transport on top; otherwise the table's own total, VAT
+      // included, IS the grand total and repeating it says nothing new.
       id: "total",
       type: "labelledText",
-      showIf: "totals.hasExtras",
+      showIf: "totals.deliveryMinor",
       style: { marginTop: 3, fontSize: 11.5 },
       props: {
         label: "Grand Total:",

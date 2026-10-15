@@ -141,6 +141,8 @@ export interface IDocumentVersion {
     discountMinor: number;
     deliveryMinor?: number;
     vatRateBp: number;
+    /** The order's VAT figure, when it was given as one; absent = the rate. */
+    vatAmountMinor?: number | null;
     vatMinor: number;
     aitRateBp?: number;
     totalMinor: number;
@@ -226,6 +228,13 @@ export interface ISalesOrder {
   referenceNo?: string | null;
   /** Snapshotted when the order is invoiced, so a later rate change is not retroactive. */
   vatRateBp: number;
+  /**
+   * VAT given as a figure instead of a rate — an equipment order's VAT
+   * line, typed in taka. While set it IS the VAT (on the goods after
+   * discount, never on transport) and the rate is not used. Absent on every
+   * order from before; read it with `?? null`.
+   */
+  vatAmountMinor?: number | null;
   vatMinor: number;
   /**
    * The rate we expect the client to withhold at source.
@@ -413,6 +422,7 @@ const salesOrderSchema = new Schema<ISalesOrder>(
     deliveryMinor: { type: Number, default: 0 },
     referenceNo: { type: String, default: null, trim: true },
     vatRateBp: { type: Number, default: 0 },
+    vatAmountMinor: { type: Number, default: null, min: 0 },
     vatMinor: { type: Number, default: 0 },
     aitRateBp: { type: Number, default: 0, min: 0, max: 10000 },
     totalMinor: { type: Number, default: 0 },

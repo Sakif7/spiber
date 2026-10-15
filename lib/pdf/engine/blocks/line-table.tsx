@@ -9,7 +9,7 @@ import { needsVatColumn, vatCell, type DocumentLine } from "../../types";
 import { formatTaka } from "../../format";
 import { formatPath, interpolate, isPresent, resolvePath } from "../resolve";
 import type { Styles } from "../theme";
-import { frameStyle, type BlockProps } from "./shared";
+import { frameStyle, type TableBlockProps } from "./shared";
 import { PagedTable } from "./paged-table";
 
 /**
@@ -126,7 +126,8 @@ export function LineTableBlock({
   styles,
   ctx,
   kind,
-}: BlockProps<"lineTable">) {
+  after,
+}: TableBlockProps<"lineTable">) {
   const { vatColumn, totals } = block.props;
   const lines = ctx.lines;
   const showVat =
@@ -279,6 +280,7 @@ export function LineTableBlock({
       style={{ ...styles.table, ...frameStyle(block, styles) }}
       keepTogether={block.keepTogether}
       minPresenceAhead={block.minPresenceAhead}
+      after={after}
     />
   );
 }

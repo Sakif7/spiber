@@ -7,6 +7,11 @@ import type { Theme } from "@/lib/schemas/pdf-template";
  * This is the old hand-written sheet with its constants replaced by theme
  * values; the default theme produces byte-for-byte the same styles. Memoised
  * per theme so a document with sixty rows builds it once.
+ *
+ * `tight` is the sheet a document is fitted onto one page with (`fit.ts`):
+ * table rows, list rows, the sign-off row and the gaps under the letterhead
+ * and the title lose some of their air. The room above a signature line for
+ * a real pen, and the stationery itself, are the same either way.
  */
 
 export type Fonts = { regular: string; bold: string };
@@ -17,12 +22,14 @@ export function fontsFor(theme: Theme): Fonts {
     : { regular: "Times-Roman", bold: "Times-Bold" };
 }
 
-function build(theme: Theme) {
+function build(theme: Theme, tight: boolean) {
   const { accent, ink, muted, rule, hairline, tint } = theme.colors;
   const { padX, padTop, padBottom } = theme.page;
   const font = fontsFor(theme);
   const size = theme.font.size;
   const tableSize = theme.font.tableSize;
+  /** The spacing a constant takes when the document is being fitted. */
+  const air = (normal: number, fitted: number) => (tight ? fitted : normal);
 
   return StyleSheet.create({
     page: {
@@ -72,7 +79,7 @@ function build(theme: Theme) {
        first body block: the letterhead repeats on every page, so a table or
        paragraph continuing on page 2 starts the same distance below the
        rule as the title does on page 1. */
-    letterhead: { marginBottom: 12 },
+    letterhead: { marginBottom: air(12, 6) },
     ruleRow: { flexDirection: "row", alignItems: "flex-end", marginTop: 6 },
     ruleThick: {
       marginLeft: -padX,
@@ -93,7 +100,7 @@ function build(theme: Theme) {
       fontSize: size + 2,
       textAlign: "center",
       textDecoration: "underline",
-      marginBottom: 10,
+      marginBottom: air(10, 5),
     },
     label: { fontFamily: font.bold },
     underlineLabel: { fontFamily: font.bold, textDecoration: "underline" },
@@ -106,7 +113,7 @@ function build(theme: Theme) {
     partyHeading: {
       fontFamily: font.bold,
       textDecoration: "underline",
-      marginBottom: 3,
+      marginBottom: air(3, 2),
     },
 
     /* ── the price offer's table ──
@@ -116,24 +123,24 @@ function build(theme: Theme) {
        table, the frame is on the rows rather than on the table box — a box
        is stretched to the page edge when a long list of accessories breaks
        across pages. */
-    offerCaption: { flexDirection: "row", marginBottom: 2 },
+    offerCaption: { flexDirection: "row", marginBottom: air(2, 1) },
     offerTable: {},
     offerHead: {
       flexDirection: "row",
       borderTopWidth: 1,
       borderBottomWidth: 1,
       borderColor: rule,
-      paddingVertical: 2.5,
+      paddingVertical: air(2.5, 1.5),
     },
-    offerRow: { flexDirection: "row", paddingVertical: 1 },
+    offerRow: { flexDirection: "row", paddingVertical: air(1, 0.5) },
     /** A deduction between the items and the total: a little air above it. */
-    offerDeduct: { marginTop: 3 },
+    offerDeduct: { marginTop: air(3, 1.5) },
     /** The closing line: separated from the items by a full rule. */
     offerTotal: {
       borderTopWidth: 1,
       borderColor: rule,
-      marginTop: 2,
-      paddingTop: 3,
+      marginTop: air(2, 1),
+      paddingTop: air(3, 2),
     },
     offerName: { flex: 1, paddingRight: 8 },
     /** The accessory's number, indented from the margin as the sample sets it. */
@@ -144,13 +151,15 @@ function build(theme: Theme) {
     offerPrice: { width: 104, textAlign: "right" },
 
     /* ── numbered "Label : value" terms ── */
-    termRow: { flexDirection: "row", marginBottom: 1.5 },
+    termRow: { flexDirection: "row", marginBottom: air(1.5, 0.5) },
     termNo: { width: 22, textAlign: "right", paddingRight: 6 },
     termSep: { width: 14, textAlign: "center" },
     termText: { flex: 1, textAlign: "justify" },
 
     /* ── bulleted terms ── */
-    bulletRow: { flexDirection: "row", marginBottom: 1.5 },
+    bulletRow: { flexDirection: "row", marginBottom: air(1.5, 0.5) },
+    /** One "Label: value" line of a label/value list — the bank details. */
+    keyValueLine: { marginBottom: air(1, 0.5) },
     bulletDot: { width: 14, textAlign: "center" },
     bulletText: { flex: 1, textAlign: "justify" },
 
@@ -212,7 +221,7 @@ function build(theme: Theme) {
     th: {
       fontFamily: font.bold,
       fontSize: tableSize,
-      paddingVertical: 5,
+      paddingVertical: air(5, 3),
       paddingHorizontal: 5,
       textAlign: "center",
       backgroundColor: tint,
@@ -221,7 +230,7 @@ function build(theme: Theme) {
     },
     td: {
       fontSize: tableSize,
-      paddingVertical: 4.5,
+      paddingVertical: air(4.5, 2.5),
       paddingHorizontal: 5,
       textAlign: "center",
       borderRightWidth: 0.5,
@@ -268,8 +277,8 @@ function build(theme: Theme) {
        owner first asked for centred blocks, then corrected to the margins. */
     signRow: {
       flexDirection: "row",
-      marginTop: 10,
-      paddingVertical: 8,
+      marginTop: air(10, 4),
+      paddingVertical: air(8, 2),
     },
     signCol: { flex: 1, alignItems: "flex-start" },
     signColRight: { alignItems: "flex-end" },
@@ -287,7 +296,7 @@ function build(theme: Theme) {
       width: 107,
       borderTopWidth: 1,
       borderColor: rule,
-      paddingTop: 4,
+      paddingTop: air(4, 2),
     },
     /** "Approved By" / "Received By", centred on the rule above it. */
     signLabel: { width: 107, textAlign: "center" },
@@ -298,13 +307,13 @@ export type Styles = ReturnType<typeof build>;
 
 const cache = new Map<string, Styles>();
 
-export function makeStyles(theme: Theme): Styles {
-  const key = JSON.stringify(theme);
+export function makeStyles(theme: Theme, tight = false): Styles {
+  const key = `${tight ? "tight" : "as-designed"}:${JSON.stringify(theme)}`;
   let s = cache.get(key);
   if (!s) {
     // A handful of themes ever exist; don't let a fuzzed preview grow this.
     if (cache.size > 32) cache.clear();
-    s = build(theme);
+    s = build(theme, tight);
     cache.set(key, s);
   }
   return s;
