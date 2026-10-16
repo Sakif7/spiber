@@ -151,14 +151,15 @@ These are the things the owner has had to repeat. Treat them as hard rules.
   to a block (rides with it across pages) — stored
   **encrypted** (`PdfAsset`, needs `COMPANY_VAULT_KEY`), undeletable while
   referenced — and always printed by a template that carries them.
-- **A small document prints on ONE page.** Template documents render through
-  `renderFitted` / `fitDocument` (`lib/pdf/render.ts`), never bare
-  `renderPdf`: as designed → tighter levels (`lib/pdf/engine/fit.ts`:
-  spacing, then text −0.5 / −1 pt) → a long one keeps everything after its
-  last table with the table's closing rows (`tailWithTable`, measured on an
-  unbroken sheet first), so a page never opens with only terms + signature.
-  Level 0 is the template untouched; the pen space and stationery never
-  shrink.
+- **No document takes a page it does not need.** Template documents render
+  through `renderFitted` / `fitDocument` (`lib/pdf/render.ts`), never bare
+  `renderPdf`: the fewest pages any level reaches (`lib/pdf/engine/fit.ts`:
+  spacing, then text −0.5 / −1 pt), with the least tightening that reaches
+  them — at ANY length, not only 2 → 1 (a 36-line proposal went to 3 pages
+  when only 2 → 1 was tried). If that layout's last page has no table rows,
+  everything after the last table travels with the table's closing rows
+  (`tailWithTable`, measured on an unbroken sheet first). Level 0 is the
+  template untouched; the pen space and stationery never shrink.
 - **Directors are shareholders.** The company issued a fixed pool of shares
   (Settings `hr.sharePool`, 14,000 at ৳100); each director holds some
   (`employee_share_rates.shares`, append-only, effective from a month). A
@@ -370,7 +371,12 @@ tests`, `npm test`, and the browser pass above. Then `git status`.
   phantom `tsc` errors. `rm -rf .next`, then typecheck. And `rm -rf .next`
   while the dying server still holds `.next/dev` half-deletes it: the
   next `next dev` boots on the remains and every nested route answers a
-  bare 404. Kill node, wait, confirm the directory is gone, then start.
+  bare 404. Kill node, wait, confirm the directory is gone, then start —
+  and probe a deep route before testing (`/api/admin/company/sales/orders/x/documents/x/1`
+  must answer 401, not an HTML 404); once it took a second clean restart.
+- `tests/mail-live` fails before **09:12 UTC** (15:12 Dhaka): the memory
+  store's fixtures are stamped today at 09:12 UTC and sort above a message
+  delivered earlier in the day. Rerun after — not a regression.
 - Windows: free a port with `taskkill //PID <pid> //T //F` (netstat for the
   pid); stopping the npm wrapper orphans the Next child. `next dev -p 3005`,
   never `npm run dev -- --port`.

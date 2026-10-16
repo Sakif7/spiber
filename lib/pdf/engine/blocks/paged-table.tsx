@@ -1,6 +1,6 @@
 import React from "react";
 import { View } from "@react-pdf/renderer";
-import { TAIL_MARK } from "../fit";
+import { TABLE_MARK, TAIL_MARK } from "../fit";
 
 /**
  * A ruled table that breaks across pages the way a typeset one does.
@@ -109,8 +109,10 @@ export function PagedTable({
   after,
 }: Props) {
   // The piece the rest of the document rides in is marked, so the fitting
-  // loop can measure it before trusting it to a page (`fit.ts`).
+  // loop can measure it before trusting it to a page; the table's box is
+  // marked too, so it can tell which pages carry rows (`fit.ts`).
   const carries = after ? { [TAIL_MARK]: true } : {};
+  const table = { [TABLE_MARK]: true };
 
   // Small enough to be one piece: nothing to repeat, nothing to split.
   if (keepTogether || rows.length <= OPENING_ROWS + 1) {
@@ -119,6 +121,7 @@ export function PagedTable({
         style={style}
         wrap={false}
         minPresenceAhead={minPresenceAhead}
+        {...table}
         {...carries}
       >
         {head}
@@ -135,7 +138,7 @@ export function PagedTable({
   const track = head ? pageTracking(head, opening) : null;
 
   return (
-    <View style={style} minPresenceAhead={minPresenceAhead}>
+    <View style={style} minPresenceAhead={minPresenceAhead} {...table}>
       {track ? (
         <View fixed render={track.head}>
           {head}

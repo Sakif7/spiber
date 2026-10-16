@@ -1,39 +1,41 @@
 import type { Block, TemplateDoc } from "@/lib/schemas/pdf-template";
 
 /**
- * Fitting a document onto one page.
+ * Fitting a document onto as few pages as it needs.
  *
  * Every document carries a fixed part — letterhead, header, bank details,
  * terms, the signature — that already fills most of an A4 sheet, so a table
  * of four or five lines used to push the closing parts onto a second page:
  * the signature alone, or the terms and the signature, under a page of
- * white space. The owner's rule: a small document always prints on ONE page,
- * and only a table too long for one page continues — and then the next page
- * opens with table rows, never with only the closing parts.
+ * white space. The owner's rules: a small document always prints on ONE
+ * page; no document takes a page it does not need — a 36-line proposal that
+ * spilled one row and the terms onto a third page while page two had room
+ * was the second report; and only a table too long for its pages continues,
+ * the next page then opening with table rows, never with only the closing
+ * parts.
  *
- * So a document is laid out at the template's own spacing first, and only
- * when that runs onto a second page is it laid out again, tighter, a level
- * at a time (`renderFitted` in `lib/pdf/render.ts` decides, from how the
- * pages actually came out — never from an estimate):
+ * So a document is laid out at the template's own spacing first, and when
+ * that runs onto more than one page it is laid out again, tighter
+ * (`renderFitted` in `lib/pdf/render.ts` decides, from how the pages
+ * actually came out — never from an estimate):
  *
  *   0  the template as designed;
  *   1  half the space between blocks, tighter table rows and sign-off;
  *   2  level 1, the text half a point smaller;
  *   3  level 1, the text a point smaller — the floor.
  *
- * The stationery (letterhead, footer band, watermark) and the room left above
- * a signature line for a real pen are the same at every level.
+ * The fewest pages any level reaches wins, with the least tightening that
+ * reaches it; a document no level shortens keeps its designed layout. The
+ * stationery (letterhead, footer band, watermark) and the room left above a
+ * signature line for a real pen are the same at every level.
  *
- * A document that does not fit even at level 3 is long: it is laid out as
- * designed, with everything after its last table travelling with the
- * table's closing rows (`tailWithTable`), so the page the table continues
- * onto opens with rows.
+ * When the chosen layout still ends on a page with no table rows — only the
+ * terms and the signature — everything after the last table travels with
+ * the table's closing rows instead (`tailWithTable`), so that page opens
+ * with rows.
  */
 
 export type FitLevel = 0 | 1 | 2 | 3;
-
-/** The tighter levels, in the order they are tried. */
-export const FIT_LEVELS: readonly Exclude<FitLevel, 0>[] = [1, 2, 3];
 
 /** How the laid-out document came out, for the fitting loop. */
 export type Paginated = {
@@ -48,6 +50,10 @@ export type Paginated = {
    * with the rest of the document attached. Null when nothing was attached.
    */
   tailHeight: number | null;
+  /** The document has a table the closing parts could travel with. */
+  hasTable: boolean;
+  /** The last page carries rows of a table, not only the closing parts. */
+  lastPageHasRows: boolean;
 };
 
 export type PageFit = {
@@ -70,6 +76,9 @@ export type PageFit = {
 
 /** The prop that marks the piece `tailWithTable` attaches the tail to. */
 export const TAIL_MARK = "data-fit-tail";
+
+/** The prop that marks a table's box — every piece of it, on every page. */
+export const TABLE_MARK = "data-fit-table";
 
 /** Space between blocks, as a share of the template's own. */
 const GAP_SCALE = 0.5;
@@ -163,7 +172,10 @@ export const TABLE_BLOCK_TYPES: ReadonlySet<Block["type"]> = new Set<
  * A page's own box is the sheet; its direct children's boxes are measured
  * from the sheet's top, nested ones from their parent's. The flow area is
  * read off a continuation page — the first piece of flow there starts just
- * under the letterhead — and the tail's height off the marked piece.
+ * under the letterhead — and the tail's height off the marked piece. A
+ * table split across pages leaves a copy of its box on each, carrying its
+ * mark; a page "has rows" when such a piece holds anything besides the
+ * repeated (fixed) head.
  */
 export function paginationOf(layout: unknown): Paginated {
   type Node = {
@@ -189,11 +201,28 @@ export function paginationOf(layout: unknown): Paginated {
   }
 
   let tailHeight: number | null = null;
-  const find = (n: Node) => {
+  let hasTable = false;
+  const rowsIn = (n: Node): boolean => {
+    let found = false;
+    if (n.props?.[TABLE_MARK]) {
+      hasTable = true;
+      if ((n.children ?? []).some((c) => !isFixed(c))) found = true;
+    }
     if (n.props?.[TAIL_MARK] && n.box) tailHeight = n.box.height;
-    for (const c of n.children ?? []) find(c);
+    for (const c of n.children ?? []) if (rowsIn(c)) found = true;
+    return found;
   };
-  for (const page of pages) find(page);
+  let lastPageHasRows = false;
+  pages.forEach((page, i) => {
+    const rows = rowsIn(page);
+    if (i === pages.length - 1) lastPageHasRows = rows;
+  });
 
-  return { pages: pages.length, flowArea, tailHeight };
+  return {
+    pages: pages.length,
+    flowArea,
+    tailHeight,
+    hasTable,
+    lastPageHasRows,
+  };
 }
