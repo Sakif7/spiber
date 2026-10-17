@@ -405,6 +405,10 @@ tests`, `npm test`, and the browser pass above. Then `git status`.
   writes the second from the first as `source: "expected"`; the `…` menu writes
   `source: "confirmed"` and a regenerated invoice must never overwrite that.
   Absent `source` means confirmed — old rows were all typed by a person.
+- An order's `vatRateBp` is the **configured** rate even when VAT is typed
+  on the lines — never print it as the rate of per-line VAT. The invoice
+  names the lines' common rate (`invoiceVatRateBp` in `context.ts`); it once
+  printed "VAT (0%)" over 5% on every line.
 - `catalog-admin.service.updateProductWithStock` rebuilds `variants[]` — copy
   `reservedQty` across or reservations are erased.
 - Use `returnDocument: "after"`, not `new: true`.

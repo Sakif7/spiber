@@ -74,6 +74,25 @@ function vatSuffix(lines: DocumentLine[], rateBp: number | null): string {
     : ` (${percentOf(rateBp)}%)`;
 }
 
+/**
+ * The rate an invoice's VAT was charged at, for its totals label.
+ *
+ * VAT typed on the lines is named by the lines' own rate when they all agree
+ * — and by none when they differ, since the VAT column then says it line by
+ * line. Only VAT charged on the order as a whole is named by the order's
+ * rate (or what a typed figure comes to). The order's configured rate says
+ * nothing about VAT typed on the lines: naming it printed "VAT (0%)" over a
+ * VAT of 5% on every line.
+ */
+function invoiceVatRateBp(data: InvoiceData): number | null {
+  const onLines = data.lines.some(
+    (l) => (l.vatRateBp ?? 0) > 0 || (l.vatMinor ?? 0) > 0,
+  );
+  if (!onLines) return namedVatRateBp(data);
+  const rates = [...new Set(data.lines.map((l) => l.vatRateBp ?? 0))];
+  return rates.length === 1 ? rates[0] : null;
+}
+
 export function buildProposalContext(data: ProposalData): RenderContext {
   return {
     proposalNo: data.proposalNo,
@@ -99,9 +118,9 @@ export function buildInvoiceContext(data: InvoiceData): RenderContext {
     data.discountMinor,
     data.aitRateBp ?? 0,
   );
-  // The rate the VAT is named by: the order's, or what a typed figure
-  // comes to on the goods.
-  const vatRateBp = namedVatRateBp(data);
+  // The rate the VAT is named by: the lines' own when VAT was typed on them,
+  // else the order's, or what a typed figure comes to on the goods.
+  const vatRateBp = invoiceVatRateBp(data);
   return {
     invoiceNumber: data.invoiceNumber,
     invoiceDate: data.invoiceDate,
