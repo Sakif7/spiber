@@ -4,47 +4,69 @@ import {
   type IPayrollRun,
   type IPayrollLine,
   type IPayrollPool,
+  type IPayrollSalaryLine,
 } from "@/lib/models/payrollRun";
 import { Employee } from "@/lib/models/employee";
 import type { Lean } from "@/lib/models/_shared";
 import { revenueBetween } from "@/lib/repositories/revenue.repo";
 import { salesReport } from "@/lib/repositories/sales-report.repo";
+import { getSetting, setSetting } from "@/lib/repositories/settings.repo";
 import {
-  monthWindow,
-  isPayrollMonth,
-  type PayrollMonth,
-} from "@/lib/hr/months";
+  canStartOn,
+  cycleError,
+  dayOf,
+  lastEndedPeriod,
+  monthSegments,
+  normalizeVersions,
+  periodAt,
+  periodByKey,
+  periodWindow,
+  salaryBetween,
+  todayKey,
+  withVersion,
+  type CycleVersion,
+  type DayKey,
+  type Period,
+} from "@/lib/hr/cycles";
 import {
   distributablePool,
   shareOfPool,
   shareOfRevenue,
+  weightedShareOfPool,
+  weightedShares,
 } from "@/lib/hr/payroll-math";
+import type { CycleChangeInput } from "@/lib/schemas/hr";
 import { getSharePool, holdingForMonth } from "./employee.service";
-import {
-  reimbursementsForMonth,
-  settleReimbursementsFor,
-  unsettleReimbursementsFor,
-  type ReimbursementGroup,
-} from "./expense.service";
+import { unsettleReimbursementsFor } from "./expense.service";
 
 /**
- * Monthly payroll.
+ * Payroll: each profit period's profit, split between the shareholders.
  *
- * A month starts from the sales report's cash after AIT — the same figure the
+ * A period starts from the sales report's cash after AIT — the same figure the
  * report shows, online and offline together, counted when the money landed.
- * Fixed salaries come off that, and what is left is split between the
- * directors in proportion to the shares they hold. While it is a draft it
- * recomputes on every read, because money for the month is still arriving.
- * Approving it freezes everything, so a late payment or a changed holding
- * cannot alter a month the directors were already paid for.
+ * Fixed salaries earned in the period come off that, and what is left is split
+ * between the directors in proportion to the shares they hold. Each period
+ * stands alone: one that does not cover its salaries splits nothing and owes
+ * nothing, so a longer profit cycle is how good months cover bad ones.
+ *
+ * The profit cycle (Settings `hr.profitCycle`) decides how long a period is;
+ * calendar months until it is changed. While a period is a draft it
+ * recomputes on every read, because money for it is still arriving. Approving
+ * it freezes everything, so a late payment or a changed holding cannot alter
+ * a period the directors were already paid for.
+ *
+ * Nothing here moves money. People are paid by payouts, on their own pay
+ * schedules (`payout.service.ts`), which take the lines of approved periods.
  */
 
 export type Actor = { sub: string; email: string };
 
+export const PROFIT_CYCLE_KEY = "hr.profitCycle";
+
 /**
- * A month as the UI sees it.
+ * A period as the UI sees it.
  *
- * Optional `_id`, because a month nobody has worked on is computed on the fly
+ * Optional `_id`, because a period nobody has worked on is computed on the fly
  * and never stored — pretending it were a saved document would be a lie the
  * type system should not tell.
  */
@@ -58,7 +80,9 @@ export type PayrollError =
   | "already_approved"
   | "not_approved"
   | "has_paid_lines"
-  | "line_not_found";
+  | "bad_cycle"
+  /** A new profit cycle would cut into a period already on record. */
+  | "cycle_locked";
 
 export type PayrollResult<T> =
   | { ok: true; data: T }
@@ -90,8 +114,8 @@ function withReimbursements(run: Lean<IPayrollRun>): Lean<IPayrollRun> {
   };
 }
 
-/** Was this person on the payroll during `month`? */
-function employedDuring(
+/** Was this person on the payroll during the window? */
+export function employedDuring(
   e: { joinedAt: Date; leftAt?: Date | null },
   window: { start: Date; end: Date },
 ): boolean {
@@ -100,72 +124,150 @@ function employedDuring(
   return true;
 }
 
+/** The days someone was employed, for counting a salary by the day. */
+export function employment(e: { joinedAt: Date; leftAt?: Date | null }): {
+  from: DayKey;
+  to: DayKey | null;
+} {
+  return {
+    from: dayOf(new Date(e.joinedAt)),
+    to: e.leftAt ? dayOf(new Date(e.leftAt)) : null,
+  };
+}
+
+// ───────────────────────────── the profit cycle ─────────────────────────────
+
+/** The profit cycle's versions, oldest first; none means calendar months. */
+export async function getProfitCycle(): Promise<CycleVersion[]> {
+  const stored = await getSetting<{ versions?: unknown }>(
+    PROFIT_CYCLE_KEY,
+  ).catch(() => null);
+  return normalizeVersions(stored?.versions);
+}
+
 /**
- * Work out what the month owes, from live data.
+ * The first day a new profit cycle may begin: the end of the latest period on
+ * record, approved or reopened. A period someone has worked on is never re-cut.
+ */
+export async function profitCycleFloor(): Promise<DayKey | null> {
+  await connectToDatabase();
+  const last = await PayrollRun.findOne({})
+    .sort({ "revenue.windowEnd": -1 })
+    .select({ "revenue.windowEnd": 1 })
+    .lean<{ revenue?: { windowEnd?: Date } } | null>()
+    .exec();
+  return last?.revenue?.windowEnd
+    ? dayOf(new Date(last.revenue.windowEnd))
+    : null;
+}
+
+/**
+ * Change how often profit is worked out, from a day. Periods before that day
+ * keep the cycle they had; a change already planned for later is replaced.
+ */
+export async function setProfitCycle(
+  change: CycleChangeInput,
+): Promise<PayrollResult<CycleVersion[]>> {
+  if (cycleError(change.cycle) || !canStartOn(change.cycle, change.from)) {
+    return fail("bad_cycle");
+  }
+  const floor = await profitCycleFloor();
+  if (floor && change.from < floor) return fail("cycle_locked");
+  const versions = withVersion(await getProfitCycle(), change);
+  await setSetting(PROFIT_CYCLE_KEY, { versions });
+  return done(versions);
+}
+
+/** The profit period a key names, or null when it is not one. */
+export async function resolveProfitPeriod(key: string): Promise<Period | null> {
+  return periodByKey(await getProfitCycle(), key);
+}
+
+/** The profit period running today. */
+export async function currentProfitPeriod(now = new Date()): Promise<Period> {
+  return periodAt(await getProfitCycle(), todayKey(now));
+}
+
+/** The newest profit period that has ended — the one waiting to be approved. */
+export async function lastEndedProfitPeriod(now = new Date()): Promise<Period> {
+  return lastEndedPeriod(await getProfitCycle(), todayKey(now));
+}
+
+// ───────────────────────────── computing a period ─────────────────────────────
+
+export type ComputedPeriod = {
+  period: Period;
+  revenue: Awaited<ReturnType<typeof revenueBetween>>;
+  pool: IPayrollPool;
+  window: { start: Date; end: Date };
+  /** Shares only: salaries are a deduction here, paid by payouts. */
+  lines: IPayrollLine[];
+  totalMinor: number;
+};
+
+/**
+ * Work out what a period owes, from live data.
  *
  * Pure in the sense that matters: it reads and calculates, and does not decide
  * whether to store the result.
  */
-export async function computeMonth(month: PayrollMonth): Promise<
-  PayrollResult<{
-    revenue: Awaited<ReturnType<typeof revenueBetween>>;
-    pool: IPayrollPool;
-    window: { start: Date; end: Date };
-    lines: IPayrollLine[];
-    totalMinor: number;
-    reimbursements: ReimbursementGroup[];
-    reimbursementTotalMinor: number;
-  }>
-> {
-  if (!isPayrollMonth(month)) return fail("bad_month");
-  await connectToDatabase();
+export async function computePeriod(
+  key: string,
+): Promise<PayrollResult<ComputedPeriod>> {
+  const period = await resolveProfitPeriod(key);
+  if (!period) return fail("bad_month");
+  return done(await computeFor(period));
+}
 
-  const window = monthWindow(month);
-  // Reimbursements are read here but deliberately NOT folded into the pool:
-  // a claim already reduced the month's profit as an expense when it was
-  // approved, and handing the money back is not a second cost.
-  const [revenue, report, sharePool, employees, reimbursements] =
-    await Promise.all([
-      revenueBetween(window.start, window.end),
-      salesReport({ start: window.start, end: window.end }),
-      getSharePool(),
-      Employee.find({ deletedAt: null, status: "active" })
-        .sort({ name: 1 })
-        .lean<
-          {
-            _id: unknown;
-            code: string;
-            name: string;
-            designation: string;
-            payScheme: string;
-            fixedMonthlyMinor?: number | null;
-            joinedAt: Date;
-            leftAt?: Date | null;
-          }[]
-        >()
-        .exec(),
-      reimbursementsForMonth(month),
-    ]);
+async function computeFor(period: Period): Promise<ComputedPeriod> {
+  await connectToDatabase();
+  const window = periodWindow(period);
+  const [revenue, report, sharePool, employees] = await Promise.all([
+    revenueBetween(window.start, window.end),
+    salesReport({ start: window.start, end: window.end }),
+    getSharePool(),
+    Employee.find({ deletedAt: null, status: "active" })
+      .sort({ name: 1 })
+      .lean<
+        {
+          _id: unknown;
+          code: string;
+          name: string;
+          designation: string;
+          payScheme: string;
+          fixedMonthlyMinor?: number | null;
+          joinedAt: Date;
+          leftAt?: Date | null;
+        }[]
+      >()
+      .exec(),
+  ]);
 
   const onPayroll = employees.filter((e) => employedDuring(e, window));
-  const lines: IPayrollLine[] = [];
 
   // Salaries first: they are a bill, and they come off before anyone's share.
+  // Counted by the day, so the period deducts exactly what the payouts pay
+  // for the same days, however either is cut.
+  const salaryLines: IPayrollSalaryLine[] = [];
   for (const e of onPayroll) {
-    if (e.payScheme === "fixed" && e.fixedMonthlyMinor) {
-      lines.push({
+    if (e.payScheme !== "fixed" || !e.fixedMonthlyMinor) continue;
+    const amountMinor = salaryBetween(
+      e.fixedMonthlyMinor,
+      period.start,
+      period.end,
+      employment(e),
+    );
+    if (amountMinor > 0) {
+      salaryLines.push({
         employeeId: String(e._id),
         code: e.code,
         name: e.name,
-        designation: e.designation,
-        payScheme: e.payScheme,
-        rateBp: null,
-        amountMinor: e.fixedMonthlyMinor,
+        amountMinor,
       });
     }
-    // payScheme "none" is deliberately not paid by this run.
+    // payScheme "none" is deliberately not paid through payroll.
   }
-  const salariesMinor = lines.reduce((sum, l) => sum + l.amountMinor, 0);
+  const salariesMinor = salaryLines.reduce((sum, l) => sum + l.amountMinor, 0);
 
   const t = report.totals;
   const distributableMinor = distributablePool(t.netCashMinor, salariesMinor);
@@ -176,18 +278,24 @@ export async function computeMonth(month: PayrollMonth): Promise<
     expensesMinor: t.expensesMinor,
     aitMinor: t.aitMinor,
     salariesMinor,
+    salaryLines,
     distributableMinor,
     totalShares: sharePool.totalShares,
     allocatedShares: 0,
   };
 
-  // Then the directors, each by the holding in force for this month. No
-  // holding yet means not on this month's payroll at all — which is how a
-  // director who joined in March is paid nothing for February.
+  // Then the directors, each by the holding in force — month by month, since
+  // holdings change from a month and a period can span several. No holding
+  // at all means not on this period's payroll, which is how a director who
+  // joined in March is paid nothing for February.
+  const segments = monthSegments(period.start, period.end);
+  const lines: IPayrollLine[] = [];
   for (const e of onPayroll) {
     if (e.payScheme !== "revenue_share") continue;
-    const holding = await holdingForMonth(String(e._id), month);
-    if (!holding) continue;
+    const holdings = await Promise.all(
+      segments.map((s) => holdingForMonth(String(e._id), s.month)),
+    );
+    if (holdings.every((h) => !h)) continue;
     const base = {
       employeeId: String(e._id),
       code: e.code,
@@ -195,73 +303,81 @@ export async function computeMonth(month: PayrollMonth): Promise<
       designation: e.designation,
       payScheme: e.payScheme,
     };
-    if ("shares" in holding) {
-      pool.allocatedShares += holding.shares;
-      lines.push({
-        ...base,
-        shares: holding.shares,
-        poolShares: sharePool.totalShares,
-        rateBp: null,
-        amountMinor: shareOfPool(
-          distributableMinor,
-          holding.shares,
-          sharePool.totalShares,
-        ),
-      });
-    } else {
+    const held = holdings.map((h) => (h && "shares" in h ? h.shares : null));
+    if (held.every((s) => s === null)) {
       // A percentage row nobody has migrated: computed the way it was agreed,
       // on revenue, so an old month reads back as it was.
+      const legacy = holdings.find((h) => h && "rateBp" in h) as {
+        rateBp: number;
+      };
       lines.push({
         ...base,
-        rateBp: holding.rateBp,
-        amountMinor: shareOfRevenue(revenue.totalMinor, holding.rateBp),
+        rateBp: legacy.rateBp,
+        amountMinor: shareOfRevenue(revenue.totalMinor, legacy.rateBp),
       });
+      continue;
     }
+    const pieces = segments.map((s, i) => ({
+      days: s.days,
+      shares: held[i] ?? 0,
+    }));
+    const steady = pieces.every((p) => p.shares === pieces[0]!.shares);
+    const shares = steady ? pieces[0]!.shares : weightedShares(pieces);
+    pool.allocatedShares += shares;
+    lines.push({
+      ...base,
+      shares,
+      poolShares: sharePool.totalShares,
+      rateBp: null,
+      amountMinor: steady
+        ? shareOfPool(distributableMinor, shares, sharePool.totalShares)
+        : weightedShareOfPool(
+            distributableMinor,
+            pieces,
+            sharePool.totalShares,
+          ),
+    });
   }
 
-  return done({
+  return {
+    period,
     revenue,
     pool,
     window,
     lines,
     totalMinor: lines.reduce((sum, l) => sum + l.amountMinor, 0),
-    reimbursements,
-    reimbursementTotalMinor: reimbursements.reduce(
-      (sum, r) => sum + r.amountMinor,
-      0,
-    ),
-  });
+  };
 }
 
 /**
- * The month's run: recomputed while it is a draft, returned as stored once it
+ * The period's run: recomputed while it is a draft, returned as stored once it
  * has been approved.
  *
- * Reading a month NEVER creates one. A month nobody has worked on comes back as
- * a transient draft, so browsing through the year does not litter the
- * collection with empty runs; approving is what first commits a month.
+ * Reading a period NEVER creates one. A period nobody has worked on comes back
+ * as a transient draft, so browsing through the year does not litter the
+ * collection with empty runs; approving is what first commits a period.
  */
 export async function getRun(
-  month: PayrollMonth,
+  key: string,
   actor: Actor,
 ): Promise<PayrollResult<PayrollRunView>> {
-  if (!isPayrollMonth(month)) return fail("bad_month");
   await connectToDatabase();
-
-  const existing = await PayrollRun.findOne({ month })
+  const existing = await PayrollRun.findOne({ month: key })
     .lean<Lean<IPayrollRun>>()
     .exec();
-  if (existing?.status === "approved")
+  if (existing?.status === "approved") {
     return done(withReimbursements(existing));
+  }
 
-  const computed = await computeMonth(month);
-  if (!computed.ok) return computed;
+  const period = await resolveProfitPeriod(key);
+  if (!period) return fail("bad_month");
+  const computed = await computeFor(period);
 
   // Keep whatever has already been marked paid on a draft line.
   const paidByEmployee = new Map(
     (existing?.lines ?? []).map((l) => [String(l.employeeId), l]),
   );
-  const lines = computed.data.lines.map((l) => {
+  const lines = computed.lines.map((l) => {
     const prior = paidByEmployee.get(String(l.employeeId));
     return prior?.paidAt
       ? {
@@ -269,18 +385,23 @@ export async function getRun(
           paidAt: prior.paidAt,
           reference: prior.reference,
           paidBy: prior.paidBy,
+          payoutId: prior.payoutId ?? null,
         }
       : l;
   });
 
-  const draft = draftFrom(month, computed.data, lines, actor);
+  const draft = draftFrom(key, computed, lines, actor);
 
-  // Only refresh a run that is already on record.
+  // Only refresh a run that is already on record — and never its history,
+  // which a reopened period carries ("approved", "reopened: …").
   if (!existing) return done(draft);
-
+  const figures: Partial<PayrollRunView> = { ...draft };
+  delete figures.activity;
+  delete figures.createdAt;
+  delete figures.updatedAt;
   const doc = await PayrollRun.findOneAndUpdate(
-    { month, status: { $ne: "approved" } },
-    { $set: draft },
+    { month: key, status: { $ne: "approved" } },
+    { $set: figures },
     { returnDocument: "after" },
   )
     .lean<Lean<IPayrollRun>>()
@@ -289,29 +410,24 @@ export async function getRun(
   return doc ? done(withReimbursements(doc)) : done(draft);
 }
 
-/** The shape a computed month takes, stored or not. */
+/** The shape a computed period takes, stored or not. */
 function draftFrom(
-  month: PayrollMonth,
-  computed: {
-    revenue: Awaited<ReturnType<typeof revenueBetween>>;
-    pool: IPayrollPool;
-    window: { start: Date; end: Date };
-    totalMinor: number;
-    reimbursements: ReimbursementGroup[];
-    reimbursementTotalMinor: number;
-  },
+  key: string,
+  computed: ComputedPeriod,
   lines: IPayrollLine[],
   actor: Actor,
 ): PayrollRunView {
   return {
-    month,
+    month: key,
+    format: 2,
     status: "draft" as const,
     pool: computed.pool,
     lines,
     totalMinor: computed.totalMinor,
-    reimbursements: computed.reimbursements,
-    reimbursementTotalMinor: computed.reimbursementTotalMinor,
-    grandTotalMinor: computed.totalMinor + computed.reimbursementTotalMinor,
+    // Claims are paid by payouts now; only a run from before kept them.
+    reimbursements: [],
+    reimbursementTotalMinor: 0,
+    grandTotalMinor: computed.totalMinor,
     revenue: {
       ...computed.revenue,
       windowStart: computed.window.start,
@@ -328,30 +444,30 @@ function draftFrom(
   };
 }
 
-/** Freeze the month. Nothing recomputes it afterwards. */
+/** Freeze the period. Nothing recomputes it afterwards. */
 export async function approveRun(
-  month: PayrollMonth,
+  key: string,
   actor: Actor,
 ): Promise<PayrollResult<Lean<IPayrollRun>>> {
-  if (!isPayrollMonth(month)) return fail("bad_month");
   await connectToDatabase();
 
   // Freeze the CURRENT figures, so approving is never a snapshot of stale
-  // numbers, and commit the month if this is the first time it is stored.
-  const fresh = await getRun(month, actor);
+  // numbers, and commit the period if this is the first time it is stored.
+  const fresh = await getRun(key, actor);
   if (!fresh.ok) return fresh;
   if (fresh.data.status === "approved") return fail("already_approved");
 
   const doc = await PayrollRun.findOneAndUpdate(
-    { month, status: { $ne: "approved" } },
+    { month: key, status: { $ne: "approved" } },
     {
       $set: {
+        format: 2,
         pool: fresh.data.pool ?? null,
         lines: fresh.data.lines,
         totalMinor: fresh.data.totalMinor,
-        reimbursements: fresh.data.reimbursements,
-        reimbursementTotalMinor: fresh.data.reimbursementTotalMinor,
-        grandTotalMinor: fresh.data.grandTotalMinor,
+        reimbursements: [],
+        reimbursementTotalMinor: 0,
+        grandTotalMinor: fresh.data.totalMinor,
         revenue: fresh.data.revenue,
         status: "approved",
         approvedAt: new Date(),
@@ -359,7 +475,7 @@ export async function approveRun(
         generatedAt: new Date(),
         generatedBy: actor.sub,
       },
-      $setOnInsert: { month },
+      $setOnInsert: { month: key },
       $push: {
         activity: {
           authorId: actor.sub,
@@ -372,38 +488,41 @@ export async function approveRun(
   )
     .lean<Lean<IPayrollRun>>()
     .exec();
-  if (!doc) return fail("not_found");
-
-  // Freezing the month is what commits the reimbursements, so the claims are
-  // marked paid here and can no longer be settled a second time by a direct
-  // payout.
-  await settleReimbursementsFor(month, actor);
-  return done(doc);
+  return doc ? done(doc) : fail("not_found");
 }
 
 /**
- * Reopen an approved month.
+ * Reopen an approved period.
  *
  * Refused once any line has been paid: the money has left, so the record of
- * what was paid must not become editable. Correct it in a later month instead.
+ * what was paid must not become editable. Correct it in a later period
+ * instead. The check is part of the write, so a payout landing in the same
+ * instant cannot slip past it.
  */
 export async function reopenRun(
-  month: PayrollMonth,
+  key: string,
   reason: string,
   actor: Actor,
 ): Promise<PayrollResult<Lean<IPayrollRun>>> {
-  if (!isPayrollMonth(month)) return fail("bad_month");
   await connectToDatabase();
 
-  const run = await PayrollRun.findOne({ month })
+  const run = await PayrollRun.findOne({ month: key })
     .lean<Lean<IPayrollRun>>()
     .exec();
   if (!run) return fail("not_found");
   if (run.status !== "approved") return fail("not_approved");
-  if (run.lines.some((l) => l.paidAt)) return fail("has_paid_lines");
+  const paid =
+    run.lines.some((l) => l.paidAt) ||
+    (run.reimbursements ?? []).some((r) => r.paidAt);
+  if (paid) return fail("has_paid_lines");
 
   const doc = await PayrollRun.findOneAndUpdate(
-    { month, status: "approved" },
+    {
+      month: key,
+      status: "approved",
+      lines: { $not: { $elemMatch: { paidAt: { $ne: null } } } },
+      reimbursements: { $not: { $elemMatch: { paidAt: { $ne: null } } } },
+    },
     {
       $set: {
         status: "draft",
@@ -424,51 +543,15 @@ export async function reopenRun(
   )
     .lean<Lean<IPayrollRun>>()
     .exec();
-  if (!doc) return fail("not_found");
+  if (!doc) return fail("has_paid_lines");
 
-  // The commitment is undone with the month. Reopening is already refused once
-  // a line has been paid, so no money has followed these.
-  await unsettleReimbursementsFor(month, actor);
+  // A month from before payouts had settled its claims when it was approved;
+  // they go back to waiting — now for the person's next payout.
+  await unsettleReimbursementsFor(key, actor);
   return done(doc);
 }
 
-/** Record that one director has actually been paid. */
-export async function markLinePaid(
-  month: PayrollMonth,
-  employeeId: string,
-  input: { paidAt?: string; reference?: string },
-  actor: Actor,
-): Promise<PayrollResult<Lean<IPayrollRun>>> {
-  if (!isPayrollMonth(month)) return fail("bad_month");
-  await connectToDatabase();
-
-  const run = await PayrollRun.findOne({ month })
-    .lean<Lean<IPayrollRun>>()
-    .exec();
-  // Only an approved month can be paid out: a draft is still moving, and a
-  // month nobody has approved has no stored run at all.
-  if (!run || run.status !== "approved") return fail("not_approved");
-  if (!run.lines.some((l) => String(l.employeeId) === employeeId)) {
-    return fail("line_not_found");
-  }
-
-  const doc = await PayrollRun.findOneAndUpdate(
-    { month, "lines.employeeId": employeeId },
-    {
-      $set: {
-        "lines.$.paidAt": input.paidAt ? new Date(input.paidAt) : new Date(),
-        "lines.$.reference": input.reference || null,
-        "lines.$.paidBy": actor.sub,
-      },
-    },
-    { returnDocument: "after" },
-  )
-    .lean<Lean<IPayrollRun>>()
-    .exec();
-  return doc ? done(doc) : fail("not_found");
-}
-
-/** Past runs, newest first, for the month navigator. */
+/** Past runs, newest first, for the period navigator. */
 export async function listRuns(limit = 24): Promise<Lean<IPayrollRun>[]> {
   await connectToDatabase();
   return PayrollRun.find({})

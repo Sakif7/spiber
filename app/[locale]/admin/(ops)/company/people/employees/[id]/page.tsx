@@ -25,6 +25,24 @@ import {
   DetailCard,
   DetailRow,
 } from "@/components/admin/ui/detail";
+import {
+  describeSchedule,
+  listSchedules,
+} from "@/lib/services/hr/pay-schedule.service";
+import {
+  listPayouts,
+  nextPayoutFor,
+  type Payee,
+} from "@/lib/services/hr/payout.service";
+import {
+  addDays,
+  dayOf,
+  formatDay,
+  periodLabel,
+  todayKey,
+} from "@/lib/hr/cycles";
+import { formatBDT } from "@/lib/money";
+import { SalaryPaidThrough } from "@/components/admin/hr/salary-paid-through";
 
 export const dynamic = "force-dynamic";
 
@@ -38,15 +56,32 @@ export default async function EmployeePage({
 
   const employee = await getEmployee(id);
   if (!employee) notFound();
-  const [holdings, pool, held, mailbox, login] = await Promise.all([
-    listHoldings(id),
-    getSharePool(),
-    allocatedShares(monthOf(new Date())),
-    mailboxForEmployee(id),
-    employee.userId
-      ? findUserById(String(employee.userId)).catch(() => null)
-      : Promise.resolve(null),
-  ]);
+  const [holdings, pool, held, mailbox, login, schedules, next, payouts] =
+    await Promise.all([
+      listHoldings(id),
+      getSharePool(),
+      allocatedShares(monthOf(new Date())),
+      mailboxForEmployee(id),
+      employee.userId
+        ? findUserById(String(employee.userId)).catch(() => null)
+        : Promise.resolve(null),
+      listSchedules().catch(() => []),
+      nextPayoutFor(employee as unknown as Payee).catch(() => null),
+      listPayouts({ employeeId: id, limit: 5 }).catch(() => []),
+    ]);
+  const today = todayKey();
+  const defaultSchedule = schedules.find((s) => s.isDefault);
+  // The last day a payout already paid salary for: "Salary paid up to"
+  // cannot be moved back past it.
+  const salaryPaidTo = payouts
+    .filter((p) => p.status === "paid")
+    .flatMap((p) => p.items.filter((i) => i.kind === "salary" && i.to))
+    .map((i) => dayOf(new Date(i.to!)))
+    .sort()
+    .reverse()[0];
+  const lastPaidSalaryDay = employee.salaryPaidThrough
+    ? addDays(dayOf(new Date(employee.salaryPaidThrough)), -1)
+    : null;
 
   const iso = (d?: Date | null) =>
     d ? new Date(d).toISOString().slice(0, 10) : "";
@@ -128,6 +163,83 @@ export default async function EmployeePage({
                 businessEmail: employee.businessEmail,
               })}
             />
+            <DetailCard
+              title="Pay"
+              description="When they are paid. Shares come from approved profit periods; salary is earned by the day."
+            >
+              <DetailRow label="Schedule">
+                {next ? (
+                  <Link
+                    href={`/admin/company/people/payouts?schedule=${next.schedule.virtual ? "default" : next.schedule.id}`}
+                    className="text-primary hover:underline"
+                  >
+                    {next.schedule.name}
+                  </Link>
+                ) : (
+                  "—"
+                )}
+              </DetailRow>
+              {next && (
+                <>
+                  <DetailRow label="Pays">
+                    {describeSchedule(next.schedule, today)}
+                  </DetailRow>
+                  <DetailRow label="This period">
+                    {periodLabel(next.period.start, next.period.end)}
+                  </DetailRow>
+                  <DetailRow label="Payday">{formatDay(next.payday)}</DetailRow>
+                  <DetailRow label="Earned so far, unpaid">
+                    {formatBDT(next.accruedMinor, "en")}
+                  </DetailRow>
+                </>
+              )}
+              {employee.payScheme === "none" && (
+                <DetailRow label="Paid by">
+                  Not through payroll — only claims
+                </DetailRow>
+              )}
+              {employee.payScheme === "fixed" && (
+                <>
+                  <DetailRow label="Monthly salary">
+                    {employee.fixedMonthlyMinor
+                      ? formatBDT(employee.fixedMonthlyMinor, "en")
+                      : "Not set"}
+                  </DetailRow>
+                  <DetailRow label="Salary paid up to">
+                    {lastPaidSalaryDay
+                      ? formatDay(lastPaidSalaryDay)
+                      : "Nothing paid yet"}
+                  </DetailRow>
+                  <SalaryPaidThrough
+                    employeeId={id}
+                    through={lastPaidSalaryDay ?? ""}
+                    min={salaryPaidTo ? addDays(salaryPaidTo, -1) : null}
+                    today={today}
+                  />
+                </>
+              )}
+              {payouts.length > 0 && (
+                <ul className="grid gap-1 border-t pt-2 text-sm">
+                  {payouts.map((p) => (
+                    <li
+                      key={String(p._id)}
+                      className="flex justify-between gap-3"
+                    >
+                      <Link
+                        href={`/admin/company/people/payouts/${String(p._id)}`}
+                        className="text-primary truncate hover:underline"
+                      >
+                        {p.periodLabel}
+                      </Link>
+                      <span className="text-muted-foreground shrink-0 tabular-nums">
+                        {formatBDT(p.totalMinor, "en")}
+                        {p.status !== "paid" ? ` · ${p.status}` : ""}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </DetailCard>
             <RateHistory
               employeeId={id}
               payScheme={employee.payScheme}
@@ -175,6 +287,10 @@ export default async function EmployeePage({
       >
         <EmployeeForm
           mailDomain={mailDomain()}
+          schedules={schedules
+            .filter((s) => !s.isDefault)
+            .map((s) => ({ value: s.id, label: s.name }))}
+          defaultScheduleName={defaultSchedule?.name ?? "Monthly"}
           employee={{
             id,
             businessEmail: employee.businessEmail ?? "",
@@ -193,6 +309,15 @@ export default async function EmployeePage({
             accountName: employee.bankDetails?.accountName ?? "",
             accountNumber: employee.bankDetails?.accountNumber ?? "",
             routingNumber: employee.bankDetails?.routingNumber ?? "",
+            // Following the default reads as the default, whichever way it is stored.
+            payScheduleId:
+              employee.payScheduleId &&
+              String(employee.payScheduleId) !== defaultSchedule?.id
+                ? String(employee.payScheduleId)
+                : "",
+            fixedMonthly: employee.fixedMonthlyMinor
+              ? String(employee.fixedMonthlyMinor / 100)
+              : "",
           }}
         />
       </DetailLayout>

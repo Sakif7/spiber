@@ -70,3 +70,6 @@ export const visitRef = (): string => makeId("SPM-VIS");
 
 /** A cost incurred on company business, owed back to whoever paid. */
 export const expenseRef = (): string => makeId("SPM-EXP");
+
+/** One payout to one person, on their pay schedule. */
+export const payrollPayoutRef = (): string => makeId("SPM-PAY");

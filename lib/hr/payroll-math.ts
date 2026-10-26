@@ -38,6 +38,44 @@ export function shareOfPool(
 }
 
 /**
+ * A director's slice of a period whose holding changed part-way through: the
+ * holding of each calendar month in it, weighted by how many of the period's
+ * days that month covers. Done in exact integer arithmetic (the products run
+ * past what a float holds exactly) and rounded half up to the poisha.
+ *
+ * With one holding throughout, this is `shareOfPool` — use that, so a period
+ * with a steady holding comes out exactly as it always did.
+ */
+export function weightedShareOfPool(
+  poolMinor: number,
+  pieces: { days: number; shares: number }[],
+  totalShares: number,
+): number {
+  const totalDays = pieces.reduce((n, p) => n + p.days, 0);
+  if (poolMinor <= 0 || totalShares <= 0 || totalDays <= 0) return 0;
+  let shareDays = BigInt(0);
+  for (const p of pieces) {
+    if (p.days > 0 && p.shares > 0) {
+      shareDays += BigInt(p.days) * BigInt(p.shares);
+    }
+  }
+  if (shareDays <= BigInt(0)) return 0;
+  const num = BigInt(poolMinor) * shareDays;
+  const den = BigInt(totalDays) * BigInt(totalShares);
+  return Number((num * BigInt(2) + den) / (BigInt(2) * den));
+}
+
+/** The holding a weighted period was paid on, to the nearest share. */
+export function weightedShares(
+  pieces: { days: number; shares: number }[],
+): number {
+  const totalDays = pieces.reduce((n, p) => n + p.days, 0);
+  if (totalDays <= 0) return 0;
+  const shareDays = pieces.reduce((n, p) => n + p.days * p.shares, 0);
+  return Math.round(shareDays / totalDays);
+}
+
+/**
  * Legacy: a director's share of a month's revenue under the percentage scheme.
  *
  * Kept so a month approved before shareholdings existed can still be read

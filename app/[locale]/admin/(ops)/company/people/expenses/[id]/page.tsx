@@ -27,7 +27,7 @@ import {
 import { StatusBadge, statusTone } from "@/components/admin/ui/status-badge";
 import { ExpenseActions } from "@/components/admin/hr/expense-actions";
 import { formatBDT } from "@/lib/money";
-import { monthLabel, isPayrollMonth } from "@/lib/hr/months";
+import { claimSettlement } from "@/lib/services/hr/payout.service";
 
 export const dynamic = "force-dynamic";
 
@@ -74,10 +74,7 @@ export default async function ExpenseDetailPage({
   const day = (d: Date | string) =>
     new Date(d).toLocaleDateString("en-GB", { timeZone: "Asia/Dhaka" });
 
-  const monthName =
-    expense.payrollMonth && isPayrollMonth(expense.payrollMonth)
-      ? monthLabel(expense.payrollMonth)
-      : (expense.payrollMonth ?? null);
+  const payroll = await claimSettlement(expense).catch(() => null);
 
   return (
     <div className="space-y-5">
@@ -149,7 +146,7 @@ export default async function ExpenseDetailPage({
               </DetailRow>
               <DetailRow label="Settlement">
                 {expense.settlement === "payroll"
-                  ? `With the ${monthName ?? ""} payroll`
+                  ? "With payroll"
                   : expense.settlement === "direct"
                     ? "Direct payout"
                     : "Not decided"}
@@ -180,7 +177,7 @@ export default async function ExpenseDetailPage({
               id={id}
               status={expense.status}
               settlement={expense.settlement ?? null}
-              payrollMonth={monthName}
+              payroll={payroll}
               amountLabel={amountLabel}
             />
           </>

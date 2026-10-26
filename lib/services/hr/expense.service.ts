@@ -1,16 +1,14 @@
+import type { Types } from "mongoose";
 import { connectToDatabase } from "@/lib/db/connect";
 import {
   Expense,
   type IExpense,
   type IExpenseLine,
 } from "@/lib/models/expense";
-import { Employee } from "@/lib/models/employee";
-import { PayrollRun } from "@/lib/models/payrollRun";
 import type { Lean } from "@/lib/models/_shared";
 import { expenseRef } from "@/lib/ids";
 import { formatBDT } from "@/lib/money";
-import { monthOf, nextMonth, isPayrollMonth } from "@/lib/hr/months";
-import type { PayrollMonth } from "@/lib/hr/months";
+import { isPeriodKey, labelOfKey } from "@/lib/hr/cycles";
 import { expenseLinesOf, type ExpenseLine } from "@/lib/hr/expense-lines";
 import type {
   ExpenseCreateInput,
@@ -30,14 +28,17 @@ import type {
  *
  * The lifecycle is submitted → approved → reimbursed, with rejected as the
  * other ending. Approving is where the settlement route is chosen: `payroll`
- * parks the claim on a month's run, `direct` leaves it to be paid out on its
- * own.
+ * leaves the claim for the person's next payout, on their pay schedule;
+ * `direct` leaves it to be paid out on its own.
  *
  * `reimbursedAt` is the one guard that stops a claim being paid twice, and
  * every write that moves money checks it.
  */
 
 export type Actor = { sub: string; email: string };
+
+/** An id as the callers hold it. */
+type Id = string | Types.ObjectId;
 
 export type ExpenseError =
   | "not_found"
@@ -62,30 +63,6 @@ const done = <T>(data: T): ExpenseResult<T> => ({ ok: true, data });
 
 function dhakaDay(value: string): Date {
   return new Date(`${value}T00:00:00+06:00`);
-}
-
-/**
- * The earliest month a reimbursement can still join.
- *
- * Approving a payroll run freezes it, so a claim approved today cannot be
- * added to a month that has already been signed off — it rolls to the next
- * open one. The cap is a safety net: it would take two years of consecutive
- * approved-in-advance months to reach it.
- */
-export async function openPayrollMonth(
-  now = new Date(),
-): Promise<PayrollMonth> {
-  await connectToDatabase();
-  let month = monthOf(now);
-  for (let i = 0; i < 24; i++) {
-    const run = await PayrollRun.findOne({ month })
-      .select({ status: 1 })
-      .lean<{ status: string } | null>()
-      .exec();
-    if (run?.status !== "approved") return month;
-    month = nextMonth(month);
-  }
-  return month;
 }
 
 /**
@@ -231,13 +208,12 @@ export async function approveExpense(
     return fail("not_approvable");
   }
 
-  const payrollMonth =
-    input.settlement === "payroll" ? await openPayrollMonth() : null;
-
+  const route =
+    input.settlement === "payroll" ? "their next payout" : "a direct payout";
   const wasApproved = current.status === "approved";
   const body = wasApproved
-    ? `Settlement changed to ${input.settlement === "payroll" ? `the ${payrollMonth} payroll` : "a direct payout"}`
-    : `Approved for ${input.settlement === "payroll" ? `the ${payrollMonth} payroll` : "a direct payout"}`;
+    ? `Settlement changed to ${route}`
+    : `Approved — to be paid with ${route}`;
 
   const doc = await Expense.findOneAndUpdate(
     { _id: id, reimbursedAt: null, deletedAt: null },
@@ -245,7 +221,8 @@ export async function approveExpense(
       $set: {
         status: "approved",
         settlement: input.settlement,
-        payrollMonth,
+        // Legacy field: a payroll claim waits for a payout, not a month.
+        payrollMonth: null,
         approvedAt: current.approvedAt ?? new Date(),
         approvedBy: actor.sub,
         rejectedAt: null,
@@ -361,98 +338,92 @@ export async function deleteExpense(id: string): Promise<ExpenseResult<true>> {
   return doc ? done(true) : fail("not_found");
 }
 
-/** One director's reimbursement total for a month, with the claims behind it. */
-export type ReimbursementGroup = {
-  employeeId: string;
-  code: string;
-  name: string;
-  amountMinor: number;
-  expenseIds: string[];
-};
-
-/**
- * What a payroll month owes in reimbursements.
- *
- * Deliberately separate from the revenue share: this figure is ADDED to the
- * run after each director's percentage has been worked out, and never enters
- * the revenue the percentage is taken from.
- */
-export async function reimbursementsForMonth(
-  month: PayrollMonth,
-): Promise<ReimbursementGroup[]> {
-  if (!isPayrollMonth(month)) return [];
+/** A person's approved payroll claims that no payout has taken yet. */
+export async function payrollClaimsDue(
+  employeeId: Id,
+): Promise<{ _id: unknown; ref: string; amountMinor: number }[]> {
   await connectToDatabase();
-
-  const claims = await Expense.find({
+  return Expense.find({
+    employeeId,
     settlement: "payroll",
-    payrollMonth: month,
     status: "approved",
     reimbursedAt: null,
     deletedAt: null,
   })
-    .lean<Lean<IExpense>[]>()
+    .sort({ approvedAt: 1, createdAt: 1 })
+    .select({ ref: 1, amountMinor: 1 })
+    .lean<{ _id: unknown; ref: string; amountMinor: number }[]>()
     .exec();
-  if (claims.length === 0) return [];
-
-  const employees = await Employee.find({
-    _id: { $in: [...new Set(claims.map((c) => String(c.employeeId)))] },
-  })
-    .select({ code: 1, name: 1 })
-    .lean<{ _id: unknown; code: string; name: string }[]>()
-    .exec();
-  const byId = new Map(employees.map((e) => [String(e._id), e]));
-
-  const groups = new Map<string, ReimbursementGroup>();
-  for (const c of claims) {
-    const key = String(c.employeeId);
-    const employee = byId.get(key);
-    if (!employee) continue; // a deleted employee is not paid by this run
-    const group = groups.get(key) ?? {
-      employeeId: key,
-      code: employee.code,
-      name: employee.name,
-      amountMinor: 0,
-      expenseIds: [],
-    };
-    group.amountMinor += c.amountMinor;
-    group.expenseIds.push(String(c._id));
-    groups.set(key, group);
-  }
-  return [...groups.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /**
- * Mark a month's payroll-settled claims as paid.
- *
- * Called when the run is approved, because that is the moment the figures
- * freeze and the reimbursement becomes a commitment.
+ * Take claims for a payout: each one only if it is still approved, still to
+ * be paid with payroll and not yet paid. True when every one was taken; on
+ * false, whatever this call did take has already been handed back.
  */
-export async function settleReimbursementsFor(
-  month: PayrollMonth,
+export async function claimForPayout(
+  expenseIds: Id[],
+  payout: { _id: Id; ref: string },
+  employeeId: Id,
+  paidAt: Date,
   actor: Actor,
-): Promise<number> {
-  if (!isPayrollMonth(month)) return 0;
+): Promise<boolean> {
   await connectToDatabase();
-  const now = new Date();
+  for (const id of expenseIds) {
+    const res = await Expense.updateOne(
+      {
+        _id: id,
+        employeeId,
+        settlement: "payroll",
+        status: "approved",
+        reimbursedAt: null,
+        deletedAt: null,
+      },
+      {
+        $set: {
+          status: "reimbursed",
+          reimbursedAt: paidAt,
+          reimbursedBy: actor.sub,
+          payrollPayoutId: payout._id,
+        },
+        $push: {
+          activity: {
+            authorId: actor.sub,
+            body: `Paid back with payout ${payout.ref}`,
+            at: new Date(),
+          },
+        },
+      },
+    ).exec();
+    if (res.modifiedCount !== 1) {
+      await releaseFromPayout(payout, actor, "the payout did not go through");
+      return false;
+    }
+  }
+  return true;
+}
+
+/** Hand a payout's claims back: approved again, waiting for the next one. */
+export async function releaseFromPayout(
+  payout: { _id: Id; ref: string },
+  actor: Actor,
+  why: string,
+): Promise<number> {
+  await connectToDatabase();
   const res = await Expense.updateMany(
-    {
-      settlement: "payroll",
-      payrollMonth: month,
-      status: "approved",
-      reimbursedAt: null,
-      deletedAt: null,
-    },
+    { payrollPayoutId: payout._id, status: "reimbursed" },
     {
       $set: {
-        status: "reimbursed",
-        reimbursedAt: now,
-        reimbursedBy: actor.sub,
+        status: "approved",
+        reimbursedAt: null,
+        reimbursedBy: null,
+        payrollPayoutId: null,
       },
       $push: {
         activity: {
           authorId: actor.sub,
-          body: `Reimbursed with the ${month} payroll`,
-          at: now,
+          body: `Back to approved — ${why} (${payout.ref})`,
+          at: new Date(),
         },
       },
     },
@@ -461,25 +432,29 @@ export async function settleReimbursementsFor(
 }
 
 /**
- * Put a month's claims back to approved when its run is reopened.
+ * Put a month's claims back to approved when a run from before payouts is
+ * reopened — such a run marked them reimbursed when it was approved.
  *
  * Reopening is already refused once a payroll line has been paid, so this only
- * ever unwinds a commitment no money has followed.
+ * ever unwinds a commitment no money has followed. They then wait for the
+ * person's next payout, like any other approved claim.
  */
 export async function unsettleReimbursementsFor(
-  month: PayrollMonth,
+  key: string,
   actor: Actor,
 ): Promise<number> {
-  if (!isPayrollMonth(month)) return 0;
+  if (!isPeriodKey(key)) return 0;
   await connectToDatabase();
   const now = new Date();
   const res = await Expense.updateMany(
     {
       settlement: "payroll",
-      payrollMonth: month,
+      payrollMonth: key,
       status: "reimbursed",
-      // Only ones this run settled: a direct payout records how it was paid.
+      // Only ones this run settled: a direct payout records how it was paid,
+      // and a payout records itself.
       payout: null,
+      payrollPayoutId: null,
       deletedAt: null,
     },
     {
@@ -491,7 +466,7 @@ export async function unsettleReimbursementsFor(
       $push: {
         activity: {
           authorId: actor.sub,
-          body: `Back to approved — the ${month} payroll was reopened`,
+          body: `Back to approved — the ${labelOfKey(key)} payroll was reopened`,
           at: now,
         },
       },

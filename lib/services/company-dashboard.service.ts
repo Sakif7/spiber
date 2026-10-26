@@ -4,11 +4,13 @@ import { SalesOrder } from "@/lib/models/salesOrder";
 import { Expense } from "@/lib/models/expense";
 import { Visit } from "@/lib/models/visit";
 import { Employee } from "@/lib/models/employee";
-import { PayrollRun, type IPayrollRun } from "@/lib/models/payrollRun";
+import { PayrollRun } from "@/lib/models/payrollRun";
 import { AuthoredDocument } from "@/lib/models/authored-document";
-import type { Lean } from "@/lib/models/_shared";
 import { salesReport, receivables } from "@/lib/repositories/sales-report.repo";
-import { monthOf, monthWindow, previousMonth } from "@/lib/hr/months";
+import { monthOf, monthWindow } from "@/lib/hr/months";
+import { labelOfKey } from "@/lib/hr/cycles";
+import { lastEndedProfitPeriod } from "./hr/payroll.service";
+import { payoutsDueCount } from "./hr/payout.service";
 import type { SalesLeadStatus } from "@/lib/schemas/sales-lead";
 import { vaultSummary, type VaultSummary } from "./company-fs.service";
 import { logger } from "@/lib/log";
@@ -34,8 +36,13 @@ export type CompanyDashboardData = {
   orders: { inProgress: number; toDeliver: number; returned: number };
   claims: { pending: number; pendingMinor: number };
   people: { active: number; directors: number; visitsThisMonth: number };
-  /** The most recent payroll month and whether the directors have approved it. */
-  payroll: { month: string; status: "draft" | "approved" } | null;
+  /**
+   * The newest profit period that has ended, and whether it has been
+   * approved — a period nobody has opened has no run, and counts as waiting.
+   */
+  payroll: { key: string; label: string; status: "draft" | "approved" } | null;
+  /** People owed money for a pay period that has already ended. */
+  payoutsDue: number;
   vault: VaultSummary | null;
   documents: {
     drafts: number;
@@ -95,7 +102,8 @@ export async function loadCompanyDashboard(
     activeEmployees,
     directors,
     visitsThisMonth,
-    runs,
+    payroll,
+    payoutsDue,
     vault,
     drafts,
     recentDocs,
@@ -165,13 +173,20 @@ export async function loadCompanyDashboard(
     ),
     safely(
       "payroll",
-      PayrollRun.find({ month: { $in: [month, previousMonth(month)] } })
-        .sort({ month: -1 })
-        .limit(1)
-        .lean<Lean<IPayrollRun>[]>()
-        .exec(),
-      [],
+      lastEndedProfitPeriod(now).then(async (period) => {
+        const run = await PayrollRun.findOne({ month: period.key })
+          .select({ status: 1 })
+          .lean<{ status: "draft" | "approved" } | null>()
+          .exec();
+        return {
+          key: period.key,
+          label: labelOfKey(period.key),
+          status: run?.status ?? ("draft" as const),
+        };
+      }),
+      null,
     ),
+    safely("payouts due", payoutsDueCount(now), 0),
     safely("vault", vaultSummary(5), null),
     safely(
       "document drafts",
@@ -205,7 +220,6 @@ export async function loadCompanyDashboard(
   const leadCount = new Map(leadRows.map((r) => [r._id, r.count]));
   const orderCount = new Map(orderRows.map((r) => [r._id, r.count]));
   const claims = claimRows[0];
-  const run = runs[0];
 
   return {
     month,
@@ -242,7 +256,8 @@ export async function loadCompanyDashboard(
       pendingMinor: claims?.minor ?? 0,
     },
     people: { active: activeEmployees, directors, visitsThisMonth },
-    payroll: run ? { month: run.month, status: run.status } : null,
+    payroll,
+    payoutsDue,
     vault,
     documents: {
       drafts,

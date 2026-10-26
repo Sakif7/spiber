@@ -57,12 +57,26 @@ export interface IEmployee {
   designation: string;
   kind: "director" | "staff";
   /**
-   * How this person is paid. `revenue_share` is the only scheme payroll
-   * computes today; `fixed` and `none` are recorded but not yet calculated.
+   * How this person is paid: a share of each profit period (`revenue_share`),
+   * a fixed monthly salary earned by the day (`fixed`), or not through payroll
+   * at all (`none`).
    */
   payScheme: "revenue_share" | "fixed" | "none";
-  /** For the `fixed` scheme, once it is implemented. */
+  /** The `fixed` scheme's monthly salary, in poisha. */
   fixedMonthlyMinor?: number | null;
+  /**
+   * When they are paid: their pay schedule. Null is the company's default
+   * schedule (lib/models/paySchedule.ts).
+   */
+  payScheduleId?: Types.ObjectId | string | null;
+  /**
+   * Salary is paid up to (not including) this instant — Dhaka midnight of the
+   * first unpaid day. Moved forward by each payout that pays salary, and by
+   * hand for someone paid outside the system before they were put on it.
+   * Absent until then: salary is owed from when they joined, or from the end
+   * of the last month approved before payouts that already paid it.
+   */
+  salaryPaidThrough?: Date | null;
   joinedAt: Date;
   leftAt?: Date | null;
   status: "active" | "inactive";
@@ -150,6 +164,12 @@ const employeeSchema = new Schema<IEmployee>(
       default: "revenue_share",
     },
     fixedMonthlyMinor: { type: Number, default: null, min: 0 },
+    payScheduleId: {
+      type: Schema.Types.ObjectId,
+      ref: "PaySchedule",
+      default: null,
+    },
+    salaryPaidThrough: { type: Date, default: null },
     joinedAt: { type: Date, required: true },
     leftAt: { type: Date, default: null },
     status: { type: String, enum: ["active", "inactive"], default: "active" },

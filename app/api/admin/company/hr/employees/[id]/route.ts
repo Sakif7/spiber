@@ -24,7 +24,10 @@ export async function PATCH(req: Request, { params }: Params) {
 
   const res = await updateEmployee(id, parsed.data);
   if (!res.ok) {
-    return fail({ code: res.code }, res.code === "not_found" ? 404 : 409);
+    return fail(
+      { code: res.code },
+      res.code === "not_found" ? 404 : res.code === "bad_schedule" ? 400 : 409,
+    );
   }
 
   await writeAudit(

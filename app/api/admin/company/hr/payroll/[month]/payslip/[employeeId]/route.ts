@@ -1,6 +1,6 @@
 import React from "react";
 import { getRun } from "@/lib/services/hr/payroll.service";
-import { monthLabel } from "@/lib/hr/months";
+import { labelOfKey } from "@/lib/hr/cycles";
 import { renderFitted } from "@/lib/pdf/render";
 import { PayslipDocument } from "@/lib/pdf/payslip";
 import { getSetting } from "@/lib/repositories/settings.repo";
@@ -12,7 +12,7 @@ import { guardSales } from "../../../../../sales/_guard";
 
 export const dynamic = "force-dynamic";
 
-/** One director's payslip for one month, as a PDF. */
+/** One director's payslip for one profit period, as a PDF. */
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ month: string; employeeId: string }> },
@@ -57,7 +57,7 @@ export async function GET(
       assets: tpl.assets,
       data: {
         month,
-        monthLabel: monthLabel(month),
+        monthLabel: labelOfKey(month),
         employee: {
           name: line.name,
           code: line.code,

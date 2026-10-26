@@ -6,13 +6,14 @@ import {
   deskSummary,
   myClaims,
   myLeads,
+  myNextPayout,
   myPayslips,
   myVisits,
 } from "@/lib/services/me.service";
 import { mailboxForEmployee } from "@/lib/services/hr/employee-access.service";
 import { givenName } from "@/lib/hr/names";
 import { formatBDT } from "@/lib/money";
-import { monthLabel } from "@/lib/hr/months";
+import { formatDay, labelOfKey, periodLabel } from "@/lib/hr/cycles";
 import { AdminPageHeader } from "@/components/admin/ui/page-header";
 import { DetailCard } from "@/components/admin/ui/detail";
 import { StatusBadge, statusTone } from "@/components/admin/ui/status-badge";
@@ -70,6 +71,7 @@ export default async function MyDeskPage({
     myClaims(session, { pageSize: 3 }),
     myPayslips(session, 1),
   ]);
+  const next = await myNextPayout(session);
   const hour = new Date().getHours();
   const greeting =
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
@@ -269,68 +271,66 @@ export default async function MyDeskPage({
         </div>
 
         <DetailCard
-          title={current ? `My pay · ${monthLabel(current.month)}` : "My pay"}
+          title="My pay"
           description={
-            current?.status === "estimate"
-              ? "Month still open — final once payroll is approved. Only your own line is shown."
-              : current
-                ? "Your line of the last approved month."
-                : "No payroll month includes you yet."
-          }
-          action={
-            current ? (
-              <StatusBadge
-                tone={current.status === "estimate" ? "info" : "success"}
-              >
-                {current.status === "estimate" ? "Open month" : "Approved"}
-              </StatusBadge>
-            ) : undefined
+            next
+              ? `${next.schedule.name} · next payday ${formatDay(next.payday)}. Only your own figures are shown.`
+              : "Only your own figures are shown."
           }
         >
-          {current && (
-            <div className="grid gap-2 text-sm">
-              <div className="flex justify-between gap-3">
-                <span className="text-muted-foreground">Basis</span>
-                <span className="text-right">
-                  {current.line.payScheme === "revenue_share" &&
-                  typeof current.line.shares === "number"
-                    ? `${current.line.shares.toLocaleString("en-BD")} of ${(current.poolShares ?? 0).toLocaleString("en-BD")} shares`
-                    : cap(current.line.payScheme)}
-                </span>
-              </div>
-              <div className="flex justify-between gap-3">
-                <span className="text-muted-foreground">Pay</span>
-                <span className="font-mono">
-                  {formatBDT(current.line.amountMinor, "en")}
-                </span>
-              </div>
-              {current.reimbursementMinor > 0 && (
+          <div className="grid gap-2 text-sm">
+            {next && (
+              <>
                 <div className="flex justify-between gap-3">
-                  <span className="text-muted-foreground">
-                    Approved reimbursements
-                  </span>
-                  <span className="font-mono">
-                    {formatBDT(current.reimbursementMinor, "en")}
+                  <span className="text-muted-foreground">This pay period</span>
+                  <span className="text-right">
+                    {periodLabel(next.period.start, next.period.end)}
                   </span>
                 </div>
-              )}
-              <div className="border-border flex justify-between gap-3 border-t pt-2">
-                <span className="font-semibold">Total</span>
-                <span className="font-mono font-semibold">
-                  {formatBDT(
-                    current.line.amountMinor + current.reimbursementMinor,
-                    "en",
-                  )}
+                <div className="flex justify-between gap-3">
+                  <span className="text-muted-foreground">
+                    Earned, not yet paid
+                  </span>
+                  <span className="font-mono">
+                    {formatBDT(next.accruedMinor, "en")}
+                  </span>
+                </div>
+              </>
+            )}
+            {current && (
+              <div className="border-border flex items-start justify-between gap-3 border-t pt-2">
+                <span className="text-muted-foreground">
+                  Share · {labelOfKey(current.month)}
+                  <span className="block text-xs">
+                    {current.line.payScheme === "revenue_share" &&
+                    typeof current.line.shares === "number"
+                      ? `${current.line.shares.toLocaleString("en-BD")} of ${(current.poolShares ?? 0).toLocaleString("en-BD")} shares`
+                      : cap(current.line.payScheme)}
+                  </span>
+                </span>
+                <span className="text-right">
+                  <span className="block font-mono">
+                    {formatBDT(current.line.amountMinor, "en")}
+                  </span>
+                  <StatusBadge
+                    tone={current.status === "estimate" ? "info" : "success"}
+                  >
+                    {current.status === "estimate" ? "So far" : "Approved"}
+                  </StatusBadge>
                 </span>
               </div>
-              <Link
-                href="/admin/me/payslips"
-                className="text-primary inline-flex items-center gap-1 text-xs font-medium hover:underline"
-              >
-                All payslips <ChevronRight className="size-3" aria-hidden />
-              </Link>
-            </div>
-          )}
+            )}
+            {!next && !current && (
+              <p className="text-muted-foreground">Nothing to show yet.</p>
+            )}
+            <Link
+              href="/admin/me/payslips"
+              className="text-primary inline-flex items-center gap-1 text-xs font-medium hover:underline"
+            >
+              Payslips and payouts{" "}
+              <ChevronRight className="size-3" aria-hidden />
+            </Link>
+          </div>
         </DetailCard>
       </div>
     </div>

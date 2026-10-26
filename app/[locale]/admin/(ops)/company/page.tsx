@@ -117,9 +117,18 @@ export default async function CompanyDashboard({
       href: "/admin/company/documents?status=draft",
     },
     {
-      label: "Payroll month awaiting approval",
+      label: data.payroll
+        ? `Profit for ${data.payroll.label} awaiting approval`
+        : "Profit period awaiting approval",
       count: data.payroll?.status === "draft" ? 1 : 0,
-      href: "/admin/company/people/payroll",
+      href: data.payroll
+        ? `/admin/company/people/payroll?period=${data.payroll.key}`
+        : "/admin/company/people/payroll",
+    },
+    {
+      label: "People owed a payout",
+      count: data.payoutsDue,
+      href: "/admin/company/people/payouts",
     },
   ];
   const attentionTotal = attention.reduce((n, a) => n + a.count, 0);

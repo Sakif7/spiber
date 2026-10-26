@@ -1,13 +1,25 @@
 import mongoose, { Schema, type Model, type Types } from "mongoose";
 
 /**
- * One month's payroll.
+ * One profit period's payroll: the period's profit worked out and split
+ * between the shareholders.
+ *
+ * A period is a calendar month unless the profit cycle says otherwise (see
+ * `lib/hr/cycles.ts`), and `month` holds its key — "2026-11" for a month, as
+ * every run before cycles had, "2026-11-01~2026-11-15" for anything else.
  *
  * A run starts as a draft that recomputes whenever it is opened, because money
- * for the month is still arriving. Approving it FREEZES the figures: the
+ * for the period is still arriving. Approving it FREEZES the figures: the
  * pool, each holding and each amount are stored, so a payment recorded later,
- * or a holding changed later, cannot rewrite a month the directors have
+ * or a holding changed later, cannot rewrite a period the directors have
  * already been paid for.
+ *
+ * Money leaves through payouts (`payrollPayout.ts`), on each person's pay
+ * schedule: a share line is paid when a payout takes it, and records which.
+ * Runs from before payouts (`format` absent) also carry each month's fixed
+ * salaries and approved claims as payable lines; a run of format 2 carries
+ * shares only, because salaries and claims are paid by the day and by the
+ * claim, whenever the person's schedule says.
  */
 export interface IPayrollLine {
   employeeId: Types.ObjectId | string;
@@ -28,10 +40,14 @@ export interface IPayrollLine {
   paidAt?: Date | null;
   reference?: string | null;
   paidBy?: Types.ObjectId | string | null;
+  /** The payout that paid it. Absent on a line marked paid before payouts. */
+  payoutId?: Types.ObjectId | string | null;
 }
 
 /**
- * A reimbursement owed to one director this month.
+ * A reimbursement owed to one director this month — only on runs from before
+ * payouts, which froze the month's approved claims here. Claims are now paid
+ * by payouts directly and never ride a run.
  *
  * Held separately from `lines` on purpose: a revenue share is a percentage of
  * the month's takings, a reimbursement is money being handed back. Mixing them
@@ -44,6 +60,17 @@ export interface IPayrollReimbursement {
   amountMinor: number;
   /** The claims this line settles. */
   expenseIds: (Types.ObjectId | string)[];
+  /** Set when a payout hands the money over. */
+  paidAt?: Date | null;
+  payoutId?: Types.ObjectId | string | null;
+}
+
+/** One person's fixed salary for the period, as the pool deducted it. */
+export interface IPayrollSalaryLine {
+  employeeId: Types.ObjectId | string;
+  code: string;
+  name: string;
+  amountMinor: number;
 }
 
 /**
@@ -62,8 +89,13 @@ export interface IPayrollPool {
   orderCostsMinor: number;
   expensesMinor: number;
   aitMinor: number;
-  /** Fixed salaries in this run, taken off before the split. */
+  /** Fixed salaries earned in the period, taken off before the split. */
   salariesMinor: number;
+  /**
+   * Who those salaries were, by the day (format 2). The salaries themselves
+   * are paid by payouts, so they are a deduction here and not payable lines.
+   */
+  salaryLines?: IPayrollSalaryLine[];
   /** What was split. Never negative. */
   distributableMinor: number;
   /** The denominator of every director's fraction, at the time. */
@@ -73,8 +105,13 @@ export interface IPayrollPool {
 }
 
 export interface IPayrollRun {
-  /** "YYYY-MM" */
+  /** The period's key: "2026-11", or "2026-11-01~2026-11-15". */
   month: string;
+  /**
+   * 2 for a run worked out on a profit period, paid through payouts. Absent
+   * on a run from before, which still holds payable salaries and claims.
+   */
+  format?: number | null;
   status: "draft" | "approved";
   /**
    * The month's pool. Optional because runs approved under the percentage
@@ -132,6 +169,11 @@ const lineSchema = new Schema<IPayrollLine>(
     paidAt: { type: Date, default: null },
     reference: { type: String, default: null },
     paidBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    payoutId: {
+      type: Schema.Types.ObjectId,
+      ref: "PayrollPayout",
+      default: null,
+    },
   },
   { _id: false },
 );
@@ -147,6 +189,26 @@ const reimbursementSchema = new Schema<IPayrollReimbursement>(
     name: { type: String, required: true },
     amountMinor: { type: Number, required: true, min: 0 },
     expenseIds: [{ type: Schema.Types.ObjectId, ref: "Expense" }],
+    paidAt: { type: Date, default: null },
+    payoutId: {
+      type: Schema.Types.ObjectId,
+      ref: "PayrollPayout",
+      default: null,
+    },
+  },
+  { _id: false },
+);
+
+const salaryLineSchema = new Schema<IPayrollSalaryLine>(
+  {
+    employeeId: {
+      type: Schema.Types.ObjectId,
+      ref: "Employee",
+      required: true,
+    },
+    code: { type: String, required: true },
+    name: { type: String, required: true },
+    amountMinor: { type: Number, required: true, min: 0 },
   },
   { _id: false },
 );
@@ -159,6 +221,7 @@ const poolSchema = new Schema<IPayrollPool>(
     expensesMinor: { type: Number, default: 0 },
     aitMinor: { type: Number, default: 0 },
     salariesMinor: { type: Number, default: 0 },
+    salaryLines: { type: [salaryLineSchema], default: undefined },
     distributableMinor: { type: Number, default: 0 },
     totalShares: { type: Number, default: 0 },
     allocatedShares: { type: Number, default: 0 },
@@ -169,6 +232,7 @@ const poolSchema = new Schema<IPayrollPool>(
 const payrollRunSchema = new Schema<IPayrollRun>(
   {
     month: { type: String, required: true, unique: true },
+    format: { type: Number, default: null },
     status: { type: String, enum: ["draft", "approved"], default: "draft" },
     pool: { type: poolSchema, default: null },
     revenue: {
@@ -214,6 +278,10 @@ const payrollRunSchema = new Schema<IPayrollRun>(
 );
 
 payrollRunSchema.index({ month: -1 });
+// What a payout looks for: approved periods holding a person's unpaid line.
+payrollRunSchema.index({ status: 1, "lines.employeeId": 1 });
+// The latest stored period, which a change of profit cycle may not cut into.
+payrollRunSchema.index({ "revenue.windowEnd": -1 });
 
 export const PayrollRun: Model<IPayrollRun> =
   (mongoose.models.PayrollRun as Model<IPayrollRun>) ??

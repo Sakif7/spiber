@@ -21,6 +21,7 @@ import {
   SHARE_POOL_KEY,
   type SharePool,
 } from "@/lib/hr/share-pool";
+import { resolveSchedule } from "./pay-schedule.service";
 
 /** Employee records, their shareholdings, and the pool those are drawn from. */
 
@@ -32,12 +33,28 @@ export type HrError =
   /** The allocation would take more shares than the pool has left. */
   | "pool_exceeded"
   /** No pool has been set, so there is nothing to allocate from. */
-  | "no_pool";
+  | "no_pool"
+  /** The pay schedule picked does not exist (or was archived). */
+  | "bad_schedule";
 export type HrResult<T> = { ok: true; data: T } | { ok: false; code: HrError };
 
 const fail = (code: HrError): HrResult<never> => ({ ok: false, code });
 const done = <T>(data: T): HrResult<T> => ({ ok: true, data });
 const clean = (v?: string | null) => (v && v.trim() ? v.trim() : null);
+
+/**
+ * The schedule id to store: null for the default (it follows whichever
+ * schedule is the default), the id otherwise — or false when it is not a
+ * living schedule.
+ */
+async function scheduleToStore(
+  id: string | null | undefined,
+): Promise<string | null | false> {
+  if (!id) return null;
+  const schedule = await resolveSchedule(id);
+  if (!schedule) return false;
+  return schedule.isDefault ? null : schedule.id;
+}
 
 export async function listEmployees(
   opts: { includeInactive?: boolean } = {},
@@ -78,6 +95,8 @@ export async function createEmployee(
     if (!room.ok) return room;
     if (opening.shares > room.data) return fail("pool_exceeded");
   }
+  const payScheduleId = await scheduleToStore(input.payScheduleId);
+  if (payScheduleId === false) return fail("bad_schedule");
   try {
     const doc = await Employee.create({
       code: employeeCode(),
@@ -93,6 +112,7 @@ export async function createEmployee(
       leftAt: input.leftAt ? new Date(input.leftAt) : null,
       status: input.status,
       fixedMonthlyMinor: input.fixedMonthlyMinor ?? null,
+      payScheduleId,
       bankDetails: input.bankDetails ?? null,
       notes: clean(input.notes),
     });
@@ -135,6 +155,11 @@ export async function updateEmployee(
   if (input.status !== undefined) patch.status = input.status;
   if (input.fixedMonthlyMinor !== undefined) {
     patch.fixedMonthlyMinor = input.fixedMonthlyMinor ?? null;
+  }
+  if (input.payScheduleId !== undefined) {
+    const payScheduleId = await scheduleToStore(input.payScheduleId);
+    if (payScheduleId === false) return fail("bad_schedule");
+    patch.payScheduleId = payScheduleId;
   }
   if (input.bankDetails !== undefined) patch.bankDetails = input.bankDetails;
   if (input.notes !== undefined) patch.notes = clean(input.notes);

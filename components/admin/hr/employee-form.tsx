@@ -43,6 +43,10 @@ export type EmployeeFormValues = {
   accountName: string;
   accountNumber: string;
   routingNumber: string;
+  /** Their pay schedule's id; "" is the default schedule. */
+  payScheduleId?: string;
+  /** The fixed scheme's monthly salary, in taka as typed. */
+  fixedMonthly?: string;
   /** Only offered when creating; afterwards a holding is added to the history. */
   shares?: string;
   sharesFrom?: string;
@@ -75,6 +79,8 @@ const EMPTY: EmployeeFormValues = {
   accountName: "",
   accountNumber: "",
   routingNumber: "",
+  payScheduleId: "",
+  fixedMonthly: "",
   shares: "",
   sharesFrom: thisMonth(),
   businessEmailLocal: "",
@@ -84,10 +90,15 @@ const EMPTY: EmployeeFormValues = {
 export function EmployeeForm({
   employee,
   mailDomain = "spibermed.com",
+  schedules = [],
+  defaultScheduleName = "Monthly",
 }: {
   employee?: EmployeeFormValues;
   /** The fixed domain every business address is on. */
   mailDomain?: string;
+  /** The pay schedules besides the default, to pick from. */
+  schedules?: { value: string; label: string }[];
+  defaultScheduleName?: string;
 }) {
   const afterSave = useAfterSave();
   const panel = useFormPanel();
@@ -133,6 +144,14 @@ export function EmployeeForm({
         leftAt: v.leftAt ? new Date(v.leftAt).toISOString() : null,
         status: v.status,
         notes: v.notes,
+        payScheduleId: v.payScheduleId || null,
+        ...(v.payScheme === "fixed"
+          ? {
+              fixedMonthlyMinor: v.fixedMonthly?.trim()
+                ? Math.round(Number(v.fixedMonthly.replace(/,/g, "")) * 100)
+                : null,
+            }
+          : {}),
         bankDetails: {
           bankName: v.bankName,
           branch: v.branch,
@@ -169,15 +188,17 @@ export function EmployeeForm({
             ? "That is more shares than the pool has left. Nothing was saved — raise the pool on the employees page, or allocate fewer."
             : code === "no_pool"
               ? "No share pool has been set yet. Nothing was saved — set it on the employees page first, or leave the shares empty and allocate later."
-              : code === "address_taken"
-                ? "That business email is already taken. Nothing was saved — choose another."
-                : code === "invalid_address"
-                  ? "The business email may only contain letters, digits, dots and dashes."
-                  : code === "vault_not_configured"
-                    ? "The company vault key is not configured, so a mailbox password cannot be stored. Nothing was saved."
-                    : code === "provisioner_not_configured"
-                      ? "The mail server connection is not configured on this deployment. Nothing was saved."
-                      : formatApiError(json, "Could not save the employee."),
+              : code === "bad_schedule"
+                ? "That pay schedule no longer exists. Nothing was saved — pick another."
+                : code === "address_taken"
+                  ? "That business email is already taken. Nothing was saved — choose another."
+                  : code === "invalid_address"
+                    ? "The business email may only contain letters, digits, dots and dashes."
+                    : code === "vault_not_configured"
+                      ? "The company vault key is not configured, so a mailbox password cannot be stored. Nothing was saved."
+                      : code === "provisioner_not_configured"
+                        ? "The mail server connection is not configured on this deployment. Nothing was saved."
+                        : formatApiError(json, "Could not save the employee."),
         );
         return;
       }
@@ -435,6 +456,30 @@ export function EmployeeForm({
               onChange={(e) => set("leftAt", e.target.value)}
             />
           </FormField>
+          <FormField
+            label="Pay schedule"
+            hint="When they are paid. Set up schedules on the Payouts page."
+          >
+            <SelectField
+              value={v.payScheduleId ?? ""}
+              onChange={(x) => set("payScheduleId", x)}
+              emptyLabel={`Default — ${defaultScheduleName}`}
+              options={schedules}
+            />
+          </FormField>
+          {v.payScheme === "fixed" && (
+            <FormField
+              label="Monthly salary (৳)"
+              hint="Earned by the day, so it can be paid on any schedule."
+            >
+              <Input
+                value={v.fixedMonthly ?? ""}
+                onChange={(e) => set("fixedMonthly", e.target.value)}
+                inputMode="decimal"
+                placeholder="30000"
+              />
+            </FormField>
+          )}
         </FormGrid>
 
         {isNew && v.payScheme === "revenue_share" && (
@@ -527,6 +572,9 @@ export function EmployeeForm({
           !v.name.trim() ||
           !v.designation.trim() ||
           !v.joinedAt ||
+          (v.payScheme === "fixed" &&
+            !!v.fixedMonthly?.trim() &&
+            !(Number(v.fixedMonthly.replace(/,/g, "")) >= 0)) ||
           (isNew &&
             !availabilityAllowsSave(availability, v.businessEmailLocal ?? ""))
         }

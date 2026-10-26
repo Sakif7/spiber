@@ -62,7 +62,7 @@ export default async function MyClaimPage({
             {claim.status === "approved" && (
               <DetailRow label="Paid back">
                 {claim.settlement === "payroll"
-                  ? `With ${claim.payrollMonth ?? "payroll"}`
+                  ? "With your next payout"
                   : "Directly"}
               </DetailRow>
             )}

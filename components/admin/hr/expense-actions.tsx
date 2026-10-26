@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "@/i18n/navigation";
 import { toast } from "sonner";
 import { Check, X, Wallet, Banknote } from "lucide-react";
@@ -18,19 +19,20 @@ type Status = "submitted" | "approved" | "rejected" | "reimbursed";
  *
  * Which controls appear is driven entirely by the stored state, so the UI can
  * never offer an action the service would refuse — a claim settled by payroll
- * shows no "mark paid" button at all.
+ * shows no "mark paid" button at all: the person's payout pays it.
  */
 export function ExpenseActions({
   id,
   status,
   settlement,
-  payrollMonth,
+  payroll,
   amountLabel,
 }: {
   id: string;
   status: Status;
   settlement: "payroll" | "direct" | null;
-  payrollMonth: string | null;
+  /** How a payroll claim is or was paid, in words, and the payout if any. */
+  payroll: { text: string; payoutId: string | null } | null;
   amountLabel: string;
 }) {
   const router = useRouter();
@@ -72,9 +74,24 @@ export function ExpenseActions({
       <DetailCard title="Settled">
         <p className="text-muted-foreground">
           {amountLabel} has been paid back
-          {settlement === "payroll" && payrollMonth
-            ? ` with the ${payrollMonth} payroll.`
-            : "."}
+          {settlement === "payroll" && payroll ? (
+            <>
+              {" with "}
+              {payroll.payoutId ? (
+                <Link
+                  href={`/admin/company/people/payouts/${payroll.payoutId}`}
+                  className="text-primary hover:underline"
+                >
+                  {payroll.text}
+                </Link>
+              ) : (
+                payroll.text
+              )}
+              .
+            </>
+          ) : (
+            "."
+          )}
         </p>
       </DetailCard>
     );
@@ -100,7 +117,7 @@ export function ExpenseActions({
             {status === "submitted"
               ? "Approve this claim and choose how it gets paid back."
               : settlement === "payroll"
-                ? `Waiting for the ${payrollMonth} payroll run. Approving that month pays it.`
+                ? `Waiting for ${payroll?.text ?? "their next payout"}, which pays it.`
                 : "Waiting for a direct payout."}
           </p>
           <div className="flex flex-wrap gap-2">

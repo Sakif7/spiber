@@ -388,6 +388,7 @@ export async function createEmployeeWithAccess(
         | AccessError
         | "pool_exceeded"
         | "no_pool"
+        | "bad_schedule"
         | "duplicate_user"
         | "not_found";
       detail?: string;

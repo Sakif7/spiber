@@ -1,14 +1,26 @@
 import Link from "next/link";
 import { setRequestLocale } from "next-intl/server";
 import { getSessionUser } from "@/lib/auth/current-user";
-import { getRun, listRuns } from "@/lib/services/hr/payroll.service";
 import {
-  monthOf,
-  monthLabel,
-  previousMonth,
-  recentMonths,
-  isPayrollMonth,
-} from "@/lib/hr/months";
+  getProfitCycle,
+  getRun,
+  listRuns,
+  profitCycleFloor,
+} from "@/lib/services/hr/payroll.service";
+import {
+  dayOf,
+  describeCycle,
+  formatDay,
+  labelOfKey,
+  lastEndedPeriod,
+  MONTHLY,
+  parsePeriodKey,
+  periodAt,
+  periodByKey,
+  recentPeriods,
+  todayKey,
+  versionOn,
+} from "@/lib/hr/cycles";
 import { rateLabel } from "@/lib/hr/payroll-math";
 import { formatBDT } from "@/lib/money";
 import { AdminPageHeader } from "@/components/admin/ui/page-header";
@@ -18,15 +30,20 @@ import {
   PayrollView,
   type PayrollViewData,
 } from "@/components/admin/hr/payroll-view";
+import { ProfitCycleCard } from "@/components/admin/hr/profit-cycle-card";
 import { cn } from "@/lib/cn";
 
 export const dynamic = "force-dynamic";
 
+const day = (d?: Date | null) => (d ? formatDay(dayOf(new Date(d))) : "");
+
 /**
- * Monthly payroll.
+ * Payroll: each profit period's profit, split between the shareholders.
  *
- * Defaults to LAST month: this month is still accruing, so the month a company
- * actually pays out for is the one that has finished.
+ * Defaults to the LAST period that ended: the one running now is still
+ * accruing, so the period a company actually settles is the one that has
+ * finished. `?period=` picks another; an old `?month=` link still works and
+ * opens the period holding that month's first day.
  */
 export default async function PayrollPage({
   params,
@@ -39,29 +56,46 @@ export default async function PayrollPage({
   setRequestLocale(locale);
 
   const sp = await searchParams;
-  const requested = typeof sp.month === "string" ? sp.month : undefined;
-  const month =
-    requested && isPayrollMonth(requested)
-      ? requested
-      : previousMonth(monthOf(new Date()));
+  const asked =
+    typeof sp.period === "string"
+      ? sp.period
+      : typeof sp.month === "string"
+        ? sp.month
+        : undefined;
+
+  const [versions, floor] = await Promise.all([
+    getProfitCycle(),
+    profitCycleFloor(),
+  ]);
+  const today = todayKey();
+  const parsed = asked ? parsePeriodKey(asked) : null;
+  const period =
+    (asked ? periodByKey(versions, asked) : null) ??
+    (parsed ? periodAt(versions, parsed.start) : null) ??
+    lastEndedPeriod(versions, today);
 
   const user = await getSessionUser();
   const actor = { sub: user?.sub ?? "", email: user?.email ?? "" };
 
   const [run, history] = await Promise.all([
-    getRun(month, actor).catch(() => null),
+    getRun(period.key, actor).catch(() => null),
     listRuns(24).catch(() => []),
   ]);
 
-  const statusByMonth = new Map(history.map((r) => [r.month, r.status]));
-  const months = recentMonths(monthOf(new Date()), 12).reverse();
+  const statusByKey = new Map(history.map((r) => [r.month, r.status]));
+  const periods = recentPeriods(versions, today, 12);
+  const current = versionOn(versions, today);
+  const planned = versions.find((v) => v.from > today) ?? null;
+  const running = periodAt(versions, today);
+  const suggestedFrom = floor && floor > running.start ? floor : running.start;
 
   const data: PayrollViewData | null =
     run && run.ok
       ? {
-          month,
-          monthLabel: monthLabel(month),
+          key: period.key,
+          label: labelOfKey(period.key),
           status: run.data.status,
+          running: period.end > today && period.start <= today,
           revenue: {
             total: formatBDT(run.data.revenue.totalMinor, "en"),
             online: formatBDT(run.data.revenue.onlineMinor, "en"),
@@ -76,6 +110,10 @@ export default async function PayrollPage({
                 ait: formatBDT(run.data.pool.aitMinor, "en"),
                 netCash: formatBDT(run.data.pool.netCashMinor, "en"),
                 salaries: formatBDT(run.data.pool.salariesMinor, "en"),
+                salaryLines: (run.data.pool.salaryLines ?? []).map((s) => ({
+                  name: s.name,
+                  amount: formatBDT(s.amountMinor, "en"),
+                })),
                 distributable: formatBDT(
                   run.data.pool.distributableMinor,
                   "en",
@@ -91,12 +129,11 @@ export default async function PayrollPage({
             name: r.name,
             amount: formatBDT(r.amountMinor, "en"),
             claims: r.expenseIds.length,
+            paid: Boolean(r.paidAt),
           })),
           reimbursementTotal: formatBDT(run.data.reimbursementTotalMinor, "en"),
           grandTotal: formatBDT(run.data.grandTotalMinor, "en"),
-          approvedAt: run.data.approvedAt
-            ? new Date(run.data.approvedAt).toISOString()
-            : null,
+          approvedAt: run.data.approvedAt ? day(run.data.approvedAt) : null,
           lines: run.data.lines.map((l) => ({
             employeeId: String(l.employeeId),
             name: l.name,
@@ -108,8 +145,14 @@ export default async function PayrollPage({
                   ? "fixed"
                   : `${rateLabel(l.rateBp)}%`,
             amount: formatBDT(l.amountMinor, "en"),
-            paidAt: l.paidAt ? new Date(l.paidAt).toISOString() : null,
-            reference: l.reference ?? null,
+            nothingToPay: l.amountMinor <= 0,
+            paid: l.paidAt
+              ? {
+                  on: day(l.paidAt),
+                  payoutId: l.payoutId ? String(l.payoutId) : null,
+                  reference: l.reference ?? null,
+                }
+              : null,
           })),
         }
       : null;
@@ -118,25 +161,46 @@ export default async function PayrollPage({
     <div className="space-y-4">
       <AdminPageHeader
         title="Payroll"
-        description="Directors split the month's cash after AIT, less fixed salaries, in proportion to the shares they hold."
+        description="Each period, directors split its cash after AIT, less fixed salaries, in proportion to the shares they hold. They are paid on their pay schedule."
+        action={
+          <Link
+            href="/admin/company/people/payouts"
+            className="text-primary text-sm font-medium hover:underline"
+          >
+            Payouts →
+          </Link>
+        }
       />
 
-      <SectionCard title="Month">
+      <ProfitCycleCard
+        cycle={current?.cycle ?? MONTHLY}
+        description={describeCycle(current?.cycle ?? MONTHLY)}
+        since={current ? formatDay(current.from) : null}
+        planned={
+          planned
+            ? `${describeCycle(planned.cycle)} from ${formatDay(planned.from)}`
+            : null
+        }
+        floor={floor}
+        suggestedFrom={suggestedFrom}
+      />
+
+      <SectionCard title="Period">
         <div className="flex flex-wrap gap-1.5">
-          {months.map((m) => {
-            const status = statusByMonth.get(m);
+          {periods.map((p) => {
+            const status = statusByKey.get(p.key);
             return (
               <Link
-                key={m}
-                href={`/admin/company/people/payroll?month=${m}`}
+                key={p.key}
+                href={`/admin/company/people/payroll?period=${p.key}`}
                 className={cn(
                   "rounded-full border px-2.5 py-1 text-xs",
-                  m === month
+                  p.key === period.key
                     ? "bg-primary text-primary-foreground border-transparent"
                     : "hover:bg-accent",
                 )}
               >
-                {monthLabel(m)}
+                {labelOfKey(p.key)}
                 {status === "approved" && (
                   <span className="ml-1.5 opacity-70">✓</span>
                 )}
@@ -151,7 +215,7 @@ export default async function PayrollPage({
       ) : (
         <SectionCard title="Payroll">
           <p className="text-muted-foreground text-sm">
-            Could not load this month.
+            Could not load this period.
           </p>
         </SectionCard>
       )}
@@ -162,10 +226,10 @@ export default async function PayrollPage({
             {history.map((r) => (
               <Link
                 key={r.month}
-                href={`/admin/company/people/payroll?month=${r.month}`}
+                href={`/admin/company/people/payroll?period=${r.month}`}
                 className="hover:bg-accent flex items-center justify-between gap-3 rounded px-2 py-1.5"
               >
-                <span className="font-medium">{monthLabel(r.month)}</span>
+                <span className="font-medium">{labelOfKey(r.month)}</span>
                 <StatusBadge
                   tone={r.status === "approved" ? "success" : "warning"}
                 >

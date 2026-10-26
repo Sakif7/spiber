@@ -19,10 +19,11 @@ import {
  *
  * Two settlement routes, chosen when the claim is approved:
  *
- *   payroll — it rides along on a monthly payroll run as a reimbursement line,
- *             added AFTER the revenue share is computed. `payrollMonth` names
- *             the run it is waiting for, and approving that run is what marks
- *             it reimbursed.
+ *   payroll — it is paid with the person's next payout, on their pay
+ *             schedule, and that payout marks it reimbursed
+ *             (`payrollPayoutId`). Before payouts existed it rode a monthly
+ *             run instead: `payrollMonth` named the run, and approving the
+ *             run marked it reimbursed — such claims still read that way.
  *   direct  — it is paid out on its own, whenever, and an admin records that.
  *
  * `reimbursedAt` is the single guard against paying twice: both routes refuse
@@ -74,8 +75,13 @@ export interface IExpense {
 
   status: ExpenseStatus;
   settlement?: ExpenseSettlement | null;
-  /** "YYYY-MM" — the payroll run this is waiting for, when settling by payroll. */
+  /**
+   * Legacy: the monthly run a payroll claim waited for, before payouts. Never
+   * written now — a payroll claim waits for the person's next payout.
+   */
   payrollMonth?: string | null;
+  /** The payout that paid a payroll claim back. */
+  payrollPayoutId?: Types.ObjectId | string | null;
 
   approvedAt?: Date | null;
   approvedBy?: Types.ObjectId | string | null;
@@ -153,6 +159,11 @@ const expenseSchema = new Schema<IExpense>(
     status: { type: String, enum: EXPENSE_STATUSES, default: "submitted" },
     settlement: { type: String, enum: ["payroll", "direct"], default: null },
     payrollMonth: { type: String, default: null },
+    payrollPayoutId: {
+      type: Schema.Types.ObjectId,
+      ref: "PayrollPayout",
+      default: null,
+    },
 
     approvedAt: { type: Date, default: null },
     approvedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
@@ -192,9 +203,10 @@ const expenseSchema = new Schema<IExpense>(
 expenseSchema.index({ deletedAt: 1, status: 1, spentAt: -1 });
 expenseSchema.index({ employeeId: 1, spentAt: -1 });
 expenseSchema.index({ visitId: 1 });
-// The payroll pickup query: approved, settling by payroll, for this month,
-// not yet paid.
+// A legacy run reopened: the claims it had settled, by month.
 expenseSchema.index({ settlement: 1, payrollMonth: 1, status: 1 });
+// The payout pickup: one person's approved payroll claims not yet paid.
+expenseSchema.index({ employeeId: 1, settlement: 1, status: 1 });
 
 export const Expense: Model<IExpense> =
   (mongoose.models.Expense as Model<IExpense>) ||

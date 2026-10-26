@@ -110,7 +110,7 @@ export default async function ExpensesPage({
     status: e.status,
     settlement:
       e.status === "approved" && e.settlement === "payroll"
-        ? `Payroll ${e.payrollMonth ?? ""}`.trim()
+        ? "Next payout"
         : e.status === "approved" && e.settlement === "direct"
           ? "Direct payout"
           : "",

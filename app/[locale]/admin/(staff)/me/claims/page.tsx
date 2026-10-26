@@ -75,11 +75,11 @@ export default async function MyClaimsPage({
     settlement:
       e.status === "reimbursed"
         ? e.settlement === "payroll"
-          ? `With ${e.payrollMonth ?? "payroll"}`
+          ? "With payroll"
           : "Paid directly"
         : e.status === "approved"
           ? e.settlement === "payroll"
-            ? `Due with ${e.payrollMonth ?? "payroll"}`
+            ? "With your next payout"
             : "Due directly"
           : "",
   }));

@@ -1107,7 +1107,7 @@ const payslip: TemplateDoc = {
         // percentage of revenue the first version of payroll used.
         rows: [
           {
-            label: "Gross profit for the month",
+            label: "Gross profit for the period",
             value: "{{pool.grossProfitMinor}}",
             strong: false,
             showIf: "hasShares",
@@ -1179,7 +1179,7 @@ const payslip: TemplateDoc = {
             showIf: "isFixed",
           },
           {
-            label: "Payable this month",
+            label: "Payable for the period",
             value: "{{amountMinor}}",
             strong: true,
           },

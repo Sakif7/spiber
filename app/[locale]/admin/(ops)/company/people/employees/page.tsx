@@ -15,6 +15,7 @@ import { StatusBadge } from "@/components/admin/ui/status-badge";
 import { FormPanelButton } from "@/components/admin/ui/form-panel";
 import { EmployeeForm } from "@/components/admin/hr/employee-form";
 import { mailDomain } from "@/lib/mail/config";
+import { listSchedules } from "@/lib/services/hr/pay-schedule.service";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,8 @@ type Row = {
   designation: string;
   kind: string;
   scheme: string;
+  /** Their pay schedule's name. */
+  schedule: string;
   /** "2,000 shares" / "14.29%" / "20% (legacy)" / "—". */
   holding: string;
   holdingHint: string | null;
@@ -48,10 +51,16 @@ export default async function EmployeesPage({
   setRequestLocale(locale);
 
   const month = monthOf(new Date());
-  const [employees, pool] = await Promise.all([
+  const [employees, pool, schedules] = await Promise.all([
     listEmployees({ includeInactive: true }).catch(() => []),
     getSharePool().catch(() => ({ totalShares: 0, faceValueMinor: null })),
+    listSchedules().catch(() => []),
   ]);
+  const defaultSchedule = schedules.find((s) => s.isDefault);
+  const scheduleName = (id: unknown): string =>
+    (id ? schedules.find((s) => s.id === String(id))?.name : undefined) ??
+    defaultSchedule?.name ??
+    "Monthly";
   const rows: Row[] = await Promise.all(
     employees.map(async (e) => {
       const holding =
@@ -66,6 +75,7 @@ export default async function EmployeesPage({
         designation: e.designation,
         kind: e.kind,
         scheme: SCHEME_LABEL[e.payScheme] ?? e.payScheme,
+        schedule: scheduleName(e.payScheduleId),
         holding: !holding
           ? "—"
           : "shares" in holding
@@ -107,7 +117,14 @@ export default async function EmployeesPage({
       key: "scheme",
       header: "Paid by",
       mobile: "meta",
-      cell: (r) => <span className="text-muted-foreground">{r.scheme}</span>,
+      cell: (r) => (
+        <span>
+          <span className="text-muted-foreground">{r.scheme}</span>
+          <span className="text-muted-foreground block text-xs">
+            {r.schedule}
+          </span>
+        </span>
+      ),
     },
     {
       key: "holding",
@@ -148,7 +165,13 @@ export default async function EmployeesPage({
             title="Add employee"
             description="Someone on the payroll, and how they are paid."
           >
-            <EmployeeForm mailDomain={mailDomain()} />
+            <EmployeeForm
+              mailDomain={mailDomain()}
+              schedules={schedules
+                .filter((s) => !s.isDefault)
+                .map((s) => ({ value: s.id, label: s.name }))}
+              defaultScheduleName={defaultSchedule?.name ?? "Monthly"}
+            />
           </FormPanelButton>
         }
       />

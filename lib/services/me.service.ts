@@ -15,8 +15,19 @@ import type { Lean } from "@/lib/models/_shared";
 import type { EmployeeSession } from "@/lib/auth/guard";
 import { paginate, type Paged } from "@/lib/repositories/list-query";
 import { applyPartialSearch } from "@/lib/repositories/search-filter";
-import { computeMonth } from "@/lib/services/hr/payroll.service";
-import { monthOf, monthWindow, type PayrollMonth } from "@/lib/hr/months";
+import {
+  computePeriod,
+  currentProfitPeriod,
+} from "@/lib/services/hr/payroll.service";
+import {
+  listPayouts,
+  nextPayoutFor,
+  type Payee,
+} from "@/lib/services/hr/payout.service";
+import type { IPayrollPayout } from "@/lib/models/payrollPayout";
+import type { Period } from "@/lib/hr/cycles";
+import type { ScheduleView } from "@/lib/services/hr/pay-schedule.service";
+import { monthOf, monthWindow } from "@/lib/hr/months";
 import { getMailStore } from "@/lib/mail/store";
 import { logger } from "@/lib/log";
 
@@ -235,7 +246,8 @@ export async function myClaim(
 // ───────────────────────────── pay ─────────────────────────────
 
 export type Payslip = {
-  month: PayrollMonth;
+  /** The profit period's key. */
+  month: string;
   status: "approved" | "estimate";
   line: IPayrollLine;
   /** The pool the share was taken from, for context — never other lines. */
@@ -245,8 +257,8 @@ export type Payslip = {
 };
 
 /**
- * Approved months this person was paid in, newest first, plus the open
- * month as an estimate. Only their own line is ever read out of a run.
+ * Approved profit periods this person has a line in, newest first, plus the
+ * open period as an estimate. Only their own line is ever read out of a run.
  */
 export async function myPayslips(
   session: EmployeeSession,
@@ -272,7 +284,7 @@ export async function myPayslips(
       .filter((r) => String(r.employeeId) === String(employee))
       .reduce((n, r) => n + (r.amountMinor ?? 0), 0);
     approved.push({
-      month: run.month as PayrollMonth,
+      month: run.month,
       status: "approved",
       line,
       poolShares: run.pool?.totalShares ?? null,
@@ -280,19 +292,18 @@ export async function myPayslips(
       reimbursementMinor: reimb,
     });
   }
-  // The open month: a best-effort estimate from the live figures.
+  // The open period: a best-effort estimate from the live figures.
   let estimate: Payslip | null = null;
-  const month = monthOf(new Date());
+  const month = (await currentProfitPeriod()).key;
   if (!approved.some((p) => p.month === month)) {
-    const computed = await computeMonth(month).catch(() => null);
+    const computed = await computePeriod(month).catch(() => null);
     if (computed && computed.ok) {
       const line = computed.data.lines.find(
         (l) => String(l.employeeId) === String(employee),
       );
       if (line) {
-        const reimb = computed.data.reimbursements
-          .filter((r) => String(r.employeeId) === String(employee))
-          .reduce((n, r) => n + (r.amountMinor ?? 0), 0);
+        // Claims are paid by payouts now, never with a period's share.
+        const reimb = 0;
         estimate = {
           month,
           status: "estimate",
@@ -305,6 +316,27 @@ export async function myPayslips(
     }
   }
   return { approved, estimate };
+}
+
+/** The payouts this person has been paid, newest first — never anyone else's. */
+export async function myPayouts(
+  session: EmployeeSession,
+  limit = 24,
+): Promise<Lean<IPayrollPayout>[]> {
+  const { employee } = ids(session);
+  const all = await listPayouts({ employeeId: String(employee), limit });
+  return all.filter((p) => p.status === "paid");
+}
+
+/** Their schedule's current pay period, and what it holds for them so far. */
+export async function myNextPayout(session: EmployeeSession): Promise<{
+  schedule: ScheduleView;
+  period: Period;
+  payday: string;
+  accruedMinor: number;
+  notes: string[];
+} | null> {
+  return nextPayoutFor(session.employee as unknown as Payee).catch(() => null);
 }
 
 // ───────────────────────────── the desk ─────────────────────────────

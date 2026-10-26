@@ -222,7 +222,7 @@ export const DATA_PATHS: Record<TemplateKind, DataPath[]> = {
   ],
   payslip: [
     p("month", "Month (YYYY-MM)"),
-    p("monthLabel", "Month"),
+    p("monthLabel", "Period"),
     p("employee.name", "Employee name"),
     p("employee.code", "Employee code"),
     p("employee.designation", "Designation"),
@@ -237,7 +237,7 @@ export const DATA_PATHS: Record<TemplateKind, DataPath[]> = {
     p("shares", "Shares held", "number"),
     p("poolShares", "Shares in the pool", "number"),
     p("holdingPercent", "Holding (% of the pool)", "number"),
-    p("pool.grossProfitMinor", "Gross profit for the month", "money"),
+    p("pool.grossProfitMinor", "Gross profit for the period", "money"),
     p("pool.orderCostsMinor", "Order costs", "money"),
     p("pool.expensesMinor", "Client visits", "money"),
     p("pool.aitMinor", "AIT withheld by clients", "money"),

@@ -95,17 +95,9 @@ export function RateHistory({
     }
   }
 
-  if (payScheme !== "revenue_share") {
-    return (
-      <DetailCard title="Pay">
-        <p className="text-muted-foreground text-sm">
-          {payScheme === "fixed"
-            ? "Paid a fixed monthly amount."
-            : "Not paid through payroll."}
-        </p>
-      </DetailCard>
-    );
-  }
+  // Only shareholders have a holding; how anyone else is paid is on the
+  // employee page's Pay card.
+  if (payScheme !== "revenue_share") return null;
 
   const noPool = pool.totalShares <= 0;
 

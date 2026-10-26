@@ -93,7 +93,16 @@ These are the things the owner has had to repeat. Treat them as hard rules.
   place that is decided, for the PDF and the books alike.
 - **Payments:** pluggable `PaymentProvider`; default `manual` (offline). A
   `dev` sandbox gateway exists locally. An unrecognised provider name
-  **throws** — never silently falls back. Real gateway not yet wired.
+  **throws** — never silently falls back. Real gateway not yet wired: it will
+  be **PayStation** (bought 2026-10). Its public API is hosted checkout
+  (`POST /initiate-payment`, merchantId + password in the body, integer taka,
+  unique `invoice_number` per attempt) plus `/transaction-status`; the IPN is
+  **unsigned** and success-only, so every callback is re-checked server-side
+  against `/transaction-status` before it settles anything. Collected money
+  settles to the bank (T+2), not to a wallet. Disbursement
+  (`/merchant/disbursement/{request,status}`, needs a portal key) is a
+  separate product, not publicly documented — ask PayStation before relying
+  on it. Findings: log 2026-10-26.
 - **Storage:** pluggable; **production uses local disk** (`ALLOW_LOCAL_STORAGE`,
   public under `public/uploads`, private under `PRIVATE_UPLOADS_DIR`, never
   statically served). R2 is a drop-in via env. Gated media only via
@@ -163,13 +172,34 @@ These are the things the owner has had to repeat. Treat them as hard rules.
 - **Directors are shareholders.** The company issued a fixed pool of shares
   (Settings `hr.sharePool`, 14,000 at ৳100); each director holds some
   (`employee_share_rates.shares`, append-only, effective from a month). A
-  payroll month = the sales report's **cash after AIT − fixed salaries**, split
-  by **shares ÷ shares issued** (never ÷ shares allocated — unallocated money
-  stays with the company). A loss month pays salaries and zero shares, never a
-  debt. A claim booked against a client visit therefore does reduce the pool;
-  the reimbursement itself never does. `rateBp` rows are legacy (percentage of
-  revenue) and computed the old way until `migrate-share-rates-to-shares`
-  rewrites them.
+  **profit period** = the sales report's **cash after AIT − fixed salaries
+  earned in it**, split by **shares ÷ shares issued** (never ÷ shares
+  allocated — unallocated money stays with the company). Each period stands
+  alone: one that does not clear its salaries pays zero shares, never a debt,
+  and nothing carries into the next. A claim booked against a client visit
+  therefore does reduce the pool; the reimbursement itself never does.
+  `rateBp` rows are legacy (percentage of revenue) and computed the old way
+  until `migrate-share-rates-to-shares` rewrites them.
+- **Profit split and payday are two settings** (owner's choice, 2026-10-26,
+  "complete control"). The **profit cycle** (Settings `hr.profitCycle`, one for
+  the company) cuts time into profit periods — calendar months until changed;
+  every N months / twice a month / N weeks / N days (`lib/hr/cycles.ts`). A
+  longer period pools its months (Nov −৳20k + Dec +৳1L → ৳80k split). **Pay
+  schedules** (`PaySchedule`, any number, one default; the built-in Monthly is
+  virtual until something must point at it) decide when each person is paid;
+  directors on different schedules still split the same periods. A
+  **payout** (`PayrollPayout`) pays everything earned and unpaid up to a pay
+  period's end: share lines of **approved** periods that ended by then, fixed
+  salary **by the day** (`salaryBetween`; pointer `Employee.salaryPaidThrough`,
+  cumulative rounding so any cut of a month sums to the month), and approved
+  payroll claims (`payrollPayoutId`). Every item is taken by a conditional
+  update on its source; a payout that loses a race hands back what it took and
+  is `cancelled`. Only a person's latest payout can be voided. There is no
+  "Mark paid" any more. Cycles are versions from a day and **never re-cut a
+  stored run or a paid pay period** (`cycle_locked`). Run keys: `2026-11` for
+  a month, `2026-11-01~2026-11-15` otherwise. A run without `format` (approved
+  before 2026-10-26) still holds payable salary lines and frozen claims;
+  payouts pay those too.
 - **An expense claim is a bill.** `Expense.lines` (day, category, note,
   amount) with `amountMinor` = their sum, computed by the service — every
   money path (payroll, totals, dashboard) reads only the sum. A bill is
@@ -333,10 +363,11 @@ Code at repo root, `@/* → ./*`.
 | Shared admin UI | `components/admin/ui/*` (form-shell, data-table, list kit, detail, select-field, localized-input, unsaved-changes)                                                                                                                                                                                      |
 | PDFs            | `lib/pdf/engine/*` (schema `lib/schemas/pdf-template.ts`, defaults, blocks, fixtures) · `lib/pdf/{documents,payslip}.tsx` wrappers · editor `components/admin/pdf-templates/*`                                                                                                                          |
 | Pluggable seams | `lib/payments` · `lib/storage` · `lib/video` · `lib/mailer` · `lib/travel` · `lib/chat` · `lib/fulfillment`                                                                                                                                                                                             |
+| Payroll         | periods `lib/hr/cycles.ts` · `lib/services/hr/{payroll,pay-schedule,payout}.service.ts` · pages `(ops)/company/people/{payroll,payouts}` · portal `(staff)/me/payslips`                                                                                                                                 |
 | Documents       | `lib/documents/{types,extensions,chrome,pager,render}.ts` · `lib/documents/print/*` (Chromium) · `lib/services/documents/*` · editor `components/admin/documents/*` · fonts `public/fonts/docs` · dashboard loader `lib/services/company-dashboard.service.ts`                                          |
 | i18n            | `messages/{en,bn,ja}.json`, `i18n/routing.ts` is the locale source of truth                                                                                                                                                                                                                             |
 | Tests           | `tests/*.test.ts` (vitest, serial; **gitignored** along with `e2e/`)                                                                                                                                                                                                                                    |
-| Scripts         | `scripts/*.mjs` — all dry-run by default, `--commit` to write, refuse non-local hosts without `--force-prod`                                                                                                                                                                                            |
+| Scripts         | `scripts/*.mjs` — most are dry-run by default (`--commit` to write, `--force-prod` for a non-local host); `sync-indexes`, `seed`, `create-admin`, `demo-seed*`, `dev-sandbox` write as soon as they run                                                                                                 |
 
 Useful scripts: `dev:sandbox` (ephemeral app), `create-admin`, `sync-indexes`,
 `reset-seed` (destructive, local), `migrate-*`, `qa-medtrade`, `audit-medtrade`,
@@ -374,6 +405,13 @@ tests`, `npm test`, and the browser pass above. Then `git status`.
   bare 404. Kill node, wait, confirm the directory is gone, then start —
   and probe a deep route before testing (`/api/admin/company/sales/orders/x/documents/x/1`
   must answer 401, not an HTML 404); once it took a second clean restart.
+- The first `next dev` after `rm -rf .next` can 500 every page on
+  `next/font/google queries have exactly one entry` (Noto Sans JP, Turbopack).
+  Stop it and start again — the second clean start served normally.
+- **`dev:sandbox` inherits `.env.local`**, including `EMAIL_PROVIDER=smtp`:
+  employee invites go out over real SMTP (2026-10-26 they failed auth, so
+  nothing was sent). Set `EMAIL_PROVIDER=console` in the shell for a sandbox
+  run.
 - `tests/mail-live` fails before **09:12 UTC** (15:12 Dhaka): the memory
   store's fixtures are stamped today at 09:12 UTC and sort above a message
   delivered earlier in the day. Rerun after — not a regression.
@@ -423,6 +461,10 @@ tests`, `npm test`, and the browser pass above. Then `git status`.
   and `(staff)` pages by `requireEmployee`; the root admin layout only
   requires _staff_. A new admin page tree goes under `(ops)`, never beside
   it. The proxy sends an employee on an ops URL to `/admin/me`.
+- **A sidebar that hides a page is not a guard.** Super-admin trees carry
+  their own layout calling `requireSuperAdmin` (`company/people/layout.tsx`,
+  `company/sales/layout.tsx`); until 2026-10-26 a plain admin who typed the
+  URL saw every director's pay and the sales report.
 - `templateRef` absent or `version: 0` on a document version means the built-in
   layout — never backfill it; `getTemplateForRender` is the one choke point.
 - A `bullets` block prints every item; `hideEmptyItems` is opt-in because
@@ -646,13 +688,35 @@ clip }` that makes body the sticky containing block: a menu inside a sticky
 "chromium"]`, added 2026-09-14) with `DOCS_CHROME_PATH=chromium` in the
   Coolify env; without a browser Preview PDF and File version answer 503
   `print_failed` (filed versions still open — they are vault bytes).
-- Scheduled: `/api/cron/low-stock-digest` (daily) and
-  `/api/cron/expire-payments` (every few minutes, **before** online payment is
-  enabled) with `Authorization: Bearer $CRON_SECRET`.
+- Scheduled (Coolify › Scheduled Tasks, run inside the app container):
+  `/api/cron/low-stock-digest` daily at 03:00 UTC via `curl` with
+  `Authorization: Bearer $CRON_SECRET` (runtime-only env, since 2026-10-18).
+  `/api/cron/expire-payments` is **not** scheduled yet — it must run every few
+  minutes **before** online payment is enabled.
 - Required in prod: `COMPANY_VAULT_KEY`, `SUPER_ADMIN_EMAILS`, `APP_URL`,
-  `ALLOW_LOCAL_STORAGE=true` + two persistent volumes (`public/uploads`,
-  `PRIVATE_UPLOADS_DIR`). Applied migrations are recorded in the log; check it
-  before running one again.
+  `ALLOW_LOCAL_STORAGE=true` + one persistent volume at `/data`
+  (`UPLOADS_DIR=/data/uploads`, `PRIVATE_UPLOADS_DIR=/data/private`). Applied
+  migrations are recorded in the log; check it before running one again.
+- **Every site on `TRAEFIK DEFAULT CERT`** = Traefik skipped its `letsencrypt`
+  resolver; `docker logs coolify-proxy | grep -i acme` on `spiber-vps` says
+  why. On 2026-10-17 it was `/data/coolify/proxy/acme.json` at mode 711 (must
+  be **600**) — Traefik checks the mode only at startup, so a bad chmod hides
+  until the next reboot. Fix: `chmod 600` it, `docker restart coolify-proxy`.
+  The mail server takes its cert from the same file (read-only mount), so
+  IMAP/SMTP break at the next renewal too.
+- **Prod Mongo has no public port** (closed 2026-10-18; the app uses the
+  internal hostname). Run a prod script inside the app container, which
+  supplies `MONGODB_URI` — on `spiber-vps`:
+  `docker exec -it $(docker ps -qf name=^njozkhkbcp0g0k5fut31migf) node scripts/<x>.mjs …`.
+  **Read the script first**: `sync-indexes`, `seed`, `create-admin`,
+  `demo-seed*` write as soon as they run.
+- Coolify backs up Mongo daily at 21:00 UTC and keeps 7 on the server's own
+  disk (`/data/coolify/backups/…`; a gzipped mongodump archive despite the
+  `.tar.gz` name). Nothing is off-site, and the `/data` volume (uploads +
+  vault) has no backup at all.
+- The app's Coolify healthcheck is `GET localhost:3000/api/health` (no DB).
+  Traefik stops routing to a container that fails it, so that route must stay
+  cheap and always 200.
 
 ## History
 
