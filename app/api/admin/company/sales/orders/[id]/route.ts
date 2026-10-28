@@ -27,6 +27,12 @@ import {
   generateChallan,
   sendDocument,
 } from "@/lib/services/sales-document.service";
+import {
+  cancelSalesPaymentLink,
+  ensureSalesPaymentLink,
+  payLinkUrl,
+} from "@/lib/services/payment-link.service";
+import { paymentLinkSchema } from "@/lib/schemas/payment";
 import { getSalesOrderById } from "@/lib/repositories/sales.repo";
 import { writeAudit } from "@/lib/repositories/audit.repo";
 import { guardSales, salesStatus } from "../../_guard";
@@ -368,6 +374,61 @@ export async function POST(req: Request, { params }: Params) {
         req,
       );
       return ok(res.data);
+    }
+
+    case "payment-link": {
+      const parsed = paymentLinkSchema.safeParse(body);
+      if (!parsed.success) {
+        return fail(
+          { code: "invalid_input", details: parsed.error.issues },
+          400,
+        );
+      }
+      const res = await ensureSalesPaymentLink(id, parsed.data, g.actor);
+      if (!res.ok) return fail({ code: res.code }, salesStatus(res.code));
+      if (res.created || res.sentTo) {
+        await writeAudit(
+          {
+            actorId: g.actor.sub,
+            action: res.sentTo
+              ? "salesOrder.paymentLink.email"
+              : "salesOrder.paymentLink.create",
+            entityType: "SalesOrder",
+            entityId: id,
+            after: {
+              link: String(res.link._id),
+              amountMinor: res.link.amountMinor,
+              created: res.created,
+              to: res.sentTo,
+            },
+          },
+          req,
+        );
+      }
+      return ok({
+        url: payLinkUrl(res.link.token),
+        amountMinor: res.link.amountMinor,
+        created: res.created,
+        sentTo: res.sentTo,
+      });
+    }
+
+    case "payment-link-cancel": {
+      const res = await cancelSalesPaymentLink(id, g.actor);
+      if (!res.ok) return fail({ code: res.code }, salesStatus(res.code));
+      if (res.cancelled > 0) {
+        await writeAudit(
+          {
+            actorId: g.actor.sub,
+            action: "salesOrder.paymentLink.cancel",
+            entityType: "SalesOrder",
+            entityId: id,
+            after: { cancelled: res.cancelled },
+          },
+          req,
+        );
+      }
+      return ok({ cancelled: res.cancelled });
     }
 
     default:

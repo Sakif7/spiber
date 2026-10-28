@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { collectOnlineMinorField } from "./payment";
 
 /**
  * MedicalCase — the Spiber Tourism funnel (the backbone of the division). A
@@ -108,11 +109,24 @@ export type MedicalCaseTransitionInput = z.infer<
 >;
 
 /** Case manager attaches the hospital quotation (rendered on demand, no PDF). */
-export const medicalCaseQuoteSchema = z.object({
-  amountMinor: z.number().int().nonnegative().optional(),
-  validUntil: z.coerce.date().optional(),
-  notes: z.string().max(3000).optional(),
-});
+export const medicalCaseQuoteSchema = z
+  .object({
+    amountMinor: z.number().int().nonnegative().optional(),
+    /** Offered as a pay link: the whole quote, an advance or our fee. */
+    collectOnlineMinor: collectOnlineMinorField,
+    validUntil: z.coerce.date().optional(),
+    notes: z.string().max(3000).optional(),
+  })
+  .refine(
+    (q) =>
+      q.collectOnlineMinor == null ||
+      q.amountMinor == null ||
+      q.collectOnlineMinor <= q.amountMinor,
+    {
+      message: "Can't collect more than the quotation",
+      path: ["collectOnlineMinor"],
+    },
+  );
 export type MedicalCaseQuoteInput = z.infer<typeof medicalCaseQuoteSchema>;
 
 export const medicalCaseChecklistSchema = z.object({

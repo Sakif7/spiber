@@ -1,5 +1,6 @@
 import type { IOrder } from "@/lib/models/order";
 import type { InvoiceOrder } from "@/components/commerce/invoice-sheet";
+import { isGatewayProvider } from "@/lib/schemas/order";
 
 /**
  * Serialize an order into the SAFE subset the invoice renders.
@@ -34,6 +35,11 @@ export function toInvoiceOrder(order: IOrder): InvoiceOrder {
       paidAt: order.payment?.paidAt
         ? new Date(order.payment.paidAt).toISOString()
         : null,
+      // Taken by the gateway (a credit / COD order paid online later), never
+      // by hand — so the sheet can tell the courier there is nothing to collect.
+      paidOnline:
+        order.payment?.status === "paid" &&
+        isGatewayProvider(order.payment?.provider),
     },
     shippingAddress: {
       label: order.shippingAddress.label,

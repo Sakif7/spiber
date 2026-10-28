@@ -3,6 +3,7 @@ import type {
   ChecklistKey,
   MedicalCaseStatus,
 } from "@/lib/schemas/medical-case";
+import { tourismPaymentDef, type ITourismPayment } from "./_shared";
 
 export interface IMedicalCaseDocument {
   name: string;
@@ -14,6 +15,11 @@ export interface IMedicalCaseDocument {
 
 export interface IMedicalCaseQuotation {
   amountMinor?: number | null;
+  /**
+   * What the patient may pay online now — the whole quote, an advance or only
+   * our fee (staff choose, whole taka). Null: no online payment offered.
+   */
+  collectOnlineMinor?: number | null;
   validUntil?: Date | null;
   notes?: string | null;
   sentAt?: Date | null;
@@ -43,6 +49,13 @@ export interface IMedicalCase {
   packageId?: mongoose.Types.ObjectId | string | null;
   status: MedicalCaseStatus;
   quotation?: IMedicalCaseQuotation | null;
+  /** Collected online through the quote's pay link. */
+  payment?: ITourismPayment | null;
+  /**
+   * What we pass on to the hospital out of what we collected — the case's
+   * cost in the sales report, "missing" until staff type it.
+   */
+  passedOnMinor?: number | null;
   assignedTo?: mongoose.Types.ObjectId | string | null;
   arrangementChecklist: IArrangementChecklist;
   activity: IMedicalCaseActivity[];
@@ -116,6 +129,7 @@ const medicalCaseSchema = new Schema<IMedicalCase>(
       type: new Schema<IMedicalCaseQuotation>(
         {
           amountMinor: { type: Number, default: null, min: 0 },
+          collectOnlineMinor: { type: Number, default: null, min: 0 },
           validUntil: { type: Date, default: null },
           notes: { type: String, default: null },
           sentAt: { type: Date, default: null },
@@ -124,6 +138,11 @@ const medicalCaseSchema = new Schema<IMedicalCase>(
       ),
       default: null,
     },
+    payment: {
+      type: new Schema<ITourismPayment>(tourismPaymentDef, { _id: false }),
+      default: null,
+    },
+    passedOnMinor: { type: Number, default: null, min: 0 },
     assignedTo: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -170,6 +189,8 @@ const medicalCaseSchema = new Schema<IMedicalCase>(
 
 medicalCaseSchema.index({ status: 1, createdAt: -1 });
 medicalCaseSchema.index({ assignedTo: 1, status: 1 });
+// The report and revenue: cases paid in a window.
+medicalCaseSchema.index({ "payment.status": 1, "payment.paidAt": 1 });
 
 export const MedicalCase: Model<IMedicalCase> =
   (mongoose.models.MedicalCase as Model<IMedicalCase>) ??

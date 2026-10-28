@@ -438,6 +438,11 @@
       "heading": "患者さまの声",
       "lede": "最初のお問い合わせからフォローアップまで調整された、実際の旅の記録。",
       "empty": "患者さまの声はまもなくこちらに掲載されます。"
+    },
+    "payment": {
+      "openNote": "お見積もりは今すぐオンラインでお支払いいただけます：{amount}。",
+      "payOnline": "{amount} をオンラインで支払う",
+      "paid": "{amount} をオンラインでお支払い済み — ありがとうございます。"
     }
   },
   "meta": {
@@ -2211,7 +2216,10 @@
       "expired": "このご注文のお支払い期限が過ぎたため、商品の確保を解除しました。もう一度ご注文ください。",
       "methodOnline": "オンライン決済",
       "rounding": "端数調整",
-      "paymentUnconfirmed": "まだお支払いの確認が取れていません。お支払い済みの場合は確認メールが届きます。未払いの場合はもう一度お試しください。"
+      "paymentUnconfirmed": "まだお支払いの確認が取れていません。お支払い済みの場合は確認メールが届きます。未払いの場合はもう一度お試しください。",
+      "payNow": "今すぐ支払う",
+      "payNowNote": "このご注文は今すぐオンラインでお支払いいただけます — bKash、Nagad、Rocket、Upay またはカード。",
+      "paidOnlineNoCollect": "オンラインでお支払い済み — 配達時のお支払いはありません。"
     },
     "common": {
       "from": "～から",
@@ -2302,7 +2310,9 @@
       "reference": "受付番号",
       "total": "合計",
       "goToCourse": "講座へ進む",
-      "viewCourses": "マイ講座"
+      "viewCourses": "マイ講座",
+      "pendingOnlineNote": "今すぐお支払いいただくと、すぐに受講を開始できます。",
+      "rounding": "端数調整"
     },
     "certificate": {
       "title": "修了証明書",
@@ -2381,7 +2391,9 @@
       "license": "ライセンスキー",
       "activationTitle": "有効化を処理中です",
       "activationNote": "アカウントを有効化しています。まもなくメールでご連絡いたします。",
-      "viewLibrary": "マイソフトウェア"
+      "viewLibrary": "マイソフトウェア",
+      "pendingOnlineNote": "今すぐお支払いいただくと、すぐにご利用いただけます。",
+      "rounding": "端数調整"
     },
     "custom": {
       "title": "カスタムソリューションを依頼する",
@@ -2890,6 +2902,43 @@
     "refundedNotice": "このご注文は返金済みです。本書は記録用であり、お支払いのご請求ではありません。",
     "viewInvoice": "請求書を見る",
     "rounding": "端数調整",
-    "termsOnline": "PayStation でオンライン決済(bKash、Nagad、Rocket、Upay またはカード)。"
+    "termsOnline": "PayStation でオンライン決済(bKash、Nagad、Rocket、Upay またはカード)。",
+    "termsCodPaidOnline": "オンラインでお支払い済み — 配達時の集金はありません。"
+  },
+  "payments": {
+    "payNow": "今すぐ支払う",
+    "phoneLabel": "お支払い用の携帯電話番号",
+    "phoneHint": "お支払いには PayStation が電話番号を必要とします。",
+    "noMoreTries": "これ以上オンラインでお支払いいただけません。お問い合わせください。",
+    "link": {
+      "title": "請求書 {ref}",
+      "openNote": "この請求書に対する Spiber Med へのお支払いです。",
+      "invoice": "請求書",
+      "billedTo": "請求先",
+      "invoiceTotal": "請求合計",
+      "withheld": "源泉徴収（AIT）",
+      "rounding": "端数調整",
+      "amount": "お支払い金額",
+      "paidAmount": "お支払い済み金額",
+      "paidTitle": "お支払い完了 — ありがとうございます",
+      "paidNote": "この請求書のお支払いを受領しました。",
+      "paidOn": "お支払い日",
+      "transaction": "取引番号",
+      "settledTitle": "この請求書はお支払い済みです",
+      "settledNote": "このリンクでお支払いいただくものはありません。",
+      "closedTitle": "このリンクは無効になりました",
+      "closedNote": "新しいお支払いリンクについてはお問い合わせください。",
+      "outdatedNote": "リンク送付後に請求書が変更されました。新しいリンクについてはお問い合わせください。",
+      "unavailableNote": "現在オンライン決済はご利用いただけません。後ほどお試しいただくか、お問い合わせください。",
+      "issueNote": "この請求書に適用できないお支払いが届きました。返金いたしますので、お手続きは不要です。",
+      "contact": "ご不明な点は {email} までメール、または {phone} までお電話ください。",
+      "titleCase": "医療ケース {ref}",
+      "titleTravel": "旅行リクエスト {ref}",
+      "reference": "参照番号",
+      "openNoteQuote": "このお見積もりに対する Spiber Med へのお支払いです。",
+      "paidNoteQuote": "このお見積もりのお支払いを受領しました。",
+      "outdatedNoteQuote": "リンク送付後にお見積もりが変更されました。最新のお見積もりメールのリンクをご利用いただくか、お問い合わせください。",
+      "issueNoteQuote": "このお見積もりに適用できないお支払いが届きました。返金いたしますので、お手続きは不要です。"
+    }
   }
 }

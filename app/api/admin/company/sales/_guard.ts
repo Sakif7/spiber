@@ -50,6 +50,8 @@ export function salesStatus(code: string): number {
     case "not_editable":
     case "invalid_transition":
     case "not_invoiced":
+    case "nothing_to_pay":
+    case "payment_unavailable":
       return 409;
     case "recipient_mismatch":
       return 409;

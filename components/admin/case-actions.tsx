@@ -36,6 +36,7 @@ export function CaseActions({
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [amount, setAmount] = useState("");
+  const [collect, setCollect] = useState("");
   const [validUntil, setValidUntil] = useState("");
   const [quoteNote, setQuoteNote] = useState("");
 
@@ -73,10 +74,28 @@ export function CaseActions({
     const amountMinor = amount
       ? Math.round(parseFloat(amount) * 100)
       : undefined;
+    // Whole taka: PayStation takes nothing else.
+    const collectTaka = collect.trim() ? Number(collect) : null;
+    if (
+      collectTaka != null &&
+      (!Number.isInteger(collectTaka) || collectTaka <= 0)
+    ) {
+      setError("Collect online must be a whole number of taka.");
+      return;
+    }
+    if (
+      collectTaka != null &&
+      amountMinor != null &&
+      collectTaka * 100 > amountMinor
+    ) {
+      setError("Collect online can't be more than the estimated total.");
+      return;
+    }
     const ok = await call(
       "quote",
       {
         amountMinor,
+        collectOnlineMinor: collectTaka != null ? collectTaka * 100 : undefined,
         validUntil: validUntil || undefined,
         notes: quoteNote || undefined,
       },
@@ -84,6 +103,7 @@ export function CaseActions({
     );
     if (ok) {
       setAmount("");
+      setCollect("");
       setValidUntil("");
       setQuoteNote("");
     }
@@ -130,6 +150,22 @@ export function CaseActions({
           onChange={(e) => setAmount(e.target.value)}
           placeholder="e.g. 450000"
         />
+        <Label className="text-muted-foreground text-xs">
+          Collect online now (BDT, whole taka)
+        </Label>
+        <Input
+          type="number"
+          min={1}
+          step="1"
+          inputMode="numeric"
+          value={collect}
+          onChange={(e) => setCollect(e.target.value)}
+          placeholder="Leave empty for no online payment"
+        />
+        <p className="text-muted-foreground m-0 text-xs">
+          The patient gets a Pay online link for this amount — the whole
+          quotation, an advance, or only our fee.
+        </p>
         <Label className="text-muted-foreground text-xs">Valid until</Label>
         <Input
           type="date"

@@ -50,6 +50,14 @@ export async function attemptsForSubject(
     .exec();
 }
 
+/** How many tries one pay link has started. */
+export async function countAttemptsForRequest(
+  requestId: mongoose.Types.ObjectId,
+): Promise<number> {
+  await connectToDatabase();
+  return PaymentAttempt.countDocuments({ requestId }).exec();
+}
+
 /** Record one look at the gateway (capped), plus any fields it settled. */
 export async function recordCheck(
   id: unknown,

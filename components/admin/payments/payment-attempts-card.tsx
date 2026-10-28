@@ -15,6 +15,7 @@ import {
   type PaymentIssue,
 } from "@/lib/schemas/payment";
 import { RecheckPaymentButton } from "./recheck-payment-button";
+import type { LeanAttempt } from "@/lib/repositories/payment-attempts.repo";
 
 /** One try at the gateway, as the admin sees it (plain, serializable). */
 export type AttemptRow = {
@@ -33,11 +34,31 @@ export type AttemptRow = {
 };
 
 const ISSUE_TEXT: Record<PaymentIssue, string> = {
-  late: "arrived after the order was cancelled",
-  duplicate: "the order was already paid",
+  late: "arrived after it was cancelled",
+  duplicate: "it was already paid",
   amount_mismatch: "wrong amount",
-  cancelled: "order cancelled after payment",
+  cancelled: "cancelled after payment",
 };
+
+/** The plain rows the card shows, from the stored attempts (newest first). */
+export function toAttemptRows(attempts: LeanAttempt[]): AttemptRow[] {
+  return [...attempts]
+    .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))
+    .map((a) => ({
+      id: String(a._id),
+      invoiceNumber: a.invoiceNumber,
+      createdAt: new Date(a.createdAt).toISOString(),
+      amountMinor: a.paidMinor ?? a.amountMinor,
+      status: a.status,
+      issue: a.issue ?? null,
+      mode: a.mode,
+      method: a.method ?? null,
+      trxId: a.trxId ?? null,
+      payerMobile: a.payerMobile ?? null,
+      feeMinor: a.feeMinor ?? null,
+      refundReference: a.refund?.reference ?? null,
+    }));
+}
 
 /** Same table chrome as the order's items table. */
 const TH = "text-muted-foreground h-9 px-3 font-semibold";

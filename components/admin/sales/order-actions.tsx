@@ -56,6 +56,7 @@ import {
   hasUnsavedChanges,
   saveUnsavedChanges,
 } from "@/components/admin/ui/unsaved-changes";
+import { PaymentLinkDialog, type PaymentLinkInfo } from "./payment-link-dialog";
 
 /** The three documents an order produces. */
 type DocKind = "proposal" | "invoice" | "challan";
@@ -84,6 +85,7 @@ type Dialogs =
   | { kind: "invoice" }
   | { kind: "withholding" }
   | { kind: "payment" }
+  | { kind: "link" }
   | { kind: "send"; docKind: DocKind; version: number }
   | { kind: "revert"; to: SalesOrderStatus }
   | { kind: "challan" };
@@ -107,11 +109,17 @@ export function OrderActions({
   kind = "consumables",
   equipmentSubject = "",
   equipmentTerms = null,
+  paymentLink = null,
+  paidOnline = false,
 }: {
   id: string;
   status: SalesOrderStatus;
   paymentStatus: "unpaid" | "paid";
+  /** Paid through a pay link: reversing it leaves money to return. */
+  paidOnline?: boolean;
   leadEmail: string | null;
+  /** The pay link's state, for the Payment link dialog. */
+  paymentLink?: PaymentLinkInfo | null;
   proposals: VersionRow[];
   invoices: VersionRow[];
   challans: VersionRow[];
@@ -132,6 +140,7 @@ export function OrderActions({
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [dialog, setDialog] = useState<Dialogs>({ kind: "none" });
+  const [linkOpenings, setLinkOpenings] = useState(0);
 
   // Proposal fields
   const [subject, setSubject] = useState(
@@ -395,6 +404,20 @@ export function OrderActions({
                       ? "Reverse payment"
                       : "Record payment"}
                   </DropdownMenuItem>
+                  {paymentLink &&
+                  paymentStatus === "unpaid" &&
+                  (status === "invoiced" || status === "delivered") ? (
+                    <DropdownMenuItem
+                      onSelect={() => {
+                        setLinkOpenings((n) => n + 1);
+                        setDialog({ kind: "link" });
+                      }}
+                    >
+                      {paymentLink.open
+                        ? "Payment link"
+                        : "Make a payment link"}
+                    </DropdownMenuItem>
+                  ) : null}
                 </>
               )}
 
@@ -851,6 +874,9 @@ export function OrderActions({
           {paymentStatus === "paid" ? (
             <p className="text-muted-foreground text-sm">
               This takes the order back out of the revenue figures.
+              {paidOnline
+                ? " It was paid online, so the money is then listed under Company › Online payments to be returned — reversing it here sends nothing back."
+                : null}
             </p>
           ) : (
             <div className="grid gap-3">
@@ -921,6 +947,19 @@ export function OrderActions({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Pay link */}
+      {paymentLink ? (
+        <PaymentLinkDialog
+          // A fresh dialog on every opening: the amount is asked each time.
+          key={linkOpenings}
+          orderId={id}
+          open={dialog.kind === "link"}
+          onOpenChange={(o) => !o && setDialog({ kind: "none" })}
+          leadEmail={leadEmail}
+          link={paymentLink}
+        />
+      ) : null}
 
       {/* Email a document */}
       <Dialog

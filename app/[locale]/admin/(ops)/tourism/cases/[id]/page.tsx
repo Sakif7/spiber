@@ -20,6 +20,14 @@ import {
   DetailRow,
 } from "@/components/admin/ui/detail";
 import { StatusBadge } from "@/components/admin/ui/status-badge";
+import { TourismMoneyCard } from "@/components/admin/tourism/tourism-money-card";
+import {
+  PaymentAttemptsCard,
+  toAttemptRows,
+} from "@/components/admin/payments/payment-attempts-card";
+import { openRequestFor } from "@/lib/repositories/payment-requests.repo";
+import { attemptsForSubject } from "@/lib/repositories/payment-attempts.repo";
+import { tourismLinkUrl } from "@/lib/services/tourism-payment.service";
 
 export const dynamic = "force-dynamic";
 
@@ -39,10 +47,12 @@ export default async function AdminCaseDetailPage({
     user && c.assignedTo && String(c.assignedTo) === user.sub,
   );
 
-  const [hospital, doctor, pkg] = await Promise.all([
+  const [hospital, doctor, pkg, openLink, attempts] = await Promise.all([
     c.hospitalId ? getHospitalByIdLean(String(c.hospitalId)) : null,
     c.doctorId ? getDoctorByIdLean(String(c.doctorId)) : null,
     c.packageId ? getPackageByIdLean(String(c.packageId)) : null,
+    openRequestFor("medical_case", String(c._id)).catch(() => null),
+    attemptsForSubject("medical_case", String(c._id)).catch(() => []),
   ]);
 
   return (
@@ -133,6 +143,46 @@ export default async function AdminCaseDetailPage({
             )}
           </DetailCard>
         )}
+
+        <TourismMoneyCard
+          kind="medical_case"
+          id={String(c._id)}
+          quoteMinor={c.quotation?.amountMinor ?? null}
+          collectOnlineMinor={c.quotation?.collectOnlineMinor ?? null}
+          link={
+            openLink
+              ? {
+                  url: tourismLinkUrl(openLink.token),
+                  amountMinor: openLink.amountMinor,
+                }
+              : null
+          }
+          payment={
+            c.payment?.status === "paid"
+              ? {
+                  amountMinor: c.payment.amountMinor ?? 0,
+                  paidAt: c.payment.paidAt
+                    ? new Date(c.payment.paidAt).toISOString()
+                    : null,
+                  reference: c.payment.reference ?? null,
+                }
+              : null
+          }
+          passedOnMinor={c.passedOnMinor ?? null}
+        />
+
+        {attempts.length > 0 ? (
+          <PaymentAttemptsCard
+            rows={toAttemptRows(attempts)}
+            recheckUrl={
+              attempts.some(
+                (a) => a.status === "open" || a.status === "abandoned",
+              )
+                ? `/api/admin/payments/medical_case/${String(c._id)}/recheck`
+                : null
+            }
+          />
+        ) : null}
 
         {c.activity.length > 0 && (
           <DetailCard

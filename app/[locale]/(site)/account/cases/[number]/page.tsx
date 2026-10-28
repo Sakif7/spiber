@@ -7,6 +7,8 @@ import { getSessionUser } from "@/lib/auth/current-user";
 import { listMedicalCasesByUser } from "@/lib/repositories/medicalCases.repo";
 import { formatBDT } from "@/lib/money";
 import type { Locale } from "@/i18n/routing";
+import { CtaButton } from "@/components/ui/cta-button";
+import { tourismPayView } from "@/lib/services/tourism-payment.service";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +45,10 @@ export default async function AccountCaseDetailPage({
   const mine = await listMedicalCasesByUser(user.sub).catch(() => []);
   const c = mine.find((x) => x.caseNumber === number);
   if (!c) notFound();
+  // What the quote collects online: its pay link, or that it is paid.
+  const pay = await tourismPayView("medical_case", String(c._id)).catch(
+    () => null,
+  );
 
   return (
     <>
@@ -116,6 +122,29 @@ export default async function AccountCaseDetailPage({
               </span>
             </div>
           )}
+
+          {pay?.state === "open" ? (
+            <div style={card}>
+              <span style={{ color: "var(--color-text-muted)" }}>
+                {t("payment.openNote", {
+                  amount: formatBDT(pay.amountMinor, l),
+                })}
+              </span>
+              <div>
+                <CtaButton href={pay.path}>
+                  {t("payment.payOnline", {
+                    amount: formatBDT(pay.amountMinor, l),
+                  })}
+                </CtaButton>
+              </div>
+            </div>
+          ) : pay?.state === "paid" ? (
+            <div style={card}>
+              <strong style={{ color: "var(--color-success)" }}>
+                {t("payment.paid", { amount: formatBDT(pay.amountMinor, l) })}
+              </strong>
+            </div>
+          ) : null}
 
           <div style={card}>
             <strong style={{ color: "var(--color-text-strong)" }}>

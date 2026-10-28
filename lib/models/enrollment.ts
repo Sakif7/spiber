@@ -29,6 +29,8 @@ export interface IEnrollment {
   payment: IPaymentRef;
   subtotalMinor: number;
   discountMinor: number;
+  /** Poisha dropped so the total is whole taka (0 to −99); absent before 2026-10-28. */
+  roundingMinor?: number;
   totalMinor: number;
   currency: "BDT";
   couponCode?: string;
@@ -92,6 +94,7 @@ const enrollmentSchema = new Schema<IEnrollment>(
     },
     subtotalMinor: { type: Number, required: true },
     discountMinor: { type: Number, default: 0 },
+    roundingMinor: { type: Number },
     totalMinor: { type: Number, required: true },
     currency: { type: String, default: "BDT" },
     couponCode: String,

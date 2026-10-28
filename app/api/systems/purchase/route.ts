@@ -4,6 +4,7 @@ import { buyInputSchema } from "@/lib/schemas/systems";
 import { buySoftware } from "@/lib/services/software.service";
 import { getSessionUser } from "@/lib/auth/current-user";
 import { rateLimit, clientIp } from "@/lib/auth/rate-limit";
+import { startDigitalPayment } from "@/lib/services/payment.service";
 
 export const dynamic = "force-dynamic";
 
@@ -32,9 +33,23 @@ export async function POST(req: Request) {
       result.code === "product_not_found" ? 404 : 409,
     );
   }
+  // Paid online when it can be: straight to PayStation, as checkout does.
+  // Anything that stops it (gateway off, an external app, no phone on the
+  // profile) just leaves the customer on the purchase page to pay from.
+  let redirectUrl: string | undefined;
+  if (result.purchase.status === "pending") {
+    const started = await startDigitalPayment(
+      "software",
+      result.purchase.purchaseNumber,
+      { userId: user.sub },
+      { locale: parsed.data.locale },
+    ).catch(() => null);
+    if (started?.ok) redirectUrl = started.redirectUrl;
+  }
   return ok({
     purchaseNumber: result.purchase.purchaseNumber,
     status: result.purchase.status,
     totalMinor: result.purchase.totalMinor,
+    redirectUrl,
   });
 }

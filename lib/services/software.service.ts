@@ -1,6 +1,11 @@
 import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/db/connect";
-import { type ISoftwarePurchase } from "@/lib/models/softwarePurchase";
+import {
+  SoftwarePurchase,
+  type ISoftwarePurchase,
+} from "@/lib/models/softwarePurchase";
+import { markSubjectPaymentsForRefund } from "@/lib/repositories/payment-attempts.repo";
+import { onlinePointAvailable } from "./payment-availability";
 import { getSoftwareProductByIdLean } from "@/lib/repositories/software.repo";
 import {
   getPurchaseByIdempotencyKey,
@@ -26,6 +31,7 @@ import { formatBDT } from "@/lib/money";
 import { localize } from "@/lib/schemas/localized";
 import { logger } from "@/lib/log";
 import { softwarePurchaseNumber } from "@/lib/ids";
+import { roundingFor } from "@/lib/schemas/payment";
 import {
   PURCHASE_TRANSITIONS,
   type PurchaseStatus,
@@ -42,6 +48,8 @@ export type PurchaseCoupon = {
 export type PurchaseTotals = {
   subtotalMinor: number;
   discountMinor: number;
+  /** Poisha dropped so the total is whole taka (0 to −99). */
+  roundingMinor: number;
   totalMinor: number;
 };
 
@@ -63,10 +71,13 @@ export function priceSoftware(
         : Math.round(coupon.value);
     discountMinor = Math.min(discountMinor, subtotalMinor);
   }
+  // Whole taka, like every payable total (owner's decision, 2026-10-28).
+  const roundingMinor = roundingFor(subtotalMinor - discountMinor);
   return {
     subtotalMinor,
     discountMinor,
-    totalMinor: subtotalMinor - discountMinor,
+    roundingMinor,
+    totalMinor: subtotalMinor - discountMinor + roundingMinor,
   };
 }
 
@@ -182,6 +193,7 @@ export async function buySoftware(args: {
       },
       priceMinor: totals.subtotalMinor,
       discountMinor: totals.discountMinor,
+      roundingMinor: totals.roundingMinor,
       totalMinor: totals.totalMinor,
       currency: "BDT",
       couponCode,
@@ -228,16 +240,40 @@ export async function buySoftware(args: {
       logger.warn("software fulfillment failed", e),
     );
   }
-  await sendPurchaseEmail(
-    purchase.toObject(),
-    localize(product.name, "en"),
-    free ? "paid" : "pending",
-  ).catch((e) => logger.warn("purchase email failed", e));
+  // To be paid online (our own software, gateway on): it is only a purchase
+  // once the money arrives, so no "arranged offline" email or bell now — the
+  // paid email and bell confirm it (transitionPurchase → "paid").
+  const payOnline =
+    !free &&
+    product.deliveryType !== "external" &&
+    (await onlinePointAvailable("software"));
+  if (!payOnline) {
+    await sendPurchaseEmail(
+      purchase.toObject(),
+      localize(product.name, "en"),
+      free ? "paid" : "pending",
+    ).catch((e) => logger.warn("purchase email failed", e));
+    await notifyPurchase(purchase, false);
+  }
+
+  return { ok: true, purchase: purchase.toObject() };
+}
+
+/** The team's bell: a software purchase to look at (or one just paid online). */
+async function notifyPurchase(
+  purchase: Pick<
+    ISoftwarePurchase,
+    "purchaseNumber" | "totalMinor" | "productSnapshot"
+  > & { _id?: unknown },
+  paidOnline: boolean,
+) {
   await notifyAdmins({
     type: "software.purchased",
     severity: "success",
-    title: `New software purchase ${purchase.purchaseNumber}`,
-    body: `${localize(product.name, "en")} · ${formatBDT(purchase.totalMinor)}`,
+    title: paidOnline
+      ? `New software purchase ${purchase.purchaseNumber} — paid online`
+      : `New software purchase ${purchase.purchaseNumber}`,
+    body: `${localize(purchase.productSnapshot.name, "en")} · ${formatBDT(purchase.totalMinor)}`,
     href: `/admin/software-purchases/${String(purchase._id)}`,
     entity: {
       kind: "SoftwarePurchase",
@@ -245,8 +281,6 @@ export async function buySoftware(args: {
       ref: purchase.purchaseNumber,
     },
   });
-
-  return { ok: true, purchase: purchase.toObject() };
 }
 
 // ---- Fulfillment (idempotent) ----
@@ -290,25 +324,58 @@ export type PurchaseTransitionResult =
 export async function transitionPurchase(
   purchaseId: string,
   to: PurchaseStatus,
-  opts: { note?: string } = {},
+  opts: {
+    note?: string;
+    /** Refunding money taken online: how it went back (bKash/bank ref). */
+    refundReference?: string;
+    actorId?: string | null;
+    /** Payment fields to write in the same move (the gateway's reference). */
+    payment?: Partial<Record<"provider" | "txnId", string>>;
+  } = {},
 ): Promise<PurchaseTransitionResult> {
   await connectToDatabase();
-  const purchase = await getPurchaseById(purchaseId);
-  if (!purchase) return { ok: false, code: "not_found" };
-  if (!PURCHASE_TRANSITIONS[purchase.status].includes(to)) {
+  const current = await getPurchaseById(purchaseId);
+  if (!current) return { ok: false, code: "not_found" };
+  if (!PURCHASE_TRANSITIONS[current.status].includes(to)) {
     return { ok: false, code: "invalid_transition" };
   }
 
   const now = new Date();
+  const wasPaid = current.payment.status === "paid";
+  const set: Record<string, unknown> = { status: to };
   if (to === "paid") {
-    purchase.payment.status = "paid";
-    purchase.payment.paidAt = now;
+    set["payment.status"] = "paid";
+    set["payment.paidAt"] = now;
   }
-  if (to === "refunded") purchase.payment.status = "refunded";
+  if (to === "refunded") set["payment.status"] = "refunded";
+  for (const [k, v] of Object.entries(opts.payment ?? {})) {
+    if (v) set[`payment.${k}`] = v;
+  }
+  // One conditional write on the status just read: an online payment and an
+  // admin's "Mark paid" cannot both win, and only the winner fulfils.
+  const purchase = await SoftwarePurchase.findOneAndUpdate(
+    { _id: current._id, status: current.status },
+    {
+      $set: set,
+      $push: { timeline: { status: to, at: now, note: opts.note } },
+    },
+    { returnDocument: "after" },
+  ).exec();
+  if (!purchase) return { ok: false, code: "invalid_transition" };
 
-  purchase.status = to;
-  purchase.timeline.push({ status: to, at: now, note: opts.note });
-  await purchase.save();
+  if (to === "paid" && opts.payment?.provider) {
+    await notifyPurchase(purchase, true);
+  }
+  if (to === "refunded" && wasPaid) {
+    // Money taken online goes back by hand: record how, or queue it.
+    await markSubjectPaymentsForRefund("software", String(purchase._id), {
+      reference: opts.refundReference,
+      note: opts.note,
+      actorId: opts.actorId,
+    }).catch((e) =>
+      logger.error("could not mark online payment for refund", e),
+    );
+  }
 
   if (to === "paid") {
     await runFulfillment(purchase).catch((e) =>

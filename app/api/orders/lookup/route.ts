@@ -2,7 +2,11 @@ import { z } from "zod";
 import { ok, fail } from "@/lib/http/respond";
 import { findOrderForGuest } from "@/lib/repositories/orders.repo";
 import { rateLimit, clientIp } from "@/lib/auth/rate-limit";
-import { customerPaymentState } from "@/lib/services/payment.service";
+import {
+  customerPaymentState,
+  orderDuePayable,
+} from "@/lib/services/payment.service";
+import { isGatewayProvider } from "@/lib/schemas/order";
 
 // Guest order lookup requires BOTH the (unguessable) order number and the
 // matching email — validated + rate-limited to blunt order/email enumeration.
@@ -45,8 +49,17 @@ export async function GET(req: Request) {
       paymentMethod: order.payment?.method ?? "offline",
       paymentStatus: order.payment?.status ?? "unpaid",
       dueAt: order.payment?.dueAt ?? null,
-      // Online orders still waiting for their money: whether "Pay again" is open.
-      paymentState: customerPaymentState(order),
+      // Online orders still waiting for their money: whether "Pay again" is
+      // open. Credit / COD orders still owed: whether "Pay now" is.
+      paymentState: {
+        ...customerPaymentState(order),
+        canPayNow: await orderDuePayable(order),
+      },
+      // A COD order paid online: nothing is collected at the door.
+      paidOnline:
+        order.payment?.status === "paid" &&
+        (order.payment?.method ?? "offline") === "cod" &&
+        isGatewayProvider(order.payment?.provider),
       trackingNumber: order.trackingNumber ?? null,
       createdAt: order.createdAt,
       items: order.items.map((i) => ({

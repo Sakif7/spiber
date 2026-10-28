@@ -7,17 +7,20 @@ import { bcp47 } from "@/lib/i18n/intl-locale";
 import type { Locale } from "@/i18n/routing";
 
 /**
- * An online order still waiting for its money, on the customer's own order
- * page: how long the items are held, and a fresh try at the gateway.
+ * Paying from the customer's own order page: an online order still waiting
+ * for its money (how long the items are held, and a fresh try), or — `due` —
+ * a credit / COD order still owed, which can be paid online now.
  * The signed-in session proves the order is theirs.
  */
 export function OrderPayAgain({
   orderNumber,
+  due = false,
   canPayAgain,
   holdUntil,
   attemptsLeft,
 }: {
   orderNumber: string;
+  due?: boolean;
   canPayAgain: boolean;
   holdUntil: string | null;
   attemptsLeft: number;
@@ -82,10 +85,23 @@ export function OrderPayAgain({
         padding: "var(--s-6)",
       }}
     >
-      <strong style={{ color: "var(--color-text-strong)" }}>
-        {t("titleAwaiting")}
-      </strong>
-      {canPayAgain ? (
+      {due ? (
+        <>
+          <span style={{ color: "var(--color-text-muted)" }}>
+            {t("payNowNote")}
+          </span>
+          <div>
+            <CtaButton onClick={pay}>
+              {busy ? t("payingAgain") : t("payNow")}
+            </CtaButton>
+          </div>
+        </>
+      ) : (
+        <strong style={{ color: "var(--color-text-strong)" }}>
+          {t("titleAwaiting")}
+        </strong>
+      )}
+      {due ? null : canPayAgain ? (
         <>
           {until ? (
             <span style={{ color: "var(--color-text-muted)" }}>

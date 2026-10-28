@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { CtaButton } from "@/components/ui/cta-button";
 import { useSession } from "@/components/auth/use-session";
@@ -17,6 +17,7 @@ export function SoftwareBuyButton({
   owned: boolean;
 }) {
   const t = useTranslations("systems.buy");
+  const locale = useLocale();
   const router = useRouter();
   const { user, isLoading } = useSession();
   const { open } = useAuthModal();
@@ -50,11 +51,17 @@ export function SoftwareBuyButton({
       body: JSON.stringify({
         softwareProductId: productId,
         idempotencyKey: crypto.randomUUID(),
+        locale,
       }),
     });
     const json = await res.json().catch(() => null);
     setBusy(false);
     if (res.ok && json?.ok) {
+      // Paid online: the server already handed it to PayStation.
+      if (json.data.redirectUrl) {
+        window.location.assign(json.data.redirectUrl);
+        return;
+      }
       router.push(`/digihealth/purchase/${json.data.purchaseNumber}`);
       router.refresh();
     } else {

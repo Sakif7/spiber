@@ -27,7 +27,11 @@ type LookedUpOrder = {
     canPayAgain: boolean;
     holdUntil: string | null;
     attemptsLeft: number;
+    /** A credit / COD order still owed that can be paid online now. */
+    canPayNow?: boolean;
   };
+  /** A COD order paid online: nothing is collected at the door. */
+  paidOnline?: boolean;
   /** Credit orders only: when the invoice falls due. */
   dueAt?: string | null;
   email: string;
@@ -100,7 +104,8 @@ export function OrderLookup({
     // half a minute, so the page turns to "paid" on its own.
     refetchInterval: (q) =>
       paymentHint === "pending" &&
-      q.state.data?.paymentState?.awaiting &&
+      (q.state.data?.paymentState?.awaiting ||
+        q.state.data?.paymentState?.canPayNow) &&
       q.state.dataUpdateCount < POLL_TIMES
         ? POLL_MS
         : false,
@@ -159,24 +164,30 @@ export function OrderLookup({
         hour: "2-digit",
         minute: "2-digit",
       });
+    // A credit / COD order still owed, which the customer may pay online now.
+    const owed = !awaiting && !!ps?.canPayNow;
     // What to say about the money, most specific first. The order itself
     // outranks the hint: an order that is paid is paid, however the customer
     // came back.
-    const paymentLine = awaiting
-      ? confirming
-        ? t("paymentPending")
-        : paymentHint === "pending"
-          ? t("paymentUnconfirmed")
-          : paymentHint === "cancelled"
-            ? t("paymentCancelled")
-            : paymentHint === "issue"
-              ? t("paymentIssue")
-              : t("paymentFailed")
-      : paymentHint === "issue"
-        ? t("paymentIssue")
-        : paymentHint === "paid" && order.paymentStatus === "paid"
-          ? t("paymentPaid")
-          : null;
+    const paymentLine =
+      awaiting || owed
+        ? confirming
+          ? t("paymentPending")
+          : paymentHint === "pending"
+            ? t("paymentUnconfirmed")
+            : paymentHint === "cancelled"
+              ? t("paymentCancelled")
+              : paymentHint === "issue"
+                ? t("paymentIssue")
+                : awaiting || paymentHint === "failed"
+                  ? t("paymentFailed")
+                  : null
+        : paymentHint === "issue"
+          ? t("paymentIssue")
+          : (paymentHint === "paid" || paymentHint === "pending") &&
+              order.paymentStatus === "paid"
+            ? t("paymentPaid")
+            : null;
     return (
       <div style={{ display: "grid", gap: "var(--s-4)", maxWidth: 560 }}>
         {awaiting ? (
@@ -247,10 +258,59 @@ export function OrderLookup({
             >
               {statusNote ? t(statusNote.key) : t("thankYou")}
             </p>
-            {paymentLine ? (
+            {paymentLine && !owed ? (
               <p style={{ margin: 0, color: "var(--color-text-muted)" }}>
                 {paymentLine}
               </p>
+            ) : null}
+            {owed ? (
+              <div
+                role="status"
+                style={{
+                  display: "grid",
+                  gap: "var(--s-3)",
+                  padding: "var(--s-4)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--r-lg)",
+                  background: "var(--color-surface)",
+                }}
+              >
+                {paymentLine ? (
+                  <p style={{ margin: 0, fontSize: "var(--fs-body-lg)" }}>
+                    {paymentLine}
+                  </p>
+                ) : null}
+                {!confirming ? (
+                  <>
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: "var(--fs-small)",
+                        color: "var(--color-text-muted)",
+                      }}
+                    >
+                      {t("payNowNote")}
+                    </p>
+                    <div>
+                      <CtaButton onClick={payAgain}>
+                        {paying ? t("payingAgain") : t("payNow")}
+                      </CtaButton>
+                    </div>
+                  </>
+                ) : null}
+                {payError ? (
+                  <p
+                    role="alert"
+                    style={{
+                      margin: 0,
+                      color: "var(--color-error)",
+                      fontSize: "var(--fs-small)",
+                    }}
+                  >
+                    {payError}
+                  </p>
+                ) : null}
+              </div>
             ) : null}
           </>
         )}
@@ -293,6 +353,17 @@ export function OrderLookup({
                   : order.paymentMethod === "cod"
                     ? tc("cod")
                     : tc("credit")}
+                {order.paidOnline ? (
+                  <span
+                    style={{
+                      display: "block",
+                      color: "var(--color-success)",
+                      fontSize: "var(--fs-small)",
+                    }}
+                  >
+                    {t("paidOnlineNoCollect")}
+                  </span>
+                ) : null}
               </dd>
             </>
           )}

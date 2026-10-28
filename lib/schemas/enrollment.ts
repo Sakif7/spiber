@@ -31,6 +31,8 @@ export const enrollInputSchema = z.object({
   courseId: z.string().min(1),
   couponCode: z.string().trim().max(64).optional(),
   idempotencyKey: z.string().min(8).max(128),
+  /** The learner's language, so the payment gateway sends them back to it. */
+  locale: z.enum(["en", "bn", "ja"]).optional(),
 });
 export type EnrollInput = z.infer<typeof enrollInputSchema>;
 
@@ -38,6 +40,8 @@ export type EnrollInput = z.infer<typeof enrollInputSchema>;
 export const enrollmentTransitionSchema = z.object({
   to: enrollmentStatusEnum,
   note: z.string().max(1000).optional(),
+  /** Refunding money taken online: how it went back (bKash / bank reference). */
+  refundReference: z.string().trim().max(120).optional(),
 });
 export type EnrollmentTransitionInput = z.infer<
   typeof enrollmentTransitionSchema

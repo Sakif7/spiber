@@ -254,10 +254,16 @@ export interface ISalesOrder {
   payment: {
     status: "unpaid" | "paid";
     paidAt?: Date | null;
-    method?: SalesPaymentMethod | null;
+    /** "online" = paid through a pay link (never chosen by hand). */
+    method?: SalesPaymentMethod | "online" | null;
     reference?: string | null;
     note?: string | null;
     recordedBy?: Types.ObjectId | string | null;
+    /**
+     * Paid online only: poisha dropped to make the link whole taka (0 to −99).
+     * Absent on every other payment; read it with `?? 0`.
+     */
+    roundingMinor?: number | null;
   };
   /** The current invoice number; each invoice version keeps its own. */
   invoiceNumber?: string | null;
@@ -437,6 +443,7 @@ const salesOrderSchema = new Schema<ISalesOrder>(
       reference: { type: String, default: null },
       note: { type: String, default: null },
       recordedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+      roundingMinor: { type: Number },
     },
     invoiceNumber: { type: String, default: null },
     invoicedAt: { type: Date, default: null },

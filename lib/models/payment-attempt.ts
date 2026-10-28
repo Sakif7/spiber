@@ -74,6 +74,8 @@ export interface IPaymentAttempt {
   nextCheckAt?: Date | null;
   /** Staff member who sent a payment link; null for a customer's own try. */
   createdBy?: mongoose.Types.ObjectId | null;
+  /** The pay link (`/pay/<token>`) this try was started from, if any. */
+  requestId?: mongoose.Types.ObjectId | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -142,6 +144,7 @@ const paymentAttemptSchema = new Schema<IPaymentAttempt>(
     lastCheckedAt: { type: Date, default: null },
     nextCheckAt: { type: Date, default: null },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    requestId: { type: Schema.Types.ObjectId, default: null },
   },
   { collection: "payment_attempts", timestamps: true },
 );
@@ -160,6 +163,11 @@ paymentAttemptSchema.index({ status: 1, createdAt: -1 });
 paymentAttemptSchema.index({ createdAt: -1 });
 // The report: payments settled in a window.
 paymentAttemptSchema.index({ paidAt: 1 });
+// A pay link's tries (only attempts started from a link carry one).
+paymentAttemptSchema.index(
+  { requestId: 1 },
+  { partialFilterExpression: { requestId: { $type: "objectId" } } },
+);
 
 export const PaymentAttempt: Model<IPaymentAttempt> =
   (mongoose.models.PaymentAttempt as Model<IPaymentAttempt>) ??

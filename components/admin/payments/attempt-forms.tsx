@@ -51,9 +51,10 @@ export function RecordRefundForm({
 
   return (
     <div className="grid gap-4">
+      {/* One string: split over JSX lines, the space after the amount was
+          dropped in the compiled output ("৳530to the customer"). */}
       <p className="text-muted-foreground text-sm">
-        Return {amountLabel} to the customer first (bKash, bank, or
-        PayStation&apos;s merchant panel). Recording it here moves no money.
+        {`Return ${amountLabel} to the customer first (bKash, bank, or PayStation's merchant panel). Recording it here moves no money.`}
       </p>
       <FormField
         label="Refund reference"

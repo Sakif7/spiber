@@ -8,15 +8,23 @@ import { getSessionUser } from "@/lib/auth/current-user";
 import { localize } from "@/lib/schemas/localized";
 import { formatBDT } from "@/lib/money";
 import type { Locale } from "@/i18n/routing";
+import { findUserById } from "@/lib/repositories/users.repo";
+import { digitalPayable } from "@/lib/services/payment.service";
+import { PayNowPanel } from "@/components/payments/pay-now-panel";
 
 export const dynamic = "force-dynamic";
 
 export default async function EnrollmentPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string; number: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale, number } = await params;
+  const sp = await searchParams;
+  // Set by our own return route after asking PayStation what happened.
+  const paymentHint = typeof sp.payment === "string" ? sp.payment : undefined;
   setRequestLocale(locale);
   const l = locale as Locale;
   const t = await getTranslations({ locale, namespace: "academy.enrollment" });
@@ -37,6 +45,12 @@ export default async function EnrollmentPage({
     ? flattenLessons(course.toObject())[0]?.id
     : undefined;
   const active = enrollment.status === "active";
+  const payable = await digitalPayable("enrollment", enrollment).catch(
+    () => false,
+  );
+  const profile = payable
+    ? await findUserById(user.sub).catch(() => null)
+    : null;
 
   return (
     <section style={{ paddingBlock: "clamp(64px, 9vw, 140px)" }}>
@@ -85,7 +99,11 @@ export default async function EnrollmentPage({
           }}
         >
           {courseTitle ? `${courseTitle} — ` : ""}
-          {active ? t("activeNote") : t("pendingNote")}
+          {active
+            ? t("activeNote")
+            : payable
+              ? t("pendingOnlineNote")
+              : t("pendingNote")}
         </p>
 
         <div
@@ -104,6 +122,12 @@ export default async function EnrollmentPage({
             value={enrollment.enrollmentNumber}
             mono
           />
+          {(enrollment.roundingMinor ?? 0) !== 0 ? (
+            <Row
+              label={t("rounding")}
+              value={`− ${formatBDT(-(enrollment.roundingMinor ?? 0), l)}`}
+            />
+          ) : null}
           <Row
             label={t("total")}
             value={
@@ -113,6 +137,15 @@ export default async function EnrollmentPage({
             }
           />
         </div>
+
+        {payable ? (
+          <PayNowPanel
+            kind="enrollment"
+            reference={enrollment.enrollmentNumber}
+            askPhone={!profile?.phone}
+            hint={paymentHint}
+          />
+        ) : null}
 
         <div
           style={{

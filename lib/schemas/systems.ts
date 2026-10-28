@@ -143,6 +143,8 @@ export const buyInputSchema = z.object({
   softwareProductId: z.string().min(1),
   idempotencyKey: z.string().min(8).max(128),
   couponCode: z.string().trim().max(64).optional(),
+  /** The buyer's language, so the payment gateway sends them back to it. */
+  locale: z.enum(["en", "bn", "ja"]).optional(),
 });
 export type BuyInput = z.infer<typeof buyInputSchema>;
 
@@ -150,6 +152,8 @@ export type BuyInput = z.infer<typeof buyInputSchema>;
 export const purchaseTransitionSchema = z.object({
   to: purchaseStatusEnum,
   note: z.string().max(1000).optional(),
+  /** Refunding money taken online: how it went back (bKash / bank reference). */
+  refundReference: z.string().trim().max(120).optional(),
 });
 export type PurchaseTransitionInput = z.infer<typeof purchaseTransitionSchema>;
 

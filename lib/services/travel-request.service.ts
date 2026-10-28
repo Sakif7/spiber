@@ -17,6 +17,13 @@ import { travelRequestNumber } from "@/lib/ids";
 import { getTravelProvider } from "@/lib/travel";
 import { tourismTeamRecipient } from "./tourism-notify";
 import {
+  ensureTourismLink,
+  tourismLinkUrl,
+  withdrawTourismLink,
+} from "./tourism-payment.service";
+import { markSubjectPaymentsForRefund } from "@/lib/repositories/payment-attempts.repo";
+import { addTourismActivity } from "@/lib/repositories/tourism-payments.repo";
+import {
   TRAVEL_REQUEST_TRANSITIONS,
   type TravelRequestCreateInput,
   type TravelRequestQuoteInput,
@@ -104,6 +111,7 @@ export async function transitionTravelRequest(
   if (!TRAVEL_REQUEST_TRANSITIONS[req.status].includes(to)) {
     return { ok: false, code: "invalid_transition" };
   }
+  const paidOnline = req.payment?.status === "paid";
   req.status = to;
   if (opts.note && opts.actorId) {
     req.activity.push({
@@ -113,6 +121,22 @@ export async function transitionTravelRequest(
     });
   }
   await req.save();
+  // A cancelled or closed request takes no more money: withdraw its link, and
+  // money already taken on a cancelled one waits under Needs refund.
+  if (to === "cancelled" || to === "closed") {
+    await withdrawTourismLink("travel_request", id, `request ${to}`);
+  }
+  if (to === "cancelled" && paidOnline) {
+    await markSubjectPaymentsForRefund("travel_request", id).catch((e) =>
+      logger.error("could not flag the request's online payment", e),
+    );
+    await addTourismActivity(
+      "travel_request",
+      id,
+      "Cancelled after paying online — the money is listed under Company › Online payments to be returned",
+      opts.actorId,
+    );
+  }
   return { ok: true, request: req.toObject() };
 }
 
@@ -130,6 +154,7 @@ export async function setTravelQuote(
   if (!req) return { ok: false, code: "not_found" };
   req.quote = {
     amountMinor: input.amountMinor ?? null,
+    collectOnlineMinor: input.collectOnlineMinor ?? null,
     note: input.note ?? null,
     sentAt: new Date(),
   };
@@ -142,9 +167,19 @@ export async function setTravelQuote(
     });
   }
   await req.save();
-  await sendTravelQuoteReady(req.toObject()).catch((e) =>
-    logger.warn("travel quote email failed", e),
+  // A travel request has no customer page: the email is the only way in.
+  const link = await ensureTourismLink("travel_request", id, actorId).catch(
+    (e) => {
+      logger.error("could not make the travel request's pay link", e);
+      return null;
+    },
   );
+  await sendTravelQuoteReady(
+    req.toObject(),
+    link
+      ? { amountMinor: link.amountMinor, url: tourismLinkUrl(link.token) }
+      : null,
+  ).catch((e) => logger.warn("travel quote email failed", e));
   return { ok: true, request: req.toObject() };
 }
 
@@ -223,16 +258,25 @@ async function sendTravelAck(r: ITravelRequest, locale?: string) {
   });
 }
 
-async function sendTravelQuoteReady(r: ITravelRequest) {
+async function sendTravelQuoteReady(
+  r: ITravelRequest,
+  pay: { amountMinor: number; url: string } | null,
+) {
+  const { formatBDT } = await import("@/lib/money");
   const rows: EmailDetailRow[] = [
     { label: "Reference", value: r.travelRequestNumber },
   ];
   if (r.quote?.amountMinor != null) {
-    const { formatBDT } = await import("@/lib/money");
     rows.push({
       label: "Quoted total",
       value: formatBDT(r.quote.amountMinor),
       strong: true,
+    });
+  }
+  if (pay) {
+    rows.push({
+      label: "Payable online now",
+      value: formatBDT(pay.amountMinor),
     });
   }
   const built = renderEmail({
@@ -242,8 +286,16 @@ async function sendTravelQuoteReady(r: ITravelRequest) {
     heading: `Your ${TYPE_LABEL[r.type].toLowerCase()} quote is ready`,
     paragraphs: [
       `We've prepared a quote for your request ${r.travelRequestNumber}. ${r.quote?.note ?? ""}`.trim(),
+      ...(pay
+        ? [
+            `You can pay ${formatBDT(pay.amountMinor)} online now — by bKash, Nagad, Rocket, Upay or card — to confirm it.`,
+          ]
+        : []),
     ],
     details: { title: "Quote", rows },
+    button: pay
+      ? { label: `Pay ${formatBDT(pay.amountMinor)} online`, url: pay.url }
+      : undefined,
   });
   await getMailer().send({
     to: r.contact.email,

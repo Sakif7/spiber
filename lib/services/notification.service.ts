@@ -1,4 +1,5 @@
 import { createAdminNotification } from "@/lib/repositories/notifications.repo";
+import { superAdminIds } from "@/lib/repositories/users.repo";
 import type { IAdminNotification } from "@/lib/models/notification";
 import { logger } from "@/lib/log";
 
@@ -37,4 +38,18 @@ export async function notifyUsers(
   } catch (e) {
     logger.warn(`user notification failed (${input.type})`, e);
   }
+}
+
+/**
+ * The same, for the super admins only — Sales news (a client's invoice, what
+ * they paid) must not reach every admin's bell. Never throws.
+ */
+export async function notifySuperAdmins(
+  input: AdminNotifyInput,
+): Promise<void> {
+  const ids = await superAdminIds().catch((e) => {
+    logger.warn(`could not list super admins (${input.type})`, e);
+    return [] as string[];
+  });
+  await notifyUsers(ids, input);
 }

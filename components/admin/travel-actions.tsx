@@ -31,6 +31,7 @@ export function TravelActions({
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [amount, setAmount] = useState("");
+  const [collect, setCollect] = useState("");
   const [quoteNote, setQuoteNote] = useState("");
 
   const allowed = TRANSITIONS[status] ?? [];
@@ -106,6 +107,22 @@ export function TravelActions({
           onChange={(e) => setAmount(e.target.value)}
           placeholder="e.g. 65000"
         />
+        <Label className="text-muted-foreground text-xs">
+          Collect online now (BDT, whole taka)
+        </Label>
+        <Input
+          type="number"
+          min={1}
+          step="1"
+          inputMode="numeric"
+          value={collect}
+          onChange={(e) => setCollect(e.target.value)}
+          placeholder="Leave empty for no online payment"
+        />
+        <p className="text-muted-foreground m-0 text-xs">
+          The requester gets a Pay online link in the quote email — the whole
+          quote, an advance, or only our fee.
+        </p>
         <Textarea
           value={quoteNote}
           onChange={(e) => setQuoteNote(e.target.value)}
@@ -118,13 +135,36 @@ export function TravelActions({
               const amountMinor = amount
                 ? Math.round(parseFloat(amount) * 100)
                 : undefined;
+              // Whole taka: PayStation takes nothing else.
+              const collectTaka = collect.trim() ? Number(collect) : null;
+              if (
+                collectTaka != null &&
+                (!Number.isInteger(collectTaka) || collectTaka <= 0)
+              ) {
+                setError("Collect online must be a whole number of taka.");
+                return;
+              }
+              if (
+                collectTaka != null &&
+                amountMinor != null &&
+                collectTaka * 100 > amountMinor
+              ) {
+                setError("Collect online can't be more than the quoted total.");
+                return;
+              }
               const ok = await call(
                 "quote",
-                { amountMinor, note: quoteNote || undefined },
+                {
+                  amountMinor,
+                  collectOnlineMinor:
+                    collectTaka != null ? collectTaka * 100 : undefined,
+                  note: quoteNote || undefined,
+                },
                 "quote",
               );
               if (ok) {
                 setAmount("");
+                setCollect("");
                 setQuoteNote("");
               }
             }}

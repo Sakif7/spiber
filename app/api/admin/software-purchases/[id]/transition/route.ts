@@ -18,16 +18,26 @@ export async function POST(
 
   const result = await transitionPurchase(id, parsed.data.to, {
     note: parsed.data.note,
+    refundReference: parsed.data.refundReference,
+    actorId: admin.sub,
   });
   if (!result.ok) {
     return fail({ code: result.code }, result.code === "not_found" ? 404 : 409);
   }
-  await writeAudit({
-    actorId: admin.sub,
-    action: `software_purchase.${parsed.data.to}`,
-    entityType: "SoftwarePurchase",
-    entityId: id,
-    after: { to: parsed.data.to },
-  });
+  await writeAudit(
+    {
+      actorId: admin.sub,
+      action: `software_purchase.${parsed.data.to}`,
+      entityType: "SoftwarePurchase",
+      entityId: id,
+      after: {
+        to: parsed.data.to,
+        ...(parsed.data.refundReference
+          ? { refundReference: parsed.data.refundReference }
+          : {}),
+      },
+    },
+    req,
+  );
   return ok({ status: parsed.data.to });
 }

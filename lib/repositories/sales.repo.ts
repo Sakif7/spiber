@@ -237,6 +237,49 @@ export async function updateSalesOrder(
 }
 
 /**
+ * Set the order's payment only while it is still `from` (paid / unpaid) and,
+ * when given, in one of `statuses` — with its history line in the same write.
+ *
+ * Money can now arrive two ways at once (recorded by hand, paid through a
+ * link), and only one of them may land; the other gets null back.
+ */
+export async function setSalesPaymentIf(
+  id: string,
+  from: "paid" | "unpaid",
+  payment: Record<string, unknown>,
+  activity: { authorId?: string | null; body: string },
+  statuses?: SalesOrderStatus[],
+  /** More fields the same payment settles (the withholding it proves). */
+  alsoSet: Record<string, unknown> = {},
+): Promise<Lean<ISalesOrder> | null> {
+  await connectToDatabase();
+  if (!mongoose.isValidObjectId(id)) return null;
+  return SalesOrder.findOneAndUpdate(
+    {
+      _id: id,
+      deletedAt: null,
+      "payment.status": from,
+      ...(statuses ? { status: { $in: statuses } } : {}),
+    } as Record<string, unknown>,
+    {
+      $set: { ...alsoSet, payment },
+      $push: {
+        activity: {
+          authorId: activity.authorId ? oid(activity.authorId) : null,
+          body: activity.body,
+          at: new Date(),
+          from: null,
+          to: null,
+        },
+      },
+    },
+    { returnDocument: "after" },
+  )
+    .lean<Lean<ISalesOrder>>()
+    .exec();
+}
+
+/**
  * Move the order to `to` only if it is still in `from`.
  *
  * The compare-and-set matters: invoicing reserves stock first and only then

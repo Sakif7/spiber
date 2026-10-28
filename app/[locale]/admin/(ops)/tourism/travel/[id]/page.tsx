@@ -12,6 +12,14 @@ import {
   DetailRow,
 } from "@/components/admin/ui/detail";
 import { StatusBadge } from "@/components/admin/ui/status-badge";
+import { TourismMoneyCard } from "@/components/admin/tourism/tourism-money-card";
+import {
+  PaymentAttemptsCard,
+  toAttemptRows,
+} from "@/components/admin/payments/payment-attempts-card";
+import { openRequestFor } from "@/lib/repositories/payment-requests.repo";
+import { attemptsForSubject } from "@/lib/repositories/payment-attempts.repo";
+import { tourismLinkUrl } from "@/lib/services/tourism-payment.service";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +39,10 @@ export default async function AdminTravelDetailPage({
   );
 
   const details = Object.entries(r.details ?? {});
+  const [openLink, attempts] = await Promise.all([
+    openRequestFor("travel_request", String(r._id)).catch(() => null),
+    attemptsForSubject("travel_request", String(r._id)).catch(() => []),
+  ]);
 
   return (
     <div className="space-y-4">
@@ -89,6 +101,46 @@ export default async function AdminTravelDetailPage({
             {r.quote.note && <DetailProse>{r.quote.note}</DetailProse>}
           </DetailCard>
         )}
+
+        <TourismMoneyCard
+          kind="travel_request"
+          id={String(r._id)}
+          quoteMinor={r.quote?.amountMinor ?? null}
+          collectOnlineMinor={r.quote?.collectOnlineMinor ?? null}
+          link={
+            openLink
+              ? {
+                  url: tourismLinkUrl(openLink.token),
+                  amountMinor: openLink.amountMinor,
+                }
+              : null
+          }
+          payment={
+            r.payment?.status === "paid"
+              ? {
+                  amountMinor: r.payment.amountMinor ?? 0,
+                  paidAt: r.payment.paidAt
+                    ? new Date(r.payment.paidAt).toISOString()
+                    : null,
+                  reference: r.payment.reference ?? null,
+                }
+              : null
+          }
+          passedOnMinor={r.passedOnMinor ?? null}
+        />
+
+        {attempts.length > 0 ? (
+          <PaymentAttemptsCard
+            rows={toAttemptRows(attempts)}
+            recheckUrl={
+              attempts.some(
+                (a) => a.status === "open" || a.status === "abandoned",
+              )
+                ? `/api/admin/payments/travel_request/${String(r._id)}/recheck`
+                : null
+            }
+          />
+        ) : null}
 
         {r.activity.length > 0 && (
           <DetailCard

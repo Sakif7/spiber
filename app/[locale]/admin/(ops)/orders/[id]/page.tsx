@@ -8,9 +8,10 @@ import { EditorHeader } from "@/components/admin/ui/form-shell";
 import { StatusBadge } from "@/components/admin/ui/status-badge";
 import {
   PaymentAttemptsCard,
-  type AttemptRow,
+  toAttemptRows,
 } from "@/components/admin/payments/payment-attempts-card";
 import { attemptsForSubject } from "@/lib/repositories/payment-attempts.repo";
+import { isGatewayProvider } from "@/lib/schemas/order";
 import {
   Table,
   TableBody,
@@ -143,23 +144,8 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
       attemptsForSubject("order", id).catch(() => []),
       attemptsForSubject("order_due", id).catch(() => []),
     ])
-  )
-    .flat()
-    .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
-  const attemptRows: AttemptRow[] = attempts.map((a) => ({
-    id: String(a._id),
-    invoiceNumber: a.invoiceNumber,
-    createdAt: new Date(a.createdAt).toISOString(),
-    amountMinor: a.paidMinor ?? a.amountMinor,
-    status: a.status,
-    issue: a.issue ?? null,
-    mode: a.mode,
-    method: a.method ?? null,
-    trxId: a.trxId ?? null,
-    payerMobile: a.payerMobile ?? null,
-    feeMinor: a.feeMinor ?? null,
-    refundReference: a.refund?.reference ?? null,
-  }));
+  ).flat();
+  const attemptRows = toAttemptRows(attempts);
   const awaitingOnline =
     o.status === "pending" &&
     o.payment?.method === "online" &&
@@ -168,6 +154,11 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
     awaitingOnline ||
     attempts.some((a) => a.status === "open" || a.status === "abandoned");
   const paidOnline = attempts.some((a) => a.status === "paid");
+  // Cash on delivery, but paid online since: the courier must not collect.
+  const noCollect =
+    o.payment?.method === "cod" &&
+    o.payment?.status === "paid" &&
+    isGatewayProvider(o.payment?.provider);
 
   return (
     <div className="space-y-4">
@@ -197,7 +188,18 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
           />
           <Field
             label="Method"
-            value={PAYMENT_METHOD_LABEL[o.payment?.method ?? "offline"]}
+            value={
+              noCollect ? (
+                <span className="grid justify-items-start gap-1">
+                  {PAYMENT_METHOD_LABEL.cod}
+                  <StatusBadge tone="success">
+                    Paid online — don&apos;t collect
+                  </StatusBadge>
+                </span>
+              ) : (
+                PAYMENT_METHOD_LABEL[o.payment?.method ?? "offline"]
+              )
+            }
           />
           {o.payment?.dueAt ? (
             <Field

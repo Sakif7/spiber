@@ -31,6 +31,21 @@ import {
   OrderActions,
   type VersionRow,
 } from "@/components/admin/sales/order-actions";
+import type { PaymentLinkInfo } from "@/components/admin/sales/payment-link-dialog";
+import {
+  PaymentAttemptsCard,
+  toAttemptRows,
+} from "@/components/admin/payments/payment-attempts-card";
+import { attemptsForSubject } from "@/lib/repositories/payment-attempts.repo";
+import { openRequestFor } from "@/lib/repositories/payment-requests.repo";
+import { payLinkUrl } from "@/lib/services/payment-link.service";
+import {
+  linkBasisOf,
+  salesLinkAmount,
+  withholdingOnRecord,
+} from "@/lib/sales/payment-link";
+import { onlineProvider } from "@/lib/services/payment.service";
+import { onlinePointAvailable } from "@/lib/services/payment-availability";
 
 export const dynamic = "force-dynamic";
 
@@ -129,6 +144,48 @@ export default async function SalesOrderPage({
     current(proposalRows)?.stale ? "proposal" : null,
   ].filter(Boolean) as string[];
 
+  // Paying the invoice online: the pay link, and every try made through it.
+  const [attempts, openLink, linksOn] = await Promise.all([
+    attemptsForSubject("sales_order", id).catch(() => []),
+    openRequestFor("sales_order", id).catch(() => null),
+    onlinePointAvailable("sales_link").catch(() => false),
+  ]);
+  const onRecord = withholdingOnRecord(order);
+  const full = salesLinkAmount(order, "full");
+  const less = onRecord > 0 ? salesLinkAmount(order, "less_withholding") : null;
+  const openBasis = openLink ? linkBasisOf(openLink) : null;
+  // The open link worked out again on its own basis: has the amount moved?
+  const openNow = openBasis ? salesLinkAmount(order, openBasis) : null;
+  const paymentLink: PaymentLinkInfo = {
+    available: linksOn && !!onlineProvider(),
+    totalMinor: order.totalMinor,
+    withheldMinor: onRecord,
+    full: { amountMinor: full.amountMinor, roundingMinor: full.roundingMinor },
+    less: less
+      ? { amountMinor: less.amountMinor, roundingMinor: less.roundingMinor }
+      : null,
+    open:
+      openLink && openBasis && openNow
+        ? {
+            url: payLinkUrl(openLink.token),
+            amountMinor: openLink.amountMinor,
+            basis: openBasis,
+            email: openLink.customer.email,
+            sentTo: (openLink.sentTo ?? []).map((s) => ({
+              email: s.email,
+              at: new Date(s.at).toISOString(),
+            })),
+            outdated:
+              openLink.amountMinor !== openNow.amountMinor ||
+              openLink.dueMinor !== openNow.dueMinor,
+          }
+        : null,
+  };
+  const attemptRows = toAttemptRows(attempts);
+  const canRecheck = attempts.some(
+    (a) => a.status === "open" || a.status === "abandoned",
+  );
+
   return (
     <div className="grid gap-6">
       <Link
@@ -190,6 +247,10 @@ export default async function SalesOrderPage({
               id={id}
               status={order.status}
               paymentStatus={order.payment.status}
+              paidOnline={
+                order.payment.status === "paid" &&
+                order.payment.method === "online"
+              }
               leadEmail={order.leadSnapshot.email ?? null}
               proposals={proposalRows}
               invoices={invoiceRows}
@@ -203,6 +264,7 @@ export default async function SalesOrderPage({
                 machineLinesOf(order.items),
               )}`}
               equipmentTerms={lastEquipmentTerms}
+              paymentLink={paymentLink}
             />
 
             <DetailCard title="Client">
@@ -282,6 +344,22 @@ export default async function SalesOrderPage({
                     : ""}
                 </DetailRow>
               )}
+              {(order.payment.roundingMinor ?? 0) !== 0 && (
+                <DetailRow label="Rounding">
+                  −{formatBDT(-(order.payment.roundingMinor ?? 0), "en")}
+                </DetailRow>
+              )}
+              {order.payment.status !== "paid" && paymentLink.open && (
+                <DetailRow label="Payment link">
+                  {paymentLink.open.outdated
+                    ? "Out of date — make a new one"
+                    : `Open · ${formatBDT(paymentLink.open.amountMinor, "en")}${
+                        paymentLink.open.sentTo.length > 0
+                          ? ` · sent to ${paymentLink.open.sentTo[paymentLink.open.sentTo.length - 1].email}`
+                          : ""
+                      }`}
+                </DetailRow>
+              )}
             </DetailCard>
 
             {order.activity.length > 0 && (
@@ -346,6 +424,16 @@ export default async function SalesOrderPage({
           initialAitRateBp={order.aitRateBp ?? 0}
           canEdit={canEdit}
         />
+        {attemptRows.length > 0 ? (
+          <PaymentAttemptsCard
+            rows={attemptRows}
+            recheckUrl={
+              canRecheck
+                ? `/api/admin/payments/sales_order/${id}/recheck`
+                : null
+            }
+          />
+        ) : null}
       </DetailLayout>
     </div>
   );

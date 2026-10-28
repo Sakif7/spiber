@@ -8,15 +8,23 @@ import { getSessionUser } from "@/lib/auth/current-user";
 import { localize } from "@/lib/schemas/localized";
 import { formatBDT } from "@/lib/money";
 import type { Locale } from "@/i18n/routing";
+import { findUserById } from "@/lib/repositories/users.repo";
+import { digitalPayable } from "@/lib/services/payment.service";
+import { PayNowPanel } from "@/components/payments/pay-now-panel";
 
 export const dynamic = "force-dynamic";
 
 export default async function PurchasePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string; purchaseNumber: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale, purchaseNumber } = await params;
+  const sp = await searchParams;
+  // Set by our own return route after asking PayStation what happened.
+  const paymentHint = typeof sp.payment === "string" ? sp.payment : undefined;
   setRequestLocale(locale);
   const l = locale as Locale;
   const t = await getTranslations({ locale, namespace: "systems.purchase" });
@@ -32,6 +40,11 @@ export default async function PurchasePage({
   if (!purchase || String(purchase.userId) !== user.sub) notFound();
 
   const paid = purchase.status === "paid";
+  // Our own software can be paid online; an external app stays offline.
+  const payable = await digitalPayable("software", purchase).catch(() => false);
+  const profile = payable
+    ? await findUserById(user.sub).catch(() => null)
+    : null;
   const name = localize(purchase.productSnapshot.name, l);
   const { deliveryType } = purchase.productSnapshot;
 
@@ -85,7 +98,12 @@ export default async function PurchasePage({
               margin: 0,
             }}
           >
-            {name} — {paid ? t("paidNote") : t("pendingNote")}
+            {name} —{" "}
+            {paid
+              ? t("paidNote")
+              : payable
+                ? t("pendingOnlineNote")
+                : t("pendingNote")}
           </p>
         </div>
 
@@ -100,6 +118,12 @@ export default async function PurchasePage({
           }}
         >
           <Row label={t("reference")} value={purchase.purchaseNumber} mono />
+          {(purchase.roundingMinor ?? 0) !== 0 ? (
+            <Row
+              label={t("rounding")}
+              value={`− ${formatBDT(-(purchase.roundingMinor ?? 0), l)}`}
+            />
+          ) : null}
           <Row
             label={t("total")}
             value={
@@ -107,6 +131,15 @@ export default async function PurchasePage({
             }
           />
         </div>
+
+        {payable ? (
+          <PayNowPanel
+            kind="software"
+            reference={purchase.purchaseNumber}
+            askPhone={!profile?.phone}
+            hint={paymentHint}
+          />
+        ) : null}
 
         {/* Delivery */}
         {paid && (

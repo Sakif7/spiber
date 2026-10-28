@@ -52,6 +52,16 @@ function subjectHref(kind: PaymentSubjectKind, id: string): string | null {
     case "order":
     case "order_due":
       return `/admin/orders/${id}`;
+    case "software":
+      return `/admin/software-purchases/${id}`;
+    case "enrollment":
+      return `/admin/enrollments/${id}`;
+    case "sales_order":
+      return `/admin/company/sales/orders/${id}`;
+    case "medical_case":
+      return `/admin/tourism/cases/${id}`;
+    case "travel_request":
+      return `/admin/tourism/travel/${id}`;
     default:
       return null;
   }

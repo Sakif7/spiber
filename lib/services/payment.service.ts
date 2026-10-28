@@ -13,8 +13,38 @@ import {
   type LeanAttempt,
 } from "@/lib/repositories/payment-attempts.repo";
 import { paymentProviderStatus, type PaymentProvider } from "@/lib/payments";
+import type { PaymentCustomer } from "@/lib/payments/types";
 import { feeFor } from "@/lib/payments/fees";
-import { placeOrder, transitionOrder } from "./order.service";
+import {
+  placeOrder,
+  recordOrderPayment,
+  transitionOrder,
+} from "./order.service";
+import { transitionPurchase } from "./software.service";
+import { transitionEnrollment } from "./enrollment.service";
+import { recordOnlinePayment } from "./sales-order.service";
+import { onlinePointAvailable } from "./payment-availability";
+import { SoftwarePurchase } from "@/lib/models/softwarePurchase";
+import { Enrollment } from "@/lib/models/enrollment";
+import type { IPaymentAttempt } from "@/lib/models/payment-attempt";
+import { findUserById } from "@/lib/repositories/users.repo";
+import {
+  addSalesOrderActivity,
+  getSalesOrderById,
+} from "@/lib/repositories/sales.repo";
+import {
+  getRequestById,
+  markRequestPaid,
+} from "@/lib/repositories/payment-requests.repo";
+import { linkBasisOf, withholdingOnRecord } from "@/lib/sales/payment-link";
+import {
+  addTourismActivity,
+  confirmIfQuoted,
+  loadTourismSubject,
+  recordTourismPayment,
+  type TourismKind,
+} from "@/lib/repositories/tourism-payments.repo";
+import { sendTourismReceipt } from "./tourism-payment.service";
 import {
   getPaymentSettings,
   isPaymentPointOn,
@@ -23,12 +53,14 @@ import type { CartOwner } from "@/lib/repositories/cart.repo";
 import { PAYMENT_HOLD_MINUTES, type CheckoutInput } from "@/lib/schemas/order";
 import {
   EMI_MIN_MINOR,
+  MAX_OPEN_BILL_ATTEMPTS,
   MAX_ORDER_ATTEMPTS,
   type PaymentCheckVia,
   type PaymentIssue,
   type PaymentPoint,
+  type PaymentSubjectKind,
 } from "@/lib/schemas/payment";
-import { notifyAdmins } from "./notification.service";
+import { notifyAdmins, notifySuperAdmins } from "./notification.service";
 import { siteConfig } from "@/lib/site-config";
 import { formatBDT } from "@/lib/money";
 import { makeId } from "@/lib/ids";
@@ -91,7 +123,7 @@ function localized(locale: string | null | undefined, path: string): string {
 }
 
 /** The gateway that can take money right now, or null. */
-function onlineProvider(): PaymentProvider | null {
+export function onlineProvider(): PaymentProvider | null {
   const s = paymentProviderStatus();
   return s.ok && s.provider.online && s.provider.start && s.provider.check
     ? s.provider
@@ -197,49 +229,97 @@ export async function startOrderPayment(
 
   // Whole taka: new orders are already rounded; one placed before rounding
   // existed drops its poisha here, and the attempt says so.
-  const amountMinor = claimed.totalMinor - (claimed.totalMinor % 100);
+  const amountMinor = wholeTaka(claimed.totalMinor);
   if (amountMinor <= 0) return { ok: false, reason: "not_payable" };
-  const settings = await getPaymentSettings();
-  const invoiceNumber = newInvoiceNumber();
-  const attempt = await createAttempt({
-    invoiceNumber,
-    provider: provider.name,
-    mode: provider.mode,
+  return beginAttempt({
+    provider,
     subject: {
       kind: "order",
       id: claimed._id as mongoose.Types.ObjectId,
       ref: claimed.orderNumber,
     },
     amountMinor,
-    roundingMinor:
-      amountMinor !== claimed.totalMinor
-        ? amountMinor - claimed.totalMinor
-        : undefined,
+    roundingMinor: amountMinor - claimed.totalMinor,
+    customer: orderCustomer(claimed),
+    reference: claimed.orderNumber,
+    description: orderDescription(claimed),
+    locale: opts.locale,
+  });
+}
+
+/** Drop the poisha: the gateway takes whole taka. */
+const wholeTaka = (minor: number): number => minor - (minor % 100);
+
+/** The order's buyer, as the gateway's checkout page needs them. */
+function orderCustomer(order: LeanOrder): PaymentCustomer {
+  const a = order.shippingAddress;
+  return {
+    name: a.label?.trim() || order.email.split("@")[0] || "Customer",
+    phone: a.phone,
+    email: order.email,
+    address: [a.line1, a.city, a.district].filter(Boolean).join(", "),
+  };
+}
+
+function orderDescription(order: LeanOrder): string {
+  const items = order.items.reduce((n, it) => n + it.qty, 0);
+  return `${order.storefront === "instruments" ? "Medtrade" : "Spiber Kart"} order ${order.orderNumber} · ${items} item${items === 1 ? "" : "s"}`;
+}
+
+/** Everything one try at the gateway needs, whatever it pays for. */
+export type AttemptStart = {
+  provider: PaymentProvider;
+  subject: IPaymentAttempt["subject"];
+  /** Whole taka, in poisha. */
+  amountMinor: number;
+  /** Poisha dropped when the thing itself was not whole taka (0 to −99). */
+  roundingMinor?: number;
+  customer: PaymentCustomer;
+  /** Ours, shown in the gateway's panel: the order or invoice number. */
+  reference: string;
+  description: string;
+  locale?: string | null;
+  /** The pay link it was started from. */
+  requestId?: mongoose.Types.ObjectId | null;
+};
+
+/**
+ * Open an attempt and hand it to the gateway — the one place a try starts.
+ * A refusal marks the attempt failed (there is nothing to ask about later)
+ * and answers `start_failed`.
+ */
+export async function beginAttempt(
+  s: AttemptStart,
+): Promise<StartPaymentResult> {
+  const now = new Date();
+  const settings = await getPaymentSettings();
+  const invoiceNumber = newInvoiceNumber();
+  const attempt = await createAttempt({
+    invoiceNumber,
+    provider: s.provider.name,
+    mode: s.provider.mode,
+    subject: s.subject,
+    amountMinor: s.amountMinor,
+    roundingMinor: s.roundingMinor || undefined,
     status: "open",
-    locale: opts.locale ?? null,
+    locale: s.locale ?? null,
     nextCheckAt: new Date(now.getTime() + FIRST_LOOK_MS),
+    requestId: s.requestId ?? null,
   });
 
-  const a = claimed.shippingAddress;
-  const items = claimed.items.reduce((n, it) => n + it.qty, 0);
-  const started = await provider.start!({
+  const started = await s.provider.start!({
     invoiceNumber,
-    amountMinor,
-    customer: {
-      name: a.label?.trim() || claimed.email.split("@")[0] || "Customer",
-      phone: a.phone,
-      email: claimed.email,
-      address: [a.line1, a.city, a.district].filter(Boolean).join(", "),
-    },
-    reference: claimed.orderNumber,
-    description: `${claimed.storefront === "instruments" ? "Medtrade" : "Spiber Kart"} order ${claimed.orderNumber} · ${items} item${items === 1 ? "" : "s"}`,
+    amountMinor: s.amountMinor,
+    customer: s.customer,
+    reference: s.reference,
+    description: s.description,
     callbackUrl: callbackUrl(invoiceNumber),
-    emi: settings.emi && amountMinor >= EMI_MIN_MINOR,
+    emi: settings.emi && s.amountMinor >= EMI_MIN_MINOR,
   });
 
   if (!started.ok) {
     logger.error(
-      `payment start refused for ${claimed.orderNumber} (${invoiceNumber}): ${started.reason} ${started.detail ?? ""}`,
+      `payment start refused for ${s.subject.ref} (${invoiceNumber}): ${started.reason} ${started.detail ?? ""}`,
     );
     await recordCheck(
       attempt._id,
@@ -321,8 +401,10 @@ export async function placeAndPay(
 }
 
 /**
- * "Pay again" from the order page. A guest proves the order is theirs with its
- * email, exactly like the order lookup; a signed-in owner needs nothing more.
+ * Paying from the order page: "Pay again" on an online order whose payment
+ * did not go through, or "Pay now" on a credit / COD order still owed. A
+ * guest proves the order is theirs with its email, exactly like the order
+ * lookup; a signed-in owner needs nothing more.
  */
 export async function payOrderAgain(
   orderNumber: string,
@@ -336,7 +418,74 @@ export async function payOrderAgain(
   const ownsByEmail =
     !!who.email && order.email === who.email.trim().toLowerCase();
   if (!ownsBySession && !ownsByEmail) return { ok: false, reason: "not_found" };
+  const method = order.payment.method ?? "offline";
+  if (method === "cod" || method === "credit") {
+    return startOrderDuePayment(String(order._id), { locale });
+  }
   return startOrderPayment(String(order._id), { locale });
+}
+
+/**
+ * Can this credit / COD order be paid online now? Still owed (unpaid, not
+ * cancelled or refunded), something to pay, and the door switched on.
+ *
+ * A delivered COD order is not: the courier took the cash at the door, and
+ * it is only waiting for someone to record that — paying online then would
+ * pay twice. A delivered credit order is exactly when its invoice falls due.
+ */
+export async function orderDuePayable(
+  order: Pick<LeanOrder, "status" | "payment" | "totalMinor">,
+): Promise<boolean> {
+  const method = order.payment.method ?? "offline";
+  if (method !== "cod" && method !== "credit") return false;
+  if (order.payment.status !== "unpaid") return false;
+  if (order.status === "cancelled" || order.status === "refunded") return false;
+  if (method === "cod" && order.status === "delivered") return false;
+  if (wholeTaka(order.totalMinor) <= 0) return false;
+  return onlinePointAvailable("order_due");
+}
+
+/**
+ * "Pay now" on a credit / COD order: a fresh try at the gateway for what is
+ * owed. Nothing is held, so the order is not touched until the money is
+ * confirmed — then it is recorded as paid, exactly like a payment taken by
+ * hand (`recordOrderPayment`), and the courier is told not to collect.
+ */
+export async function startOrderDuePayment(
+  orderId: string,
+  opts: { locale?: string | null } = {},
+): Promise<StartPaymentResult> {
+  if (!mongoose.isValidObjectId(orderId))
+    return { ok: false, reason: "not_found" };
+  await connectToDatabase();
+  const order = await Order.findById(orderId).lean<LeanOrder>().exec();
+  if (!order) return { ok: false, reason: "not_found" };
+  if (!(await orderDuePayable(order))) {
+    const off = !(await onlinePointAvailable("order_due"));
+    return { ok: false, reason: off ? "unavailable" : "not_payable" };
+  }
+  const provider = onlineProvider();
+  if (!provider) return { ok: false, reason: "unavailable" };
+  const prior = await attemptsForSubject("order_due", orderId);
+  if (prior.length >= MAX_OPEN_BILL_ATTEMPTS) {
+    return { ok: false, reason: "too_many_attempts" };
+  }
+  // An order placed before rounding may still carry poisha: charge the taka.
+  const amountMinor = wholeTaka(order.totalMinor);
+  return beginAttempt({
+    provider,
+    subject: {
+      kind: "order_due",
+      id: order._id as mongoose.Types.ObjectId,
+      ref: order.orderNumber,
+    },
+    amountMinor,
+    roundingMinor: amountMinor - order.totalMinor,
+    customer: orderCustomer(order),
+    reference: order.orderNumber,
+    description: orderDescription(order),
+    locale: opts.locale,
+  });
 }
 
 // ───────────────────────────── confirming a payment ─────────────────────────────
@@ -473,11 +622,66 @@ async function applyToSubject(attempt: LeanAttempt): Promise<Applied> {
   switch (attempt.subject.kind) {
     case "order":
       return applyToOrder(attempt);
+    case "order_due":
+      return applyToOrderDue(attempt);
+    case "software":
+      return applyToDigital(attempt, "software");
+    case "enrollment":
+      return applyToDigital(attempt, "enrollment");
+    case "sales_order":
+      return applyToSalesOrder(attempt);
+    case "medical_case":
+    case "travel_request":
+      return applyToTourism(attempt, attempt.subject.kind);
     default:
       // A kind whose handler is not built yet must never swallow money.
       logger.error(`no payment handler for ${attempt.subject.kind}`);
       return { ok: false, issue: "late" };
   }
+}
+
+/**
+ * A software purchase or a course: pending → paid/active, which runs the
+ * delivery (download, licence) or opens the course. Retried while it is still
+ * pending, like an order; anything else means the money came twice or late.
+ */
+async function applyToDigital(
+  attempt: LeanAttempt,
+  kind: DigitalKind,
+): Promise<Applied> {
+  const id = String(attempt.subject.id);
+  const read = () =>
+    kind === "software"
+      ? SoftwarePurchase.findById(id)
+          .select({ status: 1 })
+          .lean<{ status: string }>()
+          .exec()
+      : Enrollment.findById(id)
+          .select({ status: 1 })
+          .lean<{ status: string }>()
+          .exec();
+  const payment = {
+    provider: attempt.provider,
+    txnId: attempt.trxId ?? attempt.invoiceNumber,
+  };
+  const note = `Payment received${attempt.method ? ` · ${attempt.method}` : ""}`;
+  let current = await read();
+  for (let i = 0; i < 3 && current?.status === "pending"; i++) {
+    const moved =
+      kind === "software"
+        ? await transitionPurchase(id, "paid", { note, payment })
+        : await transitionEnrollment(id, "active", { note, payment });
+    if (moved.ok) return { ok: true };
+    current = await read();
+  }
+  if (!current) return { ok: false, issue: "late" };
+  return {
+    ok: false,
+    issue:
+      current.status === "paid" || current.status === "active"
+        ? "duplicate"
+        : "late",
+  };
 }
 
 async function applyToOrder(attempt: LeanAttempt): Promise<Applied> {
@@ -530,6 +734,189 @@ async function applyToOrder(attempt: LeanAttempt): Promise<Applied> {
   return { ok: false, issue };
 }
 
+/**
+ * A credit / COD order paid online later: recorded as paid exactly like money
+ * taken by hand — the status stays where it is, and the order, the customer's
+ * email and the invoice sheet say not to collect on delivery. One
+ * conditional write, so an admin recording cash at the same moment cannot
+ * also land.
+ */
+async function applyToOrderDue(attempt: LeanAttempt): Promise<Applied> {
+  const id = String(attempt.subject.id);
+  const trx = attempt.trxId ?? attempt.invoiceNumber;
+  const res = await recordOrderPayment(id, {
+    provider: attempt.provider,
+    txnId: trx,
+    note: "Paid online",
+    internalNote: `${attempt.provider} · ${trx}${attempt.method ? ` · ${attempt.method}` : ""} — nothing to collect on delivery`,
+  });
+  if (res.ok) {
+    const amount = formatBDT(attempt.paidMinor ?? attempt.amountMinor);
+    await notifyAdmins({
+      type: "payment.received",
+      severity: "info",
+      title: `Paid online — ${attempt.subject.ref}`,
+      // A COD parcel may already be on its way: whoever hands it over must
+      // not ask for the money again.
+      body:
+        res.order.payment.method === "cod"
+          ? `This cash-on-delivery order was paid online (${amount}). Nothing to collect on delivery.`
+          : `This credit order was paid online (${amount}); its invoice is settled.`,
+      href: `/admin/orders/${id}`,
+      entity: { kind: "Order", id, ref: attempt.subject.ref },
+    });
+    return { ok: true };
+  }
+
+  const order = await Order.findById(id).lean<LeanOrder>().exec();
+  if (!order) return { ok: false, issue: "late" };
+  const issue: PaymentIssue =
+    order.payment.status === "paid" ? "duplicate" : "late";
+  await Order.updateOne(
+    { _id: id },
+    {
+      $push: {
+        timeline: {
+          status: order.status,
+          at: new Date(),
+          internalNote: `${formatBDT(attempt.paidMinor ?? attempt.amountMinor)} arrived online (${attempt.invoiceNumber}) after this order was ${issue === "duplicate" ? "already paid" : order.status}. Not applied — refund it, then record the refund under Company › Online payments.`,
+        },
+      },
+    },
+  ).exec();
+  return { ok: false, issue };
+}
+
+/**
+ * A Sales invoice paid through its pay link: the order's payment becomes
+ * "online", with the transaction id as its reference and the rounding kept
+ * for the report. The link closes; the super admins hear of it.
+ */
+async function applyToSalesOrder(attempt: LeanAttempt): Promise<Applied> {
+  const id = String(attempt.subject.id);
+  const paid = attempt.paidMinor ?? attempt.amountMinor;
+  const trx = attempt.trxId ?? attempt.invoiceNumber;
+  const at = attempt.paidAt ? new Date(attempt.paidAt) : new Date();
+  // A full-total link that is paid proves the client kept nothing back.
+  const [request, before] = await Promise.all([
+    getRequestById(attempt.requestId),
+    getSalesOrderById(id),
+  ]);
+  const onRecord = before ? withholdingOnRecord(before) : 0;
+  const nothingWithheld =
+    !!request && linkBasisOf(request) === "full" && onRecord > 0;
+  const moved = await recordOnlinePayment(id, {
+    paidAt: at,
+    reference: trx,
+    note: `${attempt.provider} · ${attempt.invoiceNumber}${attempt.method ? ` · ${attempt.method}` : ""}`,
+    roundingMinor: attempt.roundingMinor ?? 0,
+    body: `Paid online — ${formatBDT(paid)}${attempt.method ? ` by ${attempt.method}` : ""} (transaction ${trx})${
+      nothingWithheld
+        ? `. Paid in full, so AIT withheld is now ৳0 (was ${formatBDT(onRecord)})`
+        : ""
+    }`,
+    nothingWithheld,
+  });
+
+  if (!moved) {
+    const order = await getSalesOrderById(id);
+    const issue: PaymentIssue =
+      order?.payment.status === "paid" ? "duplicate" : "late";
+    if (order) {
+      await addSalesOrderActivity(id, {
+        body: `${formatBDT(paid)} arrived online (${attempt.invoiceNumber}) after this order was ${issue === "duplicate" ? "already paid" : order.status.replace(/_/g, " ")}. Not applied — refund it, then record the refund under Company › Online payments.`,
+      });
+    }
+    return { ok: false, issue };
+  }
+
+  if (attempt.requestId) {
+    await markRequestPaid(attempt.requestId, attempt._id, at).catch((e) =>
+      logger.warn(`could not close pay link for ${attempt.invoiceNumber}`, e),
+    );
+  }
+  await notifySuperAdmins({
+    type: "payment.received",
+    severity: "info",
+    title: `Paid online — ${attempt.subject.ref}`,
+    body: `${moved.leadSnapshot.organisation} paid ${formatBDT(paid)}${attempt.method ? ` by ${attempt.method}` : ""} through the payment link.`,
+    href: `/admin/company/sales/orders/${id}`,
+    entity: { kind: "SalesOrder", id, ref: attempt.subject.ref },
+  });
+  return { ok: true };
+}
+
+/**
+ * A tourism quote paid through its link: the payment is recorded on the case
+ * or request (one conditional write — still payable, not paid already), a
+ * quoted one becomes confirmed, the link closes, the team hears of it and the
+ * patient gets a receipt.
+ */
+async function applyToTourism(
+  attempt: LeanAttempt,
+  kind: TourismKind,
+): Promise<Applied> {
+  const id = String(attempt.subject.id);
+  const paid = attempt.paidMinor ?? attempt.amountMinor;
+  const trx = attempt.trxId ?? attempt.invoiceNumber;
+  const at = attempt.paidAt ? new Date(attempt.paidAt) : new Date();
+  const applied = await recordTourismPayment(
+    kind,
+    id,
+    {
+      status: "paid",
+      paidAt: at,
+      amountMinor: paid,
+      method: "online",
+      reference: trx,
+    },
+    `Paid online — ${formatBDT(paid)}${attempt.method ? ` by ${attempt.method}` : ""} (transaction ${trx})`,
+  );
+  const s = await loadTourismSubject(kind, id);
+  if (!applied) {
+    const issue: PaymentIssue =
+      s?.payment?.status === "paid" ? "duplicate" : "late";
+    if (s) {
+      await addTourismActivity(
+        kind,
+        id,
+        `${formatBDT(paid)} arrived online (${attempt.invoiceNumber}) after this ${s.label.toLowerCase()} was ${issue === "duplicate" ? "already paid" : s.status.replace(/_/g, " ")}. Not applied — refund it, then record the refund under Company › Online payments.`,
+      );
+    }
+    return { ok: false, issue };
+  }
+
+  await confirmIfQuoted(kind, id, "Confirmed — paid online");
+  if (attempt.requestId) {
+    await markRequestPaid(attempt.requestId, attempt._id, at).catch((e) =>
+      logger.warn(`could not close pay link for ${attempt.invoiceNumber}`, e),
+    );
+  }
+  if (s) {
+    await Promise.allSettled([
+      notifyAdmins({
+        type: "payment.received",
+        severity: "info",
+        title: `Paid online — ${s.ref}`,
+        body: `${s.customer.name} paid ${formatBDT(paid)}${attempt.method ? ` by ${attempt.method}` : ""} for ${s.label.toLowerCase()} ${s.ref}.`,
+        href: s.adminHref,
+        entity: {
+          kind: kind === "medical_case" ? "MedicalCase" : "TravelRequest",
+          id,
+          ref: s.ref,
+        },
+      }),
+      sendTourismReceipt(s, paid, trx),
+    ]).then((results) => {
+      for (const r of results) {
+        if (r.status === "rejected")
+          logger.warn("tourism payment notice failed", r.reason);
+      }
+    });
+  }
+  return { ok: true };
+}
+
 const ISSUE_TEXT: Record<PaymentIssue, string> = {
   late: "arrived after it was cancelled",
   duplicate: "was already paid",
@@ -538,15 +925,25 @@ const ISSUE_TEXT: Record<PaymentIssue, string> = {
 };
 
 async function alertRefund(attempt: LeanAttempt, issue: PaymentIssue) {
-  await notifyAdmins({
+  const kind = attempt.subject.kind;
+  const id = String(attempt.subject.id);
+  // A Sales invoice is the super admins' business only.
+  const notify = kind === "sales_order" ? notifySuperAdmins : notifyAdmins;
+  await notify({
     type: "payment.needs_refund",
     severity: "warning",
     title: `Refund needed — ${attempt.subject.ref}`,
     body: `${formatBDT(attempt.paidMinor ?? attempt.amountMinor)} paid online (${attempt.invoiceNumber}) ${ISSUE_TEXT[issue]}. Return it by hand, then record the refund.`,
     href:
-      attempt.subject.kind === "order" || attempt.subject.kind === "order_due"
-        ? `/admin/orders/${String(attempt.subject.id)}`
-        : "/admin/company/payments?status=needs_refund",
+      kind === "order" || kind === "order_due"
+        ? `/admin/orders/${id}`
+        : kind === "sales_order"
+          ? `/admin/company/sales/orders/${id}`
+          : kind === "medical_case"
+            ? `/admin/tourism/cases/${id}`
+            : kind === "travel_request"
+              ? `/admin/tourism/travel/${id}`
+              : "/admin/company/payments?status=needs_refund",
     entity: {
       kind: "PaymentAttempt",
       id: String(attempt._id),
@@ -680,21 +1077,31 @@ export async function sweepPayments(
 
 // ───────────────────────────── admin ─────────────────────────────
 
-/** Re-check with PayStation: ask about every try of one order that could still be money. */
-export async function recheckOrderPayments(
-  orderId: string,
+/**
+ * Re-check with PayStation: ask about every try of one thing (an order, a
+ * purchase, an enrollment) that could still be money, and apply what it says.
+ */
+export async function recheckSubjectPayments(
+  kinds: PaymentSubjectKind[],
+  id: string,
 ): Promise<{ checked: number; results: ConfirmResult[] }> {
   const results: ConfirmResult[] = [];
-  const attempts = [
-    ...(await attemptsForSubject("order", orderId)),
-    ...(await attemptsForSubject("order_due", orderId)),
-  ];
+  const attempts = (
+    await Promise.all(kinds.map((k) => attemptsForSubject(k, id)))
+  ).flat();
   for (const a of attempts) {
     if (a.status !== "open" && a.status !== "abandoned") continue;
     const r = await confirmAttempt(a.invoiceNumber, "admin");
     results.push(r.result);
   }
   return { checked: results.length, results };
+}
+
+/** Re-check an order's tries, paid at checkout or later from the account. */
+export async function recheckOrderPayments(
+  orderId: string,
+): Promise<{ checked: number; results: ConfirmResult[] }> {
+  return recheckSubjectPayments(["order", "order_due"], orderId);
 }
 
 // ───────────────────────────── the customer's return ─────────────────────────────
@@ -733,7 +1140,21 @@ export async function returnDestination(
               ? "pending"
               : "failed";
 
-  if (attempt.subject.kind === "order") {
+  // Started from a pay link: back to the link, which shows how it went.
+  if (attempt.requestId) {
+    const request = await getRequestById(attempt.requestId);
+    if (request) {
+      const q = new URLSearchParams({ payment: state });
+      return localized(
+        attempt.locale,
+        `/pay/${encodeURIComponent(request.token)}?${q.toString()}`,
+      );
+    }
+  }
+  if (
+    attempt.subject.kind === "order" ||
+    attempt.subject.kind === "order_due"
+  ) {
     const order = await Order.findById(attempt.subject.id)
       .select({ orderNumber: 1, email: 1, storefront: 1 })
       .lean<Pick<LeanOrder, "orderNumber" | "email" | "storefront">>()
@@ -745,7 +1166,141 @@ export async function returnDestination(
       `${STOREFRONT_PATH[order.storefront]}/order/${encodeURIComponent(order.orderNumber)}?${q.toString()}`,
     );
   }
+  if (
+    attempt.subject.kind === "software" ||
+    attempt.subject.kind === "enrollment"
+  ) {
+    const q = new URLSearchParams({ payment: state });
+    return localized(
+      attempt.locale,
+      `${DIGITAL[attempt.subject.kind].path}/${encodeURIComponent(attempt.subject.ref)}?${q.toString()}`,
+    );
+  }
   return localized(attempt.locale, "/");
+}
+
+// ───────────────────────────── software and courses ─────────────────────────────
+
+type DigitalKind = "software" | "enrollment";
+
+/** Where each digital sale is paid from, and which door it sits behind. */
+const DIGITAL: Record<
+  DigitalKind,
+  { point: PaymentPoint; path: string; label: string }
+> = {
+  software: {
+    point: "software",
+    path: "/digihealth/purchase",
+    label: "Digihealth",
+  },
+  enrollment: {
+    point: "courses",
+    path: "/medacademy/enrollment",
+    label: "MedAcademy",
+  },
+};
+
+type DigitalRecord = {
+  _id: mongoose.Types.ObjectId;
+  userId: mongoose.Types.ObjectId | string;
+  email: string;
+  status: string;
+  totalMinor: number;
+  payment: { status: string };
+  /** Software only. */
+  productSnapshot?: { name: { en: string }; deliveryType: string };
+};
+
+async function loadDigital(
+  kind: DigitalKind,
+  number: string,
+): Promise<DigitalRecord | null> {
+  await connectToDatabase();
+  return kind === "software"
+    ? SoftwarePurchase.findOne({ purchaseNumber: number })
+        .lean<DigitalRecord>()
+        .exec()
+    : Enrollment.findOne({ enrollmentNumber: number })
+        .lean<DigitalRecord>()
+        .exec();
+}
+
+/** Can this purchase or enrollment be paid online right now (owner aside)? */
+export async function digitalPayable(
+  kind: DigitalKind,
+  record: Pick<DigitalRecord, "status" | "totalMinor" | "payment"> & {
+    productSnapshot?: { deliveryType: string };
+  },
+): Promise<boolean> {
+  if (record.status !== "pending" || record.payment.status === "paid")
+    return false;
+  if (record.totalMinor <= 0) return false;
+  // External apps (ZenHcare) stay offline: their money is not ours to take.
+  if (
+    kind === "software" &&
+    record.productSnapshot?.deliveryType === "external"
+  ) {
+    return false;
+  }
+  return onlinePointAvailable(DIGITAL[kind].point);
+}
+
+export type DigitalStartResult =
+  | StartPaymentResult
+  | { ok: false; reason: "phone_required" };
+
+/**
+ * Pay for one of the customer's own pending software purchases or course
+ * enrollments. PayStation needs a phone number; the profile's is used, or the
+ * one the customer types when the profile has none.
+ */
+export async function startDigitalPayment(
+  kind: DigitalKind,
+  number: string,
+  who: { userId: string },
+  opts: { phone?: string | null; locale?: string | null } = {},
+): Promise<DigitalStartResult> {
+  const record = await loadDigital(kind, number);
+  if (!record || String(record.userId) !== who.userId) {
+    return { ok: false, reason: "not_found" };
+  }
+  if (!(await digitalPayable(kind, record))) {
+    const offline = !(await onlinePointAvailable(DIGITAL[kind].point));
+    return { ok: false, reason: offline ? "unavailable" : "not_payable" };
+  }
+  const provider = onlineProvider();
+  if (!provider) return { ok: false, reason: "unavailable" };
+
+  const prior = await attemptsForSubject(kind, String(record._id));
+  if (prior.length >= MAX_OPEN_BILL_ATTEMPTS) {
+    return { ok: false, reason: "too_many_attempts" };
+  }
+
+  const user = await findUserById(who.userId).catch(() => null);
+  const phone = opts.phone?.trim() || user?.phone?.trim() || "";
+  if (!phone) return { ok: false, reason: "phone_required" };
+
+  // Whole taka; one created before rounding drops its poisha here.
+  const amountMinor = wholeTaka(record.totalMinor);
+  if (amountMinor <= 0) return { ok: false, reason: "not_payable" };
+  const what =
+    kind === "software"
+      ? (record.productSnapshot?.name.en ?? "Software")
+      : "Course enrollment";
+  return beginAttempt({
+    provider,
+    subject: { kind, id: record._id, ref: number },
+    amountMinor,
+    roundingMinor: amountMinor - record.totalMinor,
+    customer: {
+      name: user?.name?.trim() || record.email.split("@")[0] || "Customer",
+      phone,
+      email: record.email,
+    },
+    reference: number,
+    description: `${DIGITAL[kind].label}: ${what} (${number})`,
+    locale: opts.locale,
+  });
 }
 
 // ───────────────────────────── views ─────────────────────────────

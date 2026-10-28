@@ -11,6 +11,11 @@ import {
 } from "@/components/admin/ui/detail";
 import { EditorHeader } from "@/components/admin/ui/form-shell";
 import { StatusBadge } from "@/components/admin/ui/status-badge";
+import {
+  PaymentAttemptsCard,
+  toAttemptRows,
+} from "@/components/admin/payments/payment-attempts-card";
+import { attemptsForSubject } from "@/lib/repositories/payment-attempts.repo";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +30,10 @@ export default async function AdminPurchaseDetailPage({
   const doc = await getPurchaseById(id).catch(() => null);
   if (!doc) notFound();
   const p = doc.toObject();
+  const attempts = await attemptsForSubject("software", id).catch(() => []);
+  const canRecheck = attempts.some(
+    (a) => a.status === "open" || a.status === "abandoned",
+  );
 
   return (
     <div className="space-y-4">
@@ -40,6 +49,7 @@ export default async function AdminPurchaseDetailPage({
             purchaseId={String(p._id)}
             status={p.status}
             fulfillmentStatus={p.fulfillment.status}
+            paidOnline={attempts.some((a) => a.status === "paid")}
           />
         }
       >
@@ -63,6 +73,15 @@ export default async function AdminPurchaseDetailPage({
             </span>
           </DetailRow>
         </DetailCard>
+
+        {attempts.length > 0 ? (
+          <PaymentAttemptsCard
+            rows={toAttemptRows(attempts)}
+            recheckUrl={
+              canRecheck ? `/api/admin/payments/software/${id}/recheck` : null
+            }
+          />
+        ) : null}
 
         <DetailCard title="Fulfillment">
           <DetailRow label="Status">

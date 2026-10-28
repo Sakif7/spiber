@@ -3,6 +3,7 @@ import { ok, fail } from "@/lib/http/respond";
 import { parseJson } from "@/lib/http/validate";
 import { rateLimit, clientIp } from "@/lib/auth/rate-limit";
 import { getMedicalCaseByNumber } from "@/lib/repositories/medicalCases.repo";
+import { tourismPayView } from "@/lib/services/tourism-payment.service";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,10 @@ export async function POST(req: Request) {
         }
       : null,
     documentCount: c.documents?.length ?? 0,
+    // The quote's pay link (the same proof — reference + email — opens it).
+    payment: await tourismPayView("medical_case", String(c._id)).catch(
+      () => null,
+    ),
     updatedAt: c.updatedAt,
   });
 }

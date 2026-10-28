@@ -30,6 +30,8 @@ export type InvoiceOrder = {
     termsDays?: number | null;
     dueAt?: string | null;
     paidAt?: string | null;
+    /** Taken by the gateway; on a COD order, nothing is collected. */
+    paidOnline?: boolean;
   };
   shippingAddress: {
     label?: string;
@@ -95,16 +97,18 @@ export async function InvoiceSheet({
   const voided = order.status === "cancelled" || order.status === "refunded";
 
   const terms =
-    method === "cod"
-      ? t("termsCod")
-      : method === "credit"
-        ? t("termsCredit", {
-            days: order.payment.termsDays ?? 30,
-            due: order.payment.dueAt ? fmtDate(order.payment.dueAt) : "—",
-          })
-        : method === "online"
-          ? t("termsOnline")
-          : t("termsOffline");
+    method === "cod" && order.payment.paidOnline
+      ? t("termsCodPaidOnline")
+      : method === "cod"
+        ? t("termsCod")
+        : method === "credit"
+          ? t("termsCredit", {
+              days: order.payment.termsDays ?? 30,
+              due: order.payment.dueAt ? fmtDate(order.payment.dueAt) : "—",
+            })
+          : method === "online"
+            ? t("termsOnline")
+            : t("termsOffline");
 
   return (
     <>

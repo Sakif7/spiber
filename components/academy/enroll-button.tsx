@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { CtaButton } from "@/components/ui/cta-button";
 import { useSession } from "@/components/auth/use-session";
@@ -19,6 +19,7 @@ export function EnrollButton({
   firstLessonId?: string;
 }) {
   const t = useTranslations("academy.course");
+  const locale = useLocale();
   const router = useRouter();
   const { user, isLoading } = useSession();
   const { open } = useAuthModal();
@@ -58,11 +59,20 @@ export function EnrollButton({
     const res = await fetch("/api/academy/enrollment", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ courseId, idempotencyKey: crypto.randomUUID() }),
+      body: JSON.stringify({
+        courseId,
+        idempotencyKey: crypto.randomUUID(),
+        locale,
+      }),
     });
     const json = await res.json().catch(() => null);
     setBusy(false);
     if (res.ok && json?.ok) {
+      // Paid online: the server already handed it to PayStation.
+      if (json.data.redirectUrl) {
+        window.location.assign(json.data.redirectUrl);
+        return;
+      }
       router.push(`/medacademy/enrollment/${json.data.enrollmentNumber}`);
       router.refresh();
     } else {

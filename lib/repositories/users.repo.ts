@@ -72,6 +72,19 @@ export async function setAdminPrefs(
   await User.updateOne({ _id: id }, { $set: { adminPrefs: prefs } }).exec();
 }
 
+/** Every super admin who can still sign in — for news only they may see. */
+export async function superAdminIds(): Promise<string[]> {
+  await connectToDatabase();
+  const rows = await User.find({
+    roles: "super_admin",
+    disabled: { $ne: true },
+  })
+    .select("_id")
+    .lean<{ _id: mongoose.Types.ObjectId }[]>()
+    .exec();
+  return rows.map((r) => String(r._id));
+}
+
 /** Display names for a set of user ids (e.g. the admin column on the stock ledger). */
 export async function userNamesByIds(
   ids: string[],

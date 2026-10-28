@@ -29,7 +29,10 @@ import {
   outstandingReservations,
   getSalesLeadById,
   currentProductPrices,
+  setSalesPaymentIf,
 } from "@/lib/repositories/sales.repo";
+import { cancelOpenRequests } from "@/lib/repositories/payment-requests.repo";
+import { markSubjectPaymentsForRefund } from "@/lib/repositories/payment-attempts.repo";
 import {
   reserveStock,
   releaseStock,
@@ -694,6 +697,13 @@ export async function transitionOrder(
     to,
   });
 
+  // Without a live invoice there is nothing to pay: withdraw the pay link.
+  if (to !== "invoiced" && to !== "delivered") {
+    await cancelOpenRequests("sales_order", id, `order moved to ${to}`).catch(
+      (e) => logger.warn("could not withdraw the payment link", e),
+    );
+  }
+
   // The lead follows its orders forward: an invoice means the deal is won.
   if (to === "invoiced") {
     await advanceLead(String(order.leadId), "won").catch(() => null);
@@ -886,8 +896,12 @@ export async function recordPayment(
       return fail("invalid_transition");
     }
     const paidAt = input.paidAt ? new Date(input.paidAt) : new Date();
-    await updateSalesOrder(id, {
-      payment: {
+    // Only while unpaid: the client may be paying the link at this moment,
+    // and money must never be recorded twice.
+    const moved = await setSalesPaymentIf(
+      id,
+      "unpaid",
+      {
         status: "paid",
         paidAt,
         method: input.method,
@@ -895,14 +909,22 @@ export async function recordPayment(
         note: input.note || null,
         recordedBy: actor.sub,
       },
-    });
-    await addSalesOrderActivity(id, {
-      authorId: actor.sub,
-      body: `Payment recorded (${input.method}${input.reference ? ` · ${input.reference}` : ""})`,
-    });
+      {
+        authorId: actor.sub,
+        body: `Payment recorded (${input.method}${input.reference ? ` · ${input.reference}` : ""})`,
+      },
+    );
+    if (!moved) return fail("paid_order");
+    // Paid another way: the pay link must not take the money a second time.
+    await cancelOpenRequests("sales_order", id, "paid by hand").catch((e) =>
+      logger.warn("could not withdraw the payment link", e),
+    );
   } else {
-    await updateSalesOrder(id, {
-      payment: {
+    const online = order.payment.method === "online";
+    const moved = await setSalesPaymentIf(
+      id,
+      "paid",
+      {
         status: "unpaid",
         paidAt: null,
         method: null,
@@ -910,15 +932,80 @@ export async function recordPayment(
         note: input.note || null,
         recordedBy: actor.sub,
       },
-    });
-    await addSalesOrderActivity(id, {
-      authorId: actor.sub,
-      body: "Payment reversed",
-    });
+      {
+        authorId: actor.sub,
+        body: online
+          ? "Payment reversed — the money paid online is listed under Company › Online payments to be returned"
+          : "Payment reversed",
+      },
+    );
+    if (!moved) return fail("invalid_transition");
+    // Money taken online is still with us: it waits under Needs refund until
+    // someone returns it and records that.
+    if (online) {
+      await markSubjectPaymentsForRefund("sales_order", id).catch((e) =>
+        logger.error("could not flag the online payment for a refund", e),
+      );
+    }
   }
 
   const fresh = await getSalesOrderById(id);
   return fresh ? done(fresh) : fail("not_found");
+}
+
+/**
+ * Money that arrived through a pay link, applied by the gateway's
+ * confirmation. One conditional write — still unpaid, still invoiced or
+ * delivered — so a payment recorded by hand at the same moment, or a second
+ * link, can never both land; null tells the caller this money was not
+ * applied and has to go back.
+ */
+export async function recordOnlinePayment(
+  id: string,
+  input: {
+    paidAt: Date;
+    /** The gateway's transaction id. */
+    reference: string;
+    /** Gateway, our invoice number, how it was paid. */
+    note: string;
+    roundingMinor: number;
+    /** The history line. */
+    body: string;
+    /**
+     * The client paid the whole total through a full-total link, so they kept
+     * nothing back: the AIT/VDS on record becomes 0, confirmed — or the
+     * report's cash after AIT would be short by what was never withheld.
+     */
+    nothingWithheld?: boolean;
+  },
+): Promise<Lean<ISalesOrder> | null> {
+  return setSalesPaymentIf(
+    id,
+    "unpaid",
+    {
+      status: "paid",
+      paidAt: input.paidAt,
+      method: "online",
+      reference: input.reference,
+      note: input.note,
+      recordedBy: null,
+      ...(input.roundingMinor ? { roundingMinor: input.roundingMinor } : {}),
+    },
+    { body: input.body },
+    ["invoiced", "delivered"],
+    input.nothingWithheld
+      ? {
+          "withholding.aitRateBp": 0,
+          "withholding.aitMinor": 0,
+          "withholding.vdsMinor": null,
+          // Proven by the payment: a regenerated invoice must not undo it.
+          "withholding.source": "confirmed",
+          "withholding.note": "Paid in full online — nothing withheld",
+          "withholding.recordedAt": input.paidAt,
+          "withholding.recordedBy": null,
+        }
+      : {},
+  );
 }
 
 export { defaultVatRateBp, defaultTerms };

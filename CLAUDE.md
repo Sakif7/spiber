@@ -94,8 +94,9 @@ These are the things the owner has had to repeat. Treat them as hard rules.
 - **Payments:** pluggable `PaymentProvider` (`manual` | `dev` |
   `paystation`); an unrecognised name **throws** — never silently falls back.
   **PayStation is wired for shop checkout (Phase 1 of
-  `.docs/paystation-plan.md`, 2026-10-28)**; the plan's later phases
-  (software/courses, pay-by-link, tourism) are not built. Rules:
+  `.docs/paystation-plan.md`), our own Digihealth software + MedAcademy
+  courses (Phase 2), pay-by-link (Phase 3) and tourism quotes (Phase 4),
+  2026-10-28**; go-live (Phase 5) is the owner's. Rules:
   - Every try is a **`PaymentAttempt`** with its own `invoice_number`
     (PayStation refuses a reused one). A provider only `start`s and `check`s;
     **nothing a gateway sends is trusted** — the IPN and the customer's return
@@ -121,7 +122,53 @@ These are the things the owner has had to repeat. Treat them as hard rules.
     all off by default; `LIVE_PAYMENT_POINTS` says which are built, and none
     switches on without fee rates. An online order sends no email or bell
     at placement (it may be abandoned) — the "paid" email and "paid online"
-    bell are its confirmation. Production refuses `PAYSTATION_ENV=sandbox`.
+    bell are its confirmation (the same for software/courses: no
+    "arranged offline" mail when they can be paid online). Production
+    refuses `PAYSTATION_ENV=sandbox`.
+  - Software and courses (`startDigitalPayment`, `/api/payments/start`):
+    buying/enrolling goes straight to PayStation when the profile has a
+    phone; otherwise the record's page asks for one (PayStation requires
+    it). **External apps (ZenHcare) never take online payment** and stay
+    out of revenue. No stock, so no hold — up to 10 tries per record. Paid
+    own software + courses count in `revenue.repo` and the sales report
+    (rows "Digihealth software" / "MedAcademy courses", cost 0 per line,
+    fee + rounding as order costs), offline-paid ones too.
+  - **Sales invoice pay links** (`PaymentRequest`, `/pay/<token>`, no
+    sign-in; `lib/services/payment-link.service.ts`): a super admin makes,
+    copies, emails or withdraws one from the order's `…` menu. **One open
+    link per invoice** (partial unique index). With AIT/VDS on record the
+    dialog **asks every time** (owner, 2026-10-28; `basis`): the **full
+    total**, or the **total less the withholding on record**
+    (`lib/sales/payment-link.ts`); a paid full-total link sets the order's
+    AIT withheld to 0, confirmed, in the same write. Floored to taka, the
+    poisha kept as `payment.roundingMinor`. Every Pay press is a fresh attempt
+    (`requestId`); the one that settles writes `payment.method: "online"`
+    (never selectable by hand) in one conditional write and closes the link.
+    A link whose amount no longer matches the order is **outdated** and
+    takes nothing; leaving invoiced/delivered or paying by hand withdraws
+    it; recording a payment by hand now refuses an already-paid order;
+    reversing an online payment flags it `needs_refund`. Sales news goes to
+    **super admins only** (`notifySuperAdmins`), never the global bell.
+  - **Credit / COD paid later** (`order_due`): Pay now on the order page
+    (guest lookup and account) → `recordOrderPayment` with the gateway as
+    `payment.provider`, status unchanged; `isGatewayProvider()` is how the
+    admin order page, the customer's page and the invoice sheet say
+    "Paid online — don't collect". A **delivered COD** order is not
+    payable (the courier took the cash). All tries go through `beginAttempt`.
+  - **Tourism quotes** (`medical_case`, `travel_request`;
+    `lib/services/tourism-payment.service.ts`, `tourism-payments.repo.ts`):
+    staff type **Collect online** on each quote (whole taka, ≤ the quote);
+    sending the quote makes or replaces its `PaymentRequest` (none when the
+    door is off or nothing is collected). The link is in the quote email,
+    on My account › case and the case lookup (travel: email only). Paid →
+    `payment` on the record, quoted → confirmed, receipt + bell; **one
+    online payment per quote**. Lost case / cancelled request withdraws the
+    link and sends paid money to Needs refund. Books: revenue = collected,
+    cost = **Passed on** (typed on the record's Money card, "cost missing"
+    until then) + fee — row "Tourism" in the report, `revenue.repo` too.
+  - PayStation's own page offers an **EMI chooser from ৳5,000 up whatever
+    we send** (`emi=0` changes nothing, sandbox 2026-10-28) — EMI cost is
+    not in our fee table, so it must be settled with PayStation, not code.
   - Locally: `PAYMENT_PROVIDER=paystation PAYSTATION_ENV=sandbox` with the
     public test merchant (`.env.example`); test card 5123450000000008 01/39
     CVV 100, 3-D Secure emulator "Y". `dev` mimics PayStation offline.
@@ -441,14 +488,20 @@ tests`, `npm test`, and the browser pass above. Then `git status`.
   and probe a deep route before testing (`/api/admin/company/sales/orders/x/documents/x/1`
   must answer 401, not an HTML 404). A force-killed server alone can leave
   that state, and the first start on a fresh `.next` can too: a second
-  start, without deleting again, fixed it (2026-10-27).
+  start, without deleting again, fixed it (2026-10-27). So does a local
+  `next build` before `next dev` (2026-10-28: every route handler 404,
+  a POST-only route not 405) — same cure.
 - The first `next dev` after `rm -rf .next` can 500 every page on
   `next/font/google queries have exactly one entry` (Noto Sans JP, Turbopack).
-  Stop it and start again — the second clean start served normally.
+  Stop it and start again — the second clean start served normally. A
+  `next build` whose Google-font download failed ("issue requesting
+  fonts.gstatic.com") leaves the same error in the cache: `rm -rf .next`,
+  then build again.
 - **`dev:sandbox` inherits `.env.local`**, including `EMAIL_PROVIDER=smtp`:
   employee invites go out over real SMTP (2026-10-26 they failed auth, so
   nothing was sent). Set `EMAIL_PROVIDER=console` in the shell for a sandbox
-  run.
+  run — and `APP_URL=http://localhost:3000`, or pay links, mail links and
+  PayStation's return all point at the owner's :3001.
 - `tests/mail-live` fails before **09:12 UTC** (15:12 Dhaka): the memory
   store's fixtures are stamped today at 09:12 UTC and sort above a message
   delivered earlier in the day. Rerun after — not a regression.
@@ -566,6 +619,11 @@ tests`, `npm test`, and the browser pass above. Then `git status`.
   keep such helpers in `lib/`.
 - A derived `<Select>` value cannot represent a choice whose payload is still
   empty ("Someone else…" with no name yet) — hold the choice in state.
+- A JSX sentence wrapped over two lines with an entity in it
+  (`Return {amount} to the customer … PayStation&apos;s …`) rendered with
+  **no space after `{amount}`** ("৳530to"), though the source had one. Write
+  such a sentence as one template string, and read the DOM text, not the
+  source, when spacing matters.
 - **A Radix Dialog's portal mounts a render after `open` flips**, so an
   effect keyed on `open` never sees the content's elements (a `<canvas>`
   ref is still null). Size or measure from the element's ref callback, and

@@ -438,6 +438,11 @@
       "heading": "What our patients say",
       "lede": "Real journeys, coordinated from first inquiry to follow-up.",
       "empty": "Patient stories will appear here soon."
+    },
+    "payment": {
+      "openNote": "Your quotation can be paid online now: {amount}.",
+      "payOnline": "Pay {amount} online",
+      "paid": "Paid {amount} online — thank you."
     }
   },
   "meta": {
@@ -2205,7 +2210,10 @@
       "expired": "The time to pay for this order ran out and its items were released. Please order again.",
       "methodOnline": "Online payment",
       "rounding": "Rounding",
-      "paymentUnconfirmed": "We have not had confirmation of a payment yet. If you paid, a confirmation email is on its way; if not, you can try again."
+      "paymentUnconfirmed": "We have not had confirmation of a payment yet. If you paid, a confirmation email is on its way; if not, you can try again.",
+      "payNow": "Pay now",
+      "payNowNote": "You can pay this order online now — bKash, Nagad, Rocket, Upay or card.",
+      "paidOnlineNoCollect": "Paid online — nothing to pay on delivery."
     },
     "common": {
       "from": "From",
@@ -2296,7 +2304,9 @@
       "reference": "Reference",
       "total": "Total",
       "goToCourse": "Go to course",
-      "viewCourses": "My courses"
+      "viewCourses": "My courses",
+      "pendingOnlineNote": "Pay now and your course opens straight away.",
+      "rounding": "Rounding"
     },
     "certificate": {
       "title": "Certificate of Completion",
@@ -2375,7 +2385,9 @@
       "license": "License key",
       "activationTitle": "Activation in progress",
       "activationNote": "We're activating your account and will email you shortly.",
-      "viewLibrary": "My software"
+      "viewLibrary": "My software",
+      "pendingOnlineNote": "Pay now to open your access straight away.",
+      "rounding": "Rounding"
     },
     "custom": {
       "title": "Request a custom solution",
@@ -2884,6 +2896,43 @@
     "refundedNotice": "This order was refunded. This document is a record only and is not a demand for payment.",
     "viewInvoice": "View invoice",
     "rounding": "Rounding",
-    "termsOnline": "Payable online through PayStation (bKash, Nagad, Rocket, Upay or card)."
+    "termsOnline": "Payable online through PayStation (bKash, Nagad, Rocket, Upay or card).",
+    "termsCodPaidOnline": "Paid online — nothing to collect on delivery."
+  },
+  "payments": {
+    "payNow": "Pay now",
+    "phoneLabel": "Mobile number for the payment",
+    "phoneHint": "PayStation needs a phone number to take the payment.",
+    "noMoreTries": "This can't be paid online any more — please contact us.",
+    "link": {
+      "title": "Invoice {ref}",
+      "openNote": "A payment to Spiber Med for this invoice.",
+      "invoice": "Invoice",
+      "billedTo": "Billed to",
+      "invoiceTotal": "Invoice total",
+      "withheld": "Deducted at source (AIT)",
+      "rounding": "Rounding",
+      "amount": "Amount to pay",
+      "paidAmount": "Amount paid",
+      "paidTitle": "Paid — thank you",
+      "paidNote": "We have received your payment for this invoice.",
+      "paidOn": "Paid on",
+      "transaction": "Transaction",
+      "settledTitle": "This invoice is paid",
+      "settledNote": "There is nothing left to pay through this link.",
+      "closedTitle": "This link is no longer active",
+      "closedNote": "Please contact us for a new payment link.",
+      "outdatedNote": "This invoice has changed since the link was sent. Please contact us for a new link.",
+      "unavailableNote": "Online payment is not available right now. Please try again later, or contact us.",
+      "issueNote": "A payment reached us that could not be applied to this invoice. We will refund it — you don't need to do anything.",
+      "contact": "Questions? Write to {email} or call {phone}.",
+      "titleCase": "Medical case {ref}",
+      "titleTravel": "Travel request {ref}",
+      "reference": "Reference",
+      "openNoteQuote": "A payment to Spiber Med for this quote.",
+      "paidNoteQuote": "We have received your payment for this quote.",
+      "outdatedNoteQuote": "This quote has changed since the link was sent. Please use the link in your latest quote email, or contact us.",
+      "issueNoteQuote": "A payment reached us that could not be applied to this quote. We will refund it — you don't need to do anything."
+    }
   }
 }

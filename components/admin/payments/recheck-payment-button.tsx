@@ -30,12 +30,12 @@ export function RecheckPaymentButton({ url }: { url: string }) {
     const results: string[] = json.data.results ?? [];
     toast.success(
       results.includes("paid")
-        ? "PayStation confirmed a payment; the order is updated."
+        ? "PayStation confirmed a payment; this page is updated."
         : results.includes("needs_refund")
           ? "A payment arrived that cannot be applied; it is listed for a refund."
           : results.length === 0
             ? "Nothing left to check."
-            : "PayStation has no payment for this order yet.",
+            : "PayStation has no payment for this yet.",
     );
     router.refresh();
   }

@@ -3,9 +3,12 @@ import type {
   TravelRequestStatus,
   TravelRequestType,
 } from "@/lib/schemas/travel-request";
+import { tourismPaymentDef, type ITourismPayment } from "./_shared";
 
 export interface ITravelRequestQuote {
   amountMinor?: number | null;
+  /** What the traveller may pay online now (staff choose, whole taka). */
+  collectOnlineMinor?: number | null;
   note?: string | null;
   sentAt?: Date | null;
 }
@@ -25,6 +28,10 @@ export interface ITravelRequest {
   provider: string;
   status: TravelRequestStatus;
   quote?: ITravelRequestQuote | null;
+  /** Collected online through the quote's pay link. */
+  payment?: ITourismPayment | null;
+  /** Passed on to the airline / hotel / embassy: the cost in the report. */
+  passedOnMinor?: number | null;
   assignedTo?: mongoose.Types.ObjectId | string | null;
   activity: ITravelRequestActivity[];
   deletedAt?: Date | null;
@@ -64,6 +71,7 @@ const travelRequestSchema = new Schema<ITravelRequest>(
       type: new Schema<ITravelRequestQuote>(
         {
           amountMinor: { type: Number, default: null, min: 0 },
+          collectOnlineMinor: { type: Number, default: null, min: 0 },
           note: { type: String, default: null },
           sentAt: { type: Date, default: null },
         },
@@ -71,6 +79,11 @@ const travelRequestSchema = new Schema<ITravelRequest>(
       ),
       default: null,
     },
+    payment: {
+      type: new Schema<ITourismPayment>(tourismPaymentDef, { _id: false }),
+      default: null,
+    },
+    passedOnMinor: { type: Number, default: null, min: 0 },
     assignedTo: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -97,6 +110,8 @@ const travelRequestSchema = new Schema<ITravelRequest>(
 
 travelRequestSchema.index({ status: 1, createdAt: -1 });
 travelRequestSchema.index({ type: 1, status: 1, createdAt: -1 });
+// The report and revenue: requests paid in a window.
+travelRequestSchema.index({ "payment.status": 1, "payment.paidAt": 1 });
 
 export const TravelRequest: Model<ITravelRequest> =
   (mongoose.models.TravelRequest as Model<ITravelRequest>) ??

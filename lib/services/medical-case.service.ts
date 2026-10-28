@@ -18,6 +18,13 @@ import { logger } from "@/lib/log";
 import { medicalCaseNumber } from "@/lib/ids";
 import { tourismTeamRecipient } from "./tourism-notify";
 import {
+  ensureTourismLink,
+  tourismLinkUrl,
+  withdrawTourismLink,
+} from "./tourism-payment.service";
+import { markSubjectPaymentsForRefund } from "@/lib/repositories/payment-attempts.repo";
+import { addTourismActivity } from "@/lib/repositories/tourism-payments.repo";
+import {
   MEDICAL_CASE_TRANSITIONS,
   type ChecklistKey,
   type MedicalCaseCreateInput,
@@ -108,6 +115,7 @@ export async function transitionMedicalCase(
   if (!MEDICAL_CASE_TRANSITIONS[medicalCase.status].includes(to)) {
     return { ok: false, code: "invalid_transition" };
   }
+  const paidOnline = medicalCase.payment?.status === "paid";
   medicalCase.status = to;
   if (opts.note && opts.actorId) {
     medicalCase.activity.push({
@@ -117,6 +125,22 @@ export async function transitionMedicalCase(
     });
   }
   await medicalCase.save();
+  // A lost or closed case takes no more money: withdraw its link, and money
+  // already taken on a lost case waits under Needs refund.
+  if (to === "lost" || to === "closed") {
+    await withdrawTourismLink("medical_case", id, `case ${to}`);
+  }
+  if (to === "lost" && paidOnline) {
+    await markSubjectPaymentsForRefund("medical_case", id).catch((e) =>
+      logger.error("could not flag the case's online payment", e),
+    );
+    await addTourismActivity(
+      "medical_case",
+      id,
+      "Marked lost after paying online — the money is listed under Company › Online payments to be returned",
+      opts.actorId,
+    );
+  }
   return { ok: true, case: medicalCase.toObject() };
 }
 
@@ -127,7 +151,8 @@ export type SetCaseQuotationResult =
 /**
  * Case manager attaches the hospital quotation (amount/validity/notes — rendered
  * on demand as a printable view, no stored PDF). Entering a quote on a case in
- * `reviewing` advances it to `quoted` and emails the patient.
+ * `new` or `reviewing` advances it to `quoted` and emails the patient — with
+ * a Pay online button when the quote collects something online.
  */
 export async function setCaseQuotation(
   id: string,
@@ -140,11 +165,16 @@ export async function setCaseQuotation(
 
   medicalCase.quotation = {
     amountMinor: input.amountMinor ?? null,
+    collectOnlineMinor: input.collectOnlineMinor ?? null,
     validUntil: input.validUntil ?? null,
     notes: input.notes ?? null,
     sentAt: new Date(),
   };
-  if (medicalCase.status === "reviewing") medicalCase.status = "quoted";
+  // A case quoted straight from "new" is quoted too — or its pay link
+  // (payable from "quoted" on) would never be made.
+  if (medicalCase.status === "reviewing" || medicalCase.status === "new") {
+    medicalCase.status = "quoted";
+  }
   if (actorId) {
     medicalCase.activity.push({
       authorId: new mongoose.Types.ObjectId(actorId),
@@ -153,9 +183,19 @@ export async function setCaseQuotation(
     });
   }
   await medicalCase.save();
-  await sendCaseQuoteReady(medicalCase.toObject()).catch((e) =>
-    logger.warn("case quote email failed", e),
+  // The pay link for what this quote collects online (or none).
+  const link = await ensureTourismLink("medical_case", id, actorId).catch(
+    (e) => {
+      logger.error("could not make the case's pay link", e);
+      return null;
+    },
   );
+  await sendCaseQuoteReady(
+    medicalCase.toObject(),
+    link
+      ? { amountMinor: link.amountMinor, url: tourismLinkUrl(link.token) }
+      : null,
+  ).catch((e) => logger.warn("case quote email failed", e));
   return { ok: true, case: medicalCase.toObject() };
 }
 
@@ -278,14 +318,23 @@ async function sendCaseAck(c: IMedicalCase, locale?: string) {
   });
 }
 
-async function sendCaseQuoteReady(c: IMedicalCase) {
+async function sendCaseQuoteReady(
+  c: IMedicalCase,
+  pay: { amountMinor: number; url: string } | null,
+) {
+  const { formatBDT } = await import("@/lib/money");
   const rows: EmailDetailRow[] = [{ label: "Reference", value: c.caseNumber }];
   if (c.quotation?.amountMinor != null) {
-    const { formatBDT } = await import("@/lib/money");
     rows.push({
       label: "Estimated total",
       value: formatBDT(c.quotation.amountMinor),
       strong: true,
+    });
+  }
+  if (pay) {
+    rows.push({
+      label: "Payable online now",
+      value: formatBDT(pay.amountMinor),
     });
   }
   if (c.quotation?.validUntil) {
@@ -305,12 +354,24 @@ async function sendCaseQuoteReady(c: IMedicalCase) {
     heading: "Your treatment quotation is ready",
     paragraphs: [
       `We've prepared a quotation for your case ${c.caseNumber}. ${c.quotation?.notes ?? ""}`.trim(),
+      ...(pay
+        ? [
+            `You can pay ${formatBDT(pay.amountMinor)} online now — by bKash, Nagad, Rocket, Upay or card — to confirm your case.`,
+          ]
+        : []),
     ],
     details: { title: "Quotation", rows },
-    button: {
-      label: "View your case",
-      url: `${siteConfig.url}/en/account/cases`,
-    },
+    button: pay
+      ? { label: `Pay ${formatBDT(pay.amountMinor)} online`, url: pay.url }
+      : {
+          label: "View your case",
+          url: `${siteConfig.url}/en/account/cases`,
+        },
+    outro: pay
+      ? [
+          `You can also follow your case at ${siteConfig.url}/tourism/case-lookup with your reference and email.`,
+        ]
+      : undefined,
   });
   await getMailer().send({
     to: c.patient.email,

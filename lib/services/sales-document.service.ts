@@ -28,6 +28,7 @@ import type { ISalesOrder, IDocumentVersion } from "@/lib/models/salesOrder";
 import type { Lean } from "@/lib/models/_shared";
 import { getSetting } from "@/lib/repositories/settings.repo";
 import { getMailer } from "@/lib/mailer";
+import { salesEmails } from "./sales-emails";
 import { renderEmail } from "@/lib/mailer/templates/email-layout";
 import {
   getSalesOrderById,
@@ -99,20 +100,6 @@ async function signatory(): Promise<Signatory> {
     title: stored?.title ?? "Managing Director",
     phone: stored?.phone ?? CONTACT.phone,
     email: stored?.email ?? "md@spibermed.com",
-  };
-}
-
-async function salesEmails(): Promise<{ teamInbox: string; mdEmail: string }> {
-  const stored = await getSetting<{ teamInbox?: string; mdEmail?: string }>(
-    "sales.email",
-  ).catch(() => null);
-  return {
-    teamInbox:
-      stored?.teamInbox ??
-      process.env.SALES_TEAM_EMAIL ??
-      process.env.CONTACT_TEAM_EMAIL ??
-      CONTACT.generalEmail,
-    mdEmail: stored?.mdEmail ?? "md@spibermed.com",
   };
 }
 

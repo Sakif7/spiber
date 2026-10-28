@@ -35,6 +35,15 @@ export const paymentProviderEnum = z.enum([
 export type PaymentProviderName = z.infer<typeof paymentProviderEnum>;
 
 /**
+ * Was the money taken by a gateway (not by hand)? A credit or COD order paid
+ * online later records its gateway here — which is how the order, the
+ * customer's page and the invoice sheet know there is nothing to collect.
+ */
+export function isGatewayProvider(provider: string | null | undefined) {
+  return provider === "paystation" || provider === "dev";
+}
+
+/**
  * HOW the order is paid — the commercial arrangement, distinct from
  * `paymentProviderEnum` (which is the gateway seam).
  *

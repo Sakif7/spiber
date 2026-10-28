@@ -108,7 +108,78 @@ export const PAYMENT_POINT_LABEL: Record<PaymentPoint, string> = {
 export const LIVE_PAYMENT_POINTS: readonly PaymentPoint[] = [
   "kart",
   "medtrade",
+  "software",
+  "courses",
+  "order_due",
+  "sales_link",
+  "tourism",
 ];
+
+/**
+ * A pay link (`/pay/<token>`):
+ *  open      can be paid; every click is a fresh try at the gateway
+ *  paid      a try through it was applied
+ *  cancelled replaced by a newer link, withdrawn, or paid some other way
+ */
+export const paymentRequestStatusEnum = z.enum(["open", "paid", "cancelled"]);
+export type PaymentRequestStatus = z.infer<typeof paymentRequestStatusEnum>;
+
+/**
+ * What a Sales invoice's link asks for, chosen on each link (owner,
+ * 2026-10-28): the whole total, or the total less the AIT/VDS on record —
+ * what the client keeps back when they deduct at source.
+ */
+export const paymentLinkBasisEnum = z.enum(["full", "less_withholding"]);
+export type PaymentLinkBasis = z.infer<typeof paymentLinkBasisEnum>;
+
+/** A super admin making a pay link for an invoice, and maybe emailing it. */
+export const paymentLinkSchema = z.object({
+  /** Where the receipt goes (PayStation requires one) and the link is sent. */
+  email: z.string().trim().toLowerCase().email().max(200),
+  /** Required while the order has AIT/VDS on record; otherwise "full". */
+  basis: paymentLinkBasisEnum.optional(),
+  send: z.boolean().optional(),
+  /** Sending anywhere but the client's stored address needs an explicit yes. */
+  confirmRecipient: z.boolean().optional(),
+});
+export type PaymentLinkInput = z.infer<typeof paymentLinkSchema>;
+
+/** The payer pressing Pay on a link. */
+export const payLinkStartSchema = z.object({
+  /** Only when the link has no phone: PayStation requires one. */
+  phone: z
+    .string()
+    .trim()
+    .regex(/^\+?[0-9 -]{6,20}$/, "Enter a phone number")
+    .optional(),
+  locale: z.enum(["en", "bn", "ja"]).optional(),
+});
+
+/**
+ * What a tourism quote collects online: whole taka (PayStation takes nothing
+ * else), in poisha. Null or absent: no online payment on this quote.
+ */
+export const collectOnlineMinorField = z
+  .number()
+  .int()
+  .positive()
+  .multipleOf(100, "Whole taka only")
+  .max(1_000_000_000)
+  .nullable()
+  .optional();
+
+/** What a tourism case or request passes on (hospital, airline): its cost. */
+export const tourismPassedOnSchema = z.object({
+  passedOnMinor: z.number().int().min(0).max(1_000_000_000).nullable(),
+});
+export type TourismPassedOnInput = z.infer<typeof tourismPassedOnSchema>;
+
+/**
+ * Nothing is held for a link, a credit/COD bill, software or a course, so
+ * there is no hold to protect — but a cap still stops one bill collecting a
+ * hundred PayStation invoices.
+ */
+export const MAX_OPEN_BILL_ATTEMPTS = 10;
 
 /**
  * How a payment was made, for the fee table. The gateway names methods its own

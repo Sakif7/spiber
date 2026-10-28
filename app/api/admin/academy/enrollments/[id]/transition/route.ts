@@ -22,16 +22,26 @@ export async function POST(
 
   const result = await transitionEnrollment(id, parsed.data.to, {
     note: parsed.data.note,
+    refundReference: parsed.data.refundReference,
+    actorId: admin.sub,
   });
   if (!result.ok) {
     return fail({ code: result.code }, result.code === "not_found" ? 404 : 409);
   }
-  await writeAudit({
-    actorId: admin.sub,
-    action: `enrollment.${parsed.data.to}`,
-    entityType: "Enrollment",
-    entityId: id,
-    after: { to: parsed.data.to },
-  });
+  await writeAudit(
+    {
+      actorId: admin.sub,
+      action: `enrollment.${parsed.data.to}`,
+      entityType: "Enrollment",
+      entityId: id,
+      after: {
+        to: parsed.data.to,
+        ...(parsed.data.refundReference
+          ? { refundReference: parsed.data.refundReference }
+          : {}),
+      },
+    },
+    req,
+  );
   return ok({ status: parsed.data.to });
 }

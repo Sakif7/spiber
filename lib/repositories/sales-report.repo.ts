@@ -4,8 +4,15 @@ import { SalesOrder } from "@/lib/models/salesOrder";
 import { Expense, type IExpense } from "@/lib/models/expense";
 import { Visit } from "@/lib/models/visit";
 import { PaymentAttempt } from "@/lib/models/payment-attempt";
+import { SoftwarePurchase } from "@/lib/models/softwarePurchase";
+import { Enrollment } from "@/lib/models/enrollment";
+import { Course } from "@/lib/models/course";
+import { MedicalCase } from "@/lib/models/medicalCase";
+import { TravelRequest } from "@/lib/models/travelRequest";
 import type { Lean } from "@/lib/models/_shared";
 import { expenseLinesOf } from "@/lib/hr/expense-lines";
+import type { Types } from "mongoose";
+import type { PaymentSubjectKind } from "@/lib/schemas/payment";
 
 /**
  * The sales report: what we sold, what it cost us, and what we kept.
@@ -136,6 +143,56 @@ const num = (v: unknown) => (typeof v === "number" && isFinite(v) ? v : 0);
 const netGoods = (subtotal: unknown, discount: unknown) =>
   Math.max(0, num(subtotal) - num(discount));
 
+/* ── payments taken online ──────────────────────────────────────────────── */
+
+/** The gateway's fee on each thing's applied payment(s), by subject id. */
+async function paidAttemptFees(
+  kinds: PaymentSubjectKind[],
+  ids: Types.ObjectId[],
+): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  if (!ids.length) return out;
+  const paid = await PaymentAttempt.find({
+    "subject.kind": { $in: kinds },
+    "subject.id": { $in: ids },
+    status: "paid",
+  })
+    .select({ "subject.id": 1, feeMinor: 1 })
+    .lean()
+    .exec();
+  for (const a of paid as Record<string, any>[]) {
+    const k = String(a.subject?.id);
+    out.set(k, (out.get(k) ?? 0) + num(a.feeMinor));
+  }
+  return out;
+}
+
+/**
+ * Poisha dropped when a payment was taken (the thing itself was not whole
+ * taka), as a positive cost, by subject id.
+ */
+async function paidAttemptRounding(
+  kinds: PaymentSubjectKind[],
+  ids: Types.ObjectId[],
+): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  if (!ids.length) return out;
+  const paid = await PaymentAttempt.find({
+    "subject.kind": { $in: kinds },
+    "subject.id": { $in: ids },
+    status: "paid",
+    roundingMinor: { $lt: 0 },
+  })
+    .select({ "subject.id": 1, roundingMinor: 1 })
+    .lean()
+    .exec();
+  for (const a of paid as Record<string, any>[]) {
+    const k = String(a.subject?.id);
+    out.set(k, (out.get(k) ?? 0) - num(a.roundingMinor));
+  }
+  return out;
+}
+
 /* ── offline: the sales team ────────────────────────────────────────────── */
 
 async function offlineOrders(range: ReportRange): Promise<ReportOrder[]> {
@@ -147,6 +204,14 @@ async function offlineOrders(range: ReportRange): Promise<ReportOrder[]> {
   })
     .lean()
     .exec();
+
+  // Invoices paid through a pay link: what the gateway charged us.
+  const fees = await paidAttemptFees(
+    ["sales_order"],
+    docs
+      .filter((d: Record<string, any>) => d.payment?.method === "online")
+      .map((d: Record<string, any>) => d._id),
+  );
 
   return docs.map((o: Record<string, any>) => {
     const lines: ReportLine[] = (o.items ?? []).map(
@@ -173,10 +238,20 @@ async function offlineOrders(range: ReportRange): Promise<ReportOrder[]> {
     // revenue is that gross less the discount.
     const revenueMinor = netGoods(o.subtotalMinor, o.discountMinor);
     const costMinor = lines.reduce((s, l) => s + l.costMinor, 0);
-    const orderCostMinor = (o.costs ?? []).reduce(
-      (t: number, c: Record<string, any>) => t + num(c.amountMinor),
-      0,
-    );
+    const orderCosts: { label: string; amountMinor: number }[] = (
+      o.costs ?? []
+    ).map((c: Record<string, any>) => ({
+      label: c.label ?? "Cost",
+      amountMinor: num(c.amountMinor),
+    }));
+    // Paid online: the gateway's fee and the poisha the link dropped are
+    // money that never reaches the bank, so they are costs of the sale.
+    const fee = fees.get(String(o._id)) ?? 0;
+    if (fee > 0) orderCosts.push({ label: "Payment fee", amountMinor: fee });
+    const rounding = -num(o.payment?.roundingMinor);
+    if (rounding > 0)
+      orderCosts.push({ label: "Rounding", amountMinor: rounding });
+    const orderCostMinor = orderCosts.reduce((t, c) => t + c.amountMinor, 0);
 
     return {
       id: String(o._id),
@@ -193,10 +268,7 @@ async function offlineOrders(range: ReportRange): Promise<ReportOrder[]> {
       deliveryMinor: num(o.deliveryMinor),
       aitMinor: num(o.withholding?.aitMinor),
       orderCostMinor,
-      orderCosts: (o.costs ?? []).map((c: Record<string, any>) => ({
-        label: c.label ?? "Cost",
-        amountMinor: num(c.amountMinor),
-      })),
+      orderCosts,
       netMinor: revenueMinor - costMinor - orderCostMinor,
       netCashMinor:
         revenueMinor -
@@ -223,21 +295,14 @@ async function onlineOrders(range: ReportRange): Promise<ReportOrder[]> {
 
   // What the gateway charged us on each order paid online. The company bears
   // the fee (2026-10-28), so it is a cost of the sale, frozen on the payment.
-  const fees = new Map<string, number>();
-  if (docs.length) {
-    const paid = await PaymentAttempt.find({
-      "subject.kind": { $in: ["order", "order_due"] },
-      "subject.id": { $in: docs.map((d: Record<string, any>) => d._id) },
-      status: "paid",
-    })
-      .select({ "subject.id": 1, feeMinor: 1 })
-      .lean()
-      .exec();
-    for (const a of paid as Record<string, any>[]) {
-      const k = String(a.subject?.id);
-      fees.set(k, (fees.get(k) ?? 0) + num(a.feeMinor));
-    }
-  }
+  // A credit / COD order placed before rounding was charged its whole taka;
+  // the poisha dropped then sits on the payment, not on the order.
+  const ids = docs.map((d: Record<string, any>) => d._id);
+  const fees = await paidAttemptFees(["order", "order_due"], ids);
+  const droppedAtPayment = await paidAttemptRounding(
+    ["order", "order_due"],
+    ids,
+  );
 
   return docs.map((o: Record<string, any>) => {
     const lines: ReportLine[] = (o.items ?? []).map(
@@ -268,7 +333,8 @@ async function onlineOrders(range: ReportRange): Promise<ReportOrder[]> {
     const orderCosts: { label: string; amountMinor: number }[] = [];
     const fee = fees.get(String(o._id)) ?? 0;
     if (fee > 0) orderCosts.push({ label: "Payment fee", amountMinor: fee });
-    const rounding = -num(o.roundingMinor);
+    const rounding =
+      -num(o.roundingMinor) + (droppedAtPayment.get(String(o._id)) ?? 0);
     if (rounding > 0)
       orderCosts.push({ label: "Rounding", amountMinor: rounding });
     const orderCostMinor = orderCosts.reduce((t, c) => t + c.amountMinor, 0);
@@ -295,6 +361,230 @@ async function onlineOrders(range: ReportRange): Promise<ReportOrder[]> {
       lines,
     };
   });
+}
+
+/* ── online: our own software and courses ───────────────────────────────── */
+
+/**
+ * Paid sales of our own software (download / licence) and course enrollments
+ * — counted since 2026-10-28 (owner's decision), whether paid online or marked
+ * paid by hand. External apps (ZenHcare) stay out: that money is not ours.
+ *
+ * A digital sale has no per-unit cost to freeze, so its line costs zero rather
+ * than "missing"; what it does cost — the gateway fee and the rounding — is an
+ * order cost, as on the storefronts.
+ */
+async function digitalSales(
+  range: ReportRange,
+): Promise<{ software: ReportOrder[]; courses: ReportOrder[] }> {
+  const paidIn = {
+    "payment.status": "paid" as const,
+    "payment.paidAt": { $gte: range.start, $lt: range.end },
+    status: { $nin: ["cancelled" as const, "refunded" as const] },
+    totalMinor: { $gt: 0 },
+  };
+  const [purchases, enrollments] = await Promise.all([
+    SoftwarePurchase.find({
+      ...paidIn,
+      "productSnapshot.deliveryType": { $ne: "external" },
+    })
+      .lean()
+      .exec(),
+    Enrollment.find(paidIn).lean().exec(),
+  ]);
+  if (!purchases.length && !enrollments.length) {
+    return { software: [], courses: [] };
+  }
+
+  const fees = new Map<string, number>();
+  const ids = [
+    ...purchases.map((p: Record<string, any>) => p._id),
+    ...enrollments.map((e: Record<string, any>) => e._id),
+  ];
+  const paid = await PaymentAttempt.find({
+    "subject.kind": { $in: ["software", "enrollment"] },
+    "subject.id": { $in: ids },
+    status: "paid",
+  })
+    .select({ "subject.id": 1, feeMinor: 1 })
+    .lean()
+    .exec();
+  for (const a of paid as Record<string, any>[]) {
+    const k = String(a.subject?.id);
+    fees.set(k, (fees.get(k) ?? 0) + num(a.feeMinor));
+  }
+
+  const courseIds = [
+    ...new Set(enrollments.map((e: Record<string, any>) => String(e.courseId))),
+  ];
+  const courses = courseIds.length
+    ? await Course.find({ _id: { $in: courseIds } })
+        .select({ title: 1 })
+        .lean()
+        .exec()
+    : [];
+  const courseTitle = new Map(
+    (courses as Record<string, any>[]).map((c) => [
+      String(c._id),
+      c.title?.en ?? "Course",
+    ]),
+  );
+
+  const toRow = (
+    d: Record<string, any>,
+    ref: string,
+    description: string,
+    gross: number,
+  ): ReportOrder => {
+    const revenueMinor = netGoods(gross, d.discountMinor);
+    const orderCosts: { label: string; amountMinor: number }[] = [];
+    const fee = fees.get(String(d._id)) ?? 0;
+    if (fee > 0) orderCosts.push({ label: "Payment fee", amountMinor: fee });
+    const rounding = -num(d.roundingMinor);
+    if (rounding > 0) {
+      orderCosts.push({ label: "Rounding", amountMinor: rounding });
+    }
+    const orderCostMinor = orderCosts.reduce((t, c) => t + c.amountMinor, 0);
+    return {
+      id: String(d._id),
+      ref,
+      channel: "online",
+      invoiceNumber: null,
+      paidAt: d.payment?.paidAt
+        ? new Date(d.payment.paidAt).toISOString()
+        : null,
+      revenueMinor,
+      costMinor: 0,
+      profitMinor: revenueMinor,
+      vatMinor: 0,
+      deliveryMinor: 0,
+      aitMinor: 0,
+      orderCostMinor,
+      orderCosts,
+      netMinor: revenueMinor - orderCostMinor,
+      netCashMinor: revenueMinor - orderCostMinor,
+      linesMissingCost: 0,
+      lines: [
+        {
+          description,
+          sku: null,
+          qty: 1,
+          unitPriceMinor: num(gross),
+          unitCostMinor: 0,
+          revenueMinor: num(gross),
+          costMinor: 0,
+          profitMinor: num(gross),
+        },
+      ],
+    };
+  };
+
+  return {
+    software: (purchases as Record<string, any>[]).map((p) =>
+      toRow(
+        p,
+        p.purchaseNumber,
+        p.productSnapshot?.name?.en ?? "Software",
+        num(p.priceMinor),
+      ),
+    ),
+    courses: (enrollments as Record<string, any>[]).map((e) =>
+      toRow(
+        e,
+        e.enrollmentNumber,
+        courseTitle.get(String(e.courseId)) ?? "Course",
+        num(e.subtotalMinor),
+      ),
+    ),
+  };
+}
+
+/* ── online: tourism quotes ─────────────────────────────────────────────── */
+
+/**
+ * Medical cases and travel requests paid online (owner, 2026-10-28): what we
+ * collected is revenue, what we pass on to the hospital or airline is its
+ * cost — "missing" (counted, not treated as free) until staff type it — and
+ * the gateway's fee is an order cost. A lost case or a cancelled request is
+ * out: its money is waiting to go back.
+ */
+async function tourismSales(range: ReportRange): Promise<ReportOrder[]> {
+  const paid = {
+    deletedAt: null,
+    "payment.status": "paid" as const,
+    "payment.paidAt": { $gte: range.start, $lt: range.end },
+  };
+  const [cases, requests] = await Promise.all([
+    MedicalCase.find({ ...paid, status: { $ne: "lost" as const } })
+      .lean()
+      .exec(),
+    TravelRequest.find({ ...paid, status: { $ne: "cancelled" as const } })
+      .lean()
+      .exec(),
+  ]);
+  const fees = await paidAttemptFees(
+    ["medical_case", "travel_request"],
+    [...cases, ...requests].map((d) => d._id as Types.ObjectId),
+  );
+
+  const toOrder = (
+    d: Record<string, any>,
+    ref: string,
+    description: string,
+  ): ReportOrder => {
+    const revenueMinor = num(d.payment?.amountMinor);
+    const hasCost = d.passedOnMinor != null;
+    const costMinor = hasCost ? num(d.passedOnMinor) : 0;
+    const orderCosts: { label: string; amountMinor: number }[] = [];
+    const fee = fees.get(String(d._id)) ?? 0;
+    if (fee > 0) orderCosts.push({ label: "Payment fee", amountMinor: fee });
+    const orderCostMinor = orderCosts.reduce((t, c) => t + c.amountMinor, 0);
+    return {
+      id: String(d._id),
+      ref,
+      channel: "online",
+      invoiceNumber: null,
+      paidAt: d.payment?.paidAt
+        ? new Date(d.payment.paidAt).toISOString()
+        : null,
+      revenueMinor,
+      costMinor,
+      profitMinor: revenueMinor - costMinor,
+      vatMinor: 0,
+      deliveryMinor: 0,
+      aitMinor: 0,
+      orderCostMinor,
+      orderCosts,
+      netMinor: revenueMinor - costMinor - orderCostMinor,
+      netCashMinor: revenueMinor - costMinor - orderCostMinor,
+      linesMissingCost: hasCost ? 0 : 1,
+      lines: [
+        {
+          description,
+          sku: null,
+          qty: 1,
+          unitPriceMinor: revenueMinor,
+          unitCostMinor: hasCost ? costMinor : null,
+          revenueMinor,
+          costMinor,
+          profitMinor: revenueMinor - costMinor,
+        },
+      ],
+    };
+  };
+
+  return [
+    ...(cases as Record<string, any>[]).map((c) =>
+      toOrder(
+        c,
+        c.caseNumber,
+        `Medical case${c.requestedService ? ` — ${c.requestedService}` : ""}`,
+      ),
+    ),
+    ...(requests as Record<string, any>[]).map((r) =>
+      toOrder(r, r.travelRequestNumber, `Travel request — ${r.type}`),
+    ),
+  ];
 }
 
 /**
@@ -396,12 +686,15 @@ async function attributedExpenses(
 export async function salesReport(range: ReportRange): Promise<SalesReport> {
   await connectToDatabase();
 
-  const [offline, onlineSold, returnedFees, expenses] = await Promise.all([
-    offlineOrders(range),
-    onlineOrders(range),
-    feesOnReturnedPayments(range),
-    attributedExpenses(range),
-  ]);
+  const [offline, onlineSold, returnedFees, expenses, digital, tourism] =
+    await Promise.all([
+      offlineOrders(range),
+      onlineOrders(range),
+      feesOnReturnedPayments(range),
+      attributedExpenses(range),
+      digitalSales(range),
+      tourismSales(range),
+    ]);
   const online = returnedFees ? [...onlineSold, returnedFees] : onlineSold;
 
   // Offline sales group by the client they were raised for; the storefronts
@@ -475,6 +768,17 @@ export async function salesReport(range: ReportRange): Promise<SalesReport> {
   for (const o of online) {
     const c = client("online", "Online storefronts", null, "online");
     c.orders.push(o);
+  }
+  // Our own software and courses, each one row like the storefronts.
+  for (const o of digital.software) {
+    client("software", "Digihealth software", null, "online").orders.push(o);
+  }
+  for (const o of digital.courses) {
+    client("courses", "MedAcademy courses", null, "online").orders.push(o);
+  }
+  // Tourism quotes paid online: medical cases and travel requests, one row.
+  for (const o of tourism) {
+    client("tourism", "Tourism", null, "online").orders.push(o);
   }
 
   for (const c of clients.values()) {

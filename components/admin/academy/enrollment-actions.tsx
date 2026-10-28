@@ -23,14 +23,18 @@ const LABEL: Record<string, string> = {
 export function EnrollmentActions({
   enrollmentId,
   status,
+  paidOnline = false,
 }: {
   enrollmentId: string;
   status: string;
+  /** Money was taken through the gateway, so refunding means returning it by hand. */
+  paidOnline?: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  const [refundReference, setRefundReference] = useState("");
 
   const allowed = TRANSITIONS[status] ?? [];
 
@@ -40,6 +44,9 @@ export function EnrollmentActions({
     try {
       const body: Record<string, unknown> = { to };
       if (note.trim()) body.note = note.trim();
+      if ((to === "refunded" || to === "cancelled") && refundReference.trim()) {
+        body.refundReference = refundReference.trim();
+      }
       const res = await fetch(
         `/api/admin/academy/enrollments/${enrollmentId}/transition`,
         {
@@ -56,6 +63,7 @@ export function EnrollmentActions({
         return;
       }
       setNote("");
+      setRefundReference("");
       router.refresh();
     } catch {
       setError("Network error. Please try again.");
@@ -89,6 +97,25 @@ export function EnrollmentActions({
               placeholder="Internal note"
             />
           </div>
+          {paidOnline &&
+          (allowed.includes("refunded") || allowed.includes("cancelled")) ? (
+            <div className="grid gap-1.5">
+              <Label htmlFor="enr-refund-ref">
+                Refund reference (for cancel / refund)
+              </Label>
+              <Input
+                id="enr-refund-ref"
+                value={refundReference}
+                onChange={(e) => setRefundReference(e.target.value)}
+                placeholder="e.g. bKash TrxID or bank ref"
+              />
+              <p className="text-muted-foreground m-0 text-xs">
+                Paid online: PayStation does not refund by itself. Return the
+                money first; left empty, it waits under Online payments › Needs
+                refund.
+              </p>
+            </div>
+          ) : null}
           <div className="flex flex-wrap gap-3">
             {allowed.map((to) => (
               <Button

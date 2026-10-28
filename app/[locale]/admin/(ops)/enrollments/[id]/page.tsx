@@ -12,6 +12,11 @@ import {
 } from "@/components/admin/ui/detail";
 import { EditorHeader } from "@/components/admin/ui/form-shell";
 import { StatusBadge } from "@/components/admin/ui/status-badge";
+import {
+  PaymentAttemptsCard,
+  toAttemptRows,
+} from "@/components/admin/payments/payment-attempts-card";
+import { attemptsForSubject } from "@/lib/repositories/payment-attempts.repo";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +31,10 @@ export default async function AdminEnrollmentDetail({
   const enrollment = await getEnrollmentById(id);
   if (!enrollment) notFound();
   const e = enrollment.toObject();
+  const attempts = await attemptsForSubject("enrollment", id).catch(() => []);
+  const canRecheck = attempts.some(
+    (a) => a.status === "open" || a.status === "abandoned",
+  );
 
   const course = await getCourseById(String(e.courseId));
   const courseTitle = course ? localize(course.title, "en") : "—";
@@ -45,7 +54,13 @@ export default async function AdminEnrollmentDetail({
       />
 
       <DetailLayout
-        aside={<EnrollmentActions enrollmentId={id} status={e.status} />}
+        aside={
+          <EnrollmentActions
+            enrollmentId={id}
+            status={e.status}
+            paidOnline={attempts.some((a) => a.status === "paid")}
+          />
+        }
       >
         <DetailCard>
           <DetailRow label="Course">{courseTitle}</DetailRow>
@@ -81,6 +96,15 @@ export default async function AdminEnrollmentDetail({
             </DetailRow>
           )}
         </DetailCard>
+
+        {attempts.length > 0 ? (
+          <PaymentAttemptsCard
+            rows={toAttemptRows(attempts)}
+            recheckUrl={
+              canRecheck ? `/api/admin/payments/enrollment/${id}/recheck` : null
+            }
+          />
+        ) : null}
 
         <DetailCard title="Timeline">
           {e.timeline.length === 0 ? (

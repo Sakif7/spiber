@@ -15,6 +15,9 @@ import {
   releaseCouponUsageByCode,
 } from "@/lib/repositories/coupons.repo";
 import { makeId } from "@/lib/ids";
+import { markSubjectPaymentsForRefund } from "@/lib/repositories/payment-attempts.repo";
+import { onlinePointAvailable } from "./payment-availability";
+import { roundingFor } from "@/lib/schemas/payment";
 import { validateCoupon } from "./coupon.service";
 import { notifyAdmins } from "./notification.service";
 import { getMailer } from "@/lib/mailer";
@@ -44,6 +47,8 @@ export type EnrollmentCoupon = {
 export type EnrollmentTotals = {
   subtotalMinor: number;
   discountMinor: number;
+  /** Poisha dropped so the total is whole taka (0 to −99). */
+  roundingMinor: number;
   totalMinor: number;
 };
 
@@ -65,10 +70,13 @@ export function priceEnrollment(
         : Math.round(coupon.value);
     discountMinor = Math.min(discountMinor, subtotalMinor);
   }
+  // Whole taka, like every payable total (owner's decision, 2026-10-28).
+  const roundingMinor = roundingFor(subtotalMinor - discountMinor);
   return {
     subtotalMinor,
     discountMinor,
-    totalMinor: subtotalMinor - discountMinor,
+    roundingMinor,
+    totalMinor: subtotalMinor - discountMinor + roundingMinor,
   };
 }
 
@@ -144,6 +152,7 @@ export async function enrollCourse(args: {
     ? {
         subtotalMinor: course.priceMinor,
         discountMinor: course.priceMinor,
+        roundingMinor: 0,
         totalMinor: 0,
       }
     : priceEnrollment(course.priceMinor, coupon);
@@ -185,6 +194,7 @@ export async function enrollCourse(args: {
       },
       subtotalMinor: totals.subtotalMinor,
       discountMinor: totals.discountMinor,
+      roundingMinor: totals.roundingMinor,
       totalMinor: totals.totalMinor,
       currency: "BDT",
       couponCode,
@@ -222,27 +232,56 @@ export async function enrollCourse(args: {
     throw err;
   }
 
-  await sendEnrollmentEmail(
-    enrollment.toObject(),
-    localize(course.title, "en"),
-    status === "active" ? "active" : "pending",
-  ).catch((e) => logger.warn("enrollment email failed", e));
-  if (!args.grant) {
-    await notifyAdmins({
-      type: "enrollment.created",
-      severity: "success",
-      title: `New enrollment ${enrollment.enrollmentNumber}`,
-      body: `${localize(course.title, "en")} · ${formatBDT(totals.totalMinor)} · ${args.email}`,
-      href: `/admin/enrollments/${String(enrollment._id)}`,
-      entity: {
-        kind: "Enrollment",
-        id: String(enrollment._id),
-        ref: enrollment.enrollmentNumber,
-      },
-    });
+  // To be paid online (gateway on): it is only an enrollment once the money
+  // arrives, so no "arranged offline" email or bell now — the active email
+  // and bell confirm it (transitionEnrollment → "active").
+  const payOnline =
+    status === "pending" && (await onlinePointAvailable("courses"));
+  if (!payOnline) {
+    await sendEnrollmentEmail(
+      enrollment.toObject(),
+      localize(course.title, "en"),
+      status === "active" ? "active" : "pending",
+    ).catch((e) => logger.warn("enrollment email failed", e));
+    if (!args.grant) {
+      await notifyEnrollment(enrollment, localize(course.title, "en"), false);
+    }
   }
 
   return { ok: true, enrollment: enrollment.toObject() };
+}
+
+/** The team's bell: a new enrollment (or one just paid online). */
+async function notifyEnrollment(
+  enrollment: Pick<
+    IEnrollment,
+    "enrollmentNumber" | "totalMinor" | "email" | "courseId"
+  > & { _id?: unknown },
+  courseTitle: string | null,
+  paidOnline: boolean,
+) {
+  const title =
+    courseTitle ??
+    (await Course.findById(enrollment.courseId)
+      .select("title")
+      .lean()
+      .exec()
+      .then((c) => (c ? localize(c.title, "en") : "a course"))
+      .catch(() => "a course"));
+  await notifyAdmins({
+    type: "enrollment.created",
+    severity: "success",
+    title: paidOnline
+      ? `New enrollment ${enrollment.enrollmentNumber} — paid online`
+      : `New enrollment ${enrollment.enrollmentNumber}`,
+    body: `${title} · ${formatBDT(enrollment.totalMinor)} · ${enrollment.email}`,
+    href: `/admin/enrollments/${String(enrollment._id)}`,
+    entity: {
+      kind: "Enrollment",
+      id: String(enrollment._id),
+      ref: enrollment.enrollmentNumber,
+    },
+  });
 }
 
 function isDuplicateKey(err: unknown): boolean {
@@ -263,22 +302,45 @@ export type EnrollmentTransitionResult =
 export async function transitionEnrollment(
   enrollmentId: string,
   to: EnrollmentStatus,
-  opts: { note?: string } = {},
+  opts: {
+    note?: string;
+    /** Refunding money taken online: how it went back (bKash/bank ref). */
+    refundReference?: string;
+    actorId?: string | null;
+    /** Payment fields to write in the same move (the gateway's reference). */
+    payment?: Partial<Record<"provider" | "txnId", string>>;
+  } = {},
 ): Promise<EnrollmentTransitionResult> {
   await connectToDatabase();
-  const enrollment = await getEnrollmentById(enrollmentId);
-  if (!enrollment) return { ok: false, code: "not_found" };
-  if (!ENROLLMENT_TRANSITIONS[enrollment.status].includes(to)) {
+  const current = await getEnrollmentById(enrollmentId);
+  if (!current) return { ok: false, code: "not_found" };
+  if (!ENROLLMENT_TRANSITIONS[current.status].includes(to)) {
     return { ok: false, code: "invalid_transition" };
   }
 
   const now = new Date();
+  const wasPaid = current.payment.status === "paid";
+  const set: Record<string, unknown> = { status: to };
   // Activating a pending (paid) enrollment confirms payment + grants access.
   if (to === "active") {
-    enrollment.payment.status = "paid";
-    enrollment.payment.paidAt = now;
+    set["payment.status"] = "paid";
+    set["payment.paidAt"] = now;
   }
-  if (to === "refunded") enrollment.payment.status = "refunded";
+  if (to === "refunded") set["payment.status"] = "refunded";
+  for (const [k, v] of Object.entries(opts.payment ?? {})) {
+    if (v) set[`payment.${k}`] = v;
+  }
+  // One conditional write on the status just read: an online payment and an
+  // admin activating by hand cannot both win.
+  const enrollment = await Enrollment.findOneAndUpdate(
+    { _id: current._id, status: current.status },
+    {
+      $set: set,
+      $push: { timeline: { status: to, at: now, note: opts.note } },
+    },
+    { returnDocument: "after" },
+  ).exec();
+  if (!enrollment) return { ok: false, code: "invalid_transition" };
 
   // Return the coupon's redemption slot on cancel/refund (terminal states, so
   // this runs at most once per enrollment).
@@ -287,10 +349,19 @@ export async function transitionEnrollment(
       logger.warn("coupon release failed", e),
     );
   }
-
-  enrollment.status = to;
-  enrollment.timeline.push({ status: to, at: now, note: opts.note });
-  await enrollment.save();
+  if ((to === "cancelled" || to === "refunded") && wasPaid) {
+    // Money taken online goes back by hand: record how, or queue it.
+    await markSubjectPaymentsForRefund("enrollment", String(enrollment._id), {
+      reference: opts.refundReference,
+      note: opts.note,
+      actorId: opts.actorId,
+    }).catch((e) =>
+      logger.error("could not mark online payment for refund", e),
+    );
+  }
+  if (to === "active" && opts.payment?.provider) {
+    await notifyEnrollment(enrollment, null, true);
+  }
 
   if (to === "active") {
     const course = await Course.findById(enrollment.courseId)

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { collectOnlineMinorField } from "./payment";
 
 /**
  * TravelRequest — a MANUAL request form for air ticket / hotel / visa / airport
@@ -92,8 +93,21 @@ export type TravelRequestTransitionInput = z.infer<
   typeof travelRequestTransitionSchema
 >;
 
-export const travelRequestQuoteSchema = z.object({
-  amountMinor: z.number().int().nonnegative().optional(),
-  note: z.string().max(2000).optional(),
-});
+export const travelRequestQuoteSchema = z
+  .object({
+    amountMinor: z.number().int().nonnegative().optional(),
+    /** Offered as a pay link: the whole quote, an advance or our fee. */
+    collectOnlineMinor: collectOnlineMinorField,
+    note: z.string().max(2000).optional(),
+  })
+  .refine(
+    (q) =>
+      q.collectOnlineMinor == null ||
+      q.amountMinor == null ||
+      q.collectOnlineMinor <= q.amountMinor,
+    {
+      message: "Can't collect more than the quote",
+      path: ["collectOnlineMinor"],
+    },
+  );
 export type TravelRequestQuoteInput = z.infer<typeof travelRequestQuoteSchema>;

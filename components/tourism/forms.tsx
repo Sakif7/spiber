@@ -790,7 +790,13 @@ export function CaseLookupForm() {
     status: string;
     checklist?: Record<string, { done: boolean }>;
     quotation?: { amountMinor?: number | null } | null;
+    /** The quote's pay link, or that it was paid online. */
+    payment?:
+      | { state: "open"; amountMinor: number; path: string }
+      | { state: "paid"; amountMinor: number }
+      | null;
   };
+  const tp = useTranslations("tourism.payment");
   const [result, setResult] = useState<Result | null>(null);
 
   async function submit() {
@@ -869,6 +875,24 @@ export function CaseLookupForm() {
               </strong>
             </div>
           )}
+          {result.payment?.state === "open" ? (
+            <div>
+              <CtaButton href={result.payment.path}>
+                {tp("payOnline", {
+                  amount: formatBDT(
+                    result.payment.amountMinor,
+                    asLocale(locale),
+                  ),
+                })}
+              </CtaButton>
+            </div>
+          ) : result.payment?.state === "paid" ? (
+            <strong style={{ color: "var(--color-success)" }}>
+              {tp("paid", {
+                amount: formatBDT(result.payment.amountMinor, asLocale(locale)),
+              })}
+            </strong>
+          ) : null}
           {result.checklist && (
             <div style={{ display: "grid", gap: 6 }}>
               <span style={lbl}>{t("checklist")}</span>

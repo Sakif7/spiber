@@ -4,6 +4,7 @@ import { enrollInputSchema } from "@/lib/schemas/enrollment";
 import { enrollCourse } from "@/lib/services/enrollment.service";
 import { getSessionUser } from "@/lib/auth/current-user";
 import { rateLimit, clientIp } from "@/lib/auth/rate-limit";
+import { startDigitalPayment } from "@/lib/services/payment.service";
 
 export const dynamic = "force-dynamic";
 
@@ -32,9 +33,21 @@ export async function POST(req: Request) {
       result.code === "course_not_found" ? 404 : 409,
     );
   }
+  // Paid online when it can be: straight to PayStation, as checkout does.
+  let redirectUrl: string | undefined;
+  if (result.enrollment.status === "pending") {
+    const started = await startDigitalPayment(
+      "enrollment",
+      result.enrollment.enrollmentNumber,
+      { userId: user.sub },
+      { locale: parsed.data.locale },
+    ).catch(() => null);
+    if (started?.ok) redirectUrl = started.redirectUrl;
+  }
   return ok({
     enrollmentNumber: result.enrollment.enrollmentNumber,
     status: result.enrollment.status,
     totalMinor: result.enrollment.totalMinor,
+    redirectUrl,
   });
 }

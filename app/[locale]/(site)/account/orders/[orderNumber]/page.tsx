@@ -8,7 +8,10 @@ import { getOrderByNumber } from "@/lib/repositories/orders.repo";
 import { formatBDT } from "@/lib/money";
 import { localize } from "@/lib/schemas/localized";
 import { computeSelfService } from "@/lib/services/order.service";
-import { customerPaymentState } from "@/lib/services/payment.service";
+import {
+  customerPaymentState,
+  orderDuePayable,
+} from "@/lib/services/payment.service";
 import { OrderSelfService } from "@/components/account/order-self-service";
 import { OrderPayAgain } from "@/components/account/order-pay-again";
 import type { Locale } from "@/i18n/routing";
@@ -69,6 +72,8 @@ export default async function AccountOrderDetailPage({
   const o = order.toObject() as IOrder;
   const selfService = computeSelfService(o);
   const payState = customerPaymentState(o);
+  // A credit / COD order still owed can be paid online from here.
+  const payNow = !payState.awaiting && (await orderDuePayable(o));
 
   const statusColor = STATUS_COLORS[o.status] ?? "var(--color-text-muted)";
 
@@ -161,9 +166,10 @@ export default async function AccountOrderDetailPage({
               )}
             </div>
 
-            {payState.awaiting ? (
+            {payState.awaiting || payNow ? (
               <OrderPayAgain
                 orderNumber={o.orderNumber}
+                due={payNow}
                 canPayAgain={payState.canPayAgain}
                 holdUntil={payState.holdUntil}
                 attemptsLeft={payState.attemptsLeft}
