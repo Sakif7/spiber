@@ -8,7 +8,9 @@ import { getOrderByNumber } from "@/lib/repositories/orders.repo";
 import { formatBDT } from "@/lib/money";
 import { localize } from "@/lib/schemas/localized";
 import { computeSelfService } from "@/lib/services/order.service";
+import { customerPaymentState } from "@/lib/services/payment.service";
 import { OrderSelfService } from "@/components/account/order-self-service";
+import { OrderPayAgain } from "@/components/account/order-pay-again";
 import type { Locale } from "@/i18n/routing";
 import type { IOrder } from "@/lib/models/order";
 
@@ -66,6 +68,7 @@ export default async function AccountOrderDetailPage({
 
   const o = order.toObject() as IOrder;
   const selfService = computeSelfService(o);
+  const payState = customerPaymentState(o);
 
   const statusColor = STATUS_COLORS[o.status] ?? "var(--color-text-muted)";
 
@@ -157,6 +160,15 @@ export default async function AccountOrderDetailPage({
                 </span>
               )}
             </div>
+
+            {payState.awaiting ? (
+              <OrderPayAgain
+                orderNumber={o.orderNumber}
+                canPayAgain={payState.canPayAgain}
+                holdUntil={payState.holdUntil}
+                attemptsLeft={payState.attemptsLeft}
+              />
+            ) : null}
 
             {/* Items */}
             <div style={cardStyle}>
@@ -262,6 +274,18 @@ export default async function AccountOrderDetailPage({
                   <TotalRow
                     label="Discount"
                     value={`− ${formatBDT(o.discountMinor, loc)}`}
+                  />
+                )}
+                {(o.taxMinor ?? 0) > 0 && (
+                  <TotalRow
+                    label={o.taxRateBp ? `VAT (${o.taxRateBp / 100}%)` : "VAT"}
+                    value={formatBDT(o.taxMinor, loc)}
+                  />
+                )}
+                {(o.roundingMinor ?? 0) !== 0 && (
+                  <TotalRow
+                    label="Rounding"
+                    value={`− ${formatBDT(-(o.roundingMinor ?? 0), loc)}`}
                   />
                 )}
                 <div

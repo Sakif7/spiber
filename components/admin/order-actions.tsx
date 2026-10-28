@@ -42,9 +42,11 @@ const STATUS_LABEL: Record<string, string> = {
 type Props = {
   orderId: string;
   status: string;
-  /** offline | cod | credit — legacy orders report"offline". */
+  /** offline | online | cod | credit — legacy orders report "offline". */
   paymentMethod?: string;
   paymentStatus?: string;
+  /** Money was taken through the gateway, so cancelling means refunding by hand. */
+  paidOnline?: boolean;
 };
 
 export function OrderActions({
@@ -52,6 +54,7 @@ export function OrderActions({
   status,
   paymentMethod = "offline",
   paymentStatus = "unpaid",
+  paidOnline = false,
 }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
@@ -60,6 +63,7 @@ export function OrderActions({
   const [internalNote, setInternalNote] = useState("");
   const [trackingNumber, setTrackingNumber] = useState("");
   const [txnId, setTxnId] = useState("");
+  const [refundReference, setRefundReference] = useState("");
 
   const allowed = allowedFor(status, paymentMethod);
   // COD/credit orders are paid outside the status machine (at the door, or on
@@ -111,6 +115,9 @@ export function OrderActions({
       if (to === "shipped" && trackingNumber.trim()) {
         body.trackingNumber = trackingNumber.trim();
       }
+      if ((to === "cancelled" || to === "refunded") && refundReference.trim()) {
+        body.refundReference = refundReference.trim();
+      }
       const res = await fetch(`/api/admin/orders/${orderId}/transition`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -126,6 +133,7 @@ export function OrderActions({
       setNote("");
       setInternalNote("");
       setTrackingNumber("");
+      setRefundReference("");
       router.refresh();
     } catch {
       setError("Network error. Please try again.");
@@ -221,6 +229,25 @@ export function OrderActions({
                 onChange={(e) => setTrackingNumber(e.target.value)}
                 placeholder="e.g. SP123456789BD"
               />
+            </div>
+          ) : null}
+          {paidOnline &&
+          (allowed.includes("cancelled") || allowed.includes("refunded")) ? (
+            <div className="min-w-[200px] flex-[1_1_220px] space-y-1.5">
+              <Label htmlFor="order-refund-ref">
+                Refund reference (for cancel / refund)
+              </Label>
+              <Input
+                id="order-refund-ref"
+                value={refundReference}
+                onChange={(e) => setRefundReference(e.target.value)}
+                placeholder="e.g. bKash TrxID or bank ref"
+              />
+              <p className="text-muted-foreground text-xs">
+                Paid online: PayStation does not refund by itself. Return the
+                money first; left empty, it waits under Online payments › Needs
+                refund.
+              </p>
             </div>
           ) : null}
         </div>

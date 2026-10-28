@@ -31,6 +31,8 @@ type Totals = {
   discountMinor: number;
   shippingMinor: number;
   taxMinor: number;
+  /** Poisha dropped so the total is whole taka (0 to −99). */
+  roundingMinor: number;
   totalMinor: number;
 };
 
@@ -138,6 +140,8 @@ export function CheckoutForm({
         idempotencyKey,
         storefront,
         paymentMethod: showPaymentChoice ? paymentMethod : undefined,
+        // PayStation sends the shopper back in the language they paid in.
+        locale,
       }),
     });
     const json = await res.json();
@@ -455,6 +459,12 @@ export function CheckoutForm({
                 value={formatBDT(totals.taxMinor, locale)}
               />
             )}
+            {totals.roundingMinor !== 0 && (
+              <Row
+                label={t("rounding")}
+                value={`− ${formatBDT(-totals.roundingMinor, locale)}`}
+              />
+            )}
             <div
               style={{
                 borderTop: "1px solid var(--color-hairline)",
@@ -476,11 +486,15 @@ export function CheckoutForm({
             color: "var(--color-text-muted)",
           }}
         >
-          {isMedtrade
-            ? paymentMethod === "credit"
-              ? t("creditNote", { days: creditTermsDays })
-              : t("codNote")
-            : t("paymentNote")}{" "}
+          {showPaymentChoice && paymentMethod === "online"
+            ? t("payOnlineNote")
+            : isMedtrade
+              ? paymentMethod === "credit"
+                ? t("creditNote", { days: creditTermsDays })
+                : t("codNote")
+              : showPaymentChoice
+                ? t("codNote")
+                : t("paymentNote")}{" "}
           <Link
             href="/kart/returns"
             style={{ color: "var(--color-brand-deep)", fontWeight: 600 }}

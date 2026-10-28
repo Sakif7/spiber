@@ -340,7 +340,8 @@ export function SalesReportView({
                           </button>
                         </td>
                         <td className="px-4 py-2.5 text-right tabular-nums">
-                          {c.orders.length}
+                          {/* A cost line (fees kept on returned payments) is not an order. */}
+                          {c.orders.filter((o) => !o.adjustment).length}
                         </td>
                         <td className="px-4 py-2.5 text-right tabular-nums">
                           {taka(c.revenueMinor)}
@@ -384,9 +385,11 @@ export function SalesReportView({
                                     {o.invoiceNumber}
                                   </span>
                                 )}
-                                <span className="text-muted-foreground ml-2 text-xs">
-                                  paid {day(o.paidAt)}
-                                </span>
+                                {o.adjustment ? null : (
+                                  <span className="text-muted-foreground ml-2 text-xs">
+                                    paid {day(o.paidAt)}
+                                  </span>
+                                )}
                               </td>
                               <td className="px-4 py-2 text-right tabular-nums">
                                 {taka(o.revenueMinor)}

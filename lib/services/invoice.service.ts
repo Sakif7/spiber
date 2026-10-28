@@ -21,6 +21,7 @@ export function toInvoiceOrder(order: IOrder): InvoiceOrder {
     taxMinor: order.taxMinor ?? 0,
     taxRateBp: order.taxRateBp ?? null,
     aitRateBp: order.aitRateBp ?? null,
+    roundingMinor: order.roundingMinor ?? 0,
     totalMinor: order.totalMinor,
     payment: {
       // Legacy orders predate `method`; they were all offline.

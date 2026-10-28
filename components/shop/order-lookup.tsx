@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Input } from "@/components/ui/input";
@@ -17,8 +17,17 @@ type LookedUpOrder = {
   totalMinor: number;
   taxMinor?: number;
   taxRateBp?: number | null;
-  /** offline | cod | credit — legacy orders report "offline". */
+  roundingMinor?: number;
+  /** offline | online | cod | credit — legacy orders report "offline". */
   paymentMethod?: string;
+  paymentStatus?: string;
+  /** An online order still waiting for its money. */
+  paymentState?: {
+    awaiting: boolean;
+    canPayAgain: boolean;
+    holdUntil: string | null;
+    attemptsLeft: number;
+  };
   /** Credit orders only: when the invoice falls due. */
   dueAt?: string | null;
   email: string;
@@ -42,12 +51,22 @@ const STATUS_NOTE: Record<string, { key: string; color: string }> = {
   refunded: { key: "noteRefunded", color: "var(--color-error)" },
 };
 
+/** The confirming page asks again this often, this many times, then stops. */
+const POLL_MS = 3000;
+const POLL_TIMES = 10;
+
 export function OrderLookup({
   initialOrderNumber,
   initialEmail,
+  paymentHint,
 }: {
   initialOrderNumber?: string;
   initialEmail?: string;
+  /**
+   * How the customer came back from the gateway (paid / failed / cancelled /
+   * pending / issue) — set by our own return route after asking PayStation.
+   */
+  paymentHint?: string;
 }) {
   const t = useTranslations("shop.confirmation");
   // Payment-method labels live in the checkout namespace (single source).
@@ -61,6 +80,11 @@ export function OrderLookup({
       ? { num: initialOrderNumber, email: initialEmail }
       : null,
   );
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
+  const qc = useQueryClient();
+  // Every click spends one of the order's tries: a double click must not.
+  const inFlight = useRef(false);
 
   const lookup = useQuery({
     queryKey: ["order-lookup", query?.num, query?.email],
@@ -72,23 +96,164 @@ export function OrderLookup({
       const json = await res.json();
       return res.ok && json.ok ? (json.data.order as LookedUpOrder) : null;
     },
+    // Back from the gateway with the money not yet confirmed: keep asking for
+    // half a minute, so the page turns to "paid" on its own.
+    refetchInterval: (q) =>
+      paymentHint === "pending" &&
+      q.state.data?.paymentState?.awaiting &&
+      q.state.dataUpdateCount < POLL_TIMES
+        ? POLL_MS
+        : false,
   });
 
   const order = lookup.data ?? null;
   const notFound = !!query && lookup.isFetched && !order;
+  // Still inside the half-minute of asking (the hook re-renders on every answer).
+  const updates =
+    qc.getQueryState(["order-lookup", query?.num, query?.email])
+      ?.dataUpdateCount ?? 0;
+  const confirming = paymentHint === "pending" && updates < POLL_TIMES;
+
+  async function payAgain() {
+    if (!order || inFlight.current) return;
+    inFlight.current = true;
+    setPaying(true);
+    setPayError(null);
+    try {
+      const res = await fetch(
+        `/api/orders/${encodeURIComponent(order.orderNumber)}/pay`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: order.email, locale }),
+        },
+      );
+      const json = await res.json().catch(() => null);
+      if (res.ok && json?.ok && json.data.redirectUrl) {
+        window.location.assign(json.data.redirectUrl);
+        return;
+      }
+      const code = json?.error?.code;
+      setPayError(
+        code === "expired"
+          ? t("expired")
+          : code === "too_many_attempts"
+            ? t("noMoreTries")
+            : t("payAgainError"),
+      );
+      void lookup.refetch();
+    } catch {
+      setPayError(t("payAgainError"));
+    }
+    inFlight.current = false;
+    setPaying(false);
+  }
 
   if (order) {
     const statusNote = STATUS_NOTE[order.status];
+    const ps = order.paymentState;
+    const awaiting = !!ps?.awaiting;
+    const holdTime =
+      ps?.holdUntil &&
+      new Date(ps.holdUntil).toLocaleTimeString(bcp47(locale), {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    // What to say about the money, most specific first. The order itself
+    // outranks the hint: an order that is paid is paid, however the customer
+    // came back.
+    const paymentLine = awaiting
+      ? confirming
+        ? t("paymentPending")
+        : paymentHint === "pending"
+          ? t("paymentUnconfirmed")
+          : paymentHint === "cancelled"
+            ? t("paymentCancelled")
+            : paymentHint === "issue"
+              ? t("paymentIssue")
+              : t("paymentFailed")
+      : paymentHint === "issue"
+        ? t("paymentIssue")
+        : paymentHint === "paid" && order.paymentStatus === "paid"
+          ? t("paymentPaid")
+          : null;
     return (
       <div style={{ display: "grid", gap: "var(--s-4)", maxWidth: 560 }}>
-        <p
-          style={{
-            color: statusNote?.color ?? "var(--color-success)",
-            fontSize: "var(--fs-body-lg)",
-          }}
-        >
-          {statusNote ? t(statusNote.key) : t("thankYou")}
-        </p>
+        {awaiting ? (
+          <div
+            role="status"
+            style={{
+              display: "grid",
+              gap: "var(--s-3)",
+              padding: "var(--s-4)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--r-lg)",
+              background: "var(--color-surface)",
+            }}
+          >
+            <p style={{ margin: 0, fontSize: "var(--fs-body-lg)" }}>
+              {paymentLine}
+            </p>
+            {ps?.canPayAgain ? (
+              <>
+                {holdTime ? (
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: "var(--fs-small)",
+                      color: "var(--color-text-muted)",
+                    }}
+                  >
+                    {t("holdUntil", { time: holdTime })}
+                  </p>
+                ) : null}
+                {!confirming ? (
+                  <CtaButton onClick={payAgain}>
+                    {paying ? t("payingAgain") : t("payAgain")}
+                  </CtaButton>
+                ) : null}
+              </>
+            ) : (
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "var(--fs-small)",
+                  color: "var(--color-text-muted)",
+                }}
+              >
+                {ps && ps.attemptsLeft === 0 ? t("noMoreTries") : t("expired")}
+              </p>
+            )}
+            {payError ? (
+              <p
+                role="alert"
+                style={{
+                  margin: 0,
+                  color: "var(--color-error)",
+                  fontSize: "var(--fs-small)",
+                }}
+              >
+                {payError}
+              </p>
+            ) : null}
+          </div>
+        ) : (
+          <>
+            <p
+              style={{
+                color: statusNote?.color ?? "var(--color-success)",
+                fontSize: "var(--fs-body-lg)",
+              }}
+            >
+              {statusNote ? t(statusNote.key) : t("thankYou")}
+            </p>
+            {paymentLine ? (
+              <p style={{ margin: 0, color: "var(--color-text-muted)" }}>
+                {paymentLine}
+              </p>
+            ) : null}
+          </>
+        )}
         <dl
           style={{
             display: "grid",
@@ -123,7 +288,11 @@ export function OrderLookup({
                 {t("paymentMethod")}
               </dt>
               <dd style={{ margin: 0 }}>
-                {order.paymentMethod === "cod" ? tc("cod") : tc("credit")}
+                {order.paymentMethod === "online"
+                  ? t("methodOnline")
+                  : order.paymentMethod === "cod"
+                    ? tc("cod")
+                    : tc("credit")}
               </dd>
             </>
           )}
@@ -145,6 +314,16 @@ export function OrderLookup({
                   : t("vat")}
               </dt>
               <dd style={{ margin: 0 }}>{formatBDT(order.taxMinor, locale)}</dd>
+            </>
+          )}
+          {!!order.roundingMinor && (
+            <>
+              <dt style={{ color: "var(--color-text-muted)" }}>
+                {t("rounding")}
+              </dt>
+              <dd style={{ margin: 0 }}>
+                − {formatBDT(-order.roundingMinor, locale)}
+              </dd>
             </>
           )}
           <dt style={{ color: "var(--color-text-muted)" }}>{t("total")}</dt>
@@ -200,7 +379,9 @@ export function OrderLookup({
             color: "var(--color-text-muted)",
           }}
         >
-          {t("emailedTo")} {order.email}
+          {/* An order still waiting for its online payment has not been
+              confirmed by email yet — that goes out with the payment. */}
+          {awaiting ? order.email : `${t("emailedTo")} ${order.email}`}
         </p>
         {/* The email is carried so a guest can open their own invoice. */}
         <Link

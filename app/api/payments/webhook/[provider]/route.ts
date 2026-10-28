@@ -1,24 +1,26 @@
 import { ok, fail } from "@/lib/http/respond";
-import { getPaymentProvider } from "@/lib/payments";
-import { applyPaymentWebhook } from "@/lib/services/payment.service";
+import { paymentProviderStatus } from "@/lib/payments";
+import { confirmAttempt } from "@/lib/services/payment.service";
 import { rateLimit, clientIp } from "@/lib/auth/rate-limit";
 import { logger } from "@/lib/log";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Gateway callback. This is the only place an order becomes paid online, and
- * it never trusts the browser: the customer's return from the gateway is just
- * navigation, while this is the server-to-server confirmation.
+ * The gateway's server-to-server notification (PayStation's IPN; register
+ * `https://spibermed.com/api/payments/webhook/paystation` with them).
  *
- * Status codes matter here, because gateways retry on anything that is not a
- * 2xx:
- *   401 — signature did not verify. Retrying will not help, but this is also
- *         how an unauthenticated POST is turned away, so it must not be 200.
- *   200 — verified. Includes events we deliberately did not apply (a replay, a
- *         wrong amount, an unknown order), because a retry cannot fix those
- *         and we do not want the gateway hammering us over one bad event.
- *   500 — we genuinely failed. The gateway SHOULD retry.
+ * PayStation's IPN is unsigned and anyone can POST here, so the body is read
+ * for one thing only — which invoice it is about — and the state and amount
+ * are then asked of PayStation over our own connection (`confirmAttempt`).
+ * A forged notification therefore achieves nothing but a status lookup.
+ *
+ * Status codes matter, because PayStation retries anything that is not 2xx:
+ *   200 — handled, including "nothing to do" (unknown invoice, already
+ *         settled, not paid): a retry cannot change those.
+ *   400 — not a notification at all.
+ *   404 — the URL names a gateway that is not the one configured.
+ *   500 — we could not ask the gateway or write the result: retry, please.
  */
 export async function POST(
   req: Request,
@@ -32,35 +34,25 @@ export async function POST(
     return fail({ code: "rate_limited" }, 429);
   }
 
-  let provider;
-  try {
-    provider = getPaymentProvider();
-  } catch (e) {
-    logger.error("payment webhook with no usable provider", e);
+  const status = paymentProviderStatus();
+  if (!status.ok) {
+    logger.error(`payment webhook with no usable provider: ${status.error}`);
     return fail({ code: "provider_unavailable" }, 500);
   }
-
-  // The URL names a provider so several can coexist later; it must match the
-  // one actually configured, or a stale endpoint could be replayed against a
-  // different gateway's verifier.
+  const provider = status.provider;
+  // The URL names a provider so a stale endpoint cannot be pointed at a
+  // different gateway's lookup.
   if (named !== provider.name) return fail({ code: "unknown_provider" }, 404);
-  if (!provider.verifyWebhook) return fail({ code: "not_supported" }, 404);
+  if (!provider.readNotification) return fail({ code: "not_supported" }, 404);
 
-  let event;
-  try {
-    event = await provider.verifyWebhook(req);
-  } catch (e) {
-    logger.error("payment webhook verification threw", e);
-    return fail({ code: "invalid_signature" }, 401);
-  }
-  if (!event) return fail({ code: "invalid_signature" }, 401);
+  const invoiceNumber = await provider.readNotification(req);
+  if (!invoiceNumber) return fail({ code: "invalid_notification" }, 400);
 
   try {
-    const outcome = await applyPaymentWebhook(provider.name, event);
+    const outcome = await confirmAttempt(invoiceNumber, "ipn");
     return ok({ result: outcome.result });
   } catch (e) {
-    // Let the gateway retry: the event was genuine and we dropped it.
-    logger.error("payment webhook processing failed", e);
+    logger.error(`payment notification for ${invoiceNumber} not processed`, e);
     return fail({ code: "processing_failed" }, 500);
   }
 }

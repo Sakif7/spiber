@@ -16,7 +16,6 @@ import {
 } from "@/lib/repositories/coupons.repo";
 import { validateCoupon } from "./coupon.service";
 import { notifyAdmins } from "./notification.service";
-import { getPaymentProvider } from "@/lib/payments";
 import { getFulfillmentProvider } from "@/lib/fulfillment";
 import { getMailer } from "@/lib/mailer";
 import {
@@ -188,7 +187,9 @@ export async function buySoftware(args: {
       couponCode,
       status,
       payment: {
-        provider: getPaymentProvider().name,
+        // Paid offline until online payment reaches this door (PayStation
+        // plan, phase 2); asking the gateway here could only fail.
+        provider: "manual",
         status: free ? "paid" : "unpaid",
         paidAt: free ? now : null,
       },

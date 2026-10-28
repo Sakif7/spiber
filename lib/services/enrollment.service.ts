@@ -17,7 +17,6 @@ import {
 import { makeId } from "@/lib/ids";
 import { validateCoupon } from "./coupon.service";
 import { notifyAdmins } from "./notification.service";
-import { getPaymentProvider } from "@/lib/payments";
 import { getMailer } from "@/lib/mailer";
 import { renderEmail } from "@/lib/mailer/templates/email-layout";
 import { siteConfig } from "@/lib/site-config";
@@ -178,7 +177,9 @@ export async function enrollCourse(args: {
       email: args.email,
       status,
       payment: {
-        provider: getPaymentProvider().name,
+        // Paid offline until online payment reaches this door (PayStation
+        // plan, phase 2); asking the gateway here could only fail.
+        provider: "manual",
         status: free || args.grant ? "paid" : "unpaid",
         paidAt: free || args.grant ? now : null,
       },

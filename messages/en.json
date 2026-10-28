@@ -2161,9 +2161,10 @@
       "vat": "VAT",
       "creditNotAvailable": "Your credit account is not active. Choose cash on delivery, or contact us.",
       "payOnline": "Pay now",
-      "payOnlineNote": "Card, mobile banking or internet banking. You will be taken to a secure payment page.",
+      "payOnlineNote": "bKash, Nagad, Rocket, Upay or card — on PayStation's secure payment page.",
       "paymentUnavailable": "We could not start the payment, and nothing has been charged. Please try again in a moment.",
-      "paymentMethodUnavailable": "That payment method is not available for this order."
+      "paymentMethodUnavailable": "That payment method is not available for this order.",
+      "rounding": "Rounding"
     },
     "confirmation": {
       "title": "Order confirmed",
@@ -2189,7 +2190,22 @@
       "policyLink": "returns & refund policy",
       "paymentMethod": "Payment method",
       "dueDate": "Payment due",
-      "vat": "VAT"
+      "vat": "VAT",
+      "titleAwaiting": "Waiting for your payment",
+      "paymentPaid": "Payment received — thank you.",
+      "paymentCancelled": "You cancelled the payment. Nothing was charged.",
+      "paymentFailed": "The payment did not go through. Nothing was charged.",
+      "paymentPending": "We're confirming your payment with PayStation. This page updates by itself.",
+      "paymentIssue": "A payment reached us that could not be applied to this order. Our team will refund it — you don't need to do anything.",
+      "holdUntil": "Your items are held for you until {time}.",
+      "payAgain": "Pay again",
+      "payingAgain": "Opening the payment page…",
+      "payAgainError": "We couldn't open the payment page. Please try again in a moment.",
+      "noMoreTries": "This order can't be paid online any more. Please order again, or contact us.",
+      "expired": "The time to pay for this order ran out and its items were released. Please order again.",
+      "methodOnline": "Online payment",
+      "rounding": "Rounding",
+      "paymentUnconfirmed": "We have not had confirmation of a payment yet. If you paid, a confirmation email is on its way; if not, you can try again."
     },
     "common": {
       "from": "From",
@@ -2866,6 +2882,8 @@
     "print": "Print / save as PDF",
     "cancelledNotice": "This order was cancelled. This document is a record only and is not a demand for payment.",
     "refundedNotice": "This order was refunded. This document is a record only and is not a demand for payment.",
-    "viewInvoice": "View invoice"
+    "viewInvoice": "View invoice",
+    "rounding": "Rounding",
+    "termsOnline": "Payable online through PayStation (bKash, Nagad, Rocket, Upay or card)."
   }
 }

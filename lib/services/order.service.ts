@@ -38,6 +38,7 @@ import {
   voidSellerCommissions,
 } from "./seller-commission.service";
 import { getPaymentProvider } from "@/lib/payments";
+import { markSubjectPaymentsForRefund } from "@/lib/repositories/payment-attempts.repo";
 import { getMailer } from "@/lib/mailer";
 import {
   renderEmail,
@@ -55,7 +56,7 @@ import {
   type OrderStatus,
   type PaymentMethod,
 } from "@/lib/schemas/order";
-import type { IOrder, IOrderItem } from "@/lib/models/order";
+import { Order, type IOrder, type IOrderItem } from "@/lib/models/order";
 
 const genOrderNumber = (): string => makeId("SPM");
 
@@ -298,11 +299,14 @@ export async function placeOrder(
         aitRateBp:
           commerce && commerce.aitRateBp > 0 ? commerce.aitRateBp : null,
         discountMinor: totals.discountMinor,
+        roundingMinor: totals.roundingMinor,
         totalMinor: totals.totalMinor,
         currency: "BDT",
         status: "pending",
         payment: {
-          provider: getPaymentProvider().name,
+          // Only an online order involves the gateway. Asking for it here
+          // also makes a misconfigured gateway fail loudly at this point.
+          provider: method === "online" ? getPaymentProvider().name : "manual",
           status: "unpaid",
           method,
           termsDays: creditTermsDays,
@@ -340,19 +344,35 @@ export async function placeOrder(
 
   // Scoped: checking out Medtrade must not empty the shopper's Kart cart.
   await deleteCart(owner, storefront).catch(() => {});
-  await sendOrderEmail(order, "placed").catch((e) =>
-    logger.warn("order confirmation email failed", e),
-  );
+  // An order paid online is only an order once the money arrives: until then
+  // it is a checkout that may be abandoned, and mailing (or pinging the team
+  // about) every one of those is noise. Its confirmation goes out when the
+  // gateway confirms the payment (see transitionOrder → "paid").
+  if (method !== "online") {
+    await sendOrderEmail(order, "placed").catch((e) =>
+      logger.warn("order confirmation email failed", e),
+    );
+    await notifyNewOrder(order);
+  }
+
+  return { ok: true, order: order.toObject(), orderId: String(orderId) };
+}
+
+/** The team's bell: a new order to fulfil. */
+async function notifyNewOrder(
+  order: IOrder & { _id?: unknown },
+  paidOnline = false,
+) {
   await notifyAdmins({
     type: "order.placed",
     severity: "success",
-    title: `New order ${order.orderNumber}`,
+    title: paidOnline
+      ? `New order ${order.orderNumber} — paid online`
+      : `New order ${order.orderNumber}`,
     body: `${order.items.reduce((n, it) => n + it.qty, 0)} item(s) · ${formatBDT(order.totalMinor)} · ${order.email}`,
     href: `/admin/orders/${String(order._id)}`,
     entity: { kind: "Order", id: String(order._id), ref: order.orderNumber },
   });
-
-  return { ok: true, order: order.toObject(), orderId: String(orderId) };
 }
 
 async function compensate(
@@ -404,6 +424,20 @@ export async function transitionOrder(
      * would be noise for the customer and bad for the sending domain.
      */
     silent?: boolean;
+    /**
+     * Cancelling/refunding an order paid online: how the money went back.
+     * Without it the payment waits under Company › Payments › Needs refund.
+     */
+    refundReference?: string;
+    actorId?: string | null;
+    /**
+     * Extra conditions the move must still meet at the moment it is written
+     * (the sweeper insists the hold has really expired, so a customer who just
+     * pressed "Pay again" is not cancelled under them).
+     */
+    guard?: Record<string, unknown>;
+    /** Payment fields to write in the same atomic move (gateway reference…). */
+    payment?: Partial<Record<"provider" | "txnId", string>>;
   } = {},
 ): Promise<TransitionResult> {
   const order = await getOrderById(orderId);
@@ -416,60 +450,95 @@ export async function transitionOrder(
   }
 
   const now = new Date();
+  const releasing = to === "cancelled" || to === "refunded";
+  const wasPaid = order.payment.status === "paid";
+  const set: Record<string, unknown> = { status: to };
 
   if (to === "paid") {
-    order.payment.status = "paid";
-    order.payment.paidAt = now;
+    set["payment.status"] = "paid";
+    set["payment.paidAt"] = now;
+    set["payment.expiresAt"] = null;
+  }
+  if (releasing) {
+    // A paid order that is cancelled is effectively a refund — reconcile
+    // payment so it stops counting as revenue.
+    if (to === "refunded" || wasPaid) {
+      set["payment.status"] = "refunded";
+      set["payment.refundedAt"] = now;
+    } else if (order.payment.status === "initiated") {
+      // The customer was at the gateway and never came back.
+      set["payment.status"] = "failed";
+    }
+    set["payment.expiresAt"] = null;
+    // A customer's open refund request is settled by either outcome.
+    if (order.refundRequest?.status === "open") {
+      set["refundRequest.status"] = "resolved";
+    }
+  }
+  if (opts.trackingNumber) set.trackingNumber = opts.trackingNumber;
+  for (const [k, v] of Object.entries(opts.payment ?? {})) {
+    if (v) set[`payment.${k}`] = v;
   }
 
-  // Cancelling or refunding restores the stock taken at placement.
-  if (to === "cancelled" || to === "refunded") {
-    for (const it of order.items) {
+  // The move itself is one conditional write on the status (and payment
+  // status) we just read: a gateway confirming a payment and the sweeper
+  // expiring the same order cannot both win. Everything with a side effect —
+  // stock, coupon, emails, commissions — runs only for the winner.
+  const moved = await Order.findOneAndUpdate(
+    {
+      _id: order._id,
+      status: order.status,
+      "payment.status": order.payment.status,
+      ...(opts.guard ?? {}),
+    },
+    {
+      $set: set,
+      $push: {
+        timeline: {
+          status: to,
+          at: now,
+          note: opts.note,
+          internalNote: opts.internalNote,
+        },
+      },
+    },
+    { returnDocument: "after" },
+  ).exec();
+  if (!moved) return { ok: false, code: "invalid_transition" };
+
+  if (releasing) {
+    // Cancelling or refunding restores the stock taken at placement.
+    for (const it of moved.items) {
       await applyMovement({
         productId: String(it.productId),
         variantId: it.productSnapshot.variantId ?? null,
         type: "return",
         qtyDelta: it.qty,
-        refOrderId: String(order._id),
+        refOrderId: String(moved._id),
         reason: to,
       }).catch((e) => logger.error("restock on " + to + " failed", e));
     }
-    // A paid order that is cancelled is effectively a refund — reconcile payment
-    // so it stops counting as revenue (cancelled/refunded are terminal, so this
-    // runs at most once per order).
-    if (to === "refunded" || order.payment.status === "paid") {
-      order.payment.status = "refunded";
-      order.payment.refundedAt = now;
-    } else if (order.payment.status === "initiated") {
-      // The customer was at the gateway and never came back.
-      order.payment.status = "failed";
-    }
-    order.payment.expiresAt = null;
     // Return the coupon's redemption slot.
-    if (order.couponCode) {
-      await releaseCouponUsageByCode(order.couponCode).catch((e) =>
+    if (moved.couponCode) {
+      await releaseCouponUsageByCode(moved.couponCode).catch((e) =>
         logger.warn("coupon release failed", e),
       );
     }
+    // Money taken online has to go back by hand: record how, or queue it.
+    if (wasPaid) {
+      await markSubjectPaymentsForRefund(
+        ["order", "order_due"],
+        String(moved._id),
+        {
+          reference: opts.refundReference,
+          note: opts.internalNote,
+          actorId: opts.actorId,
+        },
+      ).catch((e) =>
+        logger.error("could not mark online payment for refund", e),
+      );
+    }
   }
-
-  // A customer's open refund request is settled by either outcome.
-  if (
-    (to === "cancelled" || to === "refunded") &&
-    order.refundRequest?.status === "open"
-  ) {
-    order.refundRequest.status = "resolved";
-  }
-
-  if (opts.trackingNumber) order.trackingNumber = opts.trackingNumber;
-  order.status = to;
-  order.timeline.push({
-    status: to,
-    at: now,
-    note: opts.note,
-    internalNote: opts.internalNote,
-  });
-  await order.save();
 
   if (
     !opts.silent &&
@@ -479,24 +548,28 @@ export async function transitionOrder(
       to === "cancelled" ||
       to === "refunded")
   ) {
-    await sendOrderEmail(order, to).catch((e) =>
+    await sendOrderEmail(moved, to).catch((e) =>
       logger.warn("order status email failed", e),
     );
   }
 
+  // An online order told nobody when it was placed (it might have been
+  // abandoned); now that it is paid, it is a real order for the team.
+  if (to === "paid" && method === "online") await notifyNewOrder(moved, true);
+
   // Seller commissions: accrue when the order is paid; void the still-accrued
   // ones if it is later cancelled/refunded.
   if (to === "paid") {
-    await accrueSellerCommissions(order.toObject(), String(order._id)).catch(
+    await accrueSellerCommissions(moved.toObject(), String(moved._id)).catch(
       (e) => logger.warn("accrue seller commissions failed", e),
     );
-  } else if (to === "cancelled" || to === "refunded") {
-    await voidSellerCommissions(String(order._id)).catch((e) =>
+  } else if (releasing) {
+    await voidSellerCommissions(String(moved._id)).catch((e) =>
       logger.warn("void seller commissions failed", e),
     );
   }
 
-  return { ok: true, order: order.toObject() };
+  return { ok: true, order: moved.toObject() };
 }
 
 /** "Omron Monitor (L / Black) ×2" — variant options folded into the label. */
@@ -519,7 +592,9 @@ async function sendOrderEmail(
     | "cancelled"
     | "refunded",
 ) {
-  const wasPaid = order.payment.status !== "unpaid";
+  // "failed" (an abandoned gateway try) never took money.
+  const wasPaid =
+    order.payment.status === "paid" || order.payment.status === "refunded";
   const subjectMap: Record<typeof event, string> = {
     placed: `Order ${order.orderNumber} received`,
     paid: `Payment confirmed for ${order.orderNumber}`,
@@ -591,6 +666,12 @@ async function sendOrderEmail(
     rows.push({
       label: order.taxRateBp ? `VAT (${order.taxRateBp / 100}%)` : "VAT",
       value: formatBDT(order.taxMinor),
+    });
+  }
+  if ((order.roundingMinor ?? 0) !== 0) {
+    rows.push({
+      label: "Rounding",
+      value: `− ${formatBDT(-(order.roundingMinor ?? 0))}`,
     });
   }
   rows.push({
@@ -749,7 +830,13 @@ export type RecordPaymentResult =
  */
 export async function recordOrderPayment(
   orderId: string,
-  opts: { txnId?: string; note?: string } = {},
+  opts: {
+    txnId?: string;
+    note?: string;
+    internalNote?: string;
+    /** Set when the money came through the gateway ("paystation"). */
+    provider?: string;
+  } = {},
 ): Promise<RecordPaymentResult> {
   const order = await getOrderById(orderId);
   if (!order) return { ok: false, code: "not_found" };
@@ -763,25 +850,44 @@ export async function recordOrderPayment(
   if (!recordable) return { ok: false, code: "not_recordable" };
 
   const now = new Date();
-  order.payment.status = "paid";
-  order.payment.paidAt = now;
-  if (opts.txnId) order.payment.txnId = opts.txnId;
-  order.timeline.push({
-    status: order.status, // unchanged — this is a payment fact, not a move
-    at: now,
-    note: opts.note ?? "Payment received",
-  });
-  await order.save();
+  const set: Record<string, unknown> = {
+    "payment.status": "paid",
+    "payment.paidAt": now,
+  };
+  if (opts.txnId) set["payment.txnId"] = opts.txnId;
+  if (opts.provider) set["payment.provider"] = opts.provider;
+  // One conditional write, so an admin recording cash and the customer paying
+  // the same bill online cannot both mark it paid.
+  const moved = await Order.findOneAndUpdate(
+    {
+      _id: order._id,
+      "payment.status": "unpaid",
+      status: { $nin: ["cancelled", "refunded"] },
+    },
+    {
+      $set: set,
+      $push: {
+        timeline: {
+          status: order.status, // unchanged — a payment fact, not a move
+          at: now,
+          note: opts.note ?? "Payment received",
+          internalNote: opts.internalNote,
+        },
+      },
+    },
+    { returnDocument: "after" },
+  ).exec();
+  if (!moved) return { ok: false, code: "not_recordable" };
 
-  await sendOrderEmail(order, "payment_recorded").catch((e) =>
+  await sendOrderEmail(moved, "payment_recorded").catch((e) =>
     logger.warn("payment recorded email failed", e),
   );
   // Idempotent (unique index on order+seller); a no-op for house products.
-  await accrueSellerCommissions(order.toObject(), String(order._id)).catch(
+  await accrueSellerCommissions(moved.toObject(), String(moved._id)).catch(
     (e) => logger.warn("accrue seller commissions failed", e),
   );
 
-  return { ok: true, order: order.toObject() };
+  return { ok: true, order: moved.toObject() };
 }
 
 /**

@@ -25,6 +25,9 @@ export const paymentProviderEnum = z.enum([
   "manual",
   /** Built-in sandbox gateway. Refuses to run in production. */
   "dev",
+  /** The live gateway (bought 2026-10). */
+  "paystation",
+  // Never built; kept so an order recorded against them still validates.
   "sslcommerz",
   "aamarpay",
   "stripe",
@@ -106,6 +109,8 @@ export const checkoutSchema = z.object({
    * server-side before any stock moves, so a client can't grant itself terms.
    */
   paymentMethod: z.enum(["online", "cod", "credit"]).optional(),
+  /** The language the shopper is browsing in, so the gateway sends them back to it. */
+  locale: z.enum(["en", "bn", "ja"]).optional(),
 });
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 
@@ -116,6 +121,11 @@ export const orderTransitionSchema = z.object({
   note: z.string().max(1000).optional(),
   internalNote: z.string().max(1000).optional(),
   trackingNumber: z.string().max(120).optional(),
+  /**
+   * Cancelling or refunding an order paid online: how the money went back
+   * (bKash / bank reference). Without it the payment waits under Needs refund.
+   */
+  refundReference: z.string().trim().max(120).optional(),
 });
 export type OrderTransitionInput = z.infer<typeof orderTransitionSchema>;
 

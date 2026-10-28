@@ -66,7 +66,7 @@ export default async function MedtradeCheckoutPage({
       <section style={{ paddingBlock: "clamp(40px, 5vw, 80px)" }}>
         <Container>
           <CheckoutForm
-            onlineAvailable={onlinePaymentAvailable()}
+            onlineAvailable={await onlinePaymentAvailable("instruments")}
             initial={initial}
             storefront="instruments"
             basePath="/medtrade"

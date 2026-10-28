@@ -25,6 +25,8 @@ export default async function MarketplaceOrderConfirmationPage({
   setRequestLocale(locale);
   const sp = await searchParams;
   const email = typeof sp.email === "string" ? sp.email : undefined;
+  // Set by our own return route after asking the gateway what happened.
+  const payment = typeof sp.payment === "string" ? sp.payment : undefined;
   const t = await getTranslations({ locale, namespace: "shop.confirmation" });
   const nav = await getTranslations({ locale, namespace: "nav" });
 
@@ -33,6 +35,14 @@ export default async function MarketplaceOrderConfirmationPage({
   if (email) {
     const order = await findOrderForGuest(orderNumber, email).catch(() => null);
     if (order && TITLE_KEY[order.status]) titleKey = TITLE_KEY[order.status];
+    // Paid online but the money has not arrived: not "confirmed" yet.
+    if (
+      order?.status === "pending" &&
+      (order.payment?.method ?? "offline") === "online" &&
+      order.payment?.status !== "paid"
+    ) {
+      titleKey = "titleAwaiting";
+    }
   }
 
   return (
@@ -47,7 +57,11 @@ export default async function MarketplaceOrderConfirmationPage({
       />
       <section style={{ paddingBlock: "clamp(40px, 5vw, 80px)" }}>
         <Container>
-          <OrderLookup initialOrderNumber={orderNumber} initialEmail={email} />
+          <OrderLookup
+            initialOrderNumber={orderNumber}
+            initialEmail={email}
+            paymentHint={payment}
+          />
         </Container>
       </section>
     </>

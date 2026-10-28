@@ -2167,9 +2167,10 @@
       "vat": "VAT（付加価値税）",
       "creditNotAvailable": "クレジット口座が有効ではありません。代金引換をお選びいただくか、お問い合わせください。",
       "payOnline": "今すぐ支払う",
-      "payOnlineNote": "カード、モバイルバンキング、インターネットバンキング。安全な決済ページに移動します。",
+      "payOnlineNote": "bKash、Nagad、Rocket、Upay またはカード — PayStation の安全な決済ページで。",
       "paymentUnavailable": "決済を開始できませんでした。請求は発生していません。しばらくしてからもう一度お試しください。",
-      "paymentMethodUnavailable": "この注文ではその支払い方法をご利用いただけません。"
+      "paymentMethodUnavailable": "この注文ではその支払い方法をご利用いただけません。",
+      "rounding": "端数調整"
     },
     "confirmation": {
       "title": "ご注文を承りました",
@@ -2195,7 +2196,22 @@
       "policyLink": "返品・返金ポリシー",
       "paymentMethod": "お支払い方法",
       "dueDate": "お支払い期限",
-      "vat": "VAT（付加価値税）"
+      "vat": "VAT（付加価値税）",
+      "titleAwaiting": "お支払いをお待ちしています",
+      "paymentPaid": "お支払いを受け付けました。ありがとうございます。",
+      "paymentCancelled": "お支払いはキャンセルされました。請求は発生していません。",
+      "paymentFailed": "お支払いが完了しませんでした。請求は発生していません。",
+      "paymentPending": "PayStation でお支払いを確認しています。このページは自動で更新されます。",
+      "paymentIssue": "このご注文に適用できないお支払いを受け取りました。担当チームが返金いたしますので、お客様の操作は不要です。",
+      "holdUntil": "商品は {time} まで確保されています。",
+      "payAgain": "もう一度支払う",
+      "payingAgain": "決済ページを開いています…",
+      "payAgainError": "決済ページを開けませんでした。しばらくしてからもう一度お試しください。",
+      "noMoreTries": "このご注文はオンラインでお支払いいただけなくなりました。もう一度ご注文いただくか、お問い合わせください。",
+      "expired": "このご注文のお支払い期限が過ぎたため、商品の確保を解除しました。もう一度ご注文ください。",
+      "methodOnline": "オンライン決済",
+      "rounding": "端数調整",
+      "paymentUnconfirmed": "まだお支払いの確認が取れていません。お支払い済みの場合は確認メールが届きます。未払いの場合はもう一度お試しください。"
     },
     "common": {
       "from": "～から",
@@ -2872,6 +2888,8 @@
     "print": "印刷 / PDF保存",
     "cancelledNotice": "このご注文はキャンセルされました。本書は記録用であり、お支払いのご請求ではありません。",
     "refundedNotice": "このご注文は返金済みです。本書は記録用であり、お支払いのご請求ではありません。",
-    "viewInvoice": "請求書を見る"
+    "viewInvoice": "請求書を見る",
+    "rounding": "端数調整",
+    "termsOnline": "PayStation でオンライン決済(bKash、Nagad、Rocket、Upay またはカード)。"
   }
 }

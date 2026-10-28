@@ -11,7 +11,12 @@
  *
  * AIT is deliberately absent here: it is withheld at source by the buyer, so it
  * never changes what we charge. It is derived for display on the invoice only.
+ *
+ * ROUNDING: the total drops its poisha (owner's decision, 2026-10-28) and the
+ * difference is shown as its own line. VAT is computed first and untouched.
  */
+
+import { roundingFor } from "@/lib/schemas/payment";
 
 export type ShippingSettings = {
   flatFeeMinor: number;
@@ -34,6 +39,12 @@ export type PricedTotals = {
   discountMinor: number;
   shippingMinor: number;
   taxMinor: number;
+  /**
+   * The poisha dropped so the total is whole taka (0 to −99). The gateway
+   * takes whole taka and a courier cannot collect poisha; VAT is worked out
+   * before it and never changes.
+   */
+  roundingMinor: number;
   totalMinor: number;
 };
 
@@ -73,7 +84,16 @@ export function priceCart(
     tax && tax.rateBp > 0 && subtotalMinor > 0
       ? Math.round((discountedSubtotal * tax.rateBp) / 10000)
       : 0;
-  const totalMinor = discountedSubtotal + shippingMinor + taxMinor;
+  const exactMinor = discountedSubtotal + shippingMinor + taxMinor;
+  const roundingMinor = roundingFor(exactMinor);
+  const totalMinor = exactMinor + roundingMinor;
 
-  return { subtotalMinor, discountMinor, shippingMinor, taxMinor, totalMinor };
+  return {
+    subtotalMinor,
+    discountMinor,
+    shippingMinor,
+    taxMinor,
+    roundingMinor,
+    totalMinor,
+  };
 }

@@ -50,6 +50,8 @@ export interface IPaymentRef {
   method?: PaymentMethod;
   /** Online only: when the customer was handed to the gateway. */
   initiatedAt?: Date | null;
+  /** Online only: tries at the gateway so far (capped by MAX_ORDER_ATTEMPTS). */
+  attempts?: number;
   /**
    * Online only: when the stock this order reserved is released if the payment
    * has still not arrived. Swept by /api/cron/expire-payments.
@@ -90,6 +92,11 @@ export interface IOrder {
   /** AIT rate to DISPLAY on the invoice, in basis points. Never charged. */
   aitRateBp?: number | null;
   discountMinor: number;
+  /**
+   * Poisha dropped so the total is whole taka (0 to −99). Absent on orders
+   * placed before 2026-10-28: read it as `roundingMinor ?? 0`.
+   */
+  roundingMinor?: number;
   totalMinor: number;
   currency: "BDT";
   status: OrderStatus;
@@ -171,6 +178,7 @@ const orderSchema = new Schema<IOrder>(
     taxRateBp: { type: Number, default: null },
     aitRateBp: { type: Number, default: null },
     discountMinor: { type: Number, default: 0 },
+    roundingMinor: { type: Number },
     totalMinor: { type: Number, required: true },
     currency: { type: String, default: "BDT" },
     status: {
@@ -190,7 +198,14 @@ const orderSchema = new Schema<IOrder>(
     payment: {
       provider: {
         type: String,
-        enum: ["manual", "dev", "sslcommerz", "aamarpay", "stripe"],
+        enum: [
+          "manual",
+          "dev",
+          "paystation",
+          "sslcommerz",
+          "aamarpay",
+          "stripe",
+        ],
         default: "manual",
       },
       txnId: String,
@@ -208,6 +223,7 @@ const orderSchema = new Schema<IOrder>(
         default: "offline",
       },
       initiatedAt: { type: Date, default: null },
+      attempts: { type: Number },
       expiresAt: { type: Date, default: null },
       termsDays: { type: Number, default: null },
       dueAt: { type: Date, default: null },

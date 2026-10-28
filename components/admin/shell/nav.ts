@@ -45,6 +45,7 @@ import {
   MessagesSquare,
   FolderLock,
   CreditCard,
+  WalletCards,
   Landmark,
   FileSpreadsheet,
   UsersRound,
@@ -456,6 +457,14 @@ export const COMPANY_NAV_GROUPS: NavGroup[] = [
         "/admin/company/sales/report",
         "Sales report",
         ChartNoAxesCombined,
+      ),
+      // Every try at PayStation, the needs-refund queue, fee rates and the
+      // switches that decide where customers may pay online.
+      superItem(
+        "company.payments",
+        "/admin/company/payments",
+        "Online payments",
+        WalletCards,
       ),
     ],
   },

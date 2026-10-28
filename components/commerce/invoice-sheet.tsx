@@ -21,6 +21,8 @@ export type InvoiceOrder = {
   taxMinor: number;
   taxRateBp?: number | null;
   aitRateBp?: number | null;
+  /** Poisha dropped so the total is whole taka (0 to −99). */
+  roundingMinor?: number;
   totalMinor: number;
   payment: {
     method: string;
@@ -100,7 +102,9 @@ export async function InvoiceSheet({
             days: order.payment.termsDays ?? 30,
             due: order.payment.dueAt ? fmtDate(order.payment.dueAt) : "—",
           })
-        : t("termsOffline");
+        : method === "online"
+          ? t("termsOnline")
+          : t("termsOffline");
 
   return (
     <>
@@ -299,6 +303,12 @@ export async function InvoiceSheet({
                     : t("vat")
                 }
                 value={formatBDT(order.taxMinor, locale)}
+              />
+            ) : null}
+            {(order.roundingMinor ?? 0) !== 0 ? (
+              <TotalRow
+                label={t("rounding")}
+                value={`− ${formatBDT(-(order.roundingMinor ?? 0), locale)}`}
               />
             ) : null}
             <div

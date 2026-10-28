@@ -3,6 +3,7 @@ import { Order } from "@/lib/models/order";
 import { SalesOrder } from "@/lib/models/salesOrder";
 import { Expense, type IExpense } from "@/lib/models/expense";
 import { Visit } from "@/lib/models/visit";
+import { PaymentAttempt } from "@/lib/models/payment-attempt";
 import type { Lean } from "@/lib/models/_shared";
 import { expenseLinesOf } from "@/lib/hr/expense-lines";
 
@@ -52,6 +53,12 @@ export type ReportLine = {
 export type ReportOrder = {
   id: string;
   ref: string;
+  /**
+   * A cost line, not a sale (the fees PayStation kept on payments that were
+   * returned). Listed with the orders so the cost is visible; never counted
+   * as an order.
+   */
+  adjustment?: boolean;
   /** "offline" = raised by the sales team; "online" = a storefront order. */
   channel: "offline" | "online";
   invoiceNumber: string | null;
@@ -214,6 +221,24 @@ async function onlineOrders(range: ReportRange): Promise<ReportOrder[]> {
     .lean()
     .exec();
 
+  // What the gateway charged us on each order paid online. The company bears
+  // the fee (2026-10-28), so it is a cost of the sale, frozen on the payment.
+  const fees = new Map<string, number>();
+  if (docs.length) {
+    const paid = await PaymentAttempt.find({
+      "subject.kind": { $in: ["order", "order_due"] },
+      "subject.id": { $in: docs.map((d: Record<string, any>) => d._id) },
+      status: "paid",
+    })
+      .select({ "subject.id": 1, feeMinor: 1 })
+      .lean()
+      .exec();
+    for (const a of paid as Record<string, any>[]) {
+      const k = String(a.subject?.id);
+      fees.set(k, (fees.get(k) ?? 0) + num(a.feeMinor));
+    }
+  }
+
   return docs.map((o: Record<string, any>) => {
     const lines: ReportLine[] = (o.items ?? []).map(
       (i: Record<string, any>) => {
@@ -237,6 +262,16 @@ async function onlineOrders(range: ReportRange): Promise<ReportOrder[]> {
 
     const revenueMinor = netGoods(o.subtotalMinor, o.discountMinor);
     const costMinor = lines.reduce((s, l) => s + l.costMinor, 0);
+    // A storefront order carries its shipping as revenue, not as a cost to
+    // us. What it does cost: the gateway's fee, and the poisha dropped to make
+    // the total whole taka — both money that never reaches the bank.
+    const orderCosts: { label: string; amountMinor: number }[] = [];
+    const fee = fees.get(String(o._id)) ?? 0;
+    if (fee > 0) orderCosts.push({ label: "Payment fee", amountMinor: fee });
+    const rounding = -num(o.roundingMinor);
+    if (rounding > 0)
+      orderCosts.push({ label: "Rounding", amountMinor: rounding });
+    const orderCostMinor = orderCosts.reduce((t, c) => t + c.amountMinor, 0);
 
     return {
       id: String(o._id),
@@ -252,16 +287,56 @@ async function onlineOrders(range: ReportRange): Promise<ReportOrder[]> {
       vatMinor: num(o.taxMinor),
       deliveryMinor: num(o.shippingMinor),
       aitMinor: 0,
-      // A storefront order carries its shipping as revenue, not as a cost to
-      // us; there is nowhere to enter one, so the field is honestly zero.
-      orderCostMinor: 0,
-      orderCosts: [],
-      netMinor: revenueMinor - costMinor,
-      netCashMinor: revenueMinor - costMinor,
+      orderCostMinor,
+      orderCosts,
+      netMinor: revenueMinor - costMinor - orderCostMinor,
+      netCashMinor: revenueMinor - costMinor - orderCostMinor,
       linesMissingCost: lines.filter((l) => l.unitCostMinor == null).length,
       lines,
     };
   });
+}
+
+/**
+ * Fees on money taken online and then returned (or waiting to be): the
+ * payment is no longer revenue, but PayStation kept its fee, so it stays a
+ * cost in the period the money was taken. One line, not one per payment.
+ */
+async function feesOnReturnedPayments(
+  range: ReportRange,
+): Promise<ReportOrder | null> {
+  const rows = await PaymentAttempt.find({
+    status: { $in: ["needs_refund", "refunded"] },
+    paidAt: { $gte: range.start, $lt: range.end },
+  })
+    .select({ feeMinor: 1 })
+    .lean()
+    .exec();
+  const fee = (rows as Record<string, any>[]).reduce(
+    (t, a) => t + num(a.feeMinor),
+    0,
+  );
+  if (fee <= 0) return null;
+  return {
+    id: "online-returned-fees",
+    adjustment: true,
+    ref: `Fees on ${rows.length} returned payment${rows.length === 1 ? "" : "s"}`,
+    channel: "online",
+    invoiceNumber: null,
+    paidAt: null,
+    revenueMinor: 0,
+    costMinor: 0,
+    profitMinor: 0,
+    vatMinor: 0,
+    deliveryMinor: 0,
+    aitMinor: 0,
+    orderCostMinor: fee,
+    orderCosts: [{ label: "Payment fee (money returned)", amountMinor: fee }],
+    netMinor: -fee,
+    netCashMinor: -fee,
+    linesMissingCost: 0,
+    lines: [],
+  };
 }
 
 /* ── what we spent chasing each client ──────────────────────────────────── */
@@ -321,11 +396,13 @@ async function attributedExpenses(
 export async function salesReport(range: ReportRange): Promise<SalesReport> {
   await connectToDatabase();
 
-  const [offline, online, expenses] = await Promise.all([
+  const [offline, onlineSold, returnedFees, expenses] = await Promise.all([
     offlineOrders(range),
     onlineOrders(range),
+    feesOnReturnedPayments(range),
     attributedExpenses(range),
   ]);
+  const online = returnedFees ? [...onlineSold, returnedFees] : onlineSold;
 
   // Offline sales group by the client they were raised for; the storefronts
   // have no client, so they are one row of their own rather than hundreds of
@@ -429,7 +506,8 @@ export async function salesReport(range: ReportRange): Promise<SalesReport> {
       t.aitMinor += c.aitMinor;
       t.orderCostMinor += c.orderCostMinor;
       t.expensesMinor += c.expensesMinor;
-      t.orders += c.orders.length;
+      // The returned-payment fees line is a cost, not an order.
+      t.orders += c.orders.filter((o) => !o.adjustment).length;
       t.linesMissingCost += c.linesMissingCost;
       t.deliveryMinor += c.orders.reduce((s, o) => s + o.deliveryMinor, 0);
       return t;

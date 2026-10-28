@@ -91,18 +91,46 @@ These are the things the owner has had to repeat. Treat them as hard rules.
   **AIT is charged on goods after discount** — same base as VAT, never on the
   VAT-inclusive total; `aitOnGoods` in `lib/schemas/sales-order.ts` is the one
   place that is decided, for the PDF and the books alike.
-- **Payments:** pluggable `PaymentProvider`; default `manual` (offline). A
-  `dev` sandbox gateway exists locally. An unrecognised provider name
-  **throws** — never silently falls back. Real gateway not yet wired: it will
-  be **PayStation** (bought 2026-10). Its public API is hosted checkout
-  (`POST /initiate-payment`, merchantId + password in the body, integer taka,
-  unique `invoice_number` per attempt) plus `/transaction-status`; the IPN is
-  **unsigned** and success-only, so every callback is re-checked server-side
-  against `/transaction-status` before it settles anything. Collected money
-  settles to the bank (T+2), not to a wallet. Disbursement
-  (`/merchant/disbursement/{request,status}`, needs a portal key) is a
-  separate product, not publicly documented — ask PayStation before relying
-  on it. Findings: log 2026-10-26.
+- **Payments:** pluggable `PaymentProvider` (`manual` | `dev` |
+  `paystation`); an unrecognised name **throws** — never silently falls back.
+  **PayStation is wired for shop checkout (Phase 1 of
+  `.docs/paystation-plan.md`, 2026-10-28)**; the plan's later phases
+  (software/courses, pay-by-link, tourism) are not built. Rules:
+  - Every try is a **`PaymentAttempt`** with its own `invoice_number`
+    (PayStation refuses a reused one). A provider only `start`s and `check`s;
+    **nothing a gateway sends is trusted** — the IPN and the customer's return
+    only name an invoice. **`confirmAttempt` is the one door** (IPN, return
+    `/api/payments/return/<invoice>`, sweeper, admin Re-check); a conditional
+    write on the attempt decides who applies it, and order moves are
+    conditional too (`transitionOrder` writes only if status + payment status
+    are what it read; side effects run for the winner only).
+  - PayStation reports a paid invoice as `"successful"` and a cancelled or
+    declined one as **`processing`** — only success means anything. The
+    sweeper (`/api/cron/expire-payments`, every 5 min — keep the path) checks
+    open tries every run for an hour, hourly for a day, then abandons them,
+    and **asks before cancelling** an expired hold. The IPN is a speed-up,
+    never required. Money that arrives late/twice/wrong is never applied:
+    the attempt goes `needs_refund` (Company › Online payments).
+  - Totals floor to whole taka (`roundingMinor`, a Rounding line; VAT
+    untouched). The company bears the fee (`pay_with_charge=0`): frozen per
+    payment from dated per-method rates, a "Payment fee" order cost in the
+    sales report (kept on returned payments too). No refund API: refunds are
+    by hand, then recorded (reference) on the order's Cancel/Refund or the
+    Needs-refund queue.
+  - Payment points are switches in Company › Online payments (super admin),
+    all off by default; `LIVE_PAYMENT_POINTS` says which are built, and none
+    switches on without fee rates. An online order sends no email or bell
+    at placement (it may be abandoned) — the "paid" email and "paid online"
+    bell are its confirmation. Production refuses `PAYSTATION_ENV=sandbox`.
+  - Locally: `PAYMENT_PROVIDER=paystation PAYSTATION_ENV=sandbox` with the
+    public test merchant (`.env.example`); test card 5123450000000008 01/39
+    CVV 100, 3-D Secure emulator "Y". `dev` mimics PayStation offline.
+    Collected money settles to the bank (T+2). Disbursement is a separate,
+    undocumented product (log 2026-10-26). The IPN URL is one per merchant,
+    registered with PayStation (`/api/payments/webhook/paystation`).
+    Owner-locked (plan): company pays the fee; own software + courses count as
+    revenue; tourism collects a staff-set amount per quote, passed-on money
+    typed as its cost; external apps (ZenHcare) stay offline.
 - **Storage:** pluggable; **production uses local disk** (`ALLOW_LOCAL_STORAGE`,
   public under `public/uploads`, private under `PRIVATE_UPLOADS_DIR`, never
   statically served). R2 is a drop-in via env. Gated media only via
@@ -546,7 +574,9 @@ tests`, `npm test`, and the browser pass above. Then `git status`.
 - **Zod 4 `.partial()` still fills defaults** for absent keys: a PATCH schema
   derived from a defaulted object arrives complete and resets every other
   field on merge. Build patch schemas from bare fields (see
-  `documentSettingsPatchSchema`).
+  `documentSettingsPatchSchema`). And **`z.record(someEnum, …)` demands
+  every enum key** (types and runtime): a patch naming one key needs
+  `z.partialRecord` (`paymentSettingsPatchSchema`).
 - TipTap: pin `@tiptap/*` to **exactly `3.24.0`** (`^` breaks peer deps);
   `generateHTML` under Node comes from `@tiptap/html/server` (the bare
   import throws "browser environment"). `useEditorState` created while the
@@ -667,6 +697,10 @@ clip }` that makes body the sticky containing block: a menu inside a sticky
   first line). Pause ~150 ms after moving the caret before typing.
 - The payroll page opens on the **previous** month; a claim approved today
   sits on the current month's run — open it with `?month=`.
+- PayStation's sandbox sends the customer back by a hop `page.route` cannot
+  intercept (neither on our return path nor on their host). To test "paid
+  and closed the tab" (IPN only), give a pending order an extra attempt whose
+  sandbox link has a dead `callback_url`, pay that link, then POST the IPN.
 
 **Patching files from the shell**
 
@@ -706,8 +740,14 @@ clip }` that makes body the sticky containing block: a menu inside a sticky
 - Scheduled (Coolify › Scheduled Tasks, run inside the app container):
   `/api/cron/low-stock-digest` daily at 03:00 UTC via `curl` with
   `Authorization: Bearer $CRON_SECRET` (runtime-only env, since 2026-10-18).
-  `/api/cron/expire-payments` is **not** scheduled yet — it must run every few
-  minutes **before** online payment is enabled.
+  `/api/cron/expire-payments` every 5 minutes (`*/5 * * * *`, same `curl`
+  shape, since 2026-10-28; answers `{"expired":0}` while payments are
+  `manual`) — keep that path when the PayStation sweeper replaces its body.
+  **Env values are never read by Claude**: no snapshot/screenshot of the
+  Environment Variables page (it prints every value) and no `value` column
+  from `coolify-db`. Auto mode refuses both scripted work on that page and
+  a direct `coolify-db` write (even flags only), so the owner makes env
+  changes on the page; verify names and flags from `coolify-db`.
 - Required in prod: `COMPANY_VAULT_KEY`, `SUPER_ADMIN_EMAILS`, `APP_URL`,
   `ALLOW_LOCAL_STORAGE=true` + one persistent volume at `/data`
   (`UPLOADS_DIR=/data/uploads`, `PRIVATE_UPLOADS_DIR=/data/private`). Applied

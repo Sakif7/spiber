@@ -1,18 +1,22 @@
 import { timingSafeEqual } from "node:crypto";
 import { ok, fail } from "@/lib/http/respond";
 import { requireAdmin } from "@/lib/auth/guard";
-import { expireStalePayments } from "@/lib/services/payment.service";
+import { sweepPayments } from "@/lib/services/payment.service";
 import { writeAudit } from "@/lib/repositories/audit.repo";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Release the stock held by online payments that never completed.
+ * The payment sweeper (Coolify scheduled task, every 5 minutes, since
+ * 2026-10-28 — keep this path, the task points at it).
  *
- * Run this every few minutes from a scheduler with
- * `Authorization: Bearer <CRON_SECRET>` (or `x-cron-secret`). Without it,
- * every abandoned checkout keeps its reserved stock forever, so this is not
- * optional once online payment is switched on. An admin can also trigger it.
+ * Asks the gateway about every open try that is due, settles any that were
+ * paid, and releases the stock of orders whose hold ran out unpaid. Without
+ * it a customer who paid and closed the tab waits on PayStation's
+ * notification alone, and every abandoned checkout holds its stock forever.
+ *
+ * `Authorization: Bearer <CRON_SECRET>` (or `x-cron-secret`). An admin can
+ * also run it by POST.
  */
 function secretOk(req: Request): boolean {
   const secret = process.env.CRON_SECRET?.trim();
@@ -31,14 +35,17 @@ async function run(req: Request) {
   const admin = viaSecret ? null : await requireAdmin();
   if (!viaSecret && !admin) return fail({ code: "forbidden" }, 403);
 
-  const result = await expireStalePayments();
-  if (admin && result.expired > 0) {
-    await writeAudit({
-      actorId: admin.sub,
-      action: "payment.expire_stale",
-      entityType: "Order",
-      after: result,
-    });
+  const result = await sweepPayments();
+  if (admin && (result.expired > 0 || result.settled > 0)) {
+    await writeAudit(
+      {
+        actorId: admin.sub,
+        action: "payment.sweep",
+        entityType: "Order",
+        after: result,
+      },
+      req,
+    );
   }
   return ok(result);
 }
@@ -49,7 +56,7 @@ async function run(req: Request) {
  * The job used to accept a GET authorised by an admin's session cookie, which
  * meant any page the admin visited could trigger it with an <img> tag — a
  * cross-site request the cookie's SameSite=Lax does not stop on a top-level
- * navigation. Admin-initiated runs now go through POST, which the proxy's
+ * navigation. Admin-initiated runs go through POST, which the proxy's
  * same-origin check covers.
  */
 export async function GET(req: Request) {

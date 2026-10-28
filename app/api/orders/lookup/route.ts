@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ok, fail } from "@/lib/http/respond";
 import { findOrderForGuest } from "@/lib/repositories/orders.repo";
 import { rateLimit, clientIp } from "@/lib/auth/rate-limit";
+import { customerPaymentState } from "@/lib/services/payment.service";
 
 // Guest order lookup requires BOTH the (unguessable) order number and the
 // matching email — validated + rate-limited to blunt order/email enumeration.
@@ -38,11 +39,14 @@ export async function GET(req: Request) {
       discountMinor: order.discountMinor,
       taxMinor: order.taxMinor ?? 0,
       taxRateBp: order.taxRateBp ?? null,
+      roundingMinor: order.roundingMinor ?? 0,
       totalMinor: order.totalMinor,
       // How it's paid + when it falls due (credit). No provider/txn internals.
       paymentMethod: order.payment?.method ?? "offline",
       paymentStatus: order.payment?.status ?? "unpaid",
       dueAt: order.payment?.dueAt ?? null,
+      // Online orders still waiting for their money: whether "Pay again" is open.
+      paymentState: customerPaymentState(order),
       trackingNumber: order.trackingNumber ?? null,
       createdAt: order.createdAt,
       items: order.items.map((i) => ({

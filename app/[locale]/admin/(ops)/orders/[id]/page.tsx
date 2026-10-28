@@ -7,6 +7,11 @@ import { DetailCard } from "@/components/admin/ui/detail";
 import { EditorHeader } from "@/components/admin/ui/form-shell";
 import { StatusBadge } from "@/components/admin/ui/status-badge";
 import {
+  PaymentAttemptsCard,
+  type AttemptRow,
+} from "@/components/admin/payments/payment-attempts-card";
+import { attemptsForSubject } from "@/lib/repositories/payment-attempts.repo";
+import {
   Table,
   TableBody,
   TableCell,
@@ -18,6 +23,7 @@ import {
 /** How the order is paid, in plain words for the admin summary. */
 const PAYMENT_METHOD_LABEL: Record<string, string> = {
   offline: "Offline (bank transfer / arranged)",
+  online: "Online (PayStation)",
   cod: "Cash on delivery",
   credit: "Credit account",
 };
@@ -52,6 +58,8 @@ type PlainOrder = {
   shippingMinor: number;
   discountMinor: number;
   taxMinor: number;
+  /** Absent on orders placed before rounding (2026-10-28). */
+  roundingMinor?: number;
   /** VAT rate actually charged, in basis points (null = none). */
   taxRateBp?: number | null;
   totalMinor: number;
@@ -128,6 +136,38 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
 
   if (!order) notFound();
   const o = order;
+
+  // Every try at the gateway, paid at checkout or later from the account.
+  const attempts = (
+    await Promise.all([
+      attemptsForSubject("order", id).catch(() => []),
+      attemptsForSubject("order_due", id).catch(() => []),
+    ])
+  )
+    .flat()
+    .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
+  const attemptRows: AttemptRow[] = attempts.map((a) => ({
+    id: String(a._id),
+    invoiceNumber: a.invoiceNumber,
+    createdAt: new Date(a.createdAt).toISOString(),
+    amountMinor: a.paidMinor ?? a.amountMinor,
+    status: a.status,
+    issue: a.issue ?? null,
+    mode: a.mode,
+    method: a.method ?? null,
+    trxId: a.trxId ?? null,
+    payerMobile: a.payerMobile ?? null,
+    feeMinor: a.feeMinor ?? null,
+    refundReference: a.refund?.reference ?? null,
+  }));
+  const awaitingOnline =
+    o.status === "pending" &&
+    o.payment?.method === "online" &&
+    o.payment?.status !== "paid";
+  const canRecheck =
+    awaitingOnline ||
+    attempts.some((a) => a.status === "open" || a.status === "abandoned");
+  const paidOnline = attempts.some((a) => a.status === "paid");
 
   return (
     <div className="space-y-4">
@@ -257,12 +297,29 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
               value={formatBDT(o.taxMinor)}
             />
           ) : null}
+          {(o.roundingMinor ?? 0) !== 0 ? (
+            <TotalRow
+              label="Rounding"
+              value={`− ${formatBDT(-(o.roundingMinor ?? 0))}`}
+            />
+          ) : null}
           <div className="text-foreground flex justify-between border-t pt-2 text-sm font-bold">
             <span>Total</span>
             <span className="tabular-nums">{formatBDT(o.totalMinor)}</span>
           </div>
         </div>
       </DetailCard>
+
+      {o.payment?.method === "online" || attemptRows.length > 0 ? (
+        <PaymentAttemptsCard
+          rows={attemptRows}
+          recheckUrl={
+            canRecheck
+              ? `/api/admin/orders/${String(o._id)}/payments/recheck`
+              : null
+          }
+        />
+      ) : null}
 
       {o.refundRequest ? (
         <DetailCard
@@ -320,6 +377,7 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
         status={o.status}
         paymentMethod={o.payment?.method ?? "offline"}
         paymentStatus={o.payment?.status ?? "unpaid"}
+        paidOnline={paidOnline}
       />
     </div>
   );

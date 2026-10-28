@@ -1,90 +1,122 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
 import type {
-  InitiateContext,
+  CheckResult,
   PaymentProvider,
-  RefundResult,
-  WebhookEvent,
+  StartInput,
+  StartResult,
 } from "./types";
-import type { IOrder } from "@/lib/models/order";
+import { connectToDatabase } from "@/lib/db/connect";
+import { DevPayment } from "@/lib/models/dev-payment";
+import { makeId } from "@/lib/ids";
 
 /**
- * A sandbox gateway that exercises the real redirect-and-webhook loop without
- * an acquirer.
+ * A sandbox gateway that behaves the way PayStation does, without the network.
  *
- * It exists so the online payment path can be built and tested before any
- * merchant account arrives: it redirects to a local page that plays the part
- * of the gateway, and that page posts back a signed callback exactly as a real
- * one would. The signature check here is the same check a real provider does,
- * so wiring a real gateway later replaces this file and nothing else.
+ * `start` records the invoice and points the customer at a local page that
+ * plays PayStation's checkout; that page marks it paid (or not), sends an
+ * unsigned success-only notification to our webhook, and sends the browser
+ * back with `?status=Successful|Failed|Canceled&invoice_number=…&trx_id=…`.
+ * `check` reads the ledger the way PayStation's status lookup does, and
+ * reports a decline or a cancel as still "pending" — exactly what the real
+ * sandbox did on 2026-10-28. So everything proven here is the PayStation path.
  *
  * It refuses to run in production (see lib/payments/index.ts).
  */
-
-/** Signing key for sandbox callbacks. Never used in production. */
-function secret(): string {
-  return process.env.DEV_PAYMENT_SECRET?.trim() || "spiber-sandbox-key";
-}
-
-export function signSandboxPayload(body: string): string {
-  return createHmac("sha256", secret()).update(body).digest("hex");
-}
-
-/** Constant-time compare, so the sandbox teaches the right habit too. */
-function signatureMatches(body: string, given: string): boolean {
-  const expected = signSandboxPayload(body);
-  const a = Buffer.from(expected);
-  const b = Buffer.from(given);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
-
 export const devProvider: PaymentProvider = {
   name: "dev",
   online: true,
+  mode: "dev",
 
-  async initiate(order: IOrder, ctx: InitiateContext) {
-    const params = new URLSearchParams({
-      order: order.orderNumber,
-      amount: String(order.totalMinor),
-      returnUrl: ctx.returnUrl,
-      cancelUrl: ctx.cancelUrl,
-    });
+  async start(input: StartInput): Promise<StartResult> {
+    await connectToDatabase();
+    try {
+      await DevPayment.create({
+        invoiceNumber: input.invoiceNumber,
+        amountMinor: input.amountMinor,
+        callbackUrl: input.callbackUrl,
+        reference: input.reference,
+      });
+    } catch (e) {
+      if ((e as { code?: number }).code === 11000) {
+        return { ok: false, reason: "duplicate_invoice" };
+      }
+      throw e;
+    }
     return {
-      redirectUrl: `/payments/sandbox?${params.toString()}`,
-      reference: `DEV-${order.orderNumber}`,
+      ok: true,
+      paymentUrl: `/payments/sandbox?invoice=${encodeURIComponent(input.invoiceNumber)}`,
     };
   },
 
-  async verifyWebhook(req: Request): Promise<WebhookEvent | null> {
-    const body = await req.text();
-    const given = req.headers.get("x-sandbox-signature") ?? "";
-    if (!given || !signatureMatches(body, given)) return null;
+  async check(invoiceNumber: string): Promise<CheckResult> {
+    await connectToDatabase();
+    const p = await DevPayment.findOne({ invoiceNumber }).lean().exec();
+    if (!p) return { state: "unknown", amountMinor: null, raw: null };
+    return {
+      state: p.state === "paid" ? "paid" : "pending",
+      amountMinor:
+        p.state === "paid" ? (p.paidMinor ?? p.amountMinor) : p.amountMinor,
+      trxId: p.trxId ?? undefined,
+      method: p.state === "paid" ? "DEV" : undefined,
+      raw: { invoiceNumber, state: p.state },
+    };
+  },
 
-    let parsed: unknown;
+  async readNotification(req: Request): Promise<string | null> {
     try {
-      parsed = JSON.parse(body);
+      const body = (await req.json()) as Record<string, unknown>;
+      const inv = body?.invoice_number;
+      return typeof inv === "string" && inv.trim() ? inv.trim() : null;
     } catch {
       return null;
     }
-    const p = parsed as Partial<Record<string, unknown>>;
-    const orderNumber = typeof p.orderNumber === "string" ? p.orderNumber : "";
-    const eventId = typeof p.eventId === "string" ? p.eventId : "";
-    const amountMinor = typeof p.amountMinor === "number" ? p.amountMinor : NaN;
-    const outcome = p.outcome === "paid" ? "paid" : "failed";
-    if (!orderNumber || !eventId || !Number.isFinite(amountMinor)) return null;
-
-    return {
-      eventId,
-      orderNumber,
-      outcome,
-      amountMinor,
-      txnId: typeof p.txnId === "string" ? p.txnId : undefined,
-      raw: parsed,
-    };
-  },
-
-  async refund(): Promise<RefundResult> {
-    // A real gateway calls its refund API here. The sandbox always succeeds so
-    // the surrounding bookkeeping can be tested.
-    return { ok: true, reference: `DEV-REFUND-${Date.now()}` };
   },
 };
+
+/**
+ * Settle a sandbox invoice the way a customer at PayStation would. Returns the
+ * URL the browser is sent back to. Used by the sandbox page and by tests.
+ */
+export async function completeDevPayment(
+  invoiceNumber: string,
+  outcome: "paid" | "failed" | "cancelled",
+  opts: { paidMinor?: number } = {},
+): Promise<{ callbackUrl: string; trxId: string | null } | null> {
+  await connectToDatabase();
+  const p = await DevPayment.findOne({ invoiceNumber }).exec();
+  if (!p) return null;
+  let trxId: string | null = null;
+  if (outcome === "paid" && p.state !== "paid") {
+    trxId = makeId("DEVTRX");
+    p.state = "paid";
+    p.trxId = trxId;
+    p.paidMinor = opts.paidMinor ?? p.amountMinor;
+    await p.save();
+  }
+  const status =
+    outcome === "paid"
+      ? "Successful"
+      : outcome === "failed"
+        ? "Failed"
+        : "Canceled";
+  const q = new URLSearchParams({
+    status,
+    invoice_number: invoiceNumber,
+    trx_id: trxId ?? p.trxId ?? "",
+  });
+  return { callbackUrl: `${p.callbackUrl}?${q.toString()}`, trxId };
+}
+
+/** What the sandbox page shows. */
+export async function devPaymentView(invoiceNumber: string) {
+  await connectToDatabase();
+  const p = await DevPayment.findOne({ invoiceNumber }).lean().exec();
+  return p
+    ? {
+        invoiceNumber: p.invoiceNumber,
+        amountMinor: p.amountMinor,
+        state: p.state,
+        reference: p.reference ?? null,
+        callbackUrl: p.callbackUrl,
+      }
+    : null;
+}

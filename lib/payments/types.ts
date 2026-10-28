@@ -1,64 +1,94 @@
-import type { IOrder } from "@/lib/models/order";
 import type { PaymentProviderName } from "@/lib/schemas/order";
 
-/** Where to send the customer to pay, and how the gateway refers to the attempt. */
-export type InitiateResult = {
-  redirectUrl: string;
-  /** The gateway's reference for this attempt, stored on the order as txnId. */
-  reference?: string;
-} | null;
-
-/** Where the gateway should send the customer back to. */
-export type InitiateContext = {
-  /** Paid or not, the customer lands here and we show them the real status. */
-  returnUrl: string;
-  /** Used when the customer abandons the gateway's own page. */
-  cancelUrl: string;
+/** Who is paying, as the gateway's checkout page needs them. */
+export type PaymentCustomer = {
+  name: string;
+  phone: string;
+  email: string;
+  address?: string;
 };
+
+/** Hand one attempt to the gateway. */
+export type StartInput = {
+  /** Unique per try; the gateway refuses a reused one. */
+  invoiceNumber: string;
+  /** Whole taka, in poisha. */
+  amountMinor: number;
+  customer: PaymentCustomer;
+  /** Our own reference (order number…), shown in the gateway's panel. */
+  reference: string;
+  /** A line describing what is being paid for. */
+  description: string;
+  /**
+   * Where the gateway sends the customer back, paid or not. Must carry no
+   * query string: PayStation appends its own with a `?`.
+   */
+  callbackUrl: string;
+  /** Offer instalments (PayStation: from ৳5,000). */
+  emi?: boolean;
+};
+
+export type StartResult =
+  | { ok: true; paymentUrl: string; raw?: unknown }
+  | {
+      ok: false;
+      reason:
+        | "duplicate_invoice"
+        | "bad_credentials"
+        | "refused"
+        | "unreachable";
+      detail?: string;
+    };
 
 /**
- * One verified callback from a gateway, normalized.
+ * What the gateway says about one invoice.
  *
- * `eventId` and `amountMinor` are what make the webhook safe: the first is
- * unique per delivery so a replay can be rejected, and the second is checked
- * against the order so a tampered callback cannot settle a large order with a
- * small payment.
+ *  pending  created and not paid — PayStation reports a cancelled or a
+ *           declined checkout this way too, so it never means "failed"
+ *  paid     the money was taken
+ *  failed   the gateway itself says it failed
+ *  refunded the gateway refunded it
+ *  unknown  it has never heard of the invoice
  */
-export type WebhookEvent = {
-  eventId: string;
-  /** Our order number, as it was handed to the gateway. */
-  orderNumber: string;
-  outcome: "paid" | "failed";
-  /** What the gateway says it actually took, in poisha. */
-  amountMinor: number;
-  txnId?: string;
-  raw?: unknown;
-};
+export type PaymentState =
+  | "pending"
+  | "paid"
+  | "failed"
+  | "refunded"
+  | "unknown";
 
-/** A refund attempt against the gateway. */
-export type RefundResult =
-  | { ok: true; reference?: string }
-  | { ok: false; reason: string };
+export type CheckResult = {
+  state: PaymentState;
+  /** What the gateway took (paid) or was asked for, in poisha; null if absent. */
+  amountMinor: number | null;
+  trxId?: string;
+  method?: string;
+  payerMobile?: string;
+  paidAt?: Date;
+  raw: unknown;
+};
 
 /**
  * Pluggable payment provider.
  *
  * `manual` is the offline arrangement: it takes no money and an admin marks
- * the order paid. An online gateway implements `initiate` (hand the customer
- * over), `verifyWebhook` (confirm server-side, never trusting the browser) and
- * ideally `refund`.
+ * things paid. An online gateway starts a payment and answers status
+ * questions. Nothing a gateway sends us is ever trusted on its own: a callback
+ * only names an invoice, and the state is always asked of the gateway again
+ * (`check`) over our own connection to it.
  */
 export interface PaymentProvider {
   name: PaymentProviderName;
-  /** True when this provider actually collects money during checkout. */
+  /** True when this provider actually collects money online. */
   online: boolean;
-  initiate(order: IOrder, ctx: InitiateContext): Promise<InitiateResult>;
+  /** live | sandbox | dev — recorded on every attempt. */
+  mode: "live" | "sandbox" | "dev" | "offline";
+  start?(input: StartInput): Promise<StartResult>;
+  /** Throws when the gateway cannot be reached, so callers can retry. */
+  check?(invoiceNumber: string): Promise<CheckResult>;
   /**
-   * Verify a callback and normalize it. MUST return null for anything that
-   * fails signature verification, so an unauthenticated POST can never settle
-   * an order.
+   * Read which invoice a server-to-server notification is about. Returns null
+   * for anything unreadable. Never trusted for state or amount.
    */
-  verifyWebhook?(req: Request): Promise<WebhookEvent | null>;
-  /** Return money for an already-paid order. Amount is in poisha. */
-  refund?(order: IOrder, amountMinor: number): Promise<RefundResult>;
+  readNotification?(req: Request): Promise<string | null>;
 }

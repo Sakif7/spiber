@@ -2,39 +2,41 @@
 
 import { useState } from "react";
 
+type Outcome = "paid" | "failed" | "cancelled";
+
 /**
- * The sandbox gateway's payment page. It plays the part of the acquirer's
- * hosted page so the whole online-payment loop can be walked through before a
- * merchant account exists: pay, fail, or walk away, and see what each does to
- * the order.
+ * The sandbox gateway's payment page. It plays PayStation's hosted checkout so
+ * the whole online-payment loop can be walked through without a merchant
+ * account: pay, decline, or cancel, and land back on the order exactly as a
+ * PayStation customer would.
  */
 export function SandboxGateway({
-  orderNumber,
-  amountMinor,
+  invoiceNumber,
+  reference,
   amountLabel,
-  returnUrl,
-  cancelUrl,
+  alreadyPaid,
 }: {
-  orderNumber: string;
-  amountMinor: number;
+  invoiceNumber: string;
+  reference: string | null;
   amountLabel: string;
-  returnUrl: string;
-  cancelUrl: string;
+  alreadyPaid: boolean;
 }) {
-  const [busy, setBusy] = useState<"paid" | "failed" | null>(null);
+  const [busy, setBusy] = useState<Outcome | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function settle(outcome: "paid" | "failed") {
+  async function settle(outcome: Outcome) {
     setBusy(outcome);
     setError(null);
     try {
       const res = await fetch("/api/payments/sandbox/complete", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ orderNumber, amountMinor, outcome }),
+        body: JSON.stringify({ invoiceNumber, outcome }),
       });
-      if (!res.ok) throw new Error(`sandbox returned ${res.status}`);
-      window.location.assign(returnUrl);
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.ok)
+        throw new Error(`sandbox returned ${res.status}`);
+      window.location.assign(json.data.callbackUrl);
     } catch (e) {
       setBusy(null);
       setError(e instanceof Error ? e.message : "Could not reach the sandbox.");
@@ -51,21 +53,33 @@ export function SandboxGateway({
           Confirm payment
         </h1>
         <p className="text-[13px] text-[var(--color-text-muted)]">
-          No money moves here. This stands in for the real gateway so the
+          No money moves here. This stands in for PayStation&apos;s page so the
           payment flow can be tested end to end.
         </p>
       </div>
 
       <dl className="grid gap-2 rounded-lg bg-[var(--color-surface-2)] p-4 text-[13px]">
         <div className="flex justify-between gap-4">
-          <dt className="text-[var(--color-text-muted)]">Order</dt>
-          <dd className="font-mono">{orderNumber}</dd>
+          <dt className="text-[var(--color-text-muted)]">Invoice</dt>
+          <dd className="font-mono">{invoiceNumber}</dd>
         </div>
+        {reference ? (
+          <div className="flex justify-between gap-4">
+            <dt className="text-[var(--color-text-muted)]">Order</dt>
+            <dd className="font-mono">{reference}</dd>
+          </div>
+        ) : null}
         <div className="flex justify-between gap-4">
           <dt className="text-[var(--color-text-muted)]">Amount</dt>
           <dd className="font-semibold tabular-nums">{amountLabel}</dd>
         </div>
       </dl>
+
+      {alreadyPaid ? (
+        <p className="text-[13px] text-[var(--color-text-muted)]">
+          This invoice is already paid.
+        </p>
+      ) : null}
 
       {error && (
         <p role="alert" className="text-[13px] text-[var(--color-danger)]">
@@ -90,17 +104,20 @@ export function SandboxGateway({
         >
           {busy === "failed" ? "Declining…" : "Simulate a declined card"}
         </button>
-        <a
-          href={cancelUrl}
+        <button
+          type="button"
+          onClick={() => settle("cancelled")}
+          disabled={busy !== null}
           className="px-4 py-2 text-center text-[13px] text-[var(--color-text-muted)] underline"
         >
-          Abandon the payment
-        </a>
+          Cancel and go back
+        </button>
       </div>
 
       <p className="text-[12px] leading-relaxed text-[var(--color-text-muted)]">
-        Abandoning leaves the order awaiting payment. Its reserved stock is
-        released automatically once the hold expires.
+        Declining or cancelling leaves the order waiting for its money, with a
+        &ldquo;Pay again&rdquo; button while its stock is held. The hold
+        releases the stock automatically when it runs out.
       </p>
     </div>
   );

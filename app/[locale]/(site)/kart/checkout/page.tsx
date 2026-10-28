@@ -52,7 +52,7 @@ export default async function MarketplaceCheckoutPage({
         <Container>
           <CheckoutForm
             initial={initial}
-            onlineAvailable={onlinePaymentAvailable()}
+            onlineAvailable={await onlinePaymentAvailable("marketplace")}
           />
         </Container>
       </section>

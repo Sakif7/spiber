@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { setRequestLocale } from "next-intl/server";
 import { SandboxGateway } from "@/components/shop/sandbox-gateway";
+import { devPaymentView } from "@/lib/payments/dev.provider";
 import { formatBDT } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
@@ -9,9 +10,8 @@ export const dynamic = "force-dynamic";
 export const metadata = { robots: { index: false, follow: false } };
 
 /**
- * The page the sandbox gateway redirects to. Exists only so the online payment
- * flow can be exercised without a merchant account; the real gateway hosts its
- * own equivalent.
+ * The page the sandbox gateway sends the customer to, playing PayStation's
+ * hosted checkout so the whole flow can be walked through offline.
  */
 export default async function SandboxPaymentPage({
   params,
@@ -25,24 +25,18 @@ export default async function SandboxPaymentPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const q = await searchParams;
-
-  const str = (v: string | string[] | undefined) =>
-    typeof v === "string" ? v : "";
-  const orderNumber = str(q.order);
-  const amountMinor = Number(str(q.amount));
-  const returnUrl = str(q.returnUrl) || `/${locale}`;
-  const cancelUrl = str(q.cancelUrl) || returnUrl;
-
-  if (!orderNumber || !Number.isFinite(amountMinor)) notFound();
+  const invoice = typeof q.invoice === "string" ? q.invoice : "";
+  if (!invoice) notFound();
+  const payment = await devPaymentView(invoice).catch(() => null);
+  if (!payment) notFound();
 
   return (
     <div className="flex min-h-[70vh] items-center justify-center px-4 py-16">
       <SandboxGateway
-        orderNumber={orderNumber}
-        amountMinor={amountMinor}
-        amountLabel={formatBDT(amountMinor)}
-        returnUrl={returnUrl}
-        cancelUrl={cancelUrl}
+        invoiceNumber={payment.invoiceNumber}
+        reference={payment.reference}
+        amountLabel={formatBDT(payment.amountMinor)}
+        alreadyPaid={payment.state === "paid"}
       />
     </div>
   );

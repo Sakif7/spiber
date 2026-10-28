@@ -20,16 +20,26 @@ export async function POST(
     note: parsed.data.note,
     internalNote: parsed.data.internalNote,
     trackingNumber: parsed.data.trackingNumber,
+    refundReference: parsed.data.refundReference,
+    actorId: admin.sub,
   });
   if (!result.ok) {
     return fail({ code: result.code }, result.code === "not_found" ? 404 : 409);
   }
-  await writeAudit({
-    actorId: admin.sub,
-    action: `order.${parsed.data.to}`,
-    entityType: "Order",
-    entityId: id,
-    after: { to: parsed.data.to },
-  });
+  await writeAudit(
+    {
+      actorId: admin.sub,
+      action: `order.${parsed.data.to}`,
+      entityType: "Order",
+      entityId: id,
+      after: {
+        to: parsed.data.to,
+        ...(parsed.data.refundReference
+          ? { refundReference: parsed.data.refundReference }
+          : {}),
+      },
+    },
+    req,
+  );
   return ok({ status: parsed.data.to });
 }
