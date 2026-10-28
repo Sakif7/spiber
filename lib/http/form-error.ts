@@ -45,6 +45,8 @@ const KEY_LABELS: Record<string, string> = {
   fileKey: "File",
   deliveryType: "Delivery type",
   pricingModel: "Pricing model",
+  publisherId: "Publisher ID",
+  inArticleSlot: "Ad unit ID",
 };
 
 const CODE_MESSAGES: Record<string, string> = {

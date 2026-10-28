@@ -5,9 +5,12 @@ import { AdminPageHeader } from "@/components/admin/ui/page-header";
 /**
  * People — employees, visits, expenses, payroll, payouts — is super-admin
  * only: it is every director's pay. The APIs behind it already refuse anyone
- * else; this keeps the pages themselves from rendering the data for an admin
- * who opens a URL the sidebar never showed them. Re-validated against the
- * database, like the APIs, so a demoted account cannot ride a live token.
+ * else; this shows the refusal to an admin who opens a URL the sidebar never
+ * showed them. It cannot keep the data out on its own: Next renders each page
+ * alongside this layout and ships the page's payload even when `children` is
+ * withheld, so every page checks again before it loads anything.
+ * Re-validated against the database, like the APIs, so a demoted account
+ * cannot ride a live token.
  */
 export default async function PeopleLayout({
   children,

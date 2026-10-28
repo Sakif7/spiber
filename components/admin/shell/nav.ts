@@ -55,6 +55,7 @@ import {
   type LucideIcon,
   ChartNoAxesCombined,
   PenLine,
+  Megaphone,
 } from "lucide-react";
 import { routing } from "@/i18n/routing";
 
@@ -364,6 +365,7 @@ export const OPERATIONS_NAV_GROUPS: NavGroup[] = [
         Tags,
         "Blog taxonomy",
       ),
+      superItem("blog.ads", "/admin/blog/ads", "Ads", Megaphone, "Blog ads"),
     ],
   },
   {

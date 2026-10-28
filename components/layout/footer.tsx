@@ -12,7 +12,7 @@ const LEGAL_HREFS = [
   "/guide",
   "/privacy",
   "/terms",
-  "/privacy",
+  "/privacy#cookies",
   "/sitemap.xml",
 ];
 
@@ -311,8 +311,9 @@ export function Footer() {
           <div style={{ display: "flex", gap: 24 }}>
             {(t.raw("legal") as string[]).map((label, i) => {
               // Positional, matching the `footer.legal` array in every locale:
-              // guide, privacy, terms, cookies (part of the privacy policy),
-              // sitemap. The sitemap is a generated file, not an app route.
+              // guide, privacy, terms, cookies (the privacy policy's cookie
+              // section), sitemap. The sitemap is a generated file, not an app
+              // route.
               const href = LEGAL_HREFS[i] ?? "/privacy";
               return href === "/sitemap.xml" ? (
                 <a key={i} href={href}>

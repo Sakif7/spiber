@@ -1404,6 +1404,28 @@ select.contact-field {
   border-top: 1px solid var(--color-border);
   margin: 2em 0;
 }
+/* In-article ad slot (lib/ads/adsense.ts). Its height is held from the first
+   paint so the text below never jumps when the ad arrives; a slot Google
+   could not fill gives the space back. */
+.blog-prose .ad-slot {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  min-height: 280px;
+  margin: 2em 0;
+}
+/* --color-text, not -muted: muted measures 4.1:1 on the page, short of AA
+   at 12px. */
+.blog-prose .ad-slot-label {
+  font-size: var(--fs-caption);
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text);
+}
+.blog-prose .ad-slot:has(ins[data-ad-status="unfilled"]) {
+  display: none;
+}
 
 /* ── Spiber Tourism hub — explicit, responsive grids (match the mockup) ── */
 /* Service narrative — alternating prose + photo blocks */

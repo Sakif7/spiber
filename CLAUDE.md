@@ -323,6 +323,12 @@ These are the things the owner has had to repeat. Treat them as hard rules.
   one source for the Zod `password` and the forms' live checklist. The
   navbar's way into a person's own surface is `workspaceFor()` in
   `use-session.ts` (admin → /admin, employee → /admin/me, seller → /seller).
+- **Ads: Google AdSense in blog posts only** — two in-article slots after the
+  3rd and 6th paragraph with content (`lib/ads/adsense.ts`, written into the
+  sanitized HTML so the space is in the first paint). Super-admin setting at
+  Blog › Ads (`adsense`); the publisher ID alone serves `/ads.txt`. Never on
+  shops, checkout or accounts; the label may only read "Advertisements" (or
+  "Sponsored links"). Auto ads stay off in AdSense. Log 2026-10-27.
 - **Seed data: none in prod.** Empty catalogues show "Coming soon".
 
 ## Stack
@@ -391,10 +397,11 @@ tests`, `npm test`, and the browser pass above. Then `git status`.
 
 **Dev loop**
 
-- **Turbopack serves a stale `globals.css`** after an edit (8 times in the
+- **Turbopack serves a stale `globals.css`** after an edit (9 times in the
   log). Confirm the new rule/token is actually in `document.styleSheets` /
   `getComputedStyle(document.documentElement)` before believing any
-  measurement; touch the file again or `rm -rf .next` to force it.
+  measurement; edit the file's content again (a bare `touch` did not do it)
+  or `rm -rf .next` to force it.
 - **Restart the dev server after any Mongoose schema edit** — the model
   registry is cached per process and the stale schema silently strips new
   fields on save.
@@ -404,7 +411,9 @@ tests`, `npm test`, and the browser pass above. Then `git status`.
   next `next dev` boots on the remains and every nested route answers a
   bare 404. Kill node, wait, confirm the directory is gone, then start —
   and probe a deep route before testing (`/api/admin/company/sales/orders/x/documents/x/1`
-  must answer 401, not an HTML 404); once it took a second clean restart.
+  must answer 401, not an HTML 404). A force-killed server alone can leave
+  that state, and the first start on a fresh `.next` can too: a second
+  start, without deleting again, fixed it (2026-10-27).
 - The first `next dev` after `rm -rf .next` can 500 every page on
   `next/font/google queries have exactly one entry` (Noto Sans JP, Turbopack).
   Stop it and start again — the second clean start served normally.
@@ -465,6 +474,12 @@ tests`, `npm test`, and the browser pass above. Then `git status`.
   their own layout calling `requireSuperAdmin` (`company/people/layout.tsx`,
   `company/sales/layout.tsx`); until 2026-10-26 a plain admin who typed the
   URL saw every director's pay and the sales report.
+- **Nor is a layout that withholds `children`.** Next renders the page
+  alongside its layout and ships the page's RSC payload anyway: behind the
+  Sales refusal card a plain admin still received client names and cost
+  figures (fixed 2026-10-27). Every page under a super-admin layout calls
+  `requireSuperAdmin()` itself before loading anything;
+  `tests/super-admin-pages.test.ts` fails a page that does not.
 - `templateRef` absent or `version: 0` on a document version means the built-in
   layout — never backfill it; `getTemplateForRender` is the one choke point.
 - A `bullets` block prints every item; `hideEmptyItems` is opt-in because

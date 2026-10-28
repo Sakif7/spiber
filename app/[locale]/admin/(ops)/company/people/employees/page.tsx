@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { setRequestLocale } from "next-intl/server";
+import { requireSuperAdmin } from "@/lib/auth/guard";
 import {
   getSharePool,
   holdingForMonth,
@@ -49,6 +50,9 @@ export default async function EmployeesPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
+  // Here too, not only in the layout: Next ships a page's payload even when
+  // its layout shows the refusal instead.
+  if (!(await requireSuperAdmin())) return null;
 
   const month = monthOf(new Date());
   const [employees, pool, schedules] = await Promise.all([

@@ -574,7 +574,125 @@
     "privacy": {
       "title": "Privacy Policy",
       "description": "How Spiber Med collects, uses, and protects your information.",
-      "body": "This policy explains what data we collect and how we use it. A full policy will be published here. For any privacy questions, please contact us."
+      "body": "This policy explains what personal information Spiber Med Limited collects through spibermed.com and its divisions (Medtrade, Spiber Kart, Digihealth, MedAcademy, Health Corner and Tourism), why we collect it, who we share it with, and the choices you have.",
+      "updated": "Last updated: 27 October 2026",
+      "sections": [
+        {
+          "id": "what-we-collect",
+          "heading": "What we collect",
+          "paragraphs": [
+            "We collect what you give us when you use the site, and a little technical information."
+          ],
+          "items": [
+            "Account: your name, email address and language and, if you add them, your phone number and delivery address.",
+            "Orders and quotes: your contact details, delivery address, the products you order or ask a price for, and how you chose to pay. We never receive card numbers.",
+            "Medical travel: the patient's name, country and contact details, the diagnosis, the medical reports you upload, and your appointment and travel requests. This is health information, so we ask for your explicit consent before you send reports.",
+            "Courses: your enrolments, lesson progress, quiz results and certificates.",
+            "Sellers, partners and credit customers: business and contact details, bank details, and documents such as a trade licence, National ID or TIN certificate.",
+            "Job applications: your CV, cover letter and contact details.",
+            "Messages: what you write in the contact form or the chat (with the name, email and phone you give), your newsletter sign-up, and reviews you post. Your name is shown with a review once it is approved.",
+            "Technical information: the IP address and browser type sent with contact messages, job applications and chats."
+          ]
+        },
+        {
+          "id": "how-we-use",
+          "heading": "How we use it",
+          "paragraphs": [
+            "We use your information only for these purposes, and we never sell it:"
+          ],
+          "items": [
+            "To provide what you asked for: orders, quotes, appointments, travel arrangements, courses and applications.",
+            "To contact you about your request, order or account.",
+            "To keep accounts secure and stop abuse of our forms.",
+            "To keep the business and tax records the law requires.",
+            "To show advertising on blog articles, as described under Cookies and advertising."
+          ]
+        },
+        {
+          "id": "sharing",
+          "heading": "Who we share it with",
+          "items": [
+            "Our staff, only where their work needs it. Medical reports can be opened only by authorised staff, and every view is logged.",
+            "The hospitals, doctors and travel partners we arrange care or travel with, only for your request.",
+            "Partners whose products you ask about, so they can answer you.",
+            "Sellers on Spiber Kart, who see the items you ordered from them but not your contact details.",
+            "Service providers that run parts of the site for us, such as email delivery, and Google for advertising and the map on our contact page.",
+            "Authorities, where the law requires it."
+          ]
+        },
+        {
+          "id": "cookies",
+          "heading": "Cookies and advertising",
+          "paragraphs": [
+            "The site uses a few cookies it needs to work: access_token and refresh_token keep you signed in (for 15 minutes and 30 days), guest_id remembers a guest's cart and quote list on Medtrade and Spiber Kart (for 180 days), and NEXT_LOCALE remembers your language. Your browser also keeps your chat history and recently viewed products on your device. We do not use analytics or tracking pixels.",
+            "Blog articles may show ads served by Google AdSense. Third-party vendors, including Google, use cookies to serve ads based on your prior visits to this website or other websites. Google's use of advertising cookies enables it and its partners to serve ads to you based on your visits to this site and/or other sites on the internet. Shop, checkout and account pages never show ads.",
+            "You can opt out of personalised advertising in Google's Ads Settings, and opt out of other vendors' cookies for personalised advertising at aboutads.info. The map on our contact page is provided by Google Maps, which may set its own cookies."
+          ],
+          "links": [
+            {
+              "label": "Google Ads Settings",
+              "href": "https://adssettings.google.com"
+            },
+            {
+              "label": "How Google uses information from sites that use its services",
+              "href": "https://policies.google.com/technologies/partner-sites"
+            },
+            {
+              "label": "Opt out of personalised ads from other vendors (aboutads.info)",
+              "href": "https://www.aboutads.info/choices"
+            }
+          ]
+        },
+        {
+          "id": "security",
+          "heading": "How we protect it",
+          "paragraphs": [
+            "Passwords are stored only as one-way hashes, and the cookies that keep you signed in cannot be read by scripts on the page. Uploaded documents are kept out of public view, and only authorised staff can open them. No system is completely secure, so please tell us at once if you think your account has been misused."
+          ]
+        },
+        {
+          "id": "retention",
+          "heading": "How long we keep it",
+          "paragraphs": [
+            "We keep your account and order records while your account is open, and afterwards for as long as tax and accounting law requires. Applications, messages and uploaded documents are kept until you ask us to delete them, unless the law requires us to keep them."
+          ]
+        },
+        {
+          "id": "your-rights",
+          "heading": "Your choices",
+          "paragraphs": [
+            "You can ask for a copy of the personal information we hold about you, and ask us to correct or delete it. You can also withdraw a consent you gave, such as for your medical reports or the newsletter. Email us at info@spibermed.com and we will reply within 30 days. To close your account, email us too."
+          ]
+        },
+        {
+          "id": "international",
+          "heading": "Across borders",
+          "paragraphs": [
+            "We are a company in Bangladesh, and our servers may be in another country. If you use our services from abroad, or we arrange care or travel abroad for you, your information crosses borders: we process it, and for that purpose only, so does the hospital or partner involved."
+          ]
+        },
+        {
+          "id": "children",
+          "heading": "Children",
+          "paragraphs": [
+            "Our services are meant for adults. A parent or guardian should use the site for anyone under 18, including when arranging a child's care."
+          ]
+        },
+        {
+          "id": "changes",
+          "heading": "Changes to this policy",
+          "paragraphs": [
+            "When we change this policy, we will publish the new version here with a new date."
+          ]
+        },
+        {
+          "id": "contact",
+          "heading": "Contact us",
+          "paragraphs": [
+            "Spiber Med Limited, Road-06, House-47, Level-01, Block-C, Banani, Dhaka-1213, Bangladesh. Email info@spibermed.com or call +880 1346 092798."
+          ]
+        }
+      ]
     },
     "terms": {
       "title": "Terms of Service",
@@ -2286,7 +2404,8 @@
     "category": "Category",
     "tag": "Tag",
     "inCategory": "In {name}",
-    "taggedWith": "Tagged {name}"
+    "taggedWith": "Tagged {name}",
+    "advertisements": "Advertisements"
   },
   "quotation": {
     "quantity": "Quantity",

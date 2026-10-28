@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { setRequestLocale } from "next-intl/server";
+import { requireSuperAdmin } from "@/lib/auth/guard";
 import { listEmployees } from "@/lib/services/hr/employee.service";
 import {
   currentCycle,
@@ -78,6 +79,9 @@ export default async function PayoutsPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
+  // Here too, not only in the layout: Next ships a page's payload even when
+  // its layout shows the refusal instead.
+  if (!(await requireSuperAdmin())) return null;
 
   const sp = await searchParams;
   const asked = typeof sp.schedule === "string" ? sp.schedule : null;

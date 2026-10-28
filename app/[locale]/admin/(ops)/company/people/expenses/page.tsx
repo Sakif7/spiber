@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { setRequestLocale } from "next-intl/server";
+import { requireSuperAdmin } from "@/lib/auth/guard";
 import { parseListQuery, type ListConfig } from "@/lib/admin/list-params";
 import {
   listExpenses,
@@ -62,6 +63,9 @@ export default async function ExpensesPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
+  // Here too, not only in the layout: Next ships a page's payload even when
+  // its layout shows the refusal instead.
+  if (!(await requireSuperAdmin())) return null;
   const query = parseListQuery(await searchParams, LIST);
 
   const [page, totals] = await Promise.all([

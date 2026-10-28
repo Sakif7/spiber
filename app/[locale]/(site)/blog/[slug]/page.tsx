@@ -7,8 +7,11 @@ import { CardGrid } from "@/components/ui/card-grid";
 import { JsonLd } from "@/components/ui/json-ld";
 import { Link } from "@/i18n/navigation";
 import { PostBody } from "@/components/blog/post-body";
+import { AdsenseLoader } from "@/components/blog/adsense-loader";
 import { ShareButtons } from "@/components/blog/share-buttons";
 import { PostCard } from "@/components/blog/post-card";
+import { getAdsenseSettings } from "@/lib/services/ads-settings.service";
+import { articleAds } from "@/lib/ads/adsense";
 import {
   getPublishedPostBySlug,
   listRelatedPosts,
@@ -77,13 +80,17 @@ export default async function BlogPostPage({
 
   await incrementViewCount(String(post._id)).catch(() => {});
 
-  const [author, tags, related] = await Promise.all([
+  const [author, tags, related, ads] = await Promise.all([
     findUserById(String(post.authorId)).catch(() => null),
     getBlogTagsByIds(post.tagIds as string[]).catch(() => []),
     listRelatedPosts(
       post.categoryId ? String(post.categoryId) : null,
       String(post._id),
     ).catch(() => []),
+    // A settings read that fails shows the post without ads, never an error.
+    getAdsenseSettings()
+      .then(articleAds)
+      .catch(() => null),
   ]);
 
   const title = localize(post.title, l);
@@ -185,7 +192,11 @@ export default async function BlogPostPage({
           </div>
         )}
 
-        <PostBody html={localize(post.body, l)} />
+        <PostBody
+          html={localize(post.body, l)}
+          ad={ads ? { ...ads, label: t("advertisements") } : undefined}
+        />
+        {ads && <AdsenseLoader key={slug} client={ads.client} />}
 
         {tags.length > 0 && (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>

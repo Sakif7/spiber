@@ -5,9 +5,11 @@ import { AdminPageHeader } from "@/components/admin/ui/page-header";
 /**
  * Sales — leads, orders, the report — is super-admin only: client pricing,
  * negotiation history and the company's revenue. The APIs behind it already
- * refuse anyone else; this keeps the pages themselves from rendering it for an
- * admin who opens a URL the sidebar never showed them. Re-validated against
- * the database, like the APIs.
+ * refuse anyone else; this shows the refusal to an admin who opens a URL the
+ * sidebar never showed them. It cannot keep the data out on its own: Next
+ * renders each page alongside this layout and ships the page's payload even
+ * when `children` is withheld, so every page checks again before it loads
+ * anything. Re-validated against the database, like the APIs.
  */
 export default async function SalesLayout({
   children,

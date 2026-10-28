@@ -1,7 +1,7 @@
 import { setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { salesReport, receivables } from "@/lib/repositories/sales-report.repo";
-import { requireAdmin } from "@/lib/auth/guard";
+import { requireSuperAdmin } from "@/lib/auth/guard";
 import { getAdminPrefsRaw } from "@/lib/repositories/users.repo";
 import { sanitizeSheetLayout } from "@/lib/admin/sales-sheet";
 import { AdminPageHeader } from "@/components/admin/ui/page-header";
@@ -43,6 +43,10 @@ export default async function SalesReportPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
+  // Here too, not only in the layout: Next ships a page's payload even when
+  // its layout shows the refusal instead.
+  const admin = await requireSuperAdmin();
+  if (!admin) return null;
   const sp = await searchParams;
 
   const now = new Date();
@@ -54,13 +58,10 @@ export default async function SalesReportPage({
   const to = typeof sp.to === "string" ? sp.to : options[0].to;
   const end = new Date(dhakaDay(to).getTime() + 86400000);
 
-  const admin = await requireAdmin();
   const [report, unpaid, prefs] = await Promise.all([
     salesReport({ start: dhakaDay(from), end }).catch(() => null),
     receivables(now).catch(() => []),
-    admin
-      ? getAdminPrefsRaw(admin.sub).catch(() => null)
-      : Promise.resolve(null),
+    getAdminPrefsRaw(admin.sub).catch(() => null),
   ]);
   // The arrangement this admin last chose for the spreadsheet, or the default.
   const sheetLayout = sanitizeSheetLayout(

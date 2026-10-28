@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { setRequestLocale } from "next-intl/server";
+import { requireSuperAdmin } from "@/lib/auth/guard";
 import { ArrowLeft, Plus } from "lucide-react";
 import {
   getSalesLeadById,
@@ -32,6 +33,9 @@ export default async function LeadDetailPage({
 }) {
   const { locale, id } = await params;
   setRequestLocale(locale);
+  // Here too, not only in the layout: Next ships a page's payload even when
+  // its layout shows the refusal instead.
+  if (!(await requireSuperAdmin())) return null;
 
   const lead = await getSalesLeadById(id);
   if (!lead) notFound();
